@@ -2,7 +2,7 @@
 
 LatticeArena 把格点规范理论里的研究问题，改造成**有固定测量流程、固定打分规则**的任务：AI（或人）只优化一个很窄的对象，其余全部由评测器控制。目标不是刷榜，而是看"能不能提出一个真正更好的方案"，并且诚实地报告"没做到"。
 
-当前只有一个任务：**`pion_projection`**（π 介子 sink 的设计）。仓库里包含一套可执行的 pilot：测量、缓存、参考拟合、基线搜索、冻结提交、留出打分、LLM 作答入口。
+当前有两个任务：**`pion_projection`**（π 介子 sink 的设计）和 **`wilson_loop`**（静态夸克势的空间 Wilson 线核）。仓库里包含可执行的 pilot：测量、缓存、参考拟合、基线选择、冻结提交、留出打分、LLM 作答入口。
 
 > **状态：pilot，没有官方分数。** 参考态门控没有通过，`score` 按设计为 `null`；已有结果是诊断性的。详见 [results/README.md](results/README.md)。
 
@@ -20,6 +20,7 @@ python -m tasks.pion_projection --help    # measure / develop / evaluate / plot 
 ```bash
 python -m tasks.pion_projection --output results/pion_projection/s16t16_v1 report
 python -m tasks.pion_projection --output results/pion_projection/s16t16_v1 agent --rounds 3
+python -m tasks.wilson_loop --help          # 第二个任务：静态势
 ```
 
 `agent` / `report` 需要一个大模型 API key，默认读 `~/Desktop/api.key`（也可以用环境变量 `LLM_API_KEY`），默认走 `https://api.deepseek.com/v1` 的 `deepseek-flash`。
@@ -54,10 +55,11 @@ score = 100 · (risk_baseline + 1e-12) / (risk_candidate + 1e-12)
 
 | 路径 | 作用 |
 | --- | --- |
-| `tasks/pion_projection/` | 任务本体：`measure.py`（可信测量）、`statistics.py`（参考/风险）、`experiment.py`（develop/evaluate）、`candidate.py`（交卷）、`kernels.py`（参考核）、`protocol.json`（唯一数值真源） |
+| `tasks/pion_projection/` | 任务一（π 介子 sink）：`measure.py`（可信测量）、`statistics.py`（参考/风险）、`experiment.py`（develop/evaluate）、`candidate.py`（交卷）、`kernels.py`（参考核）、`protocol.json`（唯一数值真源） |
+| `tasks/wilson_loop/` | 任务二（静态势）：Wilson 圈测量、APE 核、平台稳定性打分 |
 | `core/io.py` | 通用哈希与 JSON 工具，供所有任务复用 |
 | `agents/` | LLM 作答入口：`loop.py`（`agent` 子命令）、`report.py`（`report` 子命令）、`llm.py`（API 客户端） |
-| `tests/` | 7 个 GPU-free 测试（协变、线性、折叠、bootstrap、gate） |
+| `tests/` | 14 个 GPU-free 测试（两个任务：协变、线性、折叠、Wilson 圈暴力对照、bootstrap、gate） |
 | `doc/` | 任务科学定义、环境搭建、第一次实验结果、kunshan DCU 试跑报告 |
 | `results/` | 真实运行产物（默认被 git 忽略，只提交小件），见 [results/README.md](results/README.md) |
 | `Note.md` | 一份很详细的中文使用说明：架构、每个文件、远端部署、LLM 接入 |
@@ -96,6 +98,7 @@ python -m tasks.pion_projection --output run plot
 - 这是 **pilot**：参考态没有通过门控，所有 `score` 为 `null`；`agent_signed_mixture` 相对 Gaussian 的 1.63 倍（区间 [1.40, 2.19]）只是冻结度量下的诊断，不是 SOTA。
 - 16⁴、淬火、κ=0.14 的 π 是"重 π"，不能和物理质量比较。
 - 提交的核是**受信任的本地代码**，不是沙箱；不要直接跑不可信来源的模块。
+- 第二个任务（`wilson_loop`）的 pilot 结论是负面的：开发集上 APE 比不平滑好 4.5 倍，但留出集只有 6 个块，差异消失（score 95.7–102.7）。见 [tasks/wilson_loop/README.md](tasks/wilson_loop/README.md)。
 - 仓库里的 `tasks/pion_projection/protocol.json` 是 30/5/15 的原始协议；已提交的这次运行用的是 60/10/30（协议快照在 `results/pion_projection/s16t16_v1/protocol.json`），所以 `develop`/`evaluate` 不能直接在这份数据上重跑。
 
 ---

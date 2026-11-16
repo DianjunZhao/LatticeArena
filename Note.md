@@ -150,7 +150,7 @@ LatticeArena/
 │   └── report.py              report 子命令：前三名 + LLM 解读
 ├── tasks/
 │   ├── __init__.py            空文件，告诉 Python "tasks 是个包"
-│   └── pion_projection/
+│   ├── pion_projection/
 │       ├── README.md          这个任务的"考生须知"（命令、契约、限制）
 │       ├── __init__.py        空
 │       ├── __main__.py        命令行入口（5 个子命令）
@@ -162,8 +162,9 @@ LatticeArena/
 │       ├── candidate.py       通用交卷入口：导入你的模块、冻结、打分
 │       ├── plots.py           画 4 面板诊断图
 │       ├── protocol.json      所有数字的唯一真源
-│       └── submissions/
-│           └── local.json     一份"示例答卷"（恒等核），**代码其实不读它**
+│   │   └── submissions/
+│   │       └── local.json     一份"示例答卷"（恒等核），**代码其实不读它**
+│   └── wilson_loop/           第二个任务：静态势（Wilson 圈、APE 核、平台稳定性打分）
 ├── tests/
 │   └── test_pion_projection.py  7 个不需要 GPU 的单元测试
 └── results/                   跑出来的结果（被 .gitignore 忽略）
