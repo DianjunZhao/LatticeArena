@@ -57,6 +57,7 @@ score = 100 · (risk_baseline + 1e-12) / (risk_candidate + 1e-12)
 | --- | --- |
 | `tasks/pion_projection/` | 任务一（π 介子 sink）：`measure.py`（可信测量）、`statistics.py`（参考/风险）、`experiment.py`（develop/evaluate）、`candidate.py`（交卷）、`kernels.py`（参考核）、`protocol.json`（唯一数值真源） |
 | `tasks/wilson_loop/` | 任务二（静态势）：Wilson 圈测量、APE 核、平台稳定性打分 |
+| `tasks/optimize_gaussian/` | 学习型 smear 的骨架（smoke）：规范不变逐点系数、厄米条件、线性响应训练；结果仅用于验证流程 |
 | `core/io.py` | 通用哈希与 JSON 工具，供所有任务复用 |
 | `agents/` | LLM 作答入口：`loop.py`（`agent` 子命令）、`report.py`（`report` 子命令）、`llm.py`（API 客户端） |
 | `tests/` | 14 个 GPU-free 测试（两个任务：协变、线性、折叠、Wilson 圈暴力对照、bootstrap、gate） |

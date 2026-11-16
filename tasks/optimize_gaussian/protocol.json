@@ -1,0 +1,18 @@
+{
+  "version": "s16t16-optgauss-v1",
+  "ensemble": "/public/home/acwzoxdwvj/dianjun/LatticeArena/data/S16T16",
+  "geometry": [16, 16, 16, 16],
+  "development": [0, 59],
+  "validation": [70, 99],
+  "train_configs": 10,
+  "validation_configs": 10,
+  "alpha": 0.2,
+  "hidden": 8,
+  "features": ["plaq_xy", "plaq_xz", "plaq_yz"],
+  "seed": 20261117,
+  "reference": {"m0": 1.086166941112527, "score_window": [2, 3, 4, 5], "amplitude_window": [6, 7, 8]},
+  "optimizer": {"maxiter": 200},
+  "cache_manifest": "results/pion_projection/s16t16_v1/development_provenance.json",
+  "validation_manifest": "results/pion_projection/s16t16_v1/validation_provenance.json",
+  "output": "results/optimize_gaussian/smoke"
+}
