@@ -16,8 +16,19 @@ def main():
     candidate.add_argument('--definition', required=True)
     candidate.add_argument('--split', choices=['development', 'validation'], required=True)
     candidate.add_argument('--verify-only', action='store_true')
+    agent = commands.add_parser('agent')
+    agent.add_argument('--model', default='deepseek-flash')
+    agent.add_argument('--rounds', type=int, default=4)
+    report = commands.add_parser('report')
+    report.add_argument('--model', default='deepseek-flash')
     args = parser.parse_args()
-    if args.command == 'measure':
+    if args.command == 'agent':
+        from agents.loop import run
+        run(args.output, args.model, args.rounds)
+    elif args.command == 'report':
+        from agents.report import run
+        run(args.output, args.model)
+    elif args.command == 'measure':
         from .measure import measure
         measure(args.output, args.split, args.limit)
     elif args.command == 'candidate':
