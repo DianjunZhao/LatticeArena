@@ -1,8 +1,9 @@
-"""v3: learned gauge-invariant correction on a Gaussian base, full risk, two bases.
+"""v5: separate the uniform and site-adaptive parts of the learned correction.
 
-K = C_hop(a) G^m,  G = I + a0 hop,  C_hop(a) = I + sum_mu [a_mu T_mu + b_mu T_mu^dag]
-b_mu(x) = a_mu(x-mu),  a_mu(x) = sum_h v_{mu h} phi_h(x),  phi = tanh(W f), f = 1-plaquette
-v in [0, v_max]  =>  a >= 0.
+a_mu(x) = c_mu + sum_h v_{mu h} phi_h(x),   phi zero-mean per time slice
+K = C_hop(a) G^m,  b_mu(x) = a_mu(x-mu)
+
+models: uniform (c only), spatial (v only), full (c + v)
 """
 import json
 from pathlib import Path
@@ -41,6 +42,12 @@ def gaussian(field, links, steps, a0):
     return field
 
 
+def features(links, W):
+    import cupy as cp
+    f = cp.tanh(plaquettes(links) @ cp.asarray(W.T))
+    return f - f.mean(axis=(0, 1, 2), keepdims=True)
+
+
 def collect(p, ids, cache, W, base_steps):
     import cupy as cp
     from pyquda_utils import core, io
@@ -60,7 +67,7 @@ def collect(p, ids, cache, W, base_steps):
             lk = links[:, t]
             base = gaussian(f, lk, base_steps, p['base_alpha'])
             C[i, 0, t] = cp.asnumpy(correlator(base, lk, cp.zeros((3, 16, 16, 16))))
-            feat = cp.tanh(plaquettes(lk) @ cp.asarray(W.T))
+            feat = features(lk, W)
             for mu in range(3):
                 a = cp.zeros((3, 16, 16, 16))
                 a[mu] = 1
@@ -69,14 +76,14 @@ def collect(p, ids, cache, W, base_steps):
                     a = cp.zeros((3, 16, 16, 16))
                     a[mu] = feat[..., h]
                     C[i, 1 + 3 + mu * H + h, t] = cp.asnumpy(correlator(base, lk, a)) - C[i, 0, t]
-        print(f'base {base_steps}: collected cfg {cfg} ({i + 1}/{len(ids)})', flush=True)
+        print(f'collected cfg {cfg} ({i + 1}/{len(ids)})', flush=True)
     return C
 
 
-def correlators(C, v, alpha, H):
+def correlators(C, c, v, H):
     out = C[:, 0].copy()
     for mu in range(3):
-        out += alpha * C[:, 1 + mu]
+        out += c[mu] * C[:, 1 + mu]
         for h in range(H):
             out += v[mu * H + h] * C[:, 1 + 3 + mu * H + h]
     return out
@@ -88,32 +95,35 @@ def risk_of(p, C, masses):
            'geometry': p['geometry'],
            'covariance_shrinkage': p['risk']['covariance_shrinkage'],
            'amplitude_z_min': p['risk']['amplitude_z_min']}
-    data = C[:, None, :]
-    b = blocks(data, p['risk']['block_length'])
+    b = blocks(C[:, None, :], p['risk']['block_length'])
     idx = bootstrap_indices(len(b), p['risk']['bootstrap_samples'], p['seed'])
     return risk(b, [1.0], p['reference']['m0'], masses, idx, cfg)['risk']
 
 
-def make_loss(C, p, masses, lam2):
-    def loss(v):
-        data = correlators(C, v, p['alpha'], p['hidden'])[:, None, :]
-        b = blocks(data, p['risk']['block_length'])
-        idx = bootstrap_indices(len(b), p['risk']['bootstrap_samples'], p['seed'])
-        cfg = {'amplitude_window': p['reference']['amplitude_window'],
-               'score_window': p['reference']['score_window'],
-               'geometry': p['geometry'],
-               'covariance_shrinkage': p['risk']['covariance_shrinkage'],
-               'amplitude_z_min': p['risk']['amplitude_z_min']}
-        try:
-            value = risk(b, [1.0], p['reference']['m0'], masses, idx, cfg)['risk']
-        except ValueError:
-            value = 1e6
-        return value + lam2 * float(np.mean(v ** 2)) + p['pos_weight'] * float(np.mean(np.minimum(v, 0) ** 2))
-
-    return loss
+def split(theta, mode, H):
+    if mode == 'uniform':
+        return theta[:3], np.zeros(3 * H)
+    if mode == 'spatial':
+        return np.zeros(3), theta
+    return theta[:3], theta[3:]
 
 
-def evaluate(p, ids, cache, W, v, base_steps):
+def optimize(C, p, masses, mode):
+    H = p['hidden']
+
+    def loss(theta):
+        c, v = split(theta, mode, H)
+        val = risk_of(p, correlators(C, c, v, H), masses)
+        return val + p['l2'] * float(np.mean(v ** 2))
+
+    n = {'uniform': 3, 'spatial': 3 * H, 'full': 3 + 3 * H}[mode]
+    fit = minimize(loss, np.zeros(n), method='Powell', bounds=[(-p['v_max'], p['v_max'])] * n,
+                   options={'maxiter': p['optimizer']['maxiter']})
+    c, v = split(fit.x, mode, H)
+    return {'risk': float(fit.fun), 'c': c.tolist(), 'v': v.tolist(), 'nfit': int(fit.nfev)}
+
+
+def evaluate(p, ids, cache, W, c, v, base_steps):
     import cupy as cp
     from pyquda_utils import core, io
 
@@ -130,8 +140,8 @@ def evaluate(p, ids, cache, W, v, base_steps):
             f = fields[t].transpose(0, 1, 2, 5, 3, 4, 6).reshape(16, 16, 16, 3, 48)
             lk = links[:, t]
             base = gaussian(f, lk, base_steps, p['base_alpha'])
-            feat = cp.tanh(plaquettes(lk) @ cp.asarray(W.T))
-            a = cp.full((3, 16, 16, 16), p['alpha'])
+            feat = features(lk, W)
+            a = cp.asarray(np.repeat(np.asarray(c)[:, None, None, None], 16, axis=1).repeat(16, axis=2).repeat(16, axis=3))
             for mu in range(3):
                 for h in range(p['hidden']):
                     a[mu] += v[mu * p['hidden'] + h] * feat[..., h]
@@ -140,15 +150,15 @@ def evaluate(p, ids, cache, W, v, base_steps):
     return out
 
 
-def coefficient_map(p, cfg, cache, W, v, t=0):
+def coefficient_map(p, cfg, cache, W, c, v, t=0):
     import cupy as cp
     from pyquda_utils import core, io
 
     init_quda(p)
     gauge = io.readNERSCGauge(f"{p['ensemble']}/wilson_b6.{cfg}")
     lk = cp.asarray(gauge.lexico())[:3, t]
-    feat = cp.tanh(plaquettes(lk) @ cp.asarray(W.T))
-    a = cp.full((3, 16, 16, 16), p['alpha'])
+    feat = features(lk, W)
+    a = cp.asarray(np.repeat(np.asarray(c)[:, None, None, None], 16, axis=1).repeat(16, axis=2).repeat(16, axis=3))
     for mu in range(3):
         for h in range(p['hidden']):
             a[mu] += v[mu * p['hidden'] + h] * feat[..., h]
@@ -180,51 +190,51 @@ def main():
     devval_ids = list(range(p['dev_val'][0], p['dev_val'][1] + 1))
     test_ids = list(range(p['test'][0], p['test'][1] + 1))
     W = model_space(p)
-    H, V = p['hidden'], p['v_max']
+    H = p['hidden']
+    steps = p['base_steps']
 
-    grid, best = [], None
-    for steps in p['base_grid']:
-        cache_file = out / f'basis_m{steps}.npz'
-        if cache_file.exists():
-            z = np.load(cache_file)
-            C_fit, C_dev = z['C_fit'], z['C_dev']
-        else:
-            C_fit = collect(p, fit_ids, cache, W, steps)
-            C_dev = collect(p, devval_ids, cache, W, steps)
-            np.savez_compressed(cache_file, C_fit=C_fit, C_dev=C_dev)
-        for lam2 in p['l2_grid']:
-            fit = minimize(make_loss(C_fit, p, masses, lam2), np.zeros(3 * H), method='Powell',
-                           bounds=[(-V, V)] * (3 * H),
-                           options={'maxiter': p['optimizer']['maxiter']})
-            dev_risk = risk_of(p, correlators(C_dev, fit.x, p['alpha'], H), masses)
-            grid.append({'base_steps': steps, 'lam2': lam2, 'dev_val_risk': dev_risk,
-                         'v_max': float(np.max(fit.x)), 'v': fit.x.tolist()})
-            print('GRID', json.dumps({k: grid[-1][k] for k in
-                                      ('base_steps', 'lam2', 'dev_val_risk', 'v_max')}), flush=True)
-            if best is None or dev_risk < best['dev_val_risk']:
-                best = dict(grid[-1])
+    if (out / 'basis.npz').exists():
+        z = np.load(out / 'basis.npz')
+        C_fit, C_dev = z['C_fit'], z['C_dev']
+    else:
+        C_fit = collect(p, fit_ids, cache, W, steps)
+        C_dev = collect(p, devval_ids, cache, W, steps)
+        np.savez_compressed(out / 'basis.npz', C_fit=C_fit, C_dev=C_dev)
 
-    v = np.asarray(best['v'])
-    C_test = evaluate(p, test_ids, cache, W, v, best['base_steps'])
-    C_base = evaluate(p, test_ids, cache, W, np.zeros(3 * H), best['base_steps'])
-    a_map = coefficient_map(p, test_ids[0], cache, W, v)
-    np.savez_compressed(out / 'data.npz', C_test=C_test, C_base=C_base,
-                        q_learned=q_curve(C_test, p), q_base=q_curve(C_base, p),
-                        a_map=a_map, W=W, v=v)
+    base_dev = risk_of(p, correlators(C_dev, np.zeros(3), np.zeros(3 * H), H), masses)
+    results = {'base': {'dev_val': base_dev}}
+    for mode in p['models']:
+        fit = optimize(C_fit, p, masses, mode)
+        dev = risk_of(p, correlators(C_dev, np.array(fit['c']), np.array(fit['v']), H), masses)
+        results[mode] = {'dev_val': dev, 'c': fit['c'], 'v': fit['v'], 'nfit': fit['nfit']}
+        print('MODEL', mode, json.dumps({'dev_val': dev}), flush=True)
+
+    C_base = evaluate(p, test_ids, cache, W, np.zeros(3), np.zeros(3 * H), steps)
+    results['base']['test'] = risk_of(p, C_base, masses)
+    best_mode = min([m for m in p['models']], key=lambda m: results[m]['dev_val'])
+    for mode in p['models']:
+        C_test = evaluate(p, test_ids, cache, W, np.array(results[mode]['c']), np.array(results[mode]['v']), steps)
+        results[mode]['test'] = risk_of(p, C_test, masses)
+        print('TEST', mode, json.dumps({'dev_val': results[mode]['dev_val'],
+                                        'test': results[mode]['test']}), flush=True)
+        if mode == best_mode:
+            np.savez_compressed(out / 'data.npz', C_test=C_test, C_base=C_base,
+                                q_learned=q_curve(C_test, p), q_base=q_curve(C_base, p),
+                                a_map=coefficient_map(p, test_ids[0], cache, W,
+                                                      np.array(results[mode]['c']),
+                                                      np.array(results[mode]['v'])),
+                                W=W)
+
     summary = {'fit_ids': fit_ids, 'dev_val_ids': devval_ids, 'test_ids': test_ids,
-               'hidden': H, 'v_max': V, 'grid': [{k: g[k] for k in
-                                                 ('base_steps', 'lam2', 'dev_val_risk', 'v_max')} for g in grid],
-               'best': {k: best[k] for k in ('base_steps', 'lam2', 'dev_val_risk')},
-               'test_risk_learned': risk_of(p, C_test, masses),
-               'test_risk_base': risk_of(p, C_base, masses),
-               'test_ratio': risk_of(p, C_base, masses) / risk_of(p, C_test, masses)}
-    (out / 'model.json').write_text(json.dumps({
-        'features': p['features'], 'hidden': H, 'alpha': p['alpha'], 'base_steps': best['base_steps'],
-        'base_alpha': p['base_alpha'], 'W': W.tolist(), 'v': v.tolist(),
-        'm0': p['reference']['m0']}, indent=2) + '\n')
+               'hidden': H, 'base_steps': steps, 'v_max': p['v_max'], 'l2': p['l2'],
+               'base': results['base'], 'models': {m: {k: results[m][k] for k in ('dev_val', 'test')}
+                                                   for m in p['models']},
+               'best_mode': best_mode,
+               'test_ratio': results['base']['test'] / results[best_mode]['test']}
     (out / 'results.json').write_text(json.dumps(summary, indent=2) + '\n')
-    print('SUMMARY', json.dumps({k: summary[k] for k in
-                                 ('test_risk_learned', 'test_risk_base', 'test_ratio')}), flush=True)
+    print('SUMMARY', json.dumps({'best_mode': best_mode, 'base_test': results['base']['test'],
+                                 'best_test': results[best_mode]['test'],
+                                 'ratio': summary['test_ratio']}), flush=True)
 
 
 if __name__ == '__main__':
