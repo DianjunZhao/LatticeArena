@@ -1,5 +1,6 @@
 """Development-only optimization followed by frozen held-out evaluation."""
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -7,6 +8,13 @@ from scipy.optimize import minimize
 
 from .common import digest, fingerprint, load_data, protocol, write_json
 from .statistics import (ReferenceFit, blocks, bootstrap_indices, fold, inverse_covariance, risk)
+
+
+def make_reference(data, p, window):
+    if os.environ.get('LATTICEARENA_REFERENCE') == 'twostate':
+        from .reference_twostate import TwoStateFit
+        return TwoStateFit(data, p, window)
+    return ReferenceFit(data, p, window)
 
 
 def late_metric(data, weights, p):
@@ -24,7 +32,7 @@ def develop(output):
     index = bootstrap_indices(len(data), p['bootstrap_samples'], p['seed'])
     windows, masses = [], []
     for window in p['reference_windows']:
-        model = ReferenceFit(data, p, window)
+        model = make_reference(data, p, window)
         result, boot = model.bootstrap(index)
         windows.append(result)
         masses.append(boot)
@@ -114,7 +122,7 @@ def nested_intervals(development, validation, frozen, p):
     correlations between all candidates. No replicate is silently discarded.
     """
     rng = np.random.default_rng(p['seed']+2)
-    model = ReferenceFit(development, p, p['reference_windows'][p['reference_nominal_window']])
+    model = make_reference(development, p, p['reference_windows'][p['reference_nominal_window']])
     names = list(frozen['submissions'])
     draws = []
     for outer in range(p['outer_samples']):
@@ -147,7 +155,7 @@ def evaluate(output):
     dev = blocks(fold(load_data(output, 'development')), p['block_length'])
     raw = load_data(output, 'validation')
     val = blocks(fold(raw), p['block_length'])
-    model = ReferenceFit(dev, p, p['reference_windows'][p['reference_nominal_window']])
+    model = make_reference(dev, p, p['reference_windows'][p['reference_nominal_window']])
     reference, mb = model.bootstrap(bootstrap_indices(len(dev), p['bootstrap_samples'], p['seed']))
     vi = bootstrap_indices(len(val), p['bootstrap_samples'], p['seed']+1)
     report = {'protocol': p, 'submission_sha256': digest(output/'submission.json'),
