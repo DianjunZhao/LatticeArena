@@ -28,8 +28,8 @@ def init_quda(p):
         init_quda.done = True
 
 
-def model_space(p):
-    rng = np.random.default_rng(p['seed'])
+def model_space(p, seed):
+    rng = np.random.default_rng(seed)
     return rng.normal(size=(p['hidden'], 2)) * 0.5
 
 
@@ -172,28 +172,30 @@ def main():
     fit_ids = list(range(p['fit'][0], p['fit'][1] + 1))
     devval_ids = list(range(p['dev_val'][0], p['dev_val'][1] + 1))
     test_ids = list(range(p['test'][0], p['test'][1] + 1))
-    W = model_space(p)
-    H = p['hidden']
-    steps = p['base_steps']
+    H, steps = p['hidden'], p['base_steps']
 
-    if (out / 'basis.npz').exists():
-        z = np.load(out / 'basis.npz')
-        C_fit, C_dev = z['C_fit'], z['C_dev']
-    else:
-        C_fit = collect(p, fit_ids, cache, W, steps)
-        C_dev = collect(p, devval_ids, cache, W, steps)
-        np.savez_compressed(out / 'basis.npz', C_fit=C_fit, C_dev=C_dev)
-
-    base_dev = risk_of(p, correlators(C_dev, np.zeros(1 + H), H), masses)
     grid, best = [], None
-    for lam2 in p['l2_grid']:
-        fit = optimize(C_fit, p, masses, lam2)
-        dev_risk = risk_of(p, correlators(C_dev, np.array(fit['theta']), H), masses)
-        grid.append({'lam2': lam2, 'dev_val': dev_risk, 'nfit': fit['nfit'], 'theta': fit['theta']})
-        print('GRID', json.dumps({'lam2': lam2, 'dev_val': dev_risk}), flush=True)
-        if best is None or dev_risk < best['dev_val']:
-            best = dict(grid[-1])
+    for seed in p['seeds']:
+        W = model_space(p, seed)
+        cache_file = out / f'basis_s{seed}.npz'
+        if cache_file.exists():
+            z = np.load(cache_file)
+            C_fit, C_dev = z['C_fit'], z['C_dev']
+        else:
+            C_fit = collect(p, fit_ids, cache, W, steps)
+            C_dev = collect(p, devval_ids, cache, W, steps)
+            np.savez_compressed(cache_file, C_fit=C_fit, C_dev=C_dev)
+        base_dev = risk_of(p, correlators(C_dev, np.zeros(1 + H), H), masses)
+        for lam2 in p['l2_grid']:
+            fit = optimize(C_fit, p, masses, lam2)
+            dev_risk = risk_of(p, correlators(C_dev, np.array(fit['theta']), H), masses)
+            grid.append({'seed': seed, 'lam2': lam2, 'dev_val': dev_risk,
+                         'nfit': fit['nfit'], 'theta': fit['theta'], 'base_dev': base_dev})
+            print('GRID', json.dumps({'seed': seed, 'lam2': lam2, 'dev_val': dev_risk}), flush=True)
+            if best is None or dev_risk < best['dev_val']:
+                best = dict(grid[-1])
 
+    W = model_space(p, best['seed'])
     theta = np.array(best['theta'])
     C_base = evaluate(p, test_ids, cache, W, np.zeros(1 + H), steps)
     C_test = evaluate(p, test_ids, cache, W, theta, steps)
@@ -201,17 +203,16 @@ def main():
                         q_learned=q_curve(C_test, p), q_base=q_curve(C_base, p),
                         a_map=coefficient_map(p, test_ids[0], cache, W, theta), W=W)
     summary = {'fit_ids': fit_ids, 'dev_val_ids': devval_ids, 'test_ids': test_ids,
-               'hidden': H, 'base_steps': steps, 'v_max': p['v_max'],
-               'base': {'dev_val': base_dev, 'test': risk_of(p, C_base, masses)},
-               'grid': [{k: g[k] for k in ('lam2', 'dev_val', 'nfit')} for g in grid],
-               'best': {k: best[k] for k in ('lam2', 'dev_val')},
+               'hidden': H, 'base_steps': steps, 'seeds': p['seeds'],
+               'base': {'dev_val': best['base_dev'], 'test': risk_of(p, C_base, masses)},
+               'grid': [{k: g[k] for k in ('seed', 'lam2', 'dev_val', 'nfit')} for g in grid],
+               'best': {k: best[k] for k in ('seed', 'lam2', 'dev_val')},
                'theta': best['theta'],
                'test_risk_learned': risk_of(p, C_test, masses),
                'test_risk_base': risk_of(p, C_base, masses)}
     summary['test_ratio'] = summary['test_risk_base'] / summary['test_risk_learned']
     (out / 'results.json').write_text(json.dumps(summary, indent=2) + '\n')
-    print('SUMMARY', json.dumps({k: summary[k] for k in
-                                 ('test_risk_learned', 'test_risk_base', 'test_ratio')}), flush=True)
+    print('SUMMARY', json.dumps({'best': summary['best'], 'test_ratio': summary['test_ratio']}), flush=True)
 
 
 if __name__ == '__main__':

@@ -16,8 +16,11 @@ def main():
     d = np.load(out / 'data.npz')
 
     fig, axes = plt.subplots(1, 2, figsize=(11, 4))
-    axes[0].plot([g['lam2'] for g in r['grid']], [g['dev_val'] for g in r['grid']], 'o-')
-    axes[0].set(xlabel=r'$\lambda_2$', ylabel='dev-val risk', title='L2 grid (A1+ model)')
+    for seed in r['seeds']:
+        rows = [g for g in r['grid'] if g['seed'] == seed]
+        axes[0].plot([g['lam2'] for g in rows], [g['dev_val'] for g in rows], 'o-', label=str(seed))
+    axes[0].set(xlabel=r'$\lambda_2$', ylabel='dev-val risk', title='W seeds x L2 grid (A1+ model)')
+    axes[0].legend(fontsize=7)
     axes[0].set_xscale('symlog', linthresh=1e-4)
     axes[0].grid(alpha=0.2)
     axes[1].bar(['base', 'learned'], [r['base']['test'], r['test_risk_learned']], color=['#888', '#087F8C'])
