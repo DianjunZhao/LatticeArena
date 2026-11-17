@@ -60,7 +60,7 @@ def collect(p, ids, cache, W, base_steps):
             lk = links[:, t]
             base = gaussian(f, lk, base_steps, p['base_alpha'])
             C[i, 0, t] = cp.asnumpy(correlator(base, lk, cp.zeros((3, 16, 16, 16))))
-            feat = cp.maximum(plaquettes(lk) @ cp.asarray(W.T), 0)
+            feat = cp.tanh(plaquettes(lk) @ cp.asarray(W.T))
             for mu in range(3):
                 a = cp.zeros((3, 16, 16, 16))
                 a[mu] = 1
@@ -130,7 +130,7 @@ def evaluate(p, ids, cache, W, v, base_steps):
             f = fields[t].transpose(0, 1, 2, 5, 3, 4, 6).reshape(16, 16, 16, 3, 48)
             lk = links[:, t]
             base = gaussian(f, lk, base_steps, p['base_alpha'])
-            feat = cp.maximum(plaquettes(lk) @ cp.asarray(W.T), 0)
+            feat = cp.tanh(plaquettes(lk) @ cp.asarray(W.T))
             a = cp.full((3, 16, 16, 16), p['alpha'])
             for mu in range(3):
                 for h in range(p['hidden']):
@@ -147,7 +147,7 @@ def coefficient_map(p, cfg, cache, W, v, t=0):
     init_quda(p)
     gauge = io.readNERSCGauge(f"{p['ensemble']}/wilson_b6.{cfg}")
     lk = cp.asarray(gauge.lexico())[:3, t]
-    feat = cp.maximum(plaquettes(lk) @ cp.asarray(W.T), 0)
+    feat = cp.tanh(plaquettes(lk) @ cp.asarray(W.T))
     a = cp.full((3, 16, 16, 16), p['alpha'])
     for mu in range(3):
         for h in range(p['hidden']):
@@ -194,7 +194,7 @@ def main():
             np.savez_compressed(cache_file, C_fit=C_fit, C_dev=C_dev)
         for lam2 in p['l2_grid']:
             fit = minimize(make_loss(C_fit, p, masses, lam2), np.zeros(3 * H), method='Powell',
-                           bounds=[(0.0, V)] * (3 * H),
+                           bounds=[(-V, V)] * (3 * H),
                            options={'maxiter': p['optimizer']['maxiter']})
             dev_risk = risk_of(p, correlators(C_dev, fit.x, p['alpha'], H), masses)
             grid.append({'base_steps': steps, 'lam2': lam2, 'dev_val_risk': dev_risk,
@@ -208,7 +208,7 @@ def main():
     C_test = evaluate(p, test_ids, cache, W, v, best['base_steps'])
     C_base = evaluate(p, test_ids, cache, W, np.zeros(3 * H), best['base_steps'])
     a_map = coefficient_map(p, test_ids[0], cache, W, v)
-    np.savez_compressed(out / 'v3_data.npz', C_test=C_test, C_base=C_base,
+    np.savez_compressed(out / 'data.npz', C_test=C_test, C_base=C_base,
                         q_learned=q_curve(C_test, p), q_base=q_curve(C_base, p),
                         a_map=a_map, W=W, v=v)
     summary = {'fit_ids': fit_ids, 'dev_val_ids': devval_ids, 'test_ids': test_ids,
@@ -222,7 +222,7 @@ def main():
         'features': p['features'], 'hidden': H, 'alpha': p['alpha'], 'base_steps': best['base_steps'],
         'base_alpha': p['base_alpha'], 'W': W.tolist(), 'v': v.tolist(),
         'm0': p['reference']['m0']}, indent=2) + '\n')
-    (out / 'v3_results.json').write_text(json.dumps(summary, indent=2) + '\n')
+    (out / 'results.json').write_text(json.dumps(summary, indent=2) + '\n')
     print('SUMMARY', json.dumps({k: summary[k] for k in
                                  ('test_risk_learned', 'test_risk_base', 'test_ratio')}), flush=True)
 

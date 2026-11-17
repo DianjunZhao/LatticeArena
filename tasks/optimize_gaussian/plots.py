@@ -12,8 +12,8 @@ import numpy as np
 def main():
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(
         json.loads((Path(__file__).parent / 'protocol.json').read_text())['output'])
-    r = json.loads((out / 'v3_results.json').read_text())
-    d = np.load(out / 'v3_data.npz')
+    r = json.loads((out / ('results.json' if (out / 'results.json').exists() else 'v3_results.json')).read_text())
+    d = np.load(out / ('data.npz' if (out / 'data.npz').exists() else 'v3_data.npz'))
 
     fig, axes = plt.subplots(1, 2, figsize=(11, 4))
     grid = r['grid']
