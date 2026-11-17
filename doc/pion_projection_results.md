@@ -141,3 +141,46 @@ temporal lattice at matched physics. It should compare the frozen signed
 candidate and Gaussian baseline on independent data, with new scoring calibration
 fixed before evaluation. The current attempt has not covered the full arbitrary
 kernel search space or a comprehensive set of literature SOTA methods.
+
+## 后续对照：learned A1+ smear（2026-11）
+
+在同一份 60/10/30 数据上，用 `tasks/optimize_gaussian` 的 A1+ 学习核（9 个参数，$G^8$ 基座 +
+三明治式厄米修正）走完了 `candidate` 冻结流程：
+
+- 留出 risk：learned 0.00960 vs SLSQP 混合 0.00770 vs local 0.31267；
+- 配对比 $\mathrm{risk}_{SLSQP}/\mathrm{risk}_{learned}=0.803$，95% 区间 $[0.636, 0.944]$；
+- 官方 `score` 仍为 `null`（参考 gate 未通过）。
+
+结论：学习核比 Gaussian 基座好（约 1.5 倍），但**没有**超过 7 参数的 SLSQP 混合，作为
+“已排除的对照”记录在此。详见 [tasks/optimize_gaussian/README.md](../tasks/optimize_gaussian/README.md)。
+
+## 参考 p 值的模拟校准（2026-11）
+
+用参数化 bootstrap 校准参考拟合的 p 值（`tasks/pion_projection/calibration.py`）：
+
+| 窗口 | 渐近 p | 校准 p | 零假设中位数 |
+| --- | ---: | ---: | ---: |
+| 4–8 | $1.1\times10^{-57}$ | 0 | 10.4 |
+| 5–8（名义） | $1.7\times10^{-8}$ | 0 | 7.6 |
+| 6–8 | 0.281 | 0.267 | 4.2 |
+
+校准本身是对的（合成零假设下的误判率 0%），但**名义参考仍然失败**：$\chi^2=52.0$ 远高于
+零假设中位数 7.6，说明单 cosh + 共质量模型在 5–8 上本身不成立，不是 p 值阈值的问题。
+这直接指向“更长的时间方向（T=32）或更好的参考模型”，而不是继续调阈值。
+
+## 更长的时间方向：T=32 尝试（2026-11）
+
+为检验“参考失败是不是因为周期回绕/时间太短”，在 kunshan 上用同一套 HMC 生成 100 个
+$16^3\times32$、$\beta=6.0$ 的组态（接受率 96.7%，$0.77$ s/轨迹），测了 60 个开发组态，
+参考窗口随 $T$ 调整为 $4\text{–}8$ / $5\text{–}9$ / $6\text{–}10$：
+
+| 量 | T=16（原 pilot） | T=32 |
+| --- | ---: | ---: |
+| 名义窗口 $\chi^2/\mathrm{dof}$ | 52.0 / 8 | 120.2 / 11 |
+| 名义 p 值 | $1.7\times10^{-8}$ | $1.6\times10^{-20}$ |
+| 窗口偏移 | 21.6σ / 7.8σ | 20.3σ / 16.3σ |
+| 反射对称 z | 1.53（通过） | 超标 |
+
+**结论：加长时间方向没有让参考站住。** 回绕项不是问题，问题在“共质量 + 单 cosh”这个参考模型
+本身——三个通道（$H^0,H^8,H^{16}$）在 $t=4\text{–}9$ 的有效质量形状并不共享同一个 $m_0$。
+下一步应当换参考模型（两态拟合、或分通道质量 + 渐近共质量），而不是继续加组态、加 $T$ 或调阈值。

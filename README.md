@@ -99,6 +99,7 @@ python -m tasks.pion_projection --output run plot
 - 这是 **pilot**：参考态没有通过门控，所有 `score` 为 `null`；`agent_signed_mixture` 相对 Gaussian 的 1.63 倍（区间 [1.40, 2.19]）只是冻结度量下的诊断，不是 SOTA。
 - 16⁴、淬火、κ=0.14 的 π 是"重 π"，不能和物理质量比较。
 - 提交的核是**受信任的本地代码**，不是沙箱；不要直接跑不可信来源的模块。
+- 学习核（`optimize_gaussian`）的结论也是负面的：A1+ 核比 Gaussian 基座好约 1.5 倍，但没过 7 参数 SLSQP 混合（配对区间 [0.636, 0.944]），作为已排除的对照记录在 `doc/pion_projection_results.md`。
 - 第二个任务（`wilson_loop`）的 pilot 结论是负面的：开发集上 APE 比不平滑好 4.5 倍，但留出集只有 6 个块，差异消失（score 95.7–102.7）。见 [tasks/wilson_loop/README.md](tasks/wilson_loop/README.md)。
 - 仓库里的 `tasks/pion_projection/protocol.json` 是 30/5/15 的原始协议；已提交的这次运行用的是 60/10/30（协议快照在 `results/pion_projection/s16t16_v1/protocol.json`），所以 `develop`/`evaluate` 不能直接在这份数据上重跑。
 

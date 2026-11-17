@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -6,7 +7,7 @@ import numpy as np
 from core.io import digest, fingerprint, write_json  # noqa: F401  (re-export)
 
 HERE = Path(__file__).resolve().parent
-PROTOCOL_PATH = HERE / 'protocol.json'
+PROTOCOL_PATH = Path(os.environ.get('LATTICEARENA_PROTOCOL', str(HERE / 'protocol.json')))
 DEFAULT_OUTPUT = Path('results/pion_projection/s16t16_v1')
 
 
