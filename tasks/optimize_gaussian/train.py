@@ -1,9 +1,8 @@
-"""v5: separate the uniform and site-adaptive parts of the learned correction.
+"""v6: A1+ (cubically symmetric) learned smear.
 
-a_mu(x) = c_mu + sum_h v_{mu h} phi_h(x),   phi zero-mean per time slice
-K = C_hop(a) G^m,  b_mu(x) = a_mu(x-mu)
-
-models: uniform (c only), spatial (v only), full (c + v)
+a_mu(x) = c + sum_h v_h phi_h(mu, x),  phi shared across directions, zero mean over sites
+phi_h(mu, x) = tanh(W_h . (P_{mu nu}(x), P_{mu rho}(x)))  -- the two plaquettes containing mu
+K = C_hop(a) G^m,  b_mu(x) = a_mu(x - mu)
 """
 import json
 from pathlib import Path
@@ -13,7 +12,7 @@ from scipy.optimize import minimize
 
 from tasks.pion_projection.statistics import blocks, bootstrap_indices, risk
 
-from .features import _lib, plaquettes
+from .features import _lib, directional_features
 from .kernels import apply_kernel, correlator
 
 
@@ -31,7 +30,7 @@ def init_quda(p):
 
 def model_space(p):
     rng = np.random.default_rng(p['seed'])
-    return rng.normal(size=(p['hidden'], len(p['features']))) * 0.5
+    return rng.normal(size=(p['hidden'], 2)) * 0.5
 
 
 def gaussian(field, links, steps, a0):
@@ -44,17 +43,18 @@ def gaussian(field, links, steps, a0):
 
 def features(links, W):
     import cupy as cp
-    f = cp.tanh(plaquettes(links) @ cp.asarray(W.T))
-    return f - f.mean(axis=(0, 1, 2), keepdims=True)
+    f = directional_features(links)
+    phi = cp.stack([cp.tanh(f[mu] @ cp.asarray(W.T)) for mu in range(3)], axis=0)
+    return phi - phi.mean(axis=(1, 2, 3), keepdims=True)
 
 
-def collect(p, ids, cache, W, base_steps):
+def collect(p, ids, cache, W, steps):
     import cupy as cp
     from pyquda_utils import core, io
 
     init_quda(p)
     latt = core.LatticeInfo(p['geometry'], -1, 1.0)
-    H, nb = p['hidden'], 1 + 3 + 3 * p['hidden']
+    H, nb = p['hidden'], 2 + p['hidden']
     C = np.zeros((len(ids), nb, 16))
     for i, cfg in enumerate(ids):
         gauge = io.readNERSCGauge(f"{p['ensemble']}/wilson_b6.{cfg}")
@@ -65,27 +65,22 @@ def collect(p, ids, cache, W, base_steps):
         for t in range(16):
             f = fields[t].transpose(0, 1, 2, 5, 3, 4, 6).reshape(16, 16, 16, 3, 48)
             lk = links[:, t]
-            base = gaussian(f, lk, base_steps, p['base_alpha'])
+            base = gaussian(f, lk, steps, p['base_alpha'])
             C[i, 0, t] = cp.asnumpy(correlator(base, lk, cp.zeros((3, 16, 16, 16))))
-            feat = features(lk, W)
-            for mu in range(3):
-                a = cp.zeros((3, 16, 16, 16))
-                a[mu] = 1
-                C[i, 1 + mu, t] = cp.asnumpy(correlator(base, lk, a)) - C[i, 0, t]
-                for h in range(H):
-                    a = cp.zeros((3, 16, 16, 16))
-                    a[mu] = feat[..., h]
-                    C[i, 1 + 3 + mu * H + h, t] = cp.asnumpy(correlator(base, lk, a)) - C[i, 0, t]
+            a = cp.ones((3, 16, 16, 16))
+            C[i, 1, t] = cp.asnumpy(correlator(base, lk, a)) - C[i, 0, t]
+            phi = features(lk, W)
+            for h in range(H):
+                a = cp.stack([phi[mu][..., h] for mu in range(3)], axis=0)
+                C[i, 2 + h, t] = cp.asnumpy(correlator(base, lk, a)) - C[i, 0, t]
         print(f'collected cfg {cfg} ({i + 1}/{len(ids)})', flush=True)
     return C
 
 
-def correlators(C, c, v, H):
-    out = C[:, 0].copy()
-    for mu in range(3):
-        out += c[mu] * C[:, 1 + mu]
-        for h in range(H):
-            out += v[mu * H + h] * C[:, 1 + 3 + mu * H + h]
+def correlators(C, theta, H):
+    out = C[:, 0] + theta[0] * C[:, 1]
+    for h in range(H):
+        out += theta[1 + h] * C[:, 2 + h]
     return out
 
 
@@ -100,36 +95,26 @@ def risk_of(p, C, masses):
     return risk(b, [1.0], p['reference']['m0'], masses, idx, cfg)['risk']
 
 
-def split(theta, mode, H):
-    if mode == 'uniform':
-        return theta[:3], np.zeros(3 * H)
-    if mode == 'spatial':
-        return np.zeros(3), theta
-    return theta[:3], theta[3:]
-
-
-def optimize(C, p, masses, mode):
+def optimize(C, p, masses, lam2):
     H = p['hidden']
 
     def loss(theta):
-        c, v = split(theta, mode, H)
-        val = risk_of(p, correlators(C, c, v, H), masses)
-        return val + p['l2'] * float(np.mean(v ** 2))
+        val = risk_of(p, correlators(C, theta, H), masses)
+        return val + lam2 * float(np.mean(theta[1:] ** 2))
 
-    n = {'uniform': 3, 'spatial': 3 * H, 'full': 3 + 3 * H}[mode]
-    fit = minimize(loss, np.zeros(n), method='Powell', bounds=[(-p['v_max'], p['v_max'])] * n,
+    fit = minimize(loss, np.zeros(1 + H), method='Powell', bounds=[(-p['v_max'], p['v_max'])] * (1 + H),
                    options={'maxiter': p['optimizer']['maxiter']})
-    c, v = split(fit.x, mode, H)
-    return {'risk': float(fit.fun), 'c': c.tolist(), 'v': v.tolist(), 'nfit': int(fit.nfev)}
+    return {'risk': float(fit.fun), 'theta': fit.x.tolist(), 'nfit': int(fit.nfev)}
 
 
-def evaluate(p, ids, cache, W, c, v, base_steps):
+def evaluate(p, ids, cache, W, theta, steps):
     import cupy as cp
     from pyquda_utils import core, io
 
     init_quda(p)
     latt = core.LatticeInfo(p['geometry'], -1, 1.0)
     out = np.zeros((len(ids), 16))
+    H = p['hidden']
     for i, cfg in enumerate(ids):
         gauge = io.readNERSCGauge(f"{p['ensemble']}/wilson_b6.{cfg}")
         links = cp.asarray(gauge.lexico())[:3]
@@ -139,29 +124,27 @@ def evaluate(p, ids, cache, W, c, v, base_steps):
         for t in range(16):
             f = fields[t].transpose(0, 1, 2, 5, 3, 4, 6).reshape(16, 16, 16, 3, 48)
             lk = links[:, t]
-            base = gaussian(f, lk, base_steps, p['base_alpha'])
-            feat = features(lk, W)
-            a = cp.asarray(np.repeat(np.asarray(c)[:, None, None, None], 16, axis=1).repeat(16, axis=2).repeat(16, axis=3))
-            for mu in range(3):
-                for h in range(p['hidden']):
-                    a[mu] += v[mu * p['hidden'] + h] * feat[..., h]
+            base = gaussian(f, lk, steps, p['base_alpha'])
+            phi = features(lk, W)
+            a = cp.full((3, 16, 16, 16), theta[0])
+            for h in range(H):
+                a += theta[1 + h] * cp.stack([phi[mu][..., h] for mu in range(3)], axis=0)
             out[i, t] = cp.asnumpy(correlator(base, lk, a))
         print(f'evaluated cfg {cfg} ({i + 1}/{len(ids)})', flush=True)
     return out
 
 
-def coefficient_map(p, cfg, cache, W, c, v, t=0):
+def coefficient_map(p, cfg, cache, W, theta, t=0):
     import cupy as cp
     from pyquda_utils import core, io
 
     init_quda(p)
     gauge = io.readNERSCGauge(f"{p['ensemble']}/wilson_b6.{cfg}")
     lk = cp.asarray(gauge.lexico())[:3, t]
-    feat = features(lk, W)
-    a = cp.asarray(np.repeat(np.asarray(c)[:, None, None, None], 16, axis=1).repeat(16, axis=2).repeat(16, axis=3))
-    for mu in range(3):
-        for h in range(p['hidden']):
-            a[mu] += v[mu * p['hidden'] + h] * feat[..., h]
+    phi = features(lk, W)
+    a = cp.full((3, 16, 16, 16), theta[0])
+    for h in range(p['hidden']):
+        a += theta[1 + h] * cp.stack([phi[mu][..., h] for mu in range(3)], axis=0)
     return cp.asnumpy(a)
 
 
@@ -201,40 +184,34 @@ def main():
         C_dev = collect(p, devval_ids, cache, W, steps)
         np.savez_compressed(out / 'basis.npz', C_fit=C_fit, C_dev=C_dev)
 
-    base_dev = risk_of(p, correlators(C_dev, np.zeros(3), np.zeros(3 * H), H), masses)
-    results = {'base': {'dev_val': base_dev}}
-    for mode in p['models']:
-        fit = optimize(C_fit, p, masses, mode)
-        dev = risk_of(p, correlators(C_dev, np.array(fit['c']), np.array(fit['v']), H), masses)
-        results[mode] = {'dev_val': dev, 'c': fit['c'], 'v': fit['v'], 'nfit': fit['nfit']}
-        print('MODEL', mode, json.dumps({'dev_val': dev}), flush=True)
+    base_dev = risk_of(p, correlators(C_dev, np.zeros(1 + H), H), masses)
+    grid, best = [], None
+    for lam2 in p['l2_grid']:
+        fit = optimize(C_fit, p, masses, lam2)
+        dev_risk = risk_of(p, correlators(C_dev, np.array(fit['theta']), H), masses)
+        grid.append({'lam2': lam2, 'dev_val': dev_risk, 'nfit': fit['nfit'], 'theta': fit['theta']})
+        print('GRID', json.dumps({'lam2': lam2, 'dev_val': dev_risk}), flush=True)
+        if best is None or dev_risk < best['dev_val']:
+            best = dict(grid[-1])
 
-    C_base = evaluate(p, test_ids, cache, W, np.zeros(3), np.zeros(3 * H), steps)
-    results['base']['test'] = risk_of(p, C_base, masses)
-    best_mode = min([m for m in p['models']], key=lambda m: results[m]['dev_val'])
-    for mode in p['models']:
-        C_test = evaluate(p, test_ids, cache, W, np.array(results[mode]['c']), np.array(results[mode]['v']), steps)
-        results[mode]['test'] = risk_of(p, C_test, masses)
-        print('TEST', mode, json.dumps({'dev_val': results[mode]['dev_val'],
-                                        'test': results[mode]['test']}), flush=True)
-        if mode == best_mode:
-            np.savez_compressed(out / 'data.npz', C_test=C_test, C_base=C_base,
-                                q_learned=q_curve(C_test, p), q_base=q_curve(C_base, p),
-                                a_map=coefficient_map(p, test_ids[0], cache, W,
-                                                      np.array(results[mode]['c']),
-                                                      np.array(results[mode]['v'])),
-                                W=W)
-
+    theta = np.array(best['theta'])
+    C_base = evaluate(p, test_ids, cache, W, np.zeros(1 + H), steps)
+    C_test = evaluate(p, test_ids, cache, W, theta, steps)
+    np.savez_compressed(out / 'data.npz', C_test=C_test, C_base=C_base,
+                        q_learned=q_curve(C_test, p), q_base=q_curve(C_base, p),
+                        a_map=coefficient_map(p, test_ids[0], cache, W, theta), W=W)
     summary = {'fit_ids': fit_ids, 'dev_val_ids': devval_ids, 'test_ids': test_ids,
-               'hidden': H, 'base_steps': steps, 'v_max': p['v_max'], 'l2': p['l2'],
-               'base': results['base'], 'models': {m: {k: results[m][k] for k in ('dev_val', 'test')}
-                                                   for m in p['models']},
-               'best_mode': best_mode,
-               'test_ratio': results['base']['test'] / results[best_mode]['test']}
+               'hidden': H, 'base_steps': steps, 'v_max': p['v_max'],
+               'base': {'dev_val': base_dev, 'test': risk_of(p, C_base, masses)},
+               'grid': [{k: g[k] for k in ('lam2', 'dev_val', 'nfit')} for g in grid],
+               'best': {k: best[k] for k in ('lam2', 'dev_val')},
+               'theta': best['theta'],
+               'test_risk_learned': risk_of(p, C_test, masses),
+               'test_risk_base': risk_of(p, C_base, masses)}
+    summary['test_ratio'] = summary['test_risk_base'] / summary['test_risk_learned']
     (out / 'results.json').write_text(json.dumps(summary, indent=2) + '\n')
-    print('SUMMARY', json.dumps({'best_mode': best_mode, 'base_test': results['base']['test'],
-                                 'best_test': results[best_mode]['test'],
-                                 'ratio': summary['test_ratio']}), flush=True)
+    print('SUMMARY', json.dumps({k: summary[k] for k in
+                                 ('test_risk_learned', 'test_risk_base', 'test_ratio')}), flush=True)
 
 
 if __name__ == '__main__':
