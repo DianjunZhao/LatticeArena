@@ -1,5 +1,5 @@
 {
-  "version": "s16t16-optgauss-v2",
+  "version": "s16t16-optgauss-v3",
   "ensemble": "/public/home/acwzoxdwvj/dianjun/LatticeArena/data/S16T16",
   "geometry": [
     16,
@@ -17,7 +17,7 @@
   ],
   "test": [
     70,
-    79
+    99
   ],
   "hidden": 8,
   "alpha": 0.0,
@@ -51,7 +51,6 @@
   },
   "l2_grid": [
     0.0,
-    0.0001,
     0.001,
     0.01
   ],
@@ -62,5 +61,10 @@
   "cache_manifest": "results/pion_projection/s16t16_v1/development_provenance.json",
   "validation_manifest": "results/pion_projection/s16t16_v1/validation_provenance.json",
   "reference_bootstrap": "results/pion_projection/s16t16_v1/reference_bootstrap.npz",
-  "output": "results/optimize_gaussian/v2"
+  "output": "results/optimize_gaussian/v3",
+  "base_grid": [
+    8,
+    32
+  ],
+  "v_max": 5.0
 }
