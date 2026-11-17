@@ -19,10 +19,10 @@ def dagger(a):
 
 
 def plaquettes(links):
-    """links: (3, z, y, x, 3, 3) -> (z, y, x, 3) real traces of the xy, xz, yz plaquettes."""
+    """links: (3, z, y, x, 3, 3) -> (z, y, x, 3) nonnegative features 1 - ReTr(plaq)/3."""
     xp = _lib(links)
     out = []
     for mu, nu in ((0, 1), (0, 2), (1, 2)):
         loop = links[mu] @ shift(links[nu], 1, nu) @ dagger(shift(links[mu], 1, mu)) @ dagger(links[nu])
-        out.append(xp.trace(loop, axis1=-2, axis2=-1).real / 3)
+        out.append(1 - xp.trace(loop, axis1=-2, axis2=-1).real / 3)
     return xp.stack(out, axis=-1)
