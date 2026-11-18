@@ -357,3 +357,10 @@ def test_operator_checks_and_counterexamples():
     field = rng.normal(size=(3, 3)) + 1j * rng.normal(size=(3, 3))
     assert covariance_residual(lambda x: u @ x, lambda x: u @ x, field) < 1e-12
     assert covariance_residual(bad_gram_schmidt_projector, lambda x: x @ u, field) > 1e-6
+
+
+def test_toy_leapfrog_is_second_order():
+    from tasks.wilson_loop.hmc_quality import order_check
+    rows = order_check((0.02, 0.01))
+    ratio = rows[0]['delta_H'] / rows[1]['delta_H']
+    assert 3.2 < ratio < 5.0, (ratio, rows)

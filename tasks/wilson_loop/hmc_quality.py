@@ -68,7 +68,7 @@ def drift(u, p, eps):
             for y in range(u.shape[2]):
                 for z in range(u.shape[3]):
                     for t in range(u.shape[4]):
-                        out[mu, x, y, z, t] = expm(eps * p[mu, x, y, z, t]) @ u[mu, x, y, z, t]
+                        out[mu, x, y, z, t] = expm(1j * eps * p[mu, x, y, z, t]) @ u[mu, x, y, z, t]
     return out
 
 
@@ -92,7 +92,7 @@ def toy_integrator(seed=5):
                                                     for _ in range(2)] for _ in range(2)]
                                                    for _ in range(2)] for _ in range(2)] for _ in range(4)]).reshape(4, 2, 2, 2, 2, 3, 3),
                   base)
-    p = 0.05 * (p - p.conj().transpose(0, 1, 2, 3, 4, 6, 5))
+    p = 0.05 * (p + p.conj().transpose(0, 1, 2, 3, 4, 6, 5))
     p = p - np.trace(p, axis1=-2, axis2=-1)[..., None, None] / 3 * np.eye(3)
     rows = []
     for eps in (0.1, 0.05, 0.025, 0.0125):
@@ -133,6 +133,24 @@ def manifest_audit():
             'tau_int_plaquette': tau, 'plaquette_mean': float(np.mean([c['plaquette'] for c in configs])),
             'plaquette_std': float(np.std([c['plaquette'] for c in configs], ddof=1)),
             'autocorrelation': acf[:10]}
+
+
+def order_check(eps_list=(0.02, 0.01), total=0.1, seed=7):
+    """Small, fast second-order check: Delta H ratio for two step sizes."""
+    rows = []
+    for eps in eps_list:
+        rng = np.random.default_rng(seed)
+        u = np.array([[[[[random_su3(rng) for _ in range(2)] for _ in range(2)] for _ in range(2)]
+                        for _ in range(2)] for _ in range(4)]).reshape(4, 2, 2, 2, 2, 3, 3)
+        r = rng.normal(size=u.shape) + 1j * rng.normal(size=u.shape)
+        p = 0.05 * (r + r.conj().transpose(0, 1, 2, 3, 4, 6, 5))
+        p = p - np.trace(p, axis1=-2, axis2=-1)[..., None, None] / 3 * np.eye(3)
+        steps = max(int(round(total / eps)), 1)
+        start = action(u) + 0.5 * float(np.vdot(p, p).real)
+        u1, p1 = leapfrog(u, p, force, eps, steps)
+        rows.append({'eps': eps, 'steps': steps,
+                     'delta_H': abs(action(u1) + 0.5 * float(np.vdot(p1, p1).real) - start)})
+    return rows
 
 
 def main():
