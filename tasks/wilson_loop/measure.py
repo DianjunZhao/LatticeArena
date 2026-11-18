@@ -1,10 +1,11 @@
 """Measure Wilson loops W(R,T) from smeared spatial lines and original temporal links."""
+import os
 from pathlib import Path
 from time import perf_counter
 
 import numpy as np
 
-from .common import fingerprint, indices, protocol, read_nersc, write_json
+from .common import digest, fingerprint, indices, protocol, read_nersc, write_json
 from .kernels import _lib, build_kernel, dagger, shift
 
 
@@ -42,13 +43,23 @@ def measure(output, split, limit=None):
     output.mkdir(parents=True, exist_ok=True)
     ids = indices(split)[:limit] if limit else indices(split)
     rows, records = [], []
+    kernel_sha = digest(Path(__file__).with_name('kernels.py'))
     for cfg in ids:
+        gauge_path = Path(p['ensemble']) / f'wilson_b6.{cfg}'
         start = perf_counter()
-        u = xp.asarray(read_nersc(Path(p['ensemble']) / f'wilson_b6.{cfg}'))
+        u = xp.asarray(read_nersc(gauge_path))
+        setup = perf_counter() - start
+        measured = perf_counter()
         rows.append([loops(build_kernel(u[:3], k), u[3], p) for k in p['kernels']])
-        records.append({'id': int(cfg), 'seconds': perf_counter() - start})
-        np.savez_compressed(output / f'{split}.npz', ids=ids[:len(rows)],
-                            loops=np.asarray(rows), protocol_hash=fingerprint(p))
-        write_json(output / f'{split}_provenance.json', {'protocol': p, 'records': records})
-        print(f'cfg {cfg}: {records[-1]["seconds"]:.2f}s', flush=True)
+        records.append({'id': int(cfg), 'gauge_sha256': digest(gauge_path),
+                        'setup_seconds': setup, 'measure_seconds': perf_counter() - measured,
+                        'total_seconds': perf_counter() - start})
+        tmp = output / f'.{split}.npz.tmp'
+        np.savez_compressed(tmp, ids=ids[:len(rows)], loops=np.asarray(rows),
+                            protocol_hash=fingerprint(p))
+        os.replace(tmp, output / f'{split}.npz')
+        write_json(output / f'{split}_provenance.json',
+                   {'protocol': p, 'kernel_sha256': kernel_sha, 'ensemble': p['ensemble'],
+                    'records': records})
+        print(f'cfg {cfg}: {records[-1]["total_seconds"]:.2f}s', flush=True)
     return records

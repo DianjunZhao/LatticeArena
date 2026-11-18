@@ -150,3 +150,45 @@ def test_ape_gauge_covariant_multiple_parameters():
         ug = np.stack([g @ u[d] @ np.roll(gt, -1, axis=3 - d) for d in range(3)])
         want = np.stack([g @ base[d] @ np.roll(gt, -1, axis=3 - d) for d in range(3)])
         np.testing.assert_allclose(ape(ug, alpha, steps), want, atol=1e-10)
+
+
+def _nersc(dims=(2, 2, 2, 2), datatype='4D_SU3_GAUGE_3x3', floating='1'):
+    nx, ny, nz, nt = dims
+    header = ('4D_SU3_GAUGE_3x3\n'
+              f'DIMENSION_1={nx}\nDIMENSION_2={ny}\nDIMENSION_3={nz}\nDIMENSION_4={nt}\n'
+              f'DATATYPE={datatype}\nFLOATING_POINT={floating}\nEND_HEADER\n')
+    payload = np.zeros(nx * ny * nz * nt * 4 * 9, dtype='<c16').tobytes()
+    return header.encode() + payload
+
+
+def test_read_nersc_validates_header_and_payload(tmp_path):
+    from tasks.wilson_loop.common import read_nersc
+    path = tmp_path / 'gauge'
+    path.write_bytes(_nersc())
+    u = read_nersc(path)
+    assert u.shape == (4, 2, 2, 2, 2, 3, 3)
+    path.write_bytes(_nersc(datatype='4D_SU2_GAUGE_3x3'))
+    with pytest.raises(ValueError, match='DATATYPE'):
+        read_nersc(path)
+    path.write_bytes(_nersc(floating='0'))
+    with pytest.raises(ValueError, match='FLOATING_POINT'):
+        read_nersc(path)
+    path.write_bytes(_nersc()[:-16])
+    with pytest.raises(ValueError, match='payload'):
+        read_nersc(path)
+
+
+def test_load_data_validates_shape_dtype_and_finite(tmp_path):
+    from tasks.pion_projection.common import fingerprint
+    from tasks.wilson_loop.common import indices, load_data, protocol
+    p = protocol()
+    ids = indices('development')
+    shape = (len(ids), len(p['kernels']), len(p['r_values']), len(p['t_values']))
+    np.savez(tmp_path / 'development.npz', ids=ids, loops=np.ones(shape),
+             protocol_hash=fingerprint(p))
+    assert load_data(tmp_path, 'development').shape == shape
+    for bad in (np.ones(shape[:-1]), np.full(shape, np.nan)):
+        np.savez(tmp_path / 'development.npz', ids=ids, loops=bad,
+                 protocol_hash=fingerprint(p))
+        with pytest.raises(ValueError):
+            load_data(tmp_path, 'development')
