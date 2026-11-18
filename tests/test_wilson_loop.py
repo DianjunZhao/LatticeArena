@@ -325,3 +325,35 @@ def test_trust_status_does_not_use_the_protocol_name(monkeypatch):
                           json.loads((run / 'validation_provenance.json').read_text()))
     assert status['status'] == 'archived_diagnostic'
     assert status['reasons']
+
+
+def test_evidence_schema_and_summary(tmp_path):
+    from core.evidence import load_evidence, record, summarise, validate, write_evidence
+    with pytest.raises(ValueError, match='missing'):
+        validate({'test_id': 'x'})
+    with pytest.raises(ValueError, match='status'):
+        record('x', 'wilson_loop', 'claim', 'cmd', 1, 1, 'MAYBE', 'synthetic_CPU')
+    entry = record('x', 'wilson_loop', 'claim', 'cmd', 1, 1, 'PASS', 'synthetic_CPU')
+    path = tmp_path / 'e.json'
+    write_evidence(path, [entry])
+    assert load_evidence(path)[0]['status'] == 'PASS'
+    assert summarise([entry])[0]['task'] == 'wilson_loop'
+
+
+def test_operator_checks_and_counterexamples():
+    from core.operator_checks import (bad_gram_schmidt_projector, bad_nonhermitian_kernel,
+                                      covariance_residual, good_hermitian_kernel,
+                                      hermiticity_residual, linearity_residual)
+    rng = np.random.default_rng(5)
+    f = rng.normal(size=(8, 3)) + 1j * rng.normal(size=(8, 3))
+    g = rng.normal(size=(8, 3)) + 1j * rng.normal(size=(8, 3))
+    assert linearity_residual(lambda x: 2 * x - 0.5 * np.roll(x, 1, 0), f, g) < 1e-12
+    assert linearity_residual(lambda x: np.abs(x), f, g) > 1e-3
+    good = lambda a, b: np.vdot(a, good_hermitian_kernel(b))
+    bad = lambda a, b: np.vdot(a, bad_nonhermitian_kernel(b))
+    assert hermiticity_residual(good, f, g) < 1e-12
+    assert hermiticity_residual(bad, f, g) > 1e-3
+    u = np.linalg.qr(rng.normal(size=(3, 3)) + 1j * rng.normal(size=(3, 3)))[0]
+    field = rng.normal(size=(3, 3)) + 1j * rng.normal(size=(3, 3))
+    assert covariance_residual(lambda x: u @ x, lambda x: u @ x, field) < 1e-12
+    assert covariance_residual(bad_gram_schmidt_projector, lambda x: x @ u, field) > 1e-6
