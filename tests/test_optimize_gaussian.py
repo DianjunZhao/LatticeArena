@@ -298,19 +298,25 @@ def test_validate_inputs_status(tmp_path, monkeypatch):
     cache_dir = tmp_path / 'props'
     cache_dir.mkdir()
     prop = cache_dir / 'k.npy'
-    np.save(prop, np.zeros(3))
+    np.save(prop, np.zeros(3, dtype=np.complex128))
     import hashlib
     (cache_dir / 'k.json').write_text(json.dumps(
         {'array_sha256': hashlib.sha256(prop.read_bytes()).hexdigest(),
-         'keydata': {'gauge': hashlib.sha256(gauge.read_bytes()).hexdigest(), 'residual_max': 1e-12}}))
+         'keydata': {'gauge': hashlib.sha256(gauge.read_bytes()).hexdigest(), 'residual_max': 1e-12,
+                     'geometry': [4, 4, 4, 8], 'boundary': -1, 'tol': 1e-10, 'maxiter': 10000}}))
     monkeypatch.chdir(tmp_path)
     (tmp_path / '.cache/pion_projection/propagators').mkdir(parents=True)
     prop2 = tmp_path / '.cache/pion_projection/propagators/k.npy'
     prop2.write_bytes(prop.read_bytes())
     (prop2.with_suffix('.json')).write_text((cache_dir / 'k.json').read_text())
-    p = {'ensemble': str(tmp_path), 'tolerance': 1e-10}
+    p = {'ensemble': str(tmp_path), 'tolerance': 1e-10, 'geometry': [4, 4, 4, 8],
+         't_boundary': -1, 'max_iterations': 10000}
     row = train.validate_inputs(p, [7], {7: 'k'})['7']
     assert row['status'] == 'verified' and row['gauge'] and row['propagator']
+    assert row['geometry'] and row['boundary'] and row['precision']
+    bad = dict(p, geometry=[8, 8, 8, 8])
+    with pytest.raises(ValueError, match='protocol mismatch'):
+        train.validate_inputs(bad, [7], {7: 'k'})
 
 
 def test_crosslink_target_and_oracle():

@@ -42,7 +42,7 @@
 
 | 条目 | 状态 | 证据 |
 | --- | --- | --- |
-| 包A 生产输入闭包 | 🟡 | `train.validate_inputs`：gauge/propagator 摘要、residual、metadata 不符即拒绝；`run_manifest` 增加 inputs 状态、environment=unknown、reference 摘要；audit 措辞改为“本审计未执行新 GPU 测量”；真实 GPU 档案未重采 |
+| 包A 生产输入闭包 | ✅（本机） | `validate_inputs`：gauge/propagator 摘要、residual、geometry/boundary/tolerance/maxiter/precision，不符即拒绝；manifest 记 inputs/environment/reference；真实 GPU 档案重采 ⛔ |
 | P0.1 BCB 闭环 | ✅ | <1e-10；`audit_20261118_bcb/` |
 | P0.2 basis/输入身份 | ✅ | 依赖 hash + gauge/propagator 摘要；mutation 测试 |
 | P0.3 audit | ✅ | manifest 分类（v9 = current）；显式 --out；dev_val 不回退 |

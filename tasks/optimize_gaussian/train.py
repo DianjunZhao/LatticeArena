@@ -87,11 +87,25 @@ def validate_inputs(p, ids, cache):
             row['gauge'] = keydata.get('gauge') == digest(gauge)
             row['propagator'] = meta.get('array_sha256') == digest(prop)
             row['residual'] = keydata.get('residual_max', meta.get('residual_max'))
-            tolerance = p.get('tolerance', 1e-10)
-            residual_ok = row['residual'] is not None and row['residual'] <= tolerance
+            row['precision'] = np.load(prop, mmap_mode='r').dtype == np.complex128
+            comparisons = {
+                'geometry': (keydata.get('geometry'), p.get('geometry')),
+                'boundary': (keydata.get('boundary'), p.get('t_boundary')),
+                'tolerance': (keydata.get('tol'), p.get('tolerance')),
+                'max_iterations': (keydata.get('maxiter'), p.get('max_iterations')),
+            }
+            mismatched = []
+            for name, (actual, expected) in comparisons.items():
+                if actual is not None and expected is not None and actual != expected:
+                    mismatched.append(name)
+                row[name] = (actual == expected) if (actual is not None and expected is not None) else None
             if not (row['gauge'] and row['propagator']):
                 raise ValueError(f'cfg {i}: gauge/propagator metadata does not match the files')
-            row['status'] = 'verified' if residual_ok else 'archived_diagnostic'
+            if mismatched:
+                raise ValueError(f'cfg {i}: protocol mismatch in {mismatched}')
+            tolerance = p.get('tolerance', 1e-10)
+            residual_ok = row['residual'] is not None and row['residual'] <= tolerance
+            row['status'] = ('verified' if residual_ok and row['precision'] else 'archived_diagnostic')
         rows[str(i)] = row
     return rows
 
