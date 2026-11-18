@@ -19,6 +19,15 @@ from .statistics import blocks, bootstrap_indices, fold, risk
 from .experiment import late_metric, nested_intervals
 
 
+def check_dependencies(spec):
+    """Optional frozen hashes for helper modules a builder imports."""
+    dependencies = spec.get('dependencies') or {}
+    for name, expected in dependencies.items():
+        if digest(Path(name)) != expected:
+            raise ValueError(f'submission dependency {name} changed since the definition was frozen')
+    return dependencies
+
+
 def apply_kernel(gauge, prop, builder, parameters):
     import cupy as cp
     links = gauge.lexico(force_numpy=False)[:3]
@@ -53,7 +62,9 @@ def run_candidate(output, definition_path, split, verify_only=False):
     spec = json.loads(Path(definition_path).read_text())
     module, function = spec['builder'].split(':')
     builder = getattr(importlib.import_module(module), function)
-    identity = {'definition': spec, 'builder_sha256': digest(inspect.getsourcefile(builder)),
+    dependencies = check_dependencies(spec)
+    identity = {'definition': spec, 'dependencies': dependencies,
+                'builder_sha256': digest(inspect.getsourcefile(builder)),
                 'protocol_hash': fingerprint(p), 'reference_submission_sha256': digest(output/'submission.json')}
     destination = output/'candidates'/fingerprint(identity)[:16]
     destination.mkdir(parents=True, exist_ok=True)

@@ -214,3 +214,17 @@ def test_improvement_certificate_validates_spec_and_abstains_on_nan():
             'invalid_tolerance': 0.01}
     out = improvement_certificate({'m': {'local': base, 'c': bad}}, spec)
     assert out['abstain'] and out['status'] == 'abstain'
+
+
+def test_candidate_dependency_check(tmp_path, monkeypatch):
+    from tasks.pion_projection.candidate import check_dependencies
+    from tasks.pion_projection.common import digest
+    helper = tmp_path / 'helper.py'
+    helper.write_text('x = 1\n')
+    monkeypatch.chdir(tmp_path)
+    good = {'dependencies': {'helper.py': digest(helper)}}
+    assert check_dependencies(good) == good['dependencies']
+    helper.write_text('x = 2\n')
+    with pytest.raises(ValueError, match='helper.py changed'):
+        check_dependencies(good)
+    assert check_dependencies({}) == {}
