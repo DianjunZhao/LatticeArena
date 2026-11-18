@@ -152,3 +152,24 @@ def test_reflection_odd_is_temporal_extent_general():
         assert odd.shape[-1] == temporal // 2 - 1
     with pytest.raises(ValueError):
         reflection_odd(np.zeros((1, 1, 15)))
+
+
+def test_two_state_fit_reports_parameters_and_condition():
+    from tasks.pion_projection.reference_twostate import TwoStateFit
+    from tasks.pion_projection.statistics import shape
+    p = protocol()
+    rng = np.random.default_rng(21)
+    t = np.arange(16)
+    data = np.zeros((30, 7, 16))
+    for k in range(7):
+        data[:, k] = (shape(.8, t) + .3*shape(1.4, t))[None, :]*(1 + .005*rng.normal(size=(30, 1)))
+    b = blocks(data, 5)
+    fit = TwoStateFit(b, p, [5, 6, 7, 8])
+    full = fit.fit_full(fit.samples.mean(0))
+    assert abs(full['mass'] - .8) < .02
+    assert abs(full['gap'] - .6) < .1
+    assert full['condition'] > 0 and np.isfinite(full['condition'])
+    assert len(full['amplitudes']) == 2*len(p['reference_basis'])
+    result, masses = fit.bootstrap(bootstrap_indices(len(b), 50, 0))
+    assert result['mass2'] > result['mass'] and result['gap'] > 0
+    assert masses.shape == (50,)

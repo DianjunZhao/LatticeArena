@@ -32,9 +32,9 @@ class TwoStateFit:
         r = mean - X @ amp
         return float(r @ self.inv @ r)
 
-    def fit(self, mean):
+    def _search(self, mean):
         lo, hi = self.p['mass_bounds']
-        best = (np.inf, None)
+        best = (np.inf, None, None)
         for m0 in np.arange(max(lo + 0.2, 0.7), min(hi - 0.3, 1.4), 0.02):
             for gap in (0.2, 0.4, 0.6, 0.8, 1.0):
                 m1 = m0 + gap
@@ -42,8 +42,8 @@ class TwoStateFit:
                     continue
                 c = self._cost(m0, m1, mean)
                 if c < best[0]:
-                    best = (c, (m0, m1))
-        m0, m1 = best[1]
+                    best = (c, m0, m1)
+        cost, m0, m1 = best
         for step in (0.01, 0.003):
             improved = True
             while improved:
@@ -53,17 +53,34 @@ class TwoStateFit:
                     if not (lo < c0 < c1 < hi):
                         continue
                     c = self._cost(c0, c1, mean)
-                    if c < best[0] - 1e-12:
-                        best = (c, (c0, c1))
-                        m0, m1 = c0, c1
+                    if c < cost - 1e-12:
+                        cost, m0, m1 = c, c0, c1
                         improved = True
-        return float(m0), best[0]
+        return cost, m0, m1
+
+    def fit_full(self, mean):
+        cost, m0, m1 = self._search(mean)
+        X = self.design(m0, m1)
+        XtW = X.T @ self.inv
+        amp = np.linalg.solve(XtW @ X, XtW @ mean)
+        lo, hi = self.p['mass_bounds']
+        return {'mass': float(m0), 'mass2': float(m1), 'gap': float(m1 - m0),
+                'amplitudes': amp.tolist(), 'cost': float(cost),
+                'condition': float(np.linalg.cond(XtW @ X)),
+                'at_boundary': bool(min(m0 - lo, hi - m1) < 1e-3)}
+
+    def fit(self, mean):
+        cost, m0, m1 = self._search(mean)
+        return float(m0), float(cost)
 
     def bootstrap(self, index):
         mean = self.samples.mean(0)
-        m0, cost = self.fit(mean)
+        full = self.fit_full(mean)
         masses = np.array([self.fit(row)[0] for row in self.samples[index].mean(axis=1)])
         dof = self.nchan * self.ntime - 2 - 2 * self.nchan
-        return {'mass': m0, 'se': float(masses.std(ddof=1)), 'chi2': cost,
-                'dof': dof, 'p_approx': float(chi2.sf(cost, dof)),
+        return {'mass': full['mass'], 'mass2': full['mass2'], 'gap': full['gap'],
+                'amplitudes': full['amplitudes'], 'condition': full['condition'],
+                'at_boundary': full['at_boundary'], 'se': float(masses.std(ddof=1)),
+                'chi2': full['cost'], 'dof': dof,
+                'p_approx': float(chi2.sf(full['cost'], dof)),
                 'window': self.window.tolist()}, masses

@@ -192,5 +192,6 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | 反射检查任意偶数 T | 已实现；零 SE 时返回 0 而不是 NaN |
 | 合成 develop→evaluate 端到端 | 通过（CPU，见本轮提交说明） |
 | 归档只读诊断（inventory/参考扫描/协方差谱/T32 反射修正） | 已生成 `results/pion_projection/score_diagnostics_v2/` |
-| 协方差 shrinkage/block 长度预声明扫描 | NOT_RUN |
+| 协方差 shrinkage/block 长度预声明扫描 | 已生成 `stability_scan.json`：网格内没有组合能让名义参考通过（max p=0.0072） |
+| 两态拟合参数报告 | 已返回并保存 $m_1$、gap、幅度、normal-matrix 条件数、边界标记 |
 | 新数据 / 新 blind validation / anchor | NOT_RUN |
