@@ -252,3 +252,33 @@ def test_gevp_rejects_bad_matrices():
         gevp_energies(singular, t0=2, times=[5])
     with pytest.raises(ValueError, match='nblocks'):
         gevp_energies(data[0], t0=2, times=[5])
+
+
+def test_energy_delta_sign_and_validation():
+    from tasks.pion_projection.energy_target import energy_delta, lower_bound
+    rng = np.random.default_rng(0)
+    anchor = np.full(500, 0.8)
+    good = 0.8 + 0.005 * rng.normal(size=500)
+    bad = 0.8 + 0.02 * rng.normal(size=500)
+    assert np.median(energy_delta(bad, good, anchor)) > 0
+    assert np.median(energy_delta(good, bad, anchor)) < 0
+    with pytest.raises(ValueError, match='same shape'):
+        energy_delta(np.zeros(3), np.zeros(4), np.zeros(3))
+    with pytest.raises(ValueError, match='tau_e'):
+        energy_delta(np.zeros(10), np.zeros(10), np.zeros(10), tau_e=0)
+    with pytest.raises(ValueError, match='ten'):
+        lower_bound(np.zeros(5))
+
+
+def test_energy_target_certificate_behaviour():
+    from tasks.pion_projection.energy_target import coverage
+    better = coverage(n_rep=60, n_draws=100, anchor_sigma=0.005, bias=(0.0, 0.0),
+                      sigma=(0.02, 0.005), tau_e=0.01, seed=1)
+    same = coverage(n_rep=60, n_draws=100, anchor_sigma=0.005, bias=(0.0, 0.0),
+                    sigma=(0.01, 0.01), tau_e=0.01, seed=2)
+    worse = coverage(n_rep=60, n_draws=100, anchor_sigma=0.005, bias=(0.0, 0.02),
+                     sigma=(0.01, 0.005), tau_e=0.01, seed=3)
+    assert better['certified_fraction'] > 0.9
+    assert same['certified_fraction'] < 0.15
+    assert worse['certified_fraction'] < 0.1
+    assert better['median_delta'] > 0 > worse['median_delta']

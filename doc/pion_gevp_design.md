@@ -93,9 +93,25 @@ $$
 3. 用相同 block 的配对 bootstrap，报告 $\Delta$ 的单侧下界；
 4. 若 anchor 有模型偏差，报告多 anchor 模型下的同时下界，冲突则 abstain。
 
-### 3.3 现状
+### 3.3 合成数据验证（CPU，已完成）
 
-**NOT_RUN**：需要独立 anchor 和新留出数据；当前 60/30 组态不足以支撑。
+`tasks/pion_projection/energy_target.py` 实现了配对能量差和一个单侧下界
+（均值 $-\,z_{1-\alpha}\,\mathrm{SE}$），并在已知 $E_0$、独立 anchor 的合成数据上验证：
+
+| 场景 | $\sigma_b,\sigma_c$ | bias | $\Delta$ 中位数 | 认证比例 |
+| --- | --- | --- | ---: | ---: |
+| 候选更好 | 0.02, 0.005 | (0, 0) | $\approx+3.5$ | >0.9 |
+| 噪声相同 | 0.01, 0.01 | (0, 0) | $\approx0$ | <0.15 |
+| 候选有偏 | 0.01, 0.005 | (0, 0.02) | 负 | <0.1 |
+
+![energy target](../results/pion_projection/score_diagnostics_v2/energy_target_synthetic.png)
+
+**注意**：这里用“均值的单侧正态下界”，不是单次 draw 的分位数——后者对平方误差差
+（重尾）会给出永远为负的下界。
+
+### 3.4 现状
+
+**合成验证已完成；真实数据 NOT_RUN**：需要独立 anchor 和新留出数据；当前 60/30 组态不足以支撑。
 
 ## 4. 与当前评分的关系
 

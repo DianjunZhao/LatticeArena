@@ -200,6 +200,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | 两态 profile likelihood | 1σ 区间 $[1.025,1.065]$，宽度 0.04 ≈ 4× bootstrap SE——存在 sloppy 方向 |
 | 新数据 / 新 blind validation / anchor | NOT_RUN（C2 GEVP 与 C3 能量目标的设计见 [`doc/pion_gevp_design.md`](../../doc/pion_gevp_design.md)） |
 | C2 GEVP | 合成数据验证通过（`gevp.py`，$E_0$ 偏差 <0.3%）；真实数据 NOT_RUN（需要多 source 反演） |
+| C3 能量目标 | 合成数据验证通过（`energy_target.py`，认证/拒绝/无差别三种场景）；真实数据 NOT_RUN（需要独立 anchor） |
 | S1 评分证书模块 | 已实现 `scoring.py` + `score_spec.example.json` + 合成测试（真实数据仍无法认证） |
 
 ## S1 评分证书模块（`scoring.py`）
