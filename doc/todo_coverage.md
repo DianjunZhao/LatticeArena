@@ -53,7 +53,7 @@
 | P0.1 完整 BCB 验证 | ✅ | `tests/test_optimize_gaussian.py`；`audit_20261118_bcb/`（<1e-10） |
 | P0.2 basis/输入身份闭包 | ✅ | basis_key 含依赖 hash + gauge/propagator 内容摘要；mutation 测试覆盖依赖/输入/ID 变更 |
 | P0.3 audit 与措辞修正 | ✅ | audit.py 按 manifest 分类（v9 = current_operator_diagnostic）；显式 --out 拒绝覆盖；dev_val 不回退；措辞已改“未检出差异” |
-| P1 统一统计/fold-local | ⛔ | 未做 |
+| P1 统一统计/fold-local | 🟡 | `unified.py`：同一入口复算 local/SLSQP 逐位一致；3 折 fold-local 比率 88–251；学习核重算与整链 nested CV 仍 ⛔ |
 | §P2 函数类实验 | ⛔ | 未做 |
 | §P3 共同目标预测 | ⛔ | 未做 |
 
