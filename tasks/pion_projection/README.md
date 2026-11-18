@@ -198,7 +198,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | block 级 p 值校准 | 已尝试，**不可用**：12 blocks / 15 维导致零分布循环偏窄（p 退化为 $1/(N+1)$），详见诊断 README |
 | 模型平均（AIC/BIC） | 已生成 `model_average.json`：权重退化为两态（$\approx1$），但两态过拟合，排序随模型翻转 |
 | 两态 profile likelihood | 1σ 区间 $[1.025,1.065]$，宽度 0.04 ≈ 4× bootstrap SE——存在 sloppy 方向 |
-| 新数据 / 新 blind validation / anchor | NOT_RUN |
+| 新数据 / 新 blind validation / anchor | NOT_RUN（C2 GEVP 与 C3 能量目标的设计见 [`doc/pion_gevp_design.md`](../../doc/pion_gevp_design.md)） |
 | S1 评分证书模块 | 已实现 `scoring.py` + `score_spec.example.json` + 合成测试（真实数据仍无法认证） |
 
 ## S1 评分证书模块（`scoring.py`）

@@ -169,6 +169,7 @@ v2 的 6 个留出 block 太窄，配对区间跨 1。按 todo 的建议“扩�
 | APE(0.6087, 10) | $2.535\times10^{-5}$ | 221.9 | 2.84 | [1.17, 6.34] | 0.982 |
 
 **三个配对区间全部不含 1**，这是这个 task 第一次在预注册分析下证明“协变 APE 优于 identity”。
+完整报告（势表、评分、配对、限制、复现）见 [`doc/wilson_loop_v3.md`](../../doc/wilson_loop_v3.md)。
 参考 gate 通过（identity 的 $V(R)=0.41042/0.59893/0.70849$，新系综与 v1 在噪声内一致）。
 
 产物：`results/wilson_loop/s16t16_v3/`、`results/wilson_loop/paired_s16t16_v3/`；
