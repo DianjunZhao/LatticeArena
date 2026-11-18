@@ -192,3 +192,47 @@ def test_load_data_validates_shape_dtype_and_finite(tmp_path):
                  protocol_hash=fingerprint(p))
         with pytest.raises(ValueError):
             load_data(tmp_path, 'development')
+
+
+def _synthetic_loops(ids, v=(0.4, 0.55, 0.7)):
+    from tasks.wilson_loop.common import protocol
+    p = protocol()
+    t = np.array(p['t_values'], dtype=float)
+    base = np.exp(-np.outer(v, t))
+    return np.repeat(base[None, None, :, :], len(ids), axis=0).repeat(len(p['kernels']), axis=1)
+
+
+def test_develop_evaluate_roundtrip_and_tamper_rejection(tmp_path):
+    import json
+    from tasks.pion_projection.common import fingerprint
+    from tasks.wilson_loop.common import indices, protocol
+    from tasks.wilson_loop.experiment import develop, evaluate
+    p = protocol()
+    np.savez(tmp_path / 'development.npz', ids=indices('development'),
+             loops=_synthetic_loops(indices('development')), protocol_hash=fingerprint(p))
+    develop(tmp_path)
+    frozen = json.loads((tmp_path / 'submission.json').read_text())
+    assert frozen['reference_passed'] and 'kernel_sha256' in frozen
+    np.savez(tmp_path / 'validation.npz', ids=indices('validation'),
+             loops=_synthetic_loops(indices('validation')), protocol_hash=fingerprint(p))
+    evaluate(tmp_path)
+    report = json.loads((tmp_path / 'validation_results.json').read_text())
+    assert report['reference_passed']
+    assert report['results']['identity']['score'] == pytest.approx(100.0)
+    loops = _synthetic_loops(indices('development'))
+    loops[0, 0, 0, 0] += 0.5
+    np.savez(tmp_path / 'development.npz', ids=indices('development'), loops=loops,
+             protocol_hash=fingerprint(p))
+    with pytest.raises(ValueError, match='Development data changed'):
+        evaluate(tmp_path)
+
+
+def test_protocol_v2_documents_the_normalization_change():
+    import json
+    from pathlib import Path
+    p = json.loads(Path('tasks/wilson_loop/protocol_v2.json').read_text())
+    assert p['version'].endswith('-v2') and 'v1' in p['supersedes']
+    assert p['normalization'].startswith('alpha/4')
+    for kernel in p['kernels'][1:]:
+        old = kernel['equivalent_v1_alpha']
+        assert kernel['alpha'] == pytest.approx(2 * old / (3 - old), rel=1e-4)

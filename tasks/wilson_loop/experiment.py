@@ -28,6 +28,7 @@ def develop(output):
     best_risk, best_name = min((r['risk'], n) for n, r in results.items() if n != 'identity')
     frozen = {'protocol_hash': fingerprint(p),
               'development_sha256': digest(output / 'development.npz'),
+              'kernel_sha256': digest(Path(__file__).with_name('kernels.py')),
               'windows': windows, 'nominal_window': windows[1],
               'reference_passed': not failures, 'failure_reasons': failures,
               'identity': identity, 'kernels': p['kernels'], 'v_ref': v_ref.tolist(), 'results': results,
@@ -46,6 +47,12 @@ def evaluate(output):
     frozen = json.loads((output / 'submission.json').read_text())
     if frozen['protocol_hash'] != fingerprint(p):
         raise ValueError('Protocol changed since development')
+    if frozen.get('kernel_sha256') != digest(Path(__file__).with_name('kernels.py')):
+        raise ValueError('Kernel implementation changed since development')
+    if frozen['development_sha256'] != digest(output / 'development.npz'):
+        raise ValueError('Development data changed since development')
+    if frozen['kernels'] != p['kernels']:
+        raise ValueError('Kernel parameters changed since development')
     data = blocks(load_data(output, 'validation'), p['block_length'])
     index = bootstrap_indices(len(data), p['bootstrap_samples'], p['seed'] + 1)
     windows = frozen['windows']

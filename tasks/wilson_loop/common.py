@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -7,10 +8,11 @@ from core.io import digest, fingerprint, write_json  # noqa: F401  (re-export)
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_OUTPUT = Path('results/wilson_loop/s16t16_v1')
+PROTOCOL_PATH = Path(os.environ.get('WILSON_PROTOCOL', str(HERE / 'protocol.json')))
 
 
 def protocol():
-    return json.loads((HERE / 'protocol.json').read_text())
+    return json.loads(PROTOCOL_PATH.read_text())
 
 
 def indices(split):

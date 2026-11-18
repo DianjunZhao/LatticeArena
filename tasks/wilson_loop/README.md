@@ -103,6 +103,19 @@ python -m pytest -q tests/test_wilson_loop.py
 | P0 双边极分解投影 + det 修正 | 已实现；`project(gMg')=g·project(M)·g'`、APE 多 alpha/steps 协变测试 |
 | P0 staple 归一化 | 已从 `/6` 改为 `/4`；`alpha` 数值口径变化（旧 α ↔ 新 $2\alpha/(3-\alpha)$） |
 | 旧 APE 结果 | **失效**（旧投影不协变），保留为历史诊断；identity 不受影响 |
-| P1 provenance | 部分完成：NPZ/loop 形状与有限性校验、每配置 gauge sha256、kernel 源码 hash、setup/measure/total 计时、git commit/dirty、原子保存；仍缺硬件/QUDA 版本 |
+| P1 provenance | 部分完成：NPZ/loop 校验、每配置 gauge sha256、kernel hash、计时、git commit/dirty、原子保存；`evaluate` 现在校验 development SHA、kernel hash 与 kernel 参数；仍缺硬件/QUDA 版本 |
 | P2 配对区间 | 只有探索性 nested bootstrap，未校准 |
+| v2 协议（alpha/4 + 极分解） | 已准备（`protocol_v2.json`），可用 `WILSON_PROTOCOL` 选择 |
 | 修复后的 GPU 重测 | NOT_RUN（需要集群与新 run 目录） |
+
+## 重新测量准备：v2 协议
+
+修复后的 APE 需要重测，`protocol_v2.json` 把新口径固定下来：
+
+- staple 归一化 `alpha/4`（三个空间方向 4 个 staple），双边极分解投影；
+- 新 $lpha$ 与旧数值的关系 $\alpha_{v2}=2\alpha_{v1}/(3-\alpha_{v1})$（保持 staple/identity 比例）；
+- 版本 `s16t16-wilson-v2`，`supersedes` 明确 v1 的旧 APE 结果不能再用；
+- 用 `WILSON_PROTOCOL=tasks/wilson_loop/protocol_v2.json` 选择，默认协议保持 v1 不变。
+
+生成器 `pilot/hmc_generate.py` 已从 kunshan 取回仓库，重生产时可以核对输入身份。
+修复后的 GPU 重测仍为 **NOT_RUN**。
