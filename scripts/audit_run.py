@@ -4,6 +4,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -32,14 +33,18 @@ def wilson(run, protocol_path):
                               observed={'ids': ids[:5], 'n': len(ids)},
                               threshold={'expected': [int(x) for x in np.arange(p['validation'][0], p['validation'][1] + 1)]},
                               status='PASS' if ids == list(range(p['validation'][0], p['validation'][1] + 1)) else 'FAIL',
-                              scope='archived_data', geometry=p['geometry']))
+                              scope='archived_data', geometry=p['geometry'],
+                              code={name: digest(Path(path)) for name, path in CODE.items()},
+                              inputs={'ids_hash': hashlib.sha256(np.asarray(ids).tobytes()).hexdigest()}))
         entries.append(record('wilson.shape_finite', 'wilson_loop', 'loops are finite with the declared shape',
                               'shape/finite check', observed=list(loops.shape),
                               threshold={'n': len(ids), 'kernels': len(p['kernels']),
                                          'R': len(p['r_values']), 'T': len(p['t_values'])},
                               status='PASS' if loops.shape == (len(ids), len(p['kernels']), len(p['r_values']), len(p['t_values']))
                               and np.all(np.isfinite(loops)) else 'FAIL', scope='archived_data',
-                              geometry=p['geometry']))
+                              geometry=p['geometry'],
+                              code={name: digest(Path(path)) for name, path in CODE.items()},
+                              inputs={'loops_sha256': hashlib.sha256(np.ascontiguousarray(loops).tobytes()).hexdigest()}))
     observed = {'submission': sub.get('kernel_sha256'), 'provenance': prov.get('kernel_sha256')}
     if observed['submission'] is None or observed['provenance'] is None:
         status = 'NOT_RUN'
@@ -73,11 +78,13 @@ def pion(run):
                               status='PASS' if data.shape == (expected_n, len(p['powers']), p['geometry'][3])
                               and np.all(np.isfinite(data)) else 'FAIL', scope='archived_data', geometry=p['geometry'],
                               code={name: digest(Path(path)) for name, path in PION_CODE.items()},
-                              inputs={'protocol_hash': stored}))
+                              inputs={'correlators_sha256': hashlib.sha256(np.ascontiguousarray(data).tobytes()).hexdigest()}))
         entries.append(record(f'pion.{split}.protocol_hash', 'pion_projection', f'{split} protocol hash matches the provenance',
                               'hash compare', observed=stored[:12], threshold=fingerprint(p)[:12],
                               status='PASS' if stored == fingerprint(p) else 'FAIL', scope='archived_data',
-                              geometry=p['geometry']))
+                              geometry=p['geometry'],
+                              code={name: digest(Path(path)) for name, path in PION_CODE.items()},
+                              inputs={'protocol_hash': stored}))
     return entries
 
 
