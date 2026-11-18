@@ -202,6 +202,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | C2 GEVP | 合成验证通过；真实数据 2×2（$E_0=1.067\pm0.010$）与补测 $H^{24}$ 后的 3×3（dev 1.026±0.017 / val 0.997±0.018）**都无平台** → Gram GEVP（2–3 族算符）在 $t=3$–$5$ 给出 $m_0\approx1.02$–$1.05$，偏向两态参考（1.057）而非单 cosh（1.086）；$t=6$ 噪声大，仍不足以认证 |
 | C3 能量目标 | 合成数据验证通过（`energy_target.py`，认证/拒绝/无差别三种场景）；真实数据 NOT_RUN（需要独立 anchor） |
 | S1 评分证书模块 | 已实现 `scoring.py` + `score_spec.example.json` + 合成测试（真实数据仍无法认证） |
+| P1.1/P1.2 双层校准 | 新增 `calibration_full.py` + `results/pion_projection/score_calibration_v1/`：完整估计器 24 blocks 假阳性 0.025，fixed-metric 0.095（反保守），6/12 blocks 时 0.235/0.085；两态真值拒绝率约 0.53；$(k+1)/(N+1)$ 分辨率约 0.0025 |
 | P1.3 120-dev 参考诊断 | 新增 `diagnostics_200.py` + `results/pion_projection/score_diagnostics_v3/`：协方差谱（15/12/9 维，rank 满、条件数 $10^6$–$10^8$）、block×shrinkage 全失败、$m_0$ 随窗口从 1.44 掉到 1.08、两态 profile 半宽/SE=2.7；见 `score_diagnostics_v3/README.md` |
 | P0.2/P0.3 GEVP 统计 | 新增 `gevp_stats.py`：去重 → block bootstrap → replica 平均矩阵 → 秩截断 GEVP → forward/cosh 有效能量；已知谱 100 次模拟覆盖率 **0.95**；真实 Gram 数据 forward $E_0=1.0629\pm0.0075$（探索性）；见 [`doc/gevp_stats.md`](../../doc/gevp_stats.md) |
 | P0.1 GEVP 矩阵身份 | 新增 [`doc/gram_operator_identity.md`](../../doc/gram_operator_identity.md) + `gram_identity_check.json`：$M$（sink–sink Gram）与标准 source–sink $C$ 差约 30%，$C$ 的 anti-Hermitian 部分也是 30% → 旧 Gram GEVP 降级为探索性；multisource 才是标准矩阵，但源端核需对齐 |
