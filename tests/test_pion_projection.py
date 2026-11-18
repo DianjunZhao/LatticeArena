@@ -326,3 +326,12 @@ def test_gram_gevp_floor_makes_positive_semidefinite():
     fixed = floored(gram)
     values = np.linalg.eigvalsh(fixed.transpose(0, 3, 1, 2).reshape(-1, 4, 4))
     assert np.all(values >= 0)
+
+
+def test_agent_prompt_follows_the_protocol():
+    from agents.loop import render_prompt
+    p = protocol()
+    q = dict(p, geometry=[16, 16, 16, 32], powers=[0, 2, 4], alpha=0.1, score_window=[3, 4, 5])
+    text = render_prompt(q, [[0, 1.0, 0.0]], [])
+    assert '32-t' in text and '0.1' in text and '[0, 2, 4]' in text
+    assert '3, 4, 5' in text and '[[3 u values], [3 u values], [3 u values]]' in text

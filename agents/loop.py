@@ -10,29 +10,36 @@ from agents.llm import chat
 from core.io import fingerprint, write_json
 from tasks.pion_projection.common import protocol
 from tasks.pion_projection.experiment import late_metric
-from tasks.pion_projection.statistics import (ReferenceFit, blocks, bootstrap_indices, fold, risk)
+from tasks.pion_projection.reference import make_reference, reference_kind, verify_reference
+from tasks.pion_projection.statistics import blocks, bootstrap_indices, fold, risk
 
 PROMPT = """You are optimizing the sink kernel of a quenched pion two-point function.
 
-K = sum_n u_n H^n / A_n,  H = (I + 0.2 * spatial_hopping) / 2.2,  n in {{0,2,4,8,16,32,64}}
-A_n are the measured amplitudes of each channel. u is the normalized coefficient vector:
-sum(u) = 1, sum(|u|) <= 8.  u = [1,0,0,0,0,0,0] is the local sink, u = [0,0,0,0,0,1,0] is H^32.
-Signed u are allowed.
+K = sum_k u_k H^p_k / A_k,  H = (I + {alpha} * spatial_hopping) / (1 + 6*{alpha})
+powers p_k = {powers}, A_k are the measured amplitudes of each channel.
+u is the normalized coefficient vector: sum(u) = 1, sum(|u|) <= 8.
+u = e_0 (the first power) is the local sink. Signed u are allowed.
 
 Score (lower is better), with m0 fixed by the evaluator:
-  q(t) = C(t) / (A f0(t)),  f0(t) = exp(-m0 t) + exp(-m0 (16-t))
-  risk = mean over t in {{2,3,4,5}} of [ Var_boot(q(t)) + (q(t)-1)^2 ]
+  q(t) = C(t) / (A f0(t)),  f0(t) = exp(-m0 t) + exp(-m0 ({T}-t))
+  risk = mean over t in {score_window} of [ Var_boot(q(t)) + (q(t)-1)^2 ]
 The departure term dominates, so a good kernel makes q(t) flat over that window.
 
-Channels, as (n, amplitude A_n, risk of u=e_n):
+Channels, as (power, amplitude A_k, risk of u=e_k):
 {baselines}
 
 Previous attempts, as (u, risk):
 {history}
 
-Return JSON only: {{"candidates": [[seven u values], [seven u values], [seven u values]]}}
+Return JSON only: {{"candidates": [[{n_powers} u values], [{n_powers} u values], [{n_powers} u values]]}}
 Propose three structurally different vectors each round.
 """
+
+
+def render_prompt(p, baselines, history):
+    return PROMPT.format(alpha=p['alpha'], powers=list(p['powers']), T=p['geometry'][3],
+                         score_window=list(p['score_window']), baselines=baselines,
+                         history=json.dumps(history[-6:]), n_powers=len(p['powers']))
 
 
 def run(output, model, rounds):
@@ -44,7 +51,10 @@ def run(output, model, rounds):
     assert str(npz['protocol_hash']) == fingerprint(run_protocol)
     p = run_protocol
     data = blocks(fold(npz['correlators']), p['block_length'])
-    reference = ReferenceFit(data, p, p['reference_windows'][p['reference_nominal_window']])
+    frozen = json.loads((output / 'submission.json').read_text()) if (output / 'submission.json').exists() else {}
+    spec = frozen.get('reference')
+    kind = verify_reference(spec) if spec else reference_kind()
+    reference = make_reference(data, p, p['reference_windows'][p['reference_nominal_window']], kind)
     index = bootstrap_indices(len(data), p['bootstrap_samples'], p['seed'])
     ref, masses = reference.bootstrap(index)
     basis = np.eye(len(p['powers']))
@@ -58,7 +68,8 @@ def run(output, model, rounds):
     history, llm_best = [], None
     best = {'risk': min(worst), 'weights': basis[int(np.argmin(worst))].tolist(), 'round': -1}
     for r in range(rounds):
-        reply = chat(PROMPT.format(baselines=baselines, history=json.dumps(history[-6:])), model)
+        prompt = render_prompt(p, baselines, history)
+        reply = chat(prompt, model)
         match = re.search(r'\{.*\}', reply, re.S)
         if match is None:
             history.append({'error': 'no json', 'reply': reply[:200]})
@@ -78,7 +89,7 @@ def run(output, model, rounds):
             write_json(output / 'agent' / f'round{r}_{i}.json',
                        {'model': model, 'u': u.tolist(), 'weights': weights.tolist(),
                         'risk': value['risk'],
-                        'prompt_sha256': hashlib.sha256(PROMPT.encode()).hexdigest(),
+                        'prompt_sha256': hashlib.sha256(prompt.encode()).hexdigest(),
                         'reply_sha256': hashlib.sha256(reply.encode()).hexdigest()})
             print(f'round {r}.{i}: risk {value["risk"]:.6g}  u {np.round(u, 3).tolist()}')
             if llm_best is None or value['risk'] < llm_best['risk']:

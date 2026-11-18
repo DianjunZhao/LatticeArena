@@ -61,7 +61,7 @@
 
 - 不是 QUDA/PyQUDA 那种"算物理量"的库。它自己不做格点计算，而是**调用** PyQUDA 去算。
 - 不是通用的 benchmark 框架。目前没有任务注册表、没有排行榜、没有多任务调度，就是一个任务的一整套流水线。
-- **不是 LLM 应用**。仓库里没有任何一行代码调用大模型（详见第 8 节）。
+- **默认流程不是 LLM 应用**：`measure`/`develop`/`evaluate`/`candidate` 都不调用大模型；只有可选的 `agent`/`report` 子命令会（详见第 8 节）。
 
 ---
 
@@ -543,22 +543,27 @@ for k,v in r['results'].items(): print(k, v['risk'], v['score'])
 
 ## 8. LLM 是怎么被调用的（重点）
 
-### 8.1 先说结论：**现在的 LatticeArena 一行 LLM 代码都没有**
+### 8.1 先说结论：LLM 是**可选**的一层
 
-我用关键词扫过整个仓库：`openai`、`anthropic`、`api_key`、`requests`、`http`、`prompt`、`gpt`、`llm` —— **零命中**。
+默认流水线（`measure`/`develop`/`evaluate`/`candidate`）**不调用**任何大模型，分数完全由本地统计
+决定。仓库里另有两条可选命令会调用 DeepSeek：
 
-没有 API key，没有网络请求，没有 prompt 模板，没有对话循环。
+- **`agent`**：`agents/loop.py` + `agents/llm.py`，让 LLM 每轮提 3 组权重、本地打分、把结果喂回下一轮；
+- **`report`**：`agents/report.py`，LLM 只写 `REPORT.md` 的文字解读。
 
-所以"LLM 被调用"这件事，目前是发生在**考场外面**的：由人（或者像现在这样由我）读文档、想方案、写代码，再手动交给 `candidate`。
+API key 读 `~/Desktop/api.key` 或 `$LLM_API_KEY`，默认 `deepseek-flash`，POST 到
+`https://api.deepseek.com/v1`（`response_format: json_object`、`thinking` 关闭）。
+**计算节点没有 DNS**，所以这两个命令要在登录节点或本地跑；GPU 只用于测量/评估。
 
-### 8.2 那代码里的 "agent" 是什么
+### 8.2 代码里的 "agent" 是什么
 
-两个地方出现了 "agent"，都**不是**大模型：
+两个地方出现了 "agent"：
 
-1. `README.md` 说"这个项目是给 AI agent 做研究用的"——这是**目标**，不是实现。
-2. `validation_results.json` 里有个候选叫 `agent_signed_mixture`——这是 `experiment.py` 里 **SLSQP 优化器**算出来的一组权重，不是 LLM 生成的。
+1. `README.md` 说"这个项目是给 AI agent 做研究用的"——这是**目标**；
+2. `validation_results.json` 里的 `agent_signed_mixture` 是 `experiment.py` 里 **SLSQP** 算出的权重，
+   不是 LLM 生成的（它是本地强基线）。
 
-换句话说：**现在的"AI 考生"是一个数学优化器**，它只会调 7 个系数。真正的 LLM 还没有上场。
+LLM 的入口是独立的 `agent` 子命令（见 8.3），它只写 `<output>/agent/`，不碰冻结的提交。
 
 ### 8.3 现在已经实现的入口（`agent` / `report`）
 

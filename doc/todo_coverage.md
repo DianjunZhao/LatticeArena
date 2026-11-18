@@ -25,6 +25,8 @@
 | C3：能量误差目标 | 🟡 | `energy_target.py` 合成验证 ✅；独立 anchor ⛔ |
 | 阶段 D：新 GPU 数据/可移植性 | 🟡 | 200 组态 S16T16C（120 dev / 60 val）已生成并测量；参考仍失败、GEVP 平台仍限 $t\le5$；生成器已入库 |
 | T=32 新系综测量 | ✅ | `results/pion_projection/s16t16_gevp/` 与多 source 数据 |
+| `agents/loop.py` 的 T16 硬编码 prompt | ✅ | prompt 现在由 protocol 生成（powers/T/window/alpha），参考走统一 factory |
+| `Note.md` 的 LLM 旧描述 | ✅ | §8.1/8.2 重写为实际实现（`agents/llm.py`/`loop.py`/`report.py`，默认流程不调用） |
 
 **结论**：参考不可识别是结构性的（15 维/12 blocks、模型失配、$m_0$ 在 1.02–1.09 间不确定），
 CPU 侧能做的诊断和工具链已经完成；真实数据的 C2（完整算符集）和 C3（独立 anchor）未执行。
