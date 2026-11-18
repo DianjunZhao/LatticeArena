@@ -203,6 +203,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | C3 能量目标 | 合成数据验证通过（`energy_target.py`，认证/拒绝/无差别三种场景）；真实数据 NOT_RUN（需要独立 anchor） |
 | S1 评分证书模块 | 已实现 `scoring.py` + `score_spec.example.json` + 合成测试（真实数据仍无法认证） |
 | $m_0$ 敏感度扫描 | 分数随 $m_0$ 变化约 7 倍、排序在 1.06 附近翻转（`score_diagnostics_v2/m0_scan.json`） |
+| 固定 $m_0$ 的端到端评分 | 单 cosh 下 SLSQP 更好（1.63）、两态打平、GEVP 质量下 tuned 更好（0.70）；见 `fixed_m0_scores.json` |
 
 ## S1 评分证书模块（`scoring.py`）
 
