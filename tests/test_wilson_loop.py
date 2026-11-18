@@ -464,3 +464,11 @@ def test_measure_entry_end_to_end(tmp_path, monkeypatch):
         assert f['ids'].tolist() == [0, 1] and f['loops'].shape[0] == 2
     records = json.loads((out / 'development_provenance.json').read_text())['records']
     assert [r['id'] for r in records] == [0, 1]
+
+
+def test_spectral_two_state_counterexample():
+    from tasks.wilson_loop.spectral_physical import analyse
+    rng = np.random.default_rng(7)
+    row = analyse(rng, 0.2)
+    assert row['gate_spread_pass']
+    assert row['bias_over_se'] > 3

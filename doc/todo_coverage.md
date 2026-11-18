@@ -36,7 +36,7 @@
 | P0 投影数值边界 | ✅ | 逐矩阵 Newton–Schulz + 收敛检查；混尺度 batch 1e-16；rank-2 拒绝；`audit_20261118_projection/` |
 | P1 可信加载/冻结 | ✅ | `identity.py`：generation、resume、gauge 几何、trust_status；v3 归档判 archived_diagnostic |
 | P2 配对统计审计 | ✅ | `paired_audit_v2/`：归档点值重放（v2 0.967–1.055）、leave-one-block-out jackknife、非退化 coverage 0.983；`invalid_audit_v1/` 计数全 0 |
-| P3 物理质量门控 | ✅ | `spectral_quality_v1/`：平但错反例（偏差 170σ、risk 2.7e-7、gate 通过）；`doc/wilson_spectral_quality.md` |
+| P3 物理质量门控 | ✅ | `spectral_quality_v1/`（平但错）+ `spectral_physical_v1/`（两态：bias/SE 32.5 而 spread gate 通过，window_z 仅在 c1≥0.2 报警）；`doc/wilson_spectral_quality.md` |
 | P4 研究扩展（设计） | ⛔ | 只有 todo 中的设计表 |
 | F0 证据 schema | ✅ | `core/evidence.py`、`operator_checks.py`、`scripts/audit_run.py`、`summarize_evidence.py`；audit 证据带 code/inputs hash，缺 hash 判 NOT_RUN，pion 行数按 RunSpec |
 | F1 五类接口 | ✅ | `core/specs/measurement/comparator/search/reference_provider`；一致性 + 缓存失效反例 PASS |
