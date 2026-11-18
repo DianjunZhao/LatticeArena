@@ -34,6 +34,10 @@ def summarize(name, r):
                 'test': r['test_risk_learned'], 'base_test': r['test_risk_base'],
                 'ratio': r.get('test_ratio', r['test_risk_base'] / r['test_risk_learned']),
                 'base_steps': r.get('best', {}).get('base_steps', r.get('base_steps'))}
+    if 'final_loss' in r:  # smoke runs: shape loss, not the full risk
+        return {'version': name, 'status': 'historical-smoke', 'feature_version': 'legacy',
+                'initial_loss': r['initial_loss'], 'final_loss': r['final_loss'],
+                'note': 'shape-loss objective, not the full risk'}
     if 'grid' in r and 'base' in r:  # v4
         return {'version': name, 'status': 'historical', 'feature_version': 'legacy',
                 'dev_val': min(g['dev_val_risk'] for g in r['grid']),
