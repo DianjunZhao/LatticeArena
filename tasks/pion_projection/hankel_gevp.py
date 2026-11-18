@@ -7,6 +7,7 @@ n_i + n_j is among the measured powers. With powers {0,2,4,8,16,32,64} the
 2x2 set {0, 8} works; larger subsets would need new sums (C_24, ...).
 """
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -14,7 +15,7 @@ import numpy as np
 from .gevp import gevp_energies, summary
 from .statistics import blocks, fold
 
-RUN = Path('results/pion_projection/s16t16_v1')
+RUN = Path(os.environ.get('PION_RUN', 'results/pion_projection/s16t16_v1'))
 
 
 def build_hankel(correlators, powers, ops=(0, 8)):
@@ -35,13 +36,19 @@ def main():
     p = json.loads((RUN / 'development_provenance.json').read_text())['protocol']
     raw = np.load(RUN / 'development.npz')['correlators']
     data = blocks(fold(raw), p['block_length'])
-    matrix = build_hankel(data, p['powers'], ops=(0, 8))
     times = [3, 4, 5, 6]
-    rows = gevp_energies(matrix, t0=2, times=times)
-    for state in (0, 1):
-        result = summary(rows, state=state)
-        print(f'state {state}: E = {result["energy"]:.4f} +- {result["se_boot"]:.4f} '
-              f'(per time { {t: round(v, 4) for t, v in result["per_time"].items()} })')
+    for ops in ((0, 8, 16), (0, 8)):
+        try:
+            matrix = build_hankel(data, p['powers'], ops=ops)
+        except ValueError as exc:
+            print(f'ops {ops}: skipped ({exc})')
+            continue
+        rows = gevp_energies(matrix, t0=2, times=times)
+        print(f'ops {ops}: matrix size {len(ops)}')
+        for state in range(len(ops)):
+            result = summary(rows, state=state)
+            print(f'  state {state}: E = {result["energy"]:.4f} +- {result["se_boot"]:.4f} '
+                  f'(per time { {t: round(v, 4) for t, v in result["per_time"].items()} })')
     print('reference single-cosh 1.0862, two-state 1.0570')
 
 
