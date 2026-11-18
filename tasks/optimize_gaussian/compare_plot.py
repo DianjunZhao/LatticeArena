@@ -1,5 +1,6 @@
 """Plot the paired comparison (local / SLSQP / A1+)."""
 import json
+import sys
 from pathlib import Path
 
 import matplotlib
@@ -7,7 +8,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-CAND = Path('results/pion_projection/s16t16_v1/candidates/f686a72d9c868716')
+CAND = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('results/pion_projection/s16t16_v1/candidates/f686a72d9c868716')
 
 
 def main():

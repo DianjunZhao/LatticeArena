@@ -1,8 +1,8 @@
 # optimize_gaussian：用学习到的 smear 核替换 $H^n$
 
 **一句话结论**：修复特征后（link 中心、A1+ 认证），学习核比最好的高斯基座好 **2.1 倍**，
-候选 risk 0.007721 与 7 参数 SLSQP 混合的 0.007703 **打平（0.2% 内）**；但参考 gate 未过，
-仍然没有官方分数。下面把每个公式、每个符号、每张图都讲清楚。
+候选 risk 0.007721 与 7 参数 SLSQP 混合的 0.007703 **统计上打平**（配对区间 $[0.78,1.18]$，跨 1）；
+但参考 gate 未过，仍然没有官方分数。下面把每个公式、每个符号、每张图都讲清楚。
 
 > **2026-11-18 算子修正（重要）**：`features.plaquettes` 的路径原先没有闭合（第二段沿 ν、第三段沿 μ 平移），
 > 算出来的并不是规范不变的 plaquette；`directional_features` 的两个输入也不对横向交换对称，A1+ 不成立。
@@ -384,8 +384,17 @@ python -m tasks.optimize_gaussian.compare_plot
 | v7 | 旧的前向锚点 | 0.012870 | 1.52× | 0.009597 |
 | **v9** | **link 中心 A1+** | **0.009236** | **2.12×** | **0.007721** |
 
-对照：SLSQP 混合 0.007703、tuned Gaussian 0.012556、local 0.312670。**v9 的候选与 SLSQP 在
-0.2% 内打平**（0.007721 vs 0.007703），比 v7 的 0.009597 明显更接近。
+对照：SLSQP 混合 0.007703、tuned Gaussian 0.012556、local 0.312670。**v9 的候选与 SLSQP 打平**：
+
+$$
+\frac{\mathrm{risk}_{\mathrm{SLSQP}}}{\mathrm{risk}_{\mathrm{A1+}}}=0.998,
+\qquad 95\%\ \text{区间}\ [0.78,\ 1.18],
+$$
+
+区间跨 1，统计上不可区分（v7 旧特征时是 $0.803\ [0.636,0.944]$，显著更差）。
+
+![v9 compare](../../results/pion_projection/s16t16_v1/candidates/63c33e619e06704a/fig_compare.png)
+*图 v9-3：v9 候选与 SLSQP 的配对比较；右图 $q(t)$ 两者几乎重合。*
 
 ![v9 risk](../../results/optimize_gaussian/v9/fig_risk.png)
 *图 v9-1：3 个 $W$ 种子 × $\lambda_2$ 的 dev-val；$\lambda_2=10^{-2}$ 时三条线都在 0.0036 附近。*

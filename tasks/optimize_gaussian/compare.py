@@ -1,5 +1,6 @@
 """Paired comparison of local / SLSQP mixture / A1+ learned kernel on the same blocks."""
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -8,7 +9,7 @@ from tasks.pion_projection.experiment import nested_intervals
 from tasks.pion_projection.statistics import blocks, fold
 
 RUN = Path('results/pion_projection/s16t16_v1')
-CAND = RUN / 'candidates' / 'f686a72d9c868716'
+CAND = Path(sys.argv[1]) if len(sys.argv) > 1 else RUN / 'candidates' / 'f686a72d9c868716'
 
 
 def main():
@@ -31,8 +32,7 @@ def main():
             'a1p': np.array(frozen['late_inverse'])}
     fake = {'submissions': weights, 'late_inverse_covariances': {k: v.tolist() for k, v in late.items()}}
 
-    from tasks.pion_projection.statistics import bootstrap_indices, risk
-    from tasks.pion_projection.experiment import ReferenceFit
+    from tasks.pion_projection.statistics import ReferenceFit, bootstrap_indices, risk
     model = ReferenceFit(dev_b, p, p['reference_windows'][p['reference_nominal_window']])
     ref, masses = model.bootstrap(bootstrap_indices(len(dev_b), p['bootstrap_samples'], p['seed']))
     vi = bootstrap_indices(len(val_b), p['bootstrap_samples'], p['seed'] + 1)
