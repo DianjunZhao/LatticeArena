@@ -328,7 +328,7 @@ $$
   线性搜索 $v$（$W$ 不训练）；
 - 因此 v9 的结论是“**学习核可以追平一个 7 参数的强基线**”，不是“学习核更强”。
 
-## 9. 复现## 9. 复现
+## 9. 复现
 
 ```bash
 sbatch pilot/optgauss.sbatch results/optimize_gaussian/v7
