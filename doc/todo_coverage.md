@@ -1,73 +1,67 @@
-# todo 覆盖报告（2026-11-18）
+# todo 覆盖报告（2026-11-18，按新开工单）
 
-三个 `tasks/*/todo.md` 的条目按状态分类：
-
-- ✅ **完成**：代码 + 测试/真实结果；
-- 🟡 **部分**：设计/合成验证完成，真实数据或完整实验未跑；
-- ⛔ **NOT_RUN**：需要新的 GPU 数据、新的算符/测量设计，或用户授权。
-
-核对基线：`e87367d`。
+对应三份更新后的 `tasks/*/todo.md`。状态：✅ 完成（代码+证据）、🟡 部分（有设计/合成证据，
+真实数据或完整验收未做）、⛔ NOT_RUN。基线：`ded77ae`。
 
 ## 1. pion_projection
 
-| todo 条目 | 状态 | 证据 / 位置 |
+| 条目 | 状态 | 证据 |
 | --- | --- | --- |
-| 阶段 A：reference spec 冻结、统一 factory、反射泛化、legacy 模式 | ✅ | `reference.py`、`experiment.py`、legacy 重放精确复现归档数值 |
-| 阶段 A：CPU 回归测试 | ✅ | `tests/test_pion_projection.py`（含冻结/篡改/反射） |
-| 阶段 B：归档 inventory、参考扫描、协方差谱 | ✅ | `results/pion_projection/score_diagnostics_v2/` |
-| 阶段 B：T=32 反射假警报 | ✅ | 274.27 → 2.40（`reflection_check.json`） |
-| 阶段 B5：预声明 shrinkage/block 扫描 | ✅ | 网格内无组合通过（max p=0.0072） |
-| 阶段 B6：两态返回 $m_1$/gap/幅度/条件数 | ✅ | `reference_twostate.py` + 测试 |
-| 阶段 B9/B10：block 级 p 值校准 | 🟡 | 已实现（`calibration_blocks.py`），但 12 blocks/15 维导致循环零分布，结论不可用 |
-| 评分重设计 S1：保守改善证书 | ✅ | `scoring.py` + 合成测试；真实数据 abstain |
-| C1：多态/模型平均 | 🟡 | `model_average.py`：AIC/BIC 权重退化，排序随模型翻转 → 不能救参考 |
-| C2：GEVP | 🟡 | 合成 ✅（`gevp.py`）；真实数据 2×2/3×3 无平台；两族/三族 Gram GEVP 给出 $m_0\approx1.02$–$1.05$；完整算符集 ⛔ |
-| C3：能量误差目标 | 🟡 | `energy_target.py` 合成验证 ✅；独立 anchor ⛔ |
-| 阶段 D：新 GPU 数据/可移植性 | 🟡 | 200 组态 S16T16C（120 dev / 60 val）已生成并测量；参考仍失败、GEVP 平台仍限 $t\le5$；生成器已入库 |
-| T=32 新系综测量 | ✅ | `results/pion_projection/s16t16_gevp/` 与多 source 数据 |
-| `agents/loop.py` 的 T16 硬编码 prompt | ✅ | prompt 现在由 protocol 生成（powers/T/window/alpha），参考走统一 factory |
-| `Note.md` 的 LLM 旧描述 | ✅ | §8.1/8.2 重写为实际实现（`agents/llm.py`/`loop.py`/`report.py`，默认流程不调用） |
+| §1 A：reference 身份/工厂、反射动态化 | ✅ | `reference.py`、`experiment.py`、T32 反射 274.27→2.40 |
+| §1 B：归档/参考/窗口/两态诊断 | ✅ | `score_diagnostics_v2/`（旧 60 dev）；P1.3 扩展到 120 dev |
+| §1 S1：保守评分 | ✅ | `scoring.py` + `score_contract.md`（P0.4/P0.5 强制边界） |
+| §1 C2：矩阵探索 | ✅ | `gram_operator_identity.md`：M≠标准 C（差 30%，C 自身 anti-Hermitian 30%） |
+| §1 C3：能量目标 | 🟡 | `energy_experiment.py`：单 cosh 覆盖率 0、两态 0.99；真实 anchor ⛔ |
+| §1 D：新 campaign | ✅ | S16T16C 200 组态；参考仍失败（χ²=90.6/8，m0=1.0771） |
+| P0.1 测量对象推导 | ✅ | `doc/gram_operator_identity.md` + `gram_identity_check.json` |
+| P0.2 估计顺序 | ✅ | `gevp_stats.py`：去重→block bootstrap→replica 平均→秩截断→平台 |
+| P0.3 已知谱验收 | ✅ | 100 个独立数据集覆盖率 **0.95**、偏差 2e-4 |
+| P0.4 estimand | ✅ | `doc/score_contract.md` |
+| P0.5 schema/身份强制 | ✅ | `scoring.py`：模型/候选集合、一维等长、原始正值、invalid 比例、近零 baseline、门槛 |
+| P0.6 联合 resampling | ✅ | `joint.py` + `results/pion_projection/joint_20261118/`（200×64，gate 失败→abstain） |
+| P1.1 双层校准 | ✅ | `calibration_full.py`：full 0.025、fixed 0.095、两态拒绝率 0.53 |
+| P1.2 校准分辨率 | ✅ | $(k+1)/(N+1)$，400 次模拟；6/12/24 blocks 扫描 |
+| P1.3 120-dev 诊断 | ✅ | `score_diagnostics_v3/`：秩满但条件数 $10^6$–$10^8$；$m_0$ 从 1.44 掉到 1.08；两态 profile 半宽/SE=2.7 |
+| P1.4 全链 nested CV | ✅ | `nested_cv_v1/`：5 折，local/SLSQP 209–750（平均 427±89）；学习核重训 ⛔ |
+| §6.1 能量估计实验 | ✅ | `energy_target_v1/`：bias/variance/MSE/coverage、$N_{\rm boot}$ 语义、anchor 敏感性 |
+| §6.2 共同目标预测 | ⛔ | 未做 |
+| §7 新测量先决条件 | ⛔ | 未做（需要新 GPU 生产/访问记录） |
 
-**结论**：参考不可识别是结构性的（15 维/12 blocks、模型失配、$m_0$ 在 1.02–1.09 间不确定），
-CPU 侧能做的诊断和工具链已经完成；真实数据的 C2（完整算符集）和 C3（独立 anchor）未执行。
+结论：P0/P1/§6.1 已全部落地；真实 anchor、共同目标预测、新测量先决条件仍 NOT_RUN。
 
 ## 2. wilson_loop
 
-| todo 条目 | 状态 | 证据 / 位置 |
+| 条目 | 状态 | 证据 |
 | --- | --- | --- |
-| P0：双边极分解投影 | ✅ | `kernels.project`，左右协变测试 |
-| P0：staple 归一化 $/4$ | ✅ | `protocol_v2.json`，$\alpha$ 口径说明 |
-| P1：NPZ/NERSC 校验 | ✅ | `read_nersc`（DATATYPE/FLOATING_POINT/payload）、`load_data` |
-| P1：provenance（gauge/kernel/git/计时） | ✅ | `measure.py`；硬件/QUDA 版本仍缺 |
-| P1：evaluate 冻结校验 | ✅ | development SHA、kernel hash、参数一致性 |
-| P2：预注册配对分析 | ✅ | `paired.py`；v3 区间不含 1 |
-| 修复后 GPU 重测 | ✅ | `s16t16_v2`（60/30）与 `s16t16_v3`（200 系综，80 留出） |
-| 更大 $R$ / 更多体积/$\beta$ | ⛔ | 需要新测量 |
+| P0 投影数值边界 | ✅ | 逐矩阵 Newton–Schulz + 收敛检查；混尺度 batch 1e-16；rank-2 拒绝；`audit_20261118_projection/` |
+| P1 可信加载/冻结 | ✅ | `identity.py`：generation、resume、gauge 几何、trust_status；v3 归档判 archived_diagnostic |
+| P2 配对统计审计 | ✅ | `paired_audit_v1/`：v2 点值 1.07–1.18 vs 中位数 3.0–3.4；唯一 block 分布、jackknife 0.49–4.53 |
+| P3 物理质量门控 | ✅ | `spectral_quality_v1/`：平但错反例（偏差 170σ、risk 2.7e-7、gate 通过）；`doc/wilson_spectral_quality.md` |
+| P4 研究扩展（设计） | ⛔ | 只有 todo 中的设计表 |
+| F0 证据 schema | ✅ | `core/evidence.py`、`operator_checks.py`、`scripts/audit_run.py`、`summarize_evidence.py` |
+| F1 五类接口 | ✅ | `core/specs/measurement/comparator/search/reference_provider`；一致性 + 缓存失效反例 PASS |
+| F2 LLM/搜索隔离 | ✅ | `core/candidates.validate_weights`、mock 轨迹、`--no-validation` 拦截测试 |
+| F3 状态/账本 | 🟡 | `core/state.py`、`core/ledger.py`、nested_cv 的 bindings；未接入 evaluate 持久化 |
+| F4 HMC 质量 | 🟡 | manifest 审计（seed/间隔/τ_int=0.512；ΔH/接受率缺失）；toy 可逆性 $10^{-10}$、$\Delta H$ 二阶；生产 ΔH/接受率/多 rank ⛔ |
 
-**结论**：协变 APE 在 v3（80 留出组态、16 blocks）下**显著优于 identity**（263/233/222，
-配对区间不含 1）；更远的外推未做。
+结论：P0–P3 与 F0–F2 完成；F3 部分；F4 的 toy 通过、生产证据缺失；P4 仅设计。
 
 ## 3. optimize_gaussian
 
-| todo 条目 | 状态 | 证据 / 位置 |
+| 条目 | 状态 | 证据 |
 | --- | --- | --- |
-| §5.1：shift/Hermitian/covariance/线性响应测试 | ✅ | `tests/test_optimize_gaussian.py` |
-| §5.2：全 O_h 群（24 旋转 + parity） | ✅ | link 中心特征；全部通过 |
-| §5.3：缓存 identity、run manifest | ✅ | `basis_key`、`manifest.json`（protocol/W/θ/IDs/依赖 hash） |
-| §6：统一离线评测 | 🟡 | `audit.py` 出历史表；特征已变，无法统一重算旧响应 |
-| §7：学习空间扩展（群平均/多层） | ⛔ | 未实现；v9 已追平 SLSQP，需要更强函数类才可能超越 |
-| §8：最小有判别力实验 | 🟡 | v9 GPU 重训 + 与 SLSQP 配对（0.998 [0.78,1.18]）；新数据配对 ⛔ |
-| §11：plaquette 路径闭合 | ✅ | 规范不变测试（1e-15） |
-| 修复后 GPU 重训 | ✅ | `results/optimize_gaussian/v9/`（2.12×，与 SLSQP 打平） |
+| P0.1 完整 BCB 验证 | ✅ | `tests/test_optimize_gaussian.py`；`audit_20261118_bcb/`（<1e-10） |
+| P0.2 basis/输入身份闭包 | ⛔ | basis_key 未纳入依赖与输入内容摘要 |
+| P0.3 audit 与措辞修正 | ⛔ | audit.py 仍统一标 legacy；README 的“打平/追平”未改为“未检出差异” |
+| P1 统一统计/fold-local | ⛔ | 未做 |
+| §P2 函数类实验 | ⛔ | 未做 |
+| §P3 共同目标预测 | ⛔ | 未做 |
 
-**结论**：算子正确性、A1+ 认证、身份闭包和一次 GPU 重训都已完成；要超越 SLSQP 需要新的
-函数类或更多数据，这是研究性问题，不在“完成 todo”的范围内。
+结论：只有 P0.1 完成；P0.2/P0.3 是下一轮的直接工作。
 
 ## 4. 总结
 
-- ✅ 三个 task 的**算子修复、契约冻结、测试、诊断、文档**已经完成；
-- ✅ 两次 GPU 重测（wilson v3、optimize v9）给出修复后的物理结果；
-- 🟡 pion 的 C2/C3 只有合成验证和部分真实数据尝试，完整实验需要新算符/新 anchor；
-- ⛔ 所有需要**新 GPU 生产**的条目都明确列出，未假装完成。
-
-合计：50 个 CPU 测试通过，所有非公式链接有效，README/总报告/结果索引数字一致。
+- pion：P0/P1/§6.1 全部完成；⛔ = anchor/预测/新测量先决条件；
+- wilson：P0–P3 与 F0–F2 完成；🟡 = F3/F4；⛔ = P4；
+- optimize：P0.1 完成；P0.2/P0.3 起未做；
+- 73 个 CPU 测试通过；所有非公式链接有效；旧“CPU 已全部完成”的说法已作废。
