@@ -48,7 +48,7 @@ def main():
         col = ratios[:, j]
         summary[name] = {'median': float(np.median(col)),
                          'ci95': np.quantile(col, [0.025, 0.975]).tolist(),
-                         'probability_better': float(np.mean(col > 1)),
+                         'exceedance_fraction': float(np.mean(col > 1)),  # not a posterior or calibrated p-value
                          'draws': int(len(col))}
     (OUT / 'paired.json').write_text(json.dumps(
         {'status': trust['status'] if trust['status'] == 'physical' else 'pipeline_demo_only',
