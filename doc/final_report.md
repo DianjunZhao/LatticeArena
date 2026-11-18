@@ -154,7 +154,7 @@ pion 没有可信分数，不是因为“统计量差一点点”，而是因为
 | pion 评分诊断 | [`results/pion_projection/score_diagnostics_v2/`](../results/pion_projection/score_diagnostics_v2/) |
 | 学习核记录 | [`tasks/optimize_gaussian/README.md`](../tasks/optimize_gaussian/README.md) |
 | todo 覆盖报告 | [`doc/todo_coverage.md`](todo_coverage.md) |
-| 测试 | `PYTHONDONTWRITEBYTECODE=1 python -B -m pytest -q -p no:cacheprovider tests/`（50 项） |
+| 测试 | `PYTHONDONTWRITEBYTECODE=1 python -B -m pytest -q -p no:cacheprovider tests/`（102 项） |
 
 ## 10. 2026-11-18 晚：按新开工单的审计与实现
 
@@ -202,10 +202,30 @@ pion 没有可信分数，不是因为“统计量差一点点”，而是因为
 
 - 完整 BCB 闭环验证通过（非立方格点、多 theta、$f\ne g$，残差 <1e-10；
   `audit_20261118_bcb/`）。
-- P0.2（basis/输入身份闭包）与 P0.3（audit 分类/措辞）仍未做；README 的“打平/追平”已改为
+- P0.2（basis/输入身份闭包）与 P0.3（audit 分类/措辞）已做；README 的“打平/追平”已改为
   “未检出差异”。
+- 包 A 切片：`train.validate_inputs`（gauge/propagator 摘要、residual、metadata 不符即拒绝）；
+  manifest 记录 inputs/environment/reference 状态。
+- 包 B 切片：point/replica 同幅度算法；synthetic regression 偏差 −1.9e-6/−1.0e-5、
+  q=1 覆盖 1.000/0.983。
+- 包 C：独立 train/test links、同一 $Q[U]$ 规则；oracle 显示嵌套类跨 links 误差 0、
+  谱类 0.06→0.5；SLSQP/Powell 不收敛（nfev 1.3e4–9.4e4）。
+- 包 D：OperatorContract/MeasurementBundle/SearchAdapter 的 CPU 端到端适配；能力拒绝抛错。
 
 ### 仍未做（NOT_RUN）
 
-pion 的真实 anchor、共同目标预测、新测量先决条件；wilson 的 P4 研究扩展、生产 HMC ΔH/接受率、
-多 rank；optimize 的 P0.2/P0.3 及之后的统一统计/函数类实验。
+pion 的 §6.2/§7 执行（真实 anchor、共同目标预测、新测量先决条件）；wilson 的 P4 研究扩展、
+生产 HMC ΔH/接受率、多 rank；optimize 的 GPU class×optimizer 2×2、消融、新盲测、真实 W 训练。
+
+## 11. 2026-11-18 深夜：新工单的 CPU 闭环
+
+- pion：`reference_gate_calibration_v1/`（dof=8，假拒绝 0.02/0.03、失配功效 0.66/0.59）、
+  `certificate_calibration_v1/`（假认证 3/8 @6 blocks、0/7、0/8；J=2/K=2 族 null 0/7）、
+  `anchor_calibration_v1/`（naïve null 27–50%，独立 dataset 控制）、`joint_identity_v2/v3/`、
+  `certification_v1/`、`nested_cv_v2/`、`gram_stats_v2/`；
+- wilson：measure 入口 bug 修复（`test_measure_entry_end_to_end`）、三文件恢复事务、
+  投影失败 batch 索引、NERSC checksum trailer、`paired_audit_v2/`（点值重放、leave-one-block-out、
+  非退化 coverage 0.983）、`spectral_physical_v1/`（两态反例 bias/SE 32.5）；
+- optimize：包 A/B/C/D（`cpu_next_package_b/`、`cpu_next_p3_crosslink/`、`cpu_next_package_d/`）。
+
+三份 todo 的逐项状态见 [`doc/todo_coverage.md`](todo_coverage.md)；当前 102 个 CPU 测试通过。
