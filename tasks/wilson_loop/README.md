@@ -101,6 +101,7 @@ python -m pytest -q tests/test_wilson_loop.py
 | 项 | 状态 |
 | --- | --- |
 | P0 双边极分解投影 + det 修正 | 已实现；`project(gMg')=g·project(M)·g'`、APE 多 alpha/steps 协变测试 |
+| F1 接口切片 5 | `core/search.py`（Budget/search/SearchResult）；wilson 当前无 optimizer/LLM 搜索，适配器为 N/A，但共享校验器可用 |
 | F1 接口切片 3–4 | `core/measurement.py` + `core/comparator.py`；wilson bundle 声明三项能力全为 False（归档 run 没有 cross/response，禁止推断） |
 | F1 接口切片 1–2 | 新增 `core/specs.py` + 两个 task 的 spec adapter（TaskSpec/RunSpec、OperatorContract/CandidateSpec）；见 [`doc/interfaces.md`](../../doc/interfaces.md)，测试 `tests/test_specs.py` |
 | F2 LLM/搜索隔离 | 共享 `core/candidates.validate_weights`；mock 轨迹 + 拦截测试见 [`doc/agent_isolation.md`](../../doc/agent_isolation.md) |

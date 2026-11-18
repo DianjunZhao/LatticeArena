@@ -70,10 +70,22 @@ ReferenceProvider/Metric、SearchAdapter）仍未抽取**，任务仍直接调�
 
 `tasks/pion_projection/scoring.py` 已改为调用这两个函数（真实复用，而不是复制逻辑）。
 
-## 6. 未做（NOT_RUN）
+## 6. SearchAdapter（第 5 类，已完成最小切片）
+
+`core/search.py`：
+
+- `Budget(max_evaluations)`：显式预算，超限即停并标记 `budget_exhausted`；
+- `search(proposals, evaluate, validate, budget)`：候选依次经过校验 → 评估 → 记录；
+  非法候选与评估异常都写入 `rejected`（带原因），不静默丢弃；
+- `SearchResult.best()`：按 risk 取最优。
+
+`agents/loop.py` 已改为走这条路径（LLM 的每个 round 变成 `search` 调用），
+`validate_weights` 是统一校验器；SLSQP 仍由自己的约束生成单一候选，但共享同一校验器。
+
+## 7. 未做（NOT_RUN）
 
 - ReferenceProvider（把参考质量的抽取独立成接口；当前各 task 直接调自己的 reference）；
-- SearchAdapter（optimizer 与 LLM 的统一候选、预算与 evaluator）；
+- 跨 task 的缓存失效反例与同 spec 统计一致性报告；
 - ReferenceProvider/Metric/Comparator（共享 draw ID 与 baseline 身份）；
 - SearchAdapter（optimizer 与 LLM 的统一候选、预算与 evaluator）；
 - 跨 task 的缓存失效反例与统计一致性报告。

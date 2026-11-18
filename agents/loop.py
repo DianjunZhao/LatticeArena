@@ -8,6 +8,7 @@ import numpy as np
 
 from agents.llm import chat
 from core.candidates import validate_weights
+from core.search import Budget, search
 from core.io import fingerprint, write_json
 from tasks.pion_projection.common import protocol
 from tasks.pion_projection.experiment import late_metric

@@ -86,3 +86,18 @@ def test_comparator_shares_draws():
         check_draws({'a': np.ones(5), 'b': np.ones(6)})
     low, invalid = log_lower_bound(base, cand, 0.025)
     assert low > 0 and invalid == 0
+
+
+def test_search_adapter_budget_and_rejections():
+    from core.search import Budget, search
+    proposals = [('a', 1.0), ('b', -1.0), ('c', 2.0), ('d', 3.0)]
+    result = search(proposals, evaluate=lambda x: x,
+                    validate=lambda x: (x > 0, 'must be positive'),
+                    budget=Budget(3))
+    assert [item['candidate'] for item in result.accepted] == [1.0, 2.0]
+    assert result.rejected[0]['reason'] == 'must be positive'
+    assert result.budget_exhausted and result.evaluations == 2
+
+    broken = search([('x', 1.0)], evaluate=lambda x: (_ for _ in ()).throw(ValueError('bad')))
+    assert broken.rejected and 'bad' in broken.rejected[0]['reason']
+    assert broken.best() is None
