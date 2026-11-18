@@ -34,6 +34,19 @@ def run(output, models=None, outer=200, inner=64, seed=20261119, dest=None):
     models = (frozen_kind,)
     if reasons:
         raise ValueError('; '.join(reasons))
+    artifact = sub.get('gate_artifact')
+    artifact_reason = None
+    if artifact is None:
+        artifact_reason = 'gate_artifact_missing'
+    else:
+        if artifact.get('model') != frozen_kind:
+            raise ValueError('gate artifact model differs from the frozen kind')
+        if artifact.get('development_sha256') != sub.get('development_sha256'):
+            raise ValueError('gate artifact development hash differs from the submission')
+        if artifact.get('protocol_hash') != sub.get('protocol_hash'):
+            raise ValueError('gate artifact protocol hash differs from the submission')
+        if artifact.get('window') != p['reference_windows'][p['reference_nominal_window']]:
+            raise ValueError('gate artifact window differs from the protocol window')
     dev = blocks(fold(np.load(output / 'development.npz')['correlators']), p['block_length'])
     val = blocks(fold(np.load(output / 'validation.npz')['correlators']), p['block_length'])
     window = p['reference_windows'][p['reference_nominal_window']]
@@ -82,6 +95,10 @@ def run(output, models=None, outer=200, inner=64, seed=20261119, dest=None):
     gate = report
     passed = bool(gate.get('reference_passed'))
     if certificate is not None:
+        if artifact_reason:
+            certificate['status'] = 'abstain'
+            certificate['abstain'] = True
+            certificate['failure_reasons'].append(artifact_reason)
         if not passed:
             certificate['status'] = 'abstain'
             certificate['abstain'] = True

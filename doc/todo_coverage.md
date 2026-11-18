@@ -8,7 +8,7 @@
 | 包/条目 | 状态 | 证据 |
 | --- | --- | --- |
 | A1 认证身份 | ✅ | `identity.verify_run_identity` 被 joint/evaluate/candidate 共用；冻结 kind/models 精确匹配、protocol/dev hash、report kind/version；evaluate 无 joint draws 时 abstain；产物 `joint_identity_v2/`、`certification_v1/` |
-| A1 每模型 gate artifact | 🟡 | manifest 记录 spec/kind/依赖；完整 per-model artifact（model/window/prior）未落盘 |
+| A1 每模型 gate artifact | ✅ | `develop` 写 artifact（model/window/prior/reference hash/dev hash/candidates/metric/calibration）；`joint` 校验并在缺失时 abstain（历史 run 显示 missing） |
 | A1 复用 joint 证书 | ✅ | evaluate 读取 `<output>/joint/` 的 manifest/metrics，身份一致时复用（`certification_source='joint'`） |
 | A2 draw 来源 | ✅ | `joint_draws.npz` 保存 dev/val outer + inner indices、draw_id；`joint_manifest.json` 记录输入/依赖/spec |
 | A2 draw 身份强制 | ✅ | `require_draw_ids` + `draw_ids_hash`；重复/乱序 ID 拒绝 |

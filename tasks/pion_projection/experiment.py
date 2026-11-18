@@ -139,7 +139,23 @@ def develop(output):
               'late_inverse_covariances': metrics, 'selected_gaussian_power': p['powers'][best],
               'optimizer': {'converged_starts': len(outcomes), 'objective': float(fit.fun),
                             'iterations': int(fit.nit), 'l1': float(abs(fit.x).sum())},
-              'calibration': calibration, 'reference': spec, 'run_state': state.summary()}
+              'calibration': calibration, 'reference': spec, 'run_state': state.summary(),
+              'gate_artifact': {
+                  'model': spec['kind'],
+                  'window': p['reference_windows'][p['reference_nominal_window']],
+                  'prior': {'mass_bounds': p['mass_bounds'], 'amplitude_z_min': p['amplitude_z_min'],
+                            'min_fit_p': p['reference_min_fit_p']},
+                  'reference_source': {'statistics': digest(Path(__file__).with_name('statistics.py')),
+                                       'implementation': digest(Path(__file__).with_name('reference.py'))},
+                  'development_sha256': digest(output / 'development.npz'),
+                  'candidates': list(submissions),
+                  'metric': {'score_window': p['score_window'], 'amplitude_window': p['amplitude_window'],
+                             'covariance_shrinkage': p['covariance_shrinkage']},
+                  'protocol_hash': fingerprint(p),
+                  'calibration': {'passed': calibration['reference_passed'],
+                                  'failures': calibration['failure_reasons'],
+                                  'chi2': calibration['reference']['chi2'],
+                                  'dof': 8 if spec['kind'] == 'single' else None}}}
     write_json(output/'development_results.json', {'basis': baseline_results, 'agent': candidate_result})
     write_json(output/'submission.json', frozen)
     np.savez_compressed(output/'reference_bootstrap.npz', masses=mb, indices=index)

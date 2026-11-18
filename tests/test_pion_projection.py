@@ -386,7 +386,7 @@ def test_joint_draws_share_ids_and_abstain_on_failed_gate(tmp_path):
     manifest = json.loads((tmp_path / 'joint_manifest.json').read_text())
     assert manifest['require_draw_ids'] if False else manifest['spec']['require_draw_ids']
     assert certificate['status'] == 'abstain'
-    assert certificate['failure_reasons'] == ['reference_gate_failed']
+    assert set(certificate['failure_reasons']) == {'gate_artifact_missing', 'reference_gate_failed'}
     assert not any(row['certified'] for row in certificate['candidates'].values())
 
 
@@ -450,6 +450,11 @@ def test_pion_develop_records_run_state(tmp_path, monkeypatch):
     assert statuses['operator'] == 'validated' and statuses['numerical'] == 'validated'
     assert statuses['reference'] in ('validated', 'failed')
     assert statuses['statistical'] == 'validated'
+    artifact = frozen['gate_artifact']
+    assert artifact['model'] == 'single'
+    assert artifact['development_sha256'] == frozen['development_sha256']
+    assert artifact['protocol_hash'] == frozen['protocol_hash']
+    assert artifact['window'] == protocol['reference_windows'][protocol['reference_nominal_window']]
 
 
 def test_joint_rejects_a_borrowed_gate(tmp_path):

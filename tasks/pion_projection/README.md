@@ -224,6 +224,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | F1 接口切片 1–2 | 新增 `core/specs.py` + `tasks/pion_projection/spec.py`（TaskSpec/RunSpec、OperatorContract）；见 [`doc/interfaces.md`](../../doc/interfaces.md) |
 | F2 LLM/搜索隔离 | 统一 `core/candidates.validate_weights`（sum=1、L1≤8、finite、维数）；`agents/loop.py` 记录拒绝原因到 `agent/rejections.json`；`--no-validation` 下搜索不打开 validation（拦截测试证明）；mock 轨迹见 `results/pion_projection/agent_mock_v1/` 与 [`doc/agent_isolation.md`](../../doc/agent_isolation.md) |
 | §7 新测量先决条件 | 新增 [`doc/pion_new_measurement_plan.md`](../../doc/pion_new_measurement_plan.md) + `measurement_plan.example.json`（schema `pion-measurement-plan-v1`，校验器 `measurement_plan.py`）；身份绑定、γ5/自收缩、source–sink 矩阵、盲性、power、预算、停止规则；执行 ⛔ |
+| A2 gate artifact | `develop` 写每模型 gate artifact（model/window/prior/reference hash/dev hash/candidates/metric/calibration）；joint 校验 model/dev/protocol/window，缺失即 `gate_artifact_missing` 并 abstain；历史 run 不被追认（`joint_identity_v3/`） |
 | A2 draw 身份 | `joint_draws.npz` 保存 inner 索引；`joint_manifest.json` 记录输入/依赖/spec；证书要求 `draw_ids` + hash，输出目录拒绝覆盖；产物 `joint_identity_v2/` |
 | F0 RunSpec 强制 | `bundle_for` 校验 split 行数与 RunSpec 范围一致，manifest 带 `run_spec` digest |
 | A1 candidate 身份 | `candidate` 现在调用 `verify_run_identity`（protocol/dev hash 失败即拒绝）；结果写 `certification=abstain`（candidate 只做诊断，证书由 joint 发）与 `physical_score=None` |
