@@ -182,3 +182,20 @@ def test_search_rejects_nonfinite_evaluation():
     result = search([('a', 1.0), ('b', 2.0)], evaluate=lambda x: float('nan'))
     assert not result.accepted and len(result.rejected) == 2
     assert all('non-finite' in item['reason'] for item in result.rejected)
+
+
+def test_bundle_uses_trusted_loading(tmp_path):
+    import json
+    import shutil
+    import numpy as np
+    from tasks.wilson_loop.spec import bundle_for
+    run = Path('results/wilson_loop/s16t16_v3')
+    if not (run / 'development.npz').exists():
+        pytest.skip('v3 data not available')
+    for name in ('development.npz', 'development_provenance.json', 'validation_provenance.json'):
+        shutil.copy(run / name, tmp_path / name)
+    with np.load(tmp_path / 'development.npz') as f:
+        ids, loops = f['ids'], f['loops']
+    np.savez(tmp_path / 'development.npz', ids=ids, loops=loops, protocol_hash=np.asarray('0' * 64))
+    with pytest.raises(ValueError, match='Protocol changed'):
+        bundle_for(tmp_path)

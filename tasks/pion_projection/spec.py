@@ -33,27 +33,30 @@ def operator_contract_for():
 
 
 def bundle_for(run):
-    """Measurement bundle for a pion run (arrays + manifest + capabilities)."""
+    """Trusted measurement bundle: load_data checks IDs/hash/shape/finite."""
+    import hashlib
     import json
 
     import numpy as np
 
-    from core.io import fingerprint
+    from core.io import digest_text, fingerprint
     from core.measurement import bundle
 
+    from .common import load_data
+
     run = Path(run)
-    p = json.loads((run / 'development_provenance.json').read_text())['protocol']
-    arrays = {}
-    splits = {}
+    protocol = json.loads((run / 'development_provenance.json').read_text())['protocol']
+    arrays, splits, ids_hash, inputs = {}, {}, {}, {}
     for split in ('development', 'validation'):
-        path = run / f'{split}.npz'
-        if not path.exists():
-            continue
-        with np.load(path) as f:
-            arrays[split] = f['correlators'].copy()
-            splits[split] = {'n': int(f['correlators'].shape[0]),
-                             'protocol_hash': str(f['protocol_hash'])}
-    manifest = {'protocol_hash': fingerprint(p), 'splits': splits,
-                'powers': p['powers'], 'alpha': p['alpha']}
+        data = load_data(run, split, protocol)
+        arrays[split] = data
+        splits[split] = {'n': int(data.shape[0])}
+        ids_hash[split] = digest_text(str(list(range(protocol[split][0], protocol[split][1] + 1))))
+        inputs[split] = hashlib.sha256(np.ascontiguousarray(data).tobytes()).hexdigest()
+    code = {name: digest(Path(__file__).with_name(name)) for name in
+            ('kernels.py', 'statistics.py', 'experiment.py')}
+    manifest = {'protocol_hash': fingerprint(protocol), 'splits': splits, 'ids': ids_hash,
+                'inputs': inputs, 'code': code, 'powers': protocol['powers'],
+                'alpha': protocol['alpha']}
     return bundle('pion_projection', arrays, manifest,
                   {'linear_response': True, 'cross_matrix': False, 'new_source': False})

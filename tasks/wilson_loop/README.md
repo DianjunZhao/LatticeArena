@@ -111,6 +111,7 @@ python -m pytest -q tests/test_wilson_loop.py
 | F2 搜索集成 | `agents/loop.py` 真正走 `core.search.search`；NaN/Inf evaluator 结果被拒绝；每轮写 `agent/search_trace.json`（history/rejections/best/预算） |
 | F3 状态证据绑定 | `RunState.set(validated)` 必须带 evidence hash；`physical_ready()`/`score_or_null()` 只在五状态全部 validated 且有 hash 时给分；develop 的 `run_state` 与 `conditional_scores`/`physical_score` 分开 |
 | F2 LLM/搜索隔离 | 共享 `core/candidates.validate_weights`；mock 轨迹 + 拦截测试见 [`doc/agent_isolation.md`](../../doc/agent_isolation.md) |
+| F0 可信 bundle | 两个 `bundle_for` 改用 `load_data(run, split, protocol)`（IDs/hash/shape/finite），manifest 带 `ids`/`inputs`/`code` hash；篡改 protocol hash 的测试拒绝 |
 | F0 证据绑定修复 | `audit_run` 的每条证据现在带 code/inputs hash；两个 kernel hash 缺失时判 NOT_RUN（不再 None==None 通过）；pion 行数按 RunSpec 校验（不用 len(data) 自证）；`covariance_residual` 文档明确只是固定 U 的交换关系，不是完整 gauge 协变 |
 | F0 证据 schema | 新增 `core/evidence.py`、`core/operator_checks.py`、`scripts/audit_run.py`、`scripts/summarize_evidence.py`；wilson v3 与 pion 200 各产出一份同 schema 证据（`results/*/evidence/`）；见 [`doc/evidence_framework.md`](../../doc/evidence_framework.md) |
 | P3 两态谱反例 | 新增 `spectral_physical.py` + `results/wilson_loop/spectral_physical_v1/`：$W=c_0e^{-E_0T}+c_1e^{-E_1T}$ 扫描 $c_1$；spread gate 全部通过而 bias/SE 到 32.5，`window_z` 在 $c_1\ge0.2$ 才超 3；有限 $N_t$ 谱写入文档 |

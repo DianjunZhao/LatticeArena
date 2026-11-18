@@ -62,15 +62,20 @@ def read_nersc(path, expected_geometry=None):
     return raw.reshape(nt, nz, ny, nx, 4, 3, 3).transpose(4, 0, 1, 2, 3, 5, 6)
 
 
-def load_data(output, split):
-    p = protocol()
+def indices_for(p, split):
+    first, last = p[split]
+    return np.arange(first, last + 1)
+
+
+def load_data(output, split, p=None):
+    p = p or protocol()
     with np.load(Path(output) / f'{split}.npz', allow_pickle=False) as f:
-        if not np.array_equal(f['ids'], indices(split)):
+        if not np.array_equal(f['ids'], indices_for(p, split)):
             raise ValueError(f'{split}: missing or reordered configurations')
         if str(f['protocol_hash']) != fingerprint(p):
             raise ValueError('Protocol changed since measurement')
         loops = f['loops'].copy()
-    expected = (len(indices(split)), len(p['kernels']), len(p['r_values']), len(p['t_values']))
+    expected = (len(indices_for(p, split)), len(p['kernels']), len(p['r_values']), len(p['t_values']))
     if loops.shape != expected:
         raise ValueError(f'Unexpected loop shape {loops.shape}, expected {expected}')
     if loops.dtype.kind not in 'fiu' or not np.all(np.isfinite(loops)):

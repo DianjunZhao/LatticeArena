@@ -32,25 +32,30 @@ def operator_contract_for():
 
 
 def bundle_for(run):
-    """Measurement bundle for a Wilson-loop run (arrays + manifest + capabilities)."""
+    """Trusted measurement bundle: load_data checks IDs/hash/shape/finite."""
+    import hashlib
     import json
 
     import numpy as np
 
-    from core.io import fingerprint
+    from core.io import digest_text, fingerprint
     from core.measurement import bundle
 
+    from .common import load_data
+
     run = Path(run)
-    p = json.loads((run / 'validation_provenance.json').read_text())['protocol']
-    arrays, splits = {}, {}
+    protocol = json.loads((run / 'validation_provenance.json').read_text())['protocol']
+    arrays, splits, ids_hash, inputs = {}, {}, {}, {}
     for split in ('development', 'validation'):
-        path = run / f'{split}.npz'
-        if not path.exists():
-            continue
-        with np.load(path) as f:
-            arrays[split] = f['loops'].copy()
-            splits[split] = {'n': int(f['loops'].shape[0])}
-    manifest = {'protocol_hash': fingerprint(p), 'splits': splits,
-                'r_values': p['r_values'], 'kernels': [k['name'] for k in p['kernels']]}
+        data = load_data(run, split, protocol)
+        arrays[split] = data
+        splits[split] = {'n': int(data.shape[0])}
+        ids_hash[split] = digest_text(str(list(range(protocol[split][0], protocol[split][1] + 1))))
+        inputs[split] = hashlib.sha256(np.ascontiguousarray(data).tobytes()).hexdigest()
+    code = {name: digest(Path(__file__).with_name(name)) for name in
+            ('kernels.py', 'statistics.py', 'measure.py', 'common.py')}
+    manifest = {'protocol_hash': fingerprint(protocol), 'splits': splits, 'ids': ids_hash,
+                'inputs': inputs, 'code': code, 'r_values': protocol['r_values'],
+                'kernels': [k['name'] for k in protocol['kernels']]}
     return bundle('wilson_loop', arrays, manifest,
                   {'linear_response': False, 'cross_matrix': False, 'new_source': False})
