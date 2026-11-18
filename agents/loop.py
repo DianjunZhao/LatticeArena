@@ -12,7 +12,8 @@ from core.search import Budget, search
 from core.io import fingerprint, write_json
 from tasks.pion_projection.common import protocol
 from tasks.pion_projection.experiment import late_metric
-from tasks.pion_projection.reference import make_reference, reference_kind, verify_reference
+from core.reference_provider import make_provider, provide
+from tasks.pion_projection.reference import reference_kind, verify_reference
 from tasks.pion_projection.statistics import blocks, bootstrap_indices, fold, risk
 
 PROMPT = """You are optimizing the sink kernel of a quenched pion two-point function.
@@ -56,9 +57,11 @@ def run(output, model, rounds, allow_validation=True):
     frozen = json.loads((output / 'submission.json').read_text()) if (output / 'submission.json').exists() else {}
     spec = frozen.get('reference')
     kind = verify_reference(spec) if spec else reference_kind()
-    reference = make_reference(data, p, p['reference_windows'][p['reference_nominal_window']], kind)
+    provider = make_provider('pion_projection', kind,
+                             protocol=p, window=p['reference_windows'][p['reference_nominal_window']])
     index = bootstrap_indices(len(data), p['bootstrap_samples'], p['seed'])
-    ref, masses = reference.bootstrap(index)
+    provided = provide(provider, data, index=index)
+    ref, masses = provided['fit'], provided['masses']
     basis = np.eye(len(p['powers']))
     scores = [risk(data, w, ref['mass'], masses, index, p) for w in basis]
     scales = np.array([s['amplitude'] for s in scores])

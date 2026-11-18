@@ -103,6 +103,7 @@ python -m pytest -q tests/test_wilson_loop.py
 | P0 双边极分解投影 + det 修正 | 已实现；`project(gMg')=g·project(M)·g'`、APE 多 alpha/steps 协变测试 |
 | F4 HMC 质量 | 新增 `hmc_quality.py` + `results/wilson_loop/hmc_quality_v1/`：manifest 审计（seed 20261109、首轨迹 401、间隔 5、$\tau_{\rm int}\approx0.512$；ΔH/接受率/热化声明缺失=NOT_RUN）；toy 积分器可逆性 $10^{-10}$、$\Delta H$ 二阶（每减半步长 ÷4）→ 通过；生产 ΔH/接受率仍 NOT_RUN |
 | F3 状态/账本切片 | 共享 `core/state.py` 与 `core/ledger.py`；见 [`doc/run_state.md`](../../doc/run_state.md) |
+| F1 接口切片 4 | `core/reference_provider.py` 提供 wilson 的 identity `v_ref`；pion 的 fit/masses 也走同一入口 |
 | F1 接口切片 5 | `core/search.py`（Budget/search/SearchResult）；wilson 当前无 optimizer/LLM 搜索，适配器为 N/A，但共享校验器可用 |
 | F1 接口切片 3–4 | `core/measurement.py` + `core/comparator.py`；wilson bundle 声明三项能力全为 False（归档 run 没有 cross/response，禁止推断） |
 | F1 接口切片 1–2 | 新增 `core/specs.py` + 两个 task 的 spec adapter（TaskSpec/RunSpec、OperatorContract/CandidateSpec）；见 [`doc/interfaces.md`](../../doc/interfaces.md)，测试 `tests/test_specs.py` |

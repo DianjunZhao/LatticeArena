@@ -130,3 +130,27 @@ def test_cost_ledger_phases_and_environment():
         ledger.add('magic', 1.0)
     with pytest.raises(ValueError, match='different devices'):
         ledger.merge(Ledger(device='dcu'))
+
+
+def test_reference_provider_both_tasks():
+    from core.reference_provider import make_provider, provide
+    with pytest.raises(ValueError, match='unknown task'):
+        make_provider('nope', 'single')
+    with pytest.raises(ValueError, match='does not support'):
+        make_provider('pion_projection', 'identity')
+    p = json.loads(Path('results/pion_projection/s16t16_gevp200/development_provenance.json').read_text())['protocol']
+    from tasks.pion_projection.statistics import blocks, fold
+    raw = np.load('results/pion_projection/s16t16_gevp200/development.npz')['correlators']
+    data = blocks(fold(raw), p['block_length'])
+    provider = make_provider('pion_projection', 'single', protocol=p,
+                             window=p['reference_windows'][p['reference_nominal_window']])
+    out = provide(provider, data, index=np.zeros((4, len(data)), dtype=int))
+    assert 'mass' in out['fit'] and out['masses'].shape == (4,)
+
+    w = json.loads(Path('tasks/wilson_loop/protocol_v3.json').read_text())
+    wp = make_provider('wilson_loop', 'identity',
+                       window=w['reference_windows'][w['reference_nominal_window']],
+                       t_values=w['t_values'], kernel=0)
+    wdata = blocks(np.load('results/wilson_loop/s16t16_v3/validation.npz')['loops'], 5)
+    v_ref = provide(wp, wdata)['v_ref']
+    assert v_ref.shape == (len(w['r_values']),)
