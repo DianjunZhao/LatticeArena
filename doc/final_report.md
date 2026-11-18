@@ -150,4 +150,5 @@ pion 没有可信分数，不是因为“统计量差一点点”，而是因为
 | pion GEVP/能量目标设计 | [`doc/pion_gevp_design.md`](pion_gevp_design.md) |
 | pion 评分诊断 | [`results/pion_projection/score_diagnostics_v2/`](../results/pion_projection/score_diagnostics_v2/) |
 | 学习核记录 | [`tasks/optimize_gaussian/README.md`](../tasks/optimize_gaussian/README.md) |
-| 测试 | `PYTHONDONTWRITEBYTECODE=1 python -B -m pytest -q -p no:cacheprovider tests/`（47 项） |
+| todo 覆盖报告 | [`doc/todo_coverage.md`](todo_coverage.md) |
+| 测试 | `PYTHONDONTWRITEBYTECODE=1 python -B -m pytest -q -p no:cacheprovider tests/`（50 项） |

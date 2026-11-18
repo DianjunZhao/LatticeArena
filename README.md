@@ -6,7 +6,7 @@ LatticeArena 把格点规范理论里的研究问题，改造成**有固定测�
 
 > **状态（2026-11-18）**：`wilson_loop` 的 v3 参考通过、分数有效（APE 263/233/222，配对区间不含 1）；
 > `pion_projection` 的参考仍不可识别，`score` 按设计为 `null`；`optimize_gaussian` 的学习核与 SLSQP 打平。
-> 总览见 [doc/final_report.md](doc/final_report.md)。
+> 总览见 [doc/final_report.md](doc/final_report.md)，todo 覆盖情况见 [doc/todo_coverage.md](doc/todo_coverage.md)。
 
 ---
 
