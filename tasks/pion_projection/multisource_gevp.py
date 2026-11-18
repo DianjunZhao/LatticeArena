@@ -1,7 +1,10 @@
 """GEVP from the multi-source measurement (C2, CPU).
 
 Matrix M[a,b](t) = C[source a, sink H^{n_b}](t), a,b over the matched
-point/H^4/H^16 operators.
+point/H^4/H^16 operators. Up to a transpose this is the GEVP matrix
+(transposition does not change the generalized eigenvalues). The matrix is
+ill-conditioned; results depend on the eigenvalue floor, so treat any "plateau"
+with care.
 """
 import json
 import os
