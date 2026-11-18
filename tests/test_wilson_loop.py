@@ -413,3 +413,15 @@ def test_resume_rejects_inconsistent_prefix(tmp_path):
         check_resume(tmp_path, 'validation', spec)
     (tmp_path / 'validation_provenance.json').write_text(json.dumps({'records': [{'id': int(i)} for i in ids]}))
     assert check_resume(tmp_path, 'validation', spec) == 3
+
+
+def test_invalid_sample_counting():
+    from tasks.wilson_loop.invalid_audit import count_invalid
+    data = np.ones((6, 2, 3, 5))
+    data[:, 0, 0, 0] = -1.0        # negative mean at one (R, T)
+    data[1, 1, 1, 2] = np.nan      # NaN
+    index = np.arange(6)[:, None].repeat(6, axis=1)
+    rows = count_invalid(data, index)
+    assert rows[0]['mean_nonpositive'] == 1
+    assert rows[1]['mean_nan'] >= 1
+    assert rows[0]['bootstrap_nonpositive'] > 0
