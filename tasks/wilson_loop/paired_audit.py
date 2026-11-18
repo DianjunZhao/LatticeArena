@@ -11,9 +11,10 @@ from .statistics import blocks, bootstrap_indices, risk
 
 RUNS = {'v2': 'results/wilson_loop/s16t16_v2', 'v3': 'results/wilson_loop/s16t16_v3',
         'v4': 'results/wilson_loop/s16t16_v4'}
-OUT = Path('results/wilson_loop/paired_audit_v1')
+OUT = Path('results/wilson_loop/paired_audit_v2')
 BLOCK = 5
 T_VALUES = [4, 5, 6, 7, 8]
+WINDOWS = [[4, 5, 6], [4, 5, 6, 7], [5, 6, 7, 8]]
 
 
 def load(run):
@@ -59,6 +60,7 @@ def main():
     for run in RUNS:
         data, windows, v = load(run)
         index = bootstrap_indices(len(data), 500, 7)
+        archived = json.loads((Path(RUNS[run]) / 'validation_results.json').read_text())['results']
         rows = []
         for k in range(data.shape[1]):
             r = risk(data[:, k], index, windows, T_VALUES, v)
@@ -67,6 +69,8 @@ def main():
                          'spread_term': float(np.mean((np.asarray(r['spread']) / np.asarray(v)) ** 2))})
         nested_result = nested(data, windows, v, seed=20261118)
         ratios = nested_result['ratios']
+        names = list(archived)
+        frozen_point = np.array([archived[names[0]]['risk'] / archived[name]['risk'] for name in names[1:]])
         point = np.array([rows[0]['risk'] / r['risk'] for r in rows[1:]])
         med = np.median(ratios, axis=0)
         lo, hi = np.quantile(ratios, [0.025, 0.975], axis=0)
@@ -74,16 +78,24 @@ def main():
         jackknife = []
         for i in range(len(data)):
             keep = np.setdiff1d(np.arange(len(data)), [i])
-            base = risk(data[keep, 0], index % len(keep), windows, T_VALUES, v)['risk']
-            jackknife.append([base / risk(data[keep, k], index % len(keep), windows, T_VALUES, v)['risk']
+            inner = bootstrap_indices(len(keep), 1000, 20261117)
+            base = risk(data[keep, 0], inner, windows, T_VALUES, v)['risk']
+            jackknife.append([base / risk(data[keep, k], inner, windows, T_VALUES, v)['risk']
                               for k in range(1, data.shape[1])])
+        jackknife = np.asarray(jackknife)
+        n = len(data)
+        jk_mean = jackknife.mean(axis=0)
+        jk_se = np.sqrt((n - 1) / n * ((jackknife - jk_mean) ** 2).sum(axis=0))
         result[run] = {
             'blocks': len(data), 'kernels': data.shape[1], 'point_risks': rows,
             'point_ratio': point.tolist(), 'median_ratio': med.tolist(),
             'ci95': [lo.tolist(), hi.tolist()],
             'unique_block_counts': blocks_unique.tolist(),
             'point_vs_median': (point / med).tolist(),
-            'jackknife_ratios': np.asarray(jackknife).tolist(),
+            'frozen_point_ratio': frozen_point.tolist(),
+            'diagnostic_point_ratio': point.tolist(),
+            'jackknife_ratios': jackknife.tolist(),
+            'jackknife_mean': jk_mean.tolist(), 'jackknife_se': jk_se.tolist(),
             'corr_num_den': [float(np.corrcoef(nested_result['num'][:, j],
                                               nested_result['den'][:, j])[0, 1])
                              for j in range(data.shape[1] - 1)],
@@ -104,23 +116,37 @@ def main():
                          'median': np.median(n['ratios'], axis=0).tolist()})
     result['v2_scan'] = scan
 
-    # synthetic coverage of the paired interval with a known ratio
-    rng = np.random.default_rng(99)
-    true_ratio = 2.0
-    coverage = 0
-    sims = 200
-    for _ in range(sims):
-        base = rng.lognormal(0, 0.3, (6, 4))
-        cand = base / true_ratio
-        ratio = []
-        for o in range(200):
-            rows = rng.integers(0, 6, 6)
-            ratio.append(base[rows, 0].mean() / cand[rows, 0].mean())
-        lo, hi = np.quantile(ratio, [0.025, 0.975])
-        coverage += lo <= true_ratio <= hi
-    result['synthetic_coverage'] = {'true_ratio': true_ratio, 'coverage': coverage / sims,
-                                    'sims': sims,
-                                    'note': 'log-normal risk draws with correlated numerator/denominator'}
+    def synthetic_world(rng, ncfg=80, base_noise=0.02, cand_noise=0.01, nR=3, nT=5):
+        t = np.array([4, 5, 6, 7, 8], dtype=float)
+        signal = np.exp(-0.5 * np.outer(np.arange(1, nR + 1), t))
+        base = signal[None] * (1 + base_noise * rng.normal(size=(ncfg, nR, nT)))
+        cand = signal[None] * (1 + cand_noise * rng.normal(size=(ncfg, nR, nT)))
+        return base, cand
+
+    def coverage_study(cand_noise, truth, sims=100, outer=100, seed=99):
+        rng = np.random.default_rng(seed)
+        hits = 0
+        for _ in range(sims):
+            base, cand = synthetic_world(rng, cand_noise=cand_noise)
+            data = np.stack([blocks(base, 5), blocks(cand, 5)], axis=1)
+            index = bootstrap_indices(len(data), 500, 11)
+            ratios = []
+            for _ in range(outer):
+                rows = rng.integers(0, len(data), len(data))
+                ratios.append(risk(data[rows, 0], index % len(data), WINDOWS, T_VALUES, [0.5] * 3)['risk']
+                              / risk(data[rows, 1], index % len(data), WINDOWS, T_VALUES, [0.5] * 3)['risk'])
+            lo, hi = np.quantile(ratios, [0.025, 0.975])
+            hits += lo <= truth <= hi
+        return hits / sims
+
+    # truth for the risk ratio is approximately (base_noise / cand_noise)^2
+    coverage_known = coverage_study(0.01, truth=4.0, sims=60)
+    coverage_null = coverage_study(0.02, truth=1.0, sims=60)
+    result['synthetic_coverage'] = {
+        'known_gain': {'truth': 4.0, 'coverage': coverage_known, 'sims': 60},
+        'null': {'truth': 1.0, 'coverage': coverage_null, 'sims': 60},
+        'note': 'non-degenerate loops through the full mean->log->window->inner risk->outer ratio chain'}
+
     (OUT / 'paired_audit.json').write_text(json.dumps(result, indent=2) + '\n')
 
     fig, ax = plt.subplots(figsize=(7, 4))
