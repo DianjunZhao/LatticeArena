@@ -30,6 +30,16 @@
 - P2：归档点值重放、leave-one-block-out jackknife、非退化 coverage 0.983、invalid fail-closed；
 - P3：两态谱反例（spread gate 盲点、window_z 敏感性）。
 
+### optimize
+
+- 包 A 切片：`train.validate_inputs`（gauge/propagator 摘要、residual、metadata 不符即拒绝）；
+  `run_manifest` 记录 inputs 状态、environment=unknown、reference 摘要；
+- 包 B 切片：`amplitude_source`（train/test）让 point 与 replica 同算法；fold IDs/weights hash/nfev 已存；
+  synthetic regression 偏差 −1.9e-6/−1.0e-5、覆盖 1.000/0.983；
+- 包 C：`p3_crosslink` 独立 train/test links、同一 $Q[U]$ 规则；oracle 显示嵌套类跨 links 误差 0、
+  谱类 0.06→0.5；SLSQP/Powell 不收敛（nfev 1.3e4–9.4e4）；
+- 包 D：`adapt.py` 真实跑通 OperatorContract/MeasurementBundle/SearchAdapter，能力拒绝不静默回退。
+
 ### 公共框架
 
 - F0：证据 code/inputs 绑定、缺 hash 判 NOT_RUN、bundle 可信加载 + RunSpec；
@@ -45,6 +55,6 @@
 
 ## 健康检查
 
-- 94 个 CPU 测试通过；
+- 102 个 CPU 测试通过；
 - 所有非公式链接有效；
 - README / 总报告 / 结果 JSON 数字一致。

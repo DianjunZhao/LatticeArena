@@ -379,7 +379,7 @@ python -m tasks.optimize_gaussian.compare_plot
 | P3 CPU teacher（跨样本） | 新增 `p3_teacher.py` + `results/optimize_gaussian/p3_teacher_v1/`：ε=0 谱类误差 $8.5\times10^{-16}$；ε=0.1 谱类 0.0127、增广类 $6.7\times10^{-16}$ → 新类在独立 probe 上确实有效；GPU 第二步见 [`doc/optimize_p3_design.md`](../../doc/optimize_p3_design.md)（NOT_RUN） |
 | P2 teacher 表示检查 | 新增 `teacher_check.py` + `results/optimize_gaussian/teacher_v1/`：真实 kernel 的 $H$ 与非对易 $Q$ 的 teacher，七幂误差 0.01268 > 谱外分量 0.01239，增广基 $1.8\times10^{-16}$ → 七幂基有覆盖盲区；训练实验 ⛔（需 GPU） |
 | P1 整链 fold-local | `unified.py` 新增 fold 内 SLSQP/幂次重选：三折都选 H^32，fold-SLSQP 在 2/3 折优于 tuned；全样本冻结结果不矛盾（fold 仅 4 blocks，比率方差大）；学习核 NOT_RUN |
-| P1 统一统计/fold-local | 新增 `unified.py` + `results/optimize_gaussian/unified_v1/`：同一入口复算 local/SLSQP 与归档逐位一致（差 0）；3 折 fold-local 的 local/SLSQP=88/251/207（平均 182±49），说明 fold 比率方差大；a1p 标 archived/PARTIAL |
+| P1 统一统计/fold-local | `unified.py` + `results/optimize_gaussian/cpu_next_package_b/`（原 `unified_v1/` 在包 B 开发中被同名输出覆盖，已改为新目录）：point/replica 同算法；3 折 tuned/SLSQP=1.719/2.014/0.810；fold 间方差大；synthetic regression 偏差≈0、覆盖 0.983–1.0 |
 | P0.2 basis/输入身份闭包 | basis_key 现在包含依赖 hash（features/kernels/submission/train/statistics）与输入内容摘要（gauge 文件 + propagator 文件 sha256）；mutation 测试覆盖依赖/输入/ID 顺序变更 → 拒绝复用 |
 | 包D 框架适配 | `adapt.py` + `results/optimize_gaussian/cpu_next_package_d/`：OperatorContract（线性/Hermitian/θ=0 恒等）、MeasurementBundle（能力声明）、SearchAdapter（NaN 拒绝、预算）真实跑通；能力拒绝抛错不静默回退 |
 | 包B synthetic regression | `estimator_regression.py`：已知模型 60 数据集；point/replica 偏差 train −1.9e-6±5.9e-5、test −1.0e-5±2.1e-5（均与 0 相容）；q=1 覆盖 1.000/0.983 |
