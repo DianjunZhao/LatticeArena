@@ -191,6 +191,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | `evaluate`/`candidate` 校验冻结 spec | 已实现；旧 submission 需 `LATTICEARENA_LEGACY_REFERENCE=1` 只读重放 |
 | 反射检查任意偶数 T | 已实现；零 SE 时返回 0 而不是 NaN |
 | 合成 develop→evaluate 端到端 | 通过（CPU，见本轮提交说明） |
+| legacy submission 只读重放 | 已用 `LATTICEARENA_LEGACY_REFERENCE=1` 验证：无 flag 时拒绝，有 flag 时精确复现归档 risk（local 0.31267、tuned 0.01256、SLSQP 0.00770） |
 | 归档只读诊断（inventory/参考扫描/协方差谱/T32 反射修正） | 已生成 `results/pion_projection/score_diagnostics_v2/` |
 | 协方差 shrinkage/block 长度预声明扫描 | 已生成 `stability_scan.json`：网格内没有组合能让名义参考通过（max p=0.0072） |
 | 两态拟合参数报告 | 已返回并保存 $m_1$、gap、幅度、normal-matrix 条件数、边界标记 |

@@ -173,3 +173,10 @@ def test_two_state_fit_reports_parameters_and_condition():
     result, masses = fit.bootstrap(bootstrap_indices(len(b), 50, 0))
     assert result['mass2'] > result['mass'] and result['gap'] > 0
     assert masses.shape == (50,)
+
+
+def test_verify_reference_rejects_missing_spec():
+    from tasks.pion_projection.reference import verify_reference
+    for spec in (None, {}, {'schema': 'other'}):
+        with pytest.raises(ValueError, match='legacy|schema'):
+            verify_reference(spec)
