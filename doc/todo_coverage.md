@@ -23,7 +23,7 @@
 | P1.2 校准分辨率 | ✅ | $(k+1)/(N+1)$，400 次模拟；6/12/24 blocks 扫描 |
 | P1.3 120-dev 诊断 | ✅ | `score_diagnostics_v3/`：秩满但条件数 $10^6$–$10^8$；$m_0$ 从 1.44 掉到 1.08；两态 profile 半宽/SE=2.7 |
 | P1.4 全链 nested CV | ✅ | `nested_cv_v2/`：training late_metric 传入 held-out；fold IDs/late hash/protocol hash 保存；5 折 480.6±146.8（折间散布）；学习核重训 ⛔ |
-| §6.1 能量估计实验 | ✅ | `energy_target_v1/`：bias/variance/MSE/coverage、$N_{\rm boot}$ 语义；C2 证书校准 `certificate_calibration_v1/`（假认证 0.067、功效 1.0、失配全 abstain） |
+| §6.1 能量估计实验 | ✅ | `energy_target_v1/`：bias/variance/MSE/coverage、$N_{\rm boot}$ 语义；C2 `certificate_calibration_v1/`（假认证 0.067、功效 1.0、失配全 abstain）；C3 `anchor_calibration_v1/`（naïve 证书 null 下 27–50%，Nboot 缩放已示） |
 | §6.2 共同目标预测 | ⛔ | 未做 |
 | §7 新测量先决条件 | 🟡 | 设计 + schema 校验器已交（[`doc/pion_new_measurement_plan.md`](pion_new_measurement_plan.md)）；执行 ⛔ |
 

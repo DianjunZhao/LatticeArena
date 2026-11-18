@@ -493,3 +493,11 @@ def test_certificate_calibration_chain():
     assert 'abstain' in result
     if not result['abstain']:
         assert 'certified' in result and 'lower_bound' in result
+
+
+def test_anchor_calibration_cell():
+    from tasks.pion_projection.anchor_calibration import run_cell
+    rng = np.random.default_rng(4)
+    row = run_cell(rng, 0.02, 0.01, 0.0, n_dataset=3, n_boot=12)
+    assert 0 <= row['naive_certified_fraction'] <= 1
+    assert np.isfinite(row['dataset_mean']) and row['dataset_se'] >= 0
