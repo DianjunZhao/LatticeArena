@@ -198,7 +198,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | block 级 p 值校准 | 已尝试，**不可用**：12 blocks / 15 维导致零分布循环偏窄（p 退化为 $1/(N+1)$），详见诊断 README |
 | 模型平均（AIC/BIC） | 已生成 `model_average.json`：权重退化为两态（$\approx1$），但两态过拟合，排序随模型翻转 |
 | 两态 profile likelihood | 1σ 区间 $[1.025,1.065]$，宽度 0.04 ≈ 4× bootstrap SE——存在 sloppy 方向 |
-| 新数据 / 新 blind validation / anchor | NOT_RUN（C2 GEVP 与 C3 能量目标的设计见 [`doc/pion_gevp_design.md`](../../doc/pion_gevp_design.md)） |
+| 新数据 / 新 blind validation / anchor | **部分完成**：200 组态 S16T16C（120 dev / 60 val）已测量；参考仍失败、GEVP 平台仍限 $t\le5$；C2 完整算符集与 C3 anchor 仍 NOT_RUN |
 | C2 GEVP | 合成验证通过；真实数据 2×2（$E_0=1.067\pm0.010$）与补测 $H^{24}$ 后的 3×3（dev 1.026±0.017 / val 0.997±0.018）**都无平台** → Gram GEVP（2–3 族算符）在 $t=3$–$5$ 给出 $m_0\approx1.02$–$1.05$，偏向两态参考（1.057）而非单 cosh（1.086）；$t=6$ 噪声大，仍不足以认证 |
 | C3 能量目标 | 合成数据验证通过（`energy_target.py`，认证/拒绝/无差别三种场景）；真实数据 NOT_RUN（需要独立 anchor） |
 | S1 评分证书模块 | 已实现 `scoring.py` + `score_spec.example.json` + 合成测试（真实数据仍无法认证） |

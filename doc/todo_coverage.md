@@ -23,7 +23,7 @@
 | C1：多态/模型平均 | 🟡 | `model_average.py`：AIC/BIC 权重退化，排序随模型翻转 → 不能救参考 |
 | C2：GEVP | 🟡 | 合成 ✅（`gevp.py`）；真实数据 2×2/3×3 无平台；两族/三族 Gram GEVP 给出 $m_0\approx1.02$–$1.05$；完整算符集 ⛔ |
 | C3：能量误差目标 | 🟡 | `energy_target.py` 合成验证 ✅；独立 anchor ⛔ |
-| 阶段 D：新 GPU 数据/可移植性 | ⛔ | 需要新生产与授权；生成器已入库（`pilot/hmc_generate.py`） |
+| 阶段 D：新 GPU 数据/可移植性 | 🟡 | 200 组态 S16T16C（120 dev / 60 val）已生成并测量；参考仍失败、GEVP 平台仍限 $t\le5$；生成器已入库 |
 | T=32 新系综测量 | ✅ | `results/pion_projection/s16t16_gevp/` 与多 source 数据 |
 
 **结论**：参考不可识别是结构性的（15 维/12 blocks、模型失配、$m_0$ 在 1.02–1.09 间不确定），
