@@ -51,8 +51,8 @@
 | 条目 | 状态 | 证据 |
 | --- | --- | --- |
 | P0.1 完整 BCB 验证 | ✅ | `tests/test_optimize_gaussian.py`；`audit_20261118_bcb/`（<1e-10） |
-| P0.2 basis/输入身份闭包 | ⛔ | basis_key 未纳入依赖与输入内容摘要 |
-| P0.3 audit 与措辞修正 | ⛔ | audit.py 仍统一标 legacy；README 的“打平/追平”未改为“未检出差异” |
+| P0.2 basis/输入身份闭包 | ✅ | basis_key 含依赖 hash + gauge/propagator 内容摘要；mutation 测试覆盖依赖/输入/ID 变更 |
+| P0.3 audit 与措辞修正 | ✅ | audit.py 按 manifest 分类（v9 = current_operator_diagnostic）；显式 --out 拒绝覆盖；dev_val 不回退；措辞已改“未检出差异” |
 | P1 统一统计/fold-local | ⛔ | 未做 |
 | §P2 函数类实验 | ⛔ | 未做 |
 | §P3 共同目标预测 | ⛔ | 未做 |
