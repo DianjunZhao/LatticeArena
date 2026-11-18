@@ -120,7 +120,7 @@ python -m pytest -q tests/test_wilson_loop.py
 - 用 `WILSON_PROTOCOL=tasks/wilson_loop/protocol_v2.json` 选择，默认协议保持 v1 不变。
 
 生成器 `pilot/hmc_generate.py` 已从 kunshan 取回仓库，重生产时可以核对输入身份。
-修复后的 GPU 重测仍为 **NOT_RUN**。
+修复后的 GPU 重测已完成（`s16t16_v2` 与 `s16t16_v3`，见上）；更远的“更大 $R$ / 更多体积”仍是 NOT_RUN。
 
 ## v2 重测结果（2026-11-18，GPU 已运行）
 

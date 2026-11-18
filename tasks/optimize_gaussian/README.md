@@ -8,7 +8,7 @@
 > 算出来的并不是规范不变的 plaquette；`directional_features` 的两个输入也不对横向交换对称，A1+ 不成立。
 > 现已改为闭合路径 $U_\mu(x)U_\nu(x+\hat\mu)U_\mu^\dagger(x+\hat\nu)U_\nu^\dagger(x)$，特征取**以 link 为中心**的
 > 平均（每条 link 两侧的两个 plaquette 取平均）再做对称组合 $(s_1+s_2,\;s_1s_2)$。**v1–v8 的所有 risk 都是用旧特征算出来的**，只能作为流程与负结果的历史记录，
-> 不能当作“学习核在这些系综上表现如何”的物理证据；需要 GPU 重测（本轮 NOT_RUN）。
+> 不能当作“学习核在这些系综上表现如何”的物理证据；新特征下的 GPU 重训已完成（v9，见下文）；旧的 v1–v8 仍是未认证的历史。
 > **A1+ 现在通过认证**：24 个 proper rotation 和 parity 测试（`test_full_proper_cubic_group_covariance`、
 > `test_parity_covariance`）全部通过。关键是把 plaquette 的锚点放到 **link 中心**（每条 link 两侧的
 > 两个 plaquette 取平均），这样方向翻号的旋转不会移动锚点；早先的“前向锚点”和“clover 锚点”都试过，
@@ -381,7 +381,7 @@ python -m tasks.optimize_gaussian.compare_plot
 | 历史运行 audit | 已生成 `results/optimize_gaussian/audit.json`（v2–v8 的统一口径表，全部标记 legacy） |
 | 全 O_h 群（24 旋转 + 宇称）测试 | **PASSED**（link 中心特征；A1+ 认证） |
 | v1–v8 历史 risk | **失效**（旧特征），保留为流程/负结果记录 |
-| 修复后的 GPU 重训 | NOT_RUN |
+| 修复后的 GPU 重训 | **已完成**（v9：2.12×，候选与 SLSQP 打平） |
 
 ## v9：修复特征后的 GPU 重训（2026-11-18）
 
