@@ -5,6 +5,7 @@ reference and its gate on development, runs joint draws, and evaluates the
 certificate. Scenarios: no improvement, a known improvement (lower excited-state
 contamination), and a misspecified single-cosh reference.
 """
+import hashlib
 import json
 from pathlib import Path
 
@@ -109,8 +110,63 @@ def main(n_dataset=8, blocks_list=(6, 12, 24), seed=20261120):
                          'details': results}
             print(key, {k: rows[key][k] for k in ('n_dataset', 'abstain', 'valid', 'certified',
                                                   'unconditional_certified_rate')})
+    family = run_family(rng)
+    rows['family_J2_K2'] = family
+    print('family', family)
     (OUT / 'certificate_calibration.json').write_text(json.dumps(rows, indent=2) + '\n')
     print('wrote', OUT)
+
+
+
+
+def run_family(rng, n_dataset=8, outer=40, inner=16, alpha=0.05):
+    """J=2 candidates (one null, one better) and K=2 models (single, twostate)."""
+    from .reference import make_reference
+
+    contamination = np.zeros(7)
+    contamination[[0, 3, 4]] = 0.0          # reference channels stay single-cosh
+    contamination[1] = contamination[2] = 0.5   # baseline and null candidate
+    contamination[5] = 0.2                  # the better candidate
+    certified_null = certified_better = certified_any = abstain = 0
+    for _ in range(n_dataset):
+        dev = blocks(world(rng, 24 * PROTOCOL['block_length'], contamination), PROTOCOL['block_length'])
+        val = blocks(world(rng, 12 * PROTOCOL['block_length'], contamination), PROTOCOL['block_length'])
+        ref, mass, p_value = gate(dev)
+        if p_value < 0.05:
+            abstain += 1
+            continue
+        weights = {'base': np.eye(7)[1], 'null': np.eye(7)[2], 'better': np.eye(7)[5]}
+        risks = {m: {name: np.zeros(outer) for name in weights} for m in ('single', 'twostate')}
+        for b in range(outer):
+            dev_idx = rng.integers(0, len(dev), len(dev))
+            val_idx = rng.integers(0, len(val), len(val))
+            inner_idx = rng.integers(0, len(val), (inner, len(val)))
+            for m in ('single', 'twostate'):
+                ref_b = make_reference(dev[dev_idx], PROTOCOL,
+                                       PROTOCOL['reference_windows'][PROTOCOL['reference_nominal_window']], m)
+                fit_b, masses = ref_b.bootstrap(rng.integers(0, len(dev), (inner, len(dev))))
+                for name, w in weights.items():
+                    risks[m][name][b] = risk(val[val_idx], w, fit_b['mass'], masses, inner_idx,
+                                             PROTOCOL, require_valid=False)['risk']
+        draw_ids = np.arange(outer)
+        spec = {'schema': 'pion-score-v1', 'version': 'c2-family', 'estimand': 'conditional',
+                'baseline_id': 'base', 'accepted_models': ['single', 'twostate'],
+                'candidate_ids': ['null', 'better'], 'analysis_version': 'c2-family',
+                'alpha': alpha, 'comparison_family': {'candidates': 2, 'models': 2},
+                'min_baseline_risk': 1e-9, 'invalid_tolerance': 0.05, 'min_improvement': 1.0,
+                'risk_floor': 0.0, 'require_draw_ids': True,
+                'draw_ids_hash': hashlib.sha256(np.asarray(draw_ids, dtype=np.int64).tobytes()).hexdigest()}
+        certificate = improvement_certificate(risks, spec, draw_ids=draw_ids)
+        null_ok = bool(certificate['candidates']['null']['certified'])
+        better_ok = bool(certificate['candidates']['better']['certified'])
+        certified_null += null_ok
+        certified_better += better_ok
+        certified_any += (null_ok or better_ok)
+    return {'n_dataset': n_dataset, 'outer': outer, 'inner': inner, 'alpha': alpha,
+            'abstain': abstain, 'valid': n_dataset - abstain,
+            'certified_null': certified_null, 'certified_better': certified_better,
+            'family_false_certification': certified_null / (n_dataset - abstain) if n_dataset > abstain else None,
+            'power': certified_better / (n_dataset - abstain) if n_dataset > abstain else None}
 
 
 if __name__ == '__main__':

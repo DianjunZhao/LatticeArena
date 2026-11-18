@@ -563,3 +563,11 @@ def test_evaluate_reuses_a_compatible_joint_certificate(tmp_path):
     report = json.loads((tmp_path / 'validation_results.json').read_text())
     assert report['certification_source'] == 'joint'
     assert report['certification']['status'] == 'abstain'
+
+
+def test_certificate_family_j2_k2():
+    from tasks.pion_projection.certificate_calibration import run_family
+    rng = np.random.default_rng(6)
+    row = run_family(rng, n_dataset=2, outer=12, inner=8)
+    assert row['n_dataset'] == 2 and row['valid'] >= 0
+    assert 0 <= row['certified_null'] <= row['valid']

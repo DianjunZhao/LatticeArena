@@ -203,8 +203,10 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | C3 能量目标 | 合成数据验证通过（`energy_target.py`，认证/拒绝/无差别三种场景）；真实数据 NOT_RUN（需要独立 anchor） |
 | S1 评分证书模块 | 已实现 `scoring.py` + `score_spec.example.json` + 合成测试（真实数据仍无法认证） |
 | C3 anchor 校准 | 新增 `anchor_calibration.py` + `results/pion_projection/anchor_calibration_v1/`：block-draw 能量 + 独立共享 anchor；naïve 每-dataset 证书在 null 下假认证 27–50%，独立 dataset 均值/SE 才用于物理推断；Nboot 50→800 使 naïve 区间宽度 0.032→0.0099 |
+| C2 J/K 族 | `run_family`（J=2、K=2、alpha 分摊）：null 0/7 被认证、better 1/7（功效 0.14）；族错误控制但功效受 N 限制 |
 | C2 证书端到端校准 | `certificate_calibration_v1/`：blocks 6/12/24 扫描；no_improvement 假认证 3/8（6 blocks）、0/7、0/8；known_improvement 功效 0.75–0.875；失配全 abstain |
 | A1 证书复用 | `evaluate` 在 `<output>/joint/` 存在且 manifest 与 run 身份一致时复用 joint 的证书（`certification_source='joint'`）；不一致则 abstain。测试覆盖 |
+| C2 J/K 族 | `run_family`（J=2、K=2、alpha 分摊）：null 0/7 被认证、better 1/7（功效 0.14）；族错误控制但功效受 N 限制 |
 | C2 证书端到端校准 | 新增 `certificate_calibration.py` + `results/pion_projection/certificate_calibration_v1/`：每 dataset 走 dev/val→gate→joint→certificate；no_improvement 假认证 0.067（1/15）、known_improvement 功效 1.0、misspecified 全 abstain；blocks/JK 扫描与错误激发态场景 NOT_RUN |
 | C1 参考 gate 校准 | 新增 `reference_gate.py` + `reference_gate_calibration_v1/`：dof=8（旧脚本 10）、每 dataset null 校准、N_dataset=100/N_null=50、cfg/time 噪声分开；正确模型假拒绝 0.02/0.03、失配功效 0.66/0.59 |
 | B2 GEVP 失败计数 | `summarise` 用固定平台时间集合：任一时间缺失 → 整 replica 失败；输出 local/replica 失败与有效时间；cosh/rank 失败记入 reasons；`gram_stats_v2/` 重跑（forward 1.0629±0.0075，0 失败）；反例测试 `partial_plateaus` |
