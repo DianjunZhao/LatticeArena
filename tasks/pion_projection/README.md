@@ -195,4 +195,6 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | 协方差 shrinkage/block 长度预声明扫描 | 已生成 `stability_scan.json`：网格内没有组合能让名义参考通过（max p=0.0072） |
 | 两态拟合参数报告 | 已返回并保存 $m_1$、gap、幅度、normal-matrix 条件数、边界标记 |
 | block 级 p 值校准 | 已尝试，**不可用**：12 blocks / 15 维导致零分布循环偏窄（p 退化为 $1/(N+1)$），详见诊断 README |
+| 模型平均（AIC/BIC） | 已生成 `model_average.json`：权重退化为两态（$\approx1$），但两态过拟合，排序随模型翻转 |
+| 两态 profile likelihood | 1σ 区间 $[1.025,1.065]$，宽度 0.04 ≈ 4× bootstrap SE——存在 sloppy 方向 |
 | 新数据 / 新 blind validation / anchor | NOT_RUN |
