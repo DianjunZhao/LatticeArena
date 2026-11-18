@@ -480,3 +480,15 @@ def test_projection_failure_reports_batch_index():
     bad = np.diag([1.0, 1.0, 0.0]).astype(complex)
     with pytest.raises(ValueError, match=r'indices \[1\]'):
         project(np.stack([good, bad]))
+
+
+def test_risk_fails_closed_on_invalid_w():
+    from tasks.wilson_loop.statistics import blocks, bootstrap_indices, risk
+    data = np.ones((6, 1, 5))
+    data[:, 0, 0] = -1.0
+    with pytest.raises(ValueError, match='non-positive W'):
+        risk(blocks(data, 2), bootstrap_indices(3, 10, 1), [[4, 5, 6]], [4, 5, 6, 7, 8], [1.0], nominal=0)
+    nan_data = np.ones((6, 1, 5))
+    nan_data[0, 0, 0] = np.nan
+    with pytest.raises(ValueError, match='non-finite W'):
+        risk(blocks(nan_data, 2), bootstrap_indices(3, 10, 1), [[4, 5, 6]], [4, 5, 6, 7, 8], [1.0], nominal=0)

@@ -54,8 +54,13 @@ def bundle_for(run):
         inputs[split] = hashlib.sha256(np.ascontiguousarray(data).tobytes()).hexdigest()
     code = {name: digest(Path(__file__).with_name(name)) for name in
             ('kernels.py', 'statistics.py', 'measure.py', 'common.py')}
+    run_spec = task_spec_for(protocol)
+    for split, info in splits.items():
+        if info['n'] != run_spec['splits'][split][1] - run_spec['splits'][split][0] + 1:
+            raise ValueError(f'{split}: bundle size {info["n"]} does not match the RunSpec range')
     manifest = {'protocol_hash': fingerprint(protocol), 'splits': splits, 'ids': ids_hash,
                 'inputs': inputs, 'code': code, 'r_values': protocol['r_values'],
-                'kernels': [k['name'] for k in protocol['kernels']]}
+                'kernels': [k['name'] for k in protocol['kernels']],
+                'run_spec': digest_text(json.dumps(run_spec, sort_keys=True))}
     return bundle('wilson_loop', arrays, manifest,
                   {'linear_response': False, 'cross_matrix': False, 'new_source': False})

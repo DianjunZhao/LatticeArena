@@ -43,15 +43,24 @@ def nested(data, windows, v_ref, seed, outer=500, inner=500):
     num = np.zeros((outer, data.shape[1] - 1))
     den = np.zeros((outer, data.shape[1] - 1))
     unique = np.zeros(outer)
+    invalid = 0
     for o in range(outer):
         rows = rng.integers(0, len(data), len(data))
         unique[o] = len(np.unique(rows))
-        base = risk(data[rows, 0], vi, windows, T_VALUES, np.asarray(v_ref))['risk']
+        try:
+            base = risk(data[rows, 0], vi, windows, T_VALUES, np.asarray(v_ref))['risk']
+        except ValueError:
+            invalid += 1
+            continue
         for k in range(1, data.shape[1]):
-            cand = risk(data[rows, k], vi, windows, T_VALUES, np.asarray(v_ref))['risk']
+            try:
+                cand = risk(data[rows, k], vi, windows, T_VALUES, np.asarray(v_ref))['risk']
+            except ValueError:
+                invalid += 1
+                continue
             num[o, k - 1], den[o, k - 1] = base, cand
             ratios[o, k - 1] = base / cand
-    return {'ratios': ratios, 'num': num, 'den': den, 'unique': unique}
+    return {'ratios': ratios, 'num': num, 'den': den, 'unique': unique, 'invalid_draws': invalid}
 
 
 def main():
@@ -86,7 +95,7 @@ def main():
         n = len(data)
         jk_mean = jackknife.mean(axis=0)
         jk_se = np.sqrt((n - 1) / n * ((jackknife - jk_mean) ** 2).sum(axis=0))
-        result[run] = {
+        result[run] = {'nested_invalid_draws': nested_result.get('invalid_draws'),
             'blocks': len(data), 'kernels': data.shape[1], 'point_risks': rows,
             'point_ratio': point.tolist(), 'median_ratio': med.tolist(),
             'ci95': [lo.tolist(), hi.tolist()],
