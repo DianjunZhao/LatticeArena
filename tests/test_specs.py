@@ -101,3 +101,32 @@ def test_search_adapter_budget_and_rejections():
     broken = search([('x', 1.0)], evaluate=lambda x: (_ for _ in ()).throw(ValueError('bad')))
     assert broken.rejected and 'bad' in broken.rejected[0]['reason']
     assert broken.best() is None
+
+
+def test_run_state_transitions_and_score_gating():
+    from core.state import RunState
+    state = RunState()
+    with pytest.raises(ValueError, match='illegal transition'):
+        state.set('statistical', 'validated')
+    state.set('operator', 'draft').set('operator', 'validated')
+    state.set('statistical', 'draft')
+    assert state.score_or_null() is None
+    state.set('statistical', 'validated')
+    state.set('comparison', 'draft').set('comparison', 'validated')
+    state.score = 42.0
+    assert state.score_or_null() == 42.0
+    state.observe_validation('v3')
+    assert state.validation_observed
+
+
+def test_cost_ledger_phases_and_environment():
+    from core.ledger import Ledger
+    ledger = Ledger()
+    ledger.add('setup', 1.0).add('solve', 2.0, cache='warm').add('analysis', 0.5)
+    summary = ledger.summary()
+    assert summary['total_seconds'] == 3.5
+    assert summary['phases']['solve'] == 2.0
+    with pytest.raises(ValueError, match='unknown phase'):
+        ledger.add('magic', 1.0)
+    with pytest.raises(ValueError, match='different devices'):
+        ledger.merge(Ledger(device='dcu'))

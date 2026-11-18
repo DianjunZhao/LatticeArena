@@ -79,6 +79,13 @@ def main(k=5, seed=20261120):
               'local/slsqp %.1f' % rows[-1]['ratio_local_slsqp'])
     ratios = np.array([r['ratio_local_slsqp'] for r in rows])
     result = {'protocol_hash': None, 'k': k, 'seed': seed,
+              'bindings': {'split': 'development blocks', 'block_length': p['block_length'],
+                           'bootstrap_samples': p['bootstrap_samples'],
+                           'reference': {'kind': 'single',
+                                         'window': p['reference_windows'][p['reference_nominal_window']]},
+                           'baseline': 'local', 'score_spec': 'pion-score-v1',
+                           'search_budget': {'optimizer_starts': p['optimizer_starts'], 'rounds': 1},
+                           'fold_seed': seed, 'validation_observed': False},
               'folds': folds and [list(map(int, f)) for f in folds],
               'rows': rows,
               'mean_ratio_local_slsqp': float(ratios.mean()),
