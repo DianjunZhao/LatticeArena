@@ -76,13 +76,24 @@ baseline、score spec、搜索预算、seed、`validation_observed=False`。
 - 跨 task 的统一 same-draw 入口（pion 有 draw ID，wilson 用同一 block index，但未统一生成）。
 
 
-## 7. wilson 恢复的故障注入表
+## 7. wilson 恢复事务（三文件）
+
+一次测量现在是 **npz + provenance + commit marker** 三文件事务：
+
+- marker 记录 generation、npz/provenance 的文件 sha256 与 loops 内容 sha256；
+- resume 时三者必须齐全且互验（generation、文件 hash、records 逐行 loops hash、gauge 文件 hash）；
+- 只有 npz、只有 provenance、或 marker 缺失 → 明确拒绝，不静默从 0 覆盖；
+- provenance 记录依赖闭包（kernels/statistics/measure/common/identity 的 hash）。
+
+## 7.1 wilson 恢复的故障注入表
 
 `check_resume`（`tasks/wilson_loop/identity.py`）的拒绝矩阵（测试 `test_resume_rejects_inconsistent_prefix`、
 `test_measurement_generation_and_resume`）：
 
 | 故障 | 行为 |
 | --- | --- |
+| 只有 npz / 只有 provenance / 缺 marker | 拒绝：partial transaction |
+| marker 与 npz/provenance 文件 hash 不符 | 拒绝 |
 | 归档 NPZ 没有 `generation` | 拒绝：legacy 只读 |
 | `generation` 与当前 spec 不符 | 拒绝：不混合新旧 generation |
 | 存储 ids 不是请求 split 的前缀 | 拒绝 |

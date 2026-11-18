@@ -113,6 +113,7 @@ python -m pytest -q tests/test_wilson_loop.py
 | P3 物理质量门控 | 新增 `spectral_quality.py` + `doc/wilson_spectral_quality.md`：合成“平但错”反例（偏差 170σ、risk $2.7\times10^{-7}$、gate 通过）；v3/v4 窗口 $V$ 图；`reference_nominal_window` 改为显式 spec |
 | P2 无效样本计数 | 新增 `invalid_audit.py` + `results/wilson_loop/invalid_audit_v1/`：预声明 mean/bootstrap 非正、NaN、零分母规则；v2/v3/v4 计数全为 0（规则未触发）；合成数据单测覆盖计数路径 |
 | P2 配对统计审计 | 新增 `paired_audit.py` + `results/wilson_loop/paired_audit_v1/`：v2 点值 1.07–1.18 vs 嵌套中位数 3.0–3.4（唯一 block 分布、jackknife 0.49–4.53、相关性 0.14–0.30 解释）；`probability_better` 改名 `exceedance_fraction` |
+| P1 恢复事务 | 测量改为 npz+provenance+commit marker 三文件事务；resume 互验 generation/文件 hash/records 逐行 loops hash/gauge hash；部分文件、依赖变更、gauge 变更均拒绝；见 [`doc/run_state.md`](../../doc/run_state.md) §7 |
 | P1 恢复故障注入 | `check_resume` 现在校验 provenance 记录数与 id 顺序；故障注入表见 [`doc/run_state.md`](../../doc/run_state.md) §7（generation/前缀/记录不一致均拒绝，残留 tmp 忽略） |
 | P1 可信加载/冻结 | 新增 `identity.py`：generation 写入 NPZ/provenance、resume 只接同 generation 前缀、`read_nersc` 校验头部几何、`trust_status` 只看身份；`paired.main` 改用 `load_data`；v3 归档被判 archived_diagnostic（证据 `results/wilson_loop/audit_20261118_identity/`） |
 | P0 measure 入口修复 | 修掉 `start` 被 `perf_counter()` 覆盖、`spec['ids'][:start+...]` 用浮点切片的 bug；新增端到端 mock reader 测试（空目录/limit/已完成后 resume 不重复测量）；行数逐次核对 |

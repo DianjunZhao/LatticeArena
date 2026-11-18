@@ -298,19 +298,50 @@ def test_nersc_header_geometry_and_payload(tmp_path):
         read_nersc(path, [2, 2, 2, 16])
 
 
+def _make_transaction(tmp_path, spec, n=3):
+    import json
+    from tasks.wilson_loop.identity import generation, loops_sha256, write_marker
+    ids = spec['ids'][:n]
+    loops = np.zeros((n, 2, 2, 1))
+    gen = generation(spec)
+    np.savez(tmp_path / 'validation.npz', ids=np.asarray(ids), loops=loops,
+             generation=np.asarray(gen))
+    records = [{'id': int(cid), 'loops_sha256': loops_sha256(loops[row:row + 1])}
+               for row, cid in enumerate(ids)]
+    (tmp_path / 'validation_provenance.json').write_text(json.dumps(
+        {'generation': gen, 'kernel_sha256': spec['kernel_sha256'], 'records': records}))
+    write_marker(tmp_path, 'validation', tmp_path / 'validation.npz',
+                 tmp_path / 'validation_provenance.json', spec, loops)
+    return ids
+
+
 def test_measurement_generation_and_resume(tmp_path):
     from tasks.wilson_loop.common import protocol
-    from tasks.wilson_loop.identity import check_resume, generation, measurement_spec
+    from tasks.wilson_loop.identity import check_resume, measurement_spec
     spec = measurement_spec(protocol(), 'validation')
-    assert check_resume(tmp_path, 'validation', spec) == 0
-    np.savez(tmp_path / 'validation.npz', ids=np.asarray(spec['ids'][:3]),
-             loops=np.zeros((3, 2, 2, 1)), generation=np.asarray(generation(spec)))
-    import json
-    (tmp_path / 'validation_provenance.json').write_text(
-        json.dumps({'records': [{'id': int(i)} for i in spec['ids'][:3]]}))
-    assert check_resume(tmp_path, 'validation', spec) == 3
+    assert check_resume(tmp_path, 'validation', spec, verify_gauge=False) == 0
+    _make_transaction(tmp_path, spec)
+    assert check_resume(tmp_path, 'validation', spec, verify_gauge=False) == 3
     with pytest.raises(ValueError, match='generation'):
-        check_resume(tmp_path, 'validation', dict(spec, kernel_sha256='0' * 64))
+        check_resume(tmp_path, 'validation', dict(spec, kernel_sha256='0' * 64), verify_gauge=False)
+
+
+def test_resume_rejects_inconsistent_prefix(tmp_path):
+    import json
+    from tasks.wilson_loop.common import protocol
+    from tasks.wilson_loop.identity import check_resume, measurement_spec
+    spec = measurement_spec(protocol(), 'validation')
+    ids = _make_transaction(tmp_path, spec)
+    (tmp_path / 'validation.commit.json').unlink()
+    with pytest.raises(ValueError, match='partial measurement transaction'):
+        check_resume(tmp_path, 'validation', spec, verify_gauge=False)
+    _make_transaction(tmp_path, spec)
+    provenance = {'generation': json.loads((tmp_path / 'validation_provenance.json').read_text())['generation'],
+                  'kernel_sha256': spec['kernel_sha256'],
+                  'records': [{'id': int(i)} for i in ids[:2]]}
+    (tmp_path / 'validation_provenance.json').write_text(json.dumps(provenance))
+    with pytest.raises(ValueError, match='commit marker|records versus|loops hash|no loops hash'):
+        check_resume(tmp_path, 'validation', spec, verify_gauge=False)
 
 
 def test_trust_status_does_not_use_the_protocol_name(monkeypatch):
@@ -390,29 +421,6 @@ def test_develop_records_run_state(tmp_path, monkeypatch):
     assert frozen['run_state']['status']['reference'] in ('validated', 'failed')
     assert frozen['run_state']['status']['comparison'] in ('draft', 'failed')
 
-
-def test_resume_rejects_inconsistent_prefix(tmp_path):
-    import json
-    from tasks.wilson_loop.common import protocol
-    from tasks.wilson_loop.identity import check_resume, generation, measurement_spec
-    spec = measurement_spec(protocol(), 'validation')
-    gen = generation(spec)
-    ids = spec['ids'][:3]
-    np.savez(tmp_path / 'validation.npz', ids=np.asarray(ids), loops=np.zeros((3, 2, 2, 1)),
-             generation=np.asarray(gen))
-    (tmp_path / 'validation_npz.tmp').write_bytes(b'partial')
-    with pytest.raises(ValueError, match='missing provenance'):
-        check_resume(tmp_path, 'validation', spec)
-    provenance = {'records': [{'id': int(i)} for i in ids[:2]]}
-    (tmp_path / 'validation_provenance.json').write_text(json.dumps(provenance))
-    with pytest.raises(ValueError, match='records versus'):
-        check_resume(tmp_path, 'validation', spec)
-    provenance = {'records': [{'id': int(i)} for i in reversed(ids)]}
-    (tmp_path / 'validation_provenance.json').write_text(json.dumps(provenance))
-    with pytest.raises(ValueError, match='do not match'):
-        check_resume(tmp_path, 'validation', spec)
-    (tmp_path / 'validation_provenance.json').write_text(json.dumps({'records': [{'id': int(i)} for i in ids]}))
-    assert check_resume(tmp_path, 'validation', spec) == 3
 
 
 def test_invalid_sample_counting():

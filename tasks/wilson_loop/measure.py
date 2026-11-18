@@ -10,7 +10,7 @@ import numpy as np
 from .common import digest, fingerprint, indices, protocol, read_nersc, write_json
 from core.ledger import Ledger
 
-from .identity import check_resume, generation, measurement_spec
+from .identity import check_resume, generation, loops_sha256, measurement_spec, write_marker
 from .kernels import _lib, build_kernel, dagger, shift
 
 
@@ -78,9 +78,11 @@ def measure(output, split, limit=None):
         u = xp.asarray(read_nersc(gauge_path, p['geometry']))
         setup = perf_counter() - cfg_start
         measured = perf_counter()
-        rows.append([loops(build_kernel(u[:3], k), u[3], p) for k in p['kernels']])
+        row = [loops(build_kernel(u[:3], k), u[3], p) for k in p['kernels']]
+        rows.append(row)
         ledger.add('setup', setup).add('kernel', perf_counter() - measured)
-        records.append({'id': int(cfg), 'gauge_sha256': digest(gauge_path),
+        records.append({'id': int(cfg), 'gauge_path': str(gauge_path),
+                        'gauge_sha256': digest(gauge_path), 'loops_sha256': loops_sha256(np.asarray(row)),
                         'setup_seconds': setup, 'measure_seconds': perf_counter() - measured,
                         'total_seconds': perf_counter() - cfg_start})
         saved = completed + len(rows)
@@ -93,7 +95,12 @@ def measure(output, split, limit=None):
         os.replace(tmp, output / f'{split}.npz')
         write_json(output / f'{split}_provenance.json',
                    {'protocol': p, 'kernel_sha256': kernel_sha, 'ensemble': p['ensemble'],
-                    'git': git_state(), 'generation': generation(spec), 'records': records,
-                    'ledger': ledger.summary()})
+                    'git': git_state(), 'generation': generation(spec),
+                    'dependencies': {name: digest(Path(__file__).with_name(name))
+                                     for name in ('kernels.py', 'statistics.py', 'measure.py',
+                                                  'common.py', 'identity.py')},
+                    'records': records, 'ledger': ledger.summary()})
+        write_marker(output, split, output / f'{split}.npz', output / f'{split}_provenance.json',
+                     spec, np.asarray(rows))
         print(f'cfg {cfg}: {records[-1]["total_seconds"]:.2f}s', flush=True)
     return records
