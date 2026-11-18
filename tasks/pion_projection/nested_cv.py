@@ -13,11 +13,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import minimize
 
+from .common import fingerprint
+from .experiment import late_metric
 from .reference import make_reference
 from .statistics import blocks, bootstrap_indices, fold, risk
 
 RUN = Path('results/pion_projection/s16t16_gevp200')
-OUT = Path('results/pion_projection/nested_cv_v1')
+OUT = Path('results/pion_projection/nested_cv_v2')
 
 
 def optimise(train, scales, mass, masses, index, p):
@@ -66,19 +68,25 @@ def main(k=5, seed=20261120):
         scales = np.array([r['amplitude'] for r in base])
         weights, u = optimise(train, scales, mass, masses, index, p)
         test_index = bootstrap_indices(len(test), p['bootstrap_samples'], seed + 100 + i)
-        test_risk = {'local': risk(test, basis[0], mass, masses, test_index, p)['risk'],
-                     'tuned_gaussian': risk(test, basis[best], mass, masses, test_index, p)['risk'],
-                     'slsqp': risk(test, weights, mass, masses, test_index, p)['risk']}
+        late = {name: late_metric(train, np.asarray(w, dtype=float), p).tolist()
+                for name, w in (('local', basis[0]), ('tuned_gaussian', basis[best]), ('slsqp', weights))}
+        test_risk = {name: risk(test, np.asarray(w, dtype=float), mass, masses, test_index, p,
+                                late_inverse=np.asarray(late[name]))['risk']
+                     for name, w in (('local', basis[0]), ('tuned_gaussian', basis[best]), ('slsqp', weights))}
+        import hashlib
         rows.append({'fold': i, 'test_blocks': [int(x) for x in test_ids],
+                     'train_blocks': [int(x) for x in np.setdiff1d(np.arange(len(data)), test_ids)],
                      'n_train': len(train), 'n_test': len(test), 'mass': float(mass),
                      'train_chi2': float(cost), 'best_basis': p['powers'][best],
+                     'late_inverse_sha256': {name: hashlib.sha256(np.asarray(late[name]).tobytes()).hexdigest()
+                                             for name in late},
                      'slsqp_weights': u.tolist(), 'test_risk': test_risk,
                      'ratio_local_slsqp': test_risk['local'] / test_risk['slsqp'],
                      'ratio_local_tuned': test_risk['local'] / test_risk['tuned_gaussian']})
         print('fold', i, 'mass %.4f' % mass, {k_: round(v, 5) for k_, v in test_risk.items()},
               'local/slsqp %.1f' % rows[-1]['ratio_local_slsqp'])
     ratios = np.array([r['ratio_local_slsqp'] for r in rows])
-    result = {'protocol_hash': None, 'k': k, 'seed': seed,
+    result = {'protocol_hash': fingerprint(p), 'k': k, 'seed': seed,
               'bindings': {'split': 'development blocks', 'block_length': p['block_length'],
                            'bootstrap_samples': p['bootstrap_samples'],
                            'reference': {'kind': 'single',

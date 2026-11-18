@@ -202,6 +202,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | C2 GEVP | 合成验证通过；真实数据 2×2（$E_0=1.067\pm0.010$）与补测 $H^{24}$ 后的 3×3（dev 1.026±0.017 / val 0.997±0.018）**都无平台** → Gram GEVP（2–3 族算符）在 $t=3$–$5$ 给出 $m_0\approx1.02$–$1.05$，偏向两态参考（1.057）而非单 cosh（1.086）；$t=6$ 噪声大，仍不足以认证 |
 | C3 能量目标 | 合成数据验证通过（`energy_target.py`，认证/拒绝/无差别三种场景）；真实数据 NOT_RUN（需要独立 anchor） |
 | S1 评分证书模块 | 已实现 `scoring.py` + `score_spec.example.json` + 合成测试（真实数据仍无法认证） |
+| B1 CV 冻结度量 | `nested_cv_v2/`：每个 training fold 计算 `late_metric` 并传给 held-out risk；fold_plan 保存 train/test IDs、late hash、protocol hash；5 折 local/SLSQP=480.6±146.8（折间散布，不是独立 SE）；明确定名为 outer cross-fit |
 | P1.4 全链 nested CV | 新增 `nested_cv.py` + `results/pion_projection/nested_cv_v1/`：5 折、每折重拟合参考/标度/协方差/SLSQP；训练折 $m_0=1.074$–$1.078$，local/SLSQP=209–750（平均 427±89）；学习核重训 NOT_RUN（GPU） |
 | P1.1/P1.2 双层校准 | 新增 `calibration_full.py` + `results/pion_projection/score_calibration_v1/`：完整估计器 24 blocks 假阳性 0.025，fixed-metric 0.095（反保守），6/12 blocks 时 0.235/0.085；两态真值拒绝率约 0.53；$(k+1)/(N+1)$ 分辨率约 0.0025 |
 | P1.3 120-dev 参考诊断 | 新增 `diagnostics_200.py` + `results/pion_projection/score_diagnostics_v3/`：协方差谱（15/12/9 维，rank 满、条件数 $10^6$–$10^8$）、block×shrinkage 全失败、$m_0$ 随窗口从 1.44 掉到 1.08、两态 profile 半宽/SE=2.7；见 `score_diagnostics_v3/README.md` |
