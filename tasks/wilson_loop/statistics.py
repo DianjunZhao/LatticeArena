@@ -11,11 +11,11 @@ def potential(w, window, t_values):
     return -(y * x).sum(-1) / (x * x).sum()
 
 
-def risk(w_blocks, index, windows, t_values, v_ref):
+def risk(w_blocks, index, windows, t_values, v_ref, nominal=1):
     """Precision (bootstrap SE) plus plateau spread across T windows."""
     mean = w_blocks.mean(0)
-    v = potential(mean, windows[1], t_values)
-    vb = potential(w_blocks[index].mean(1), windows[1], t_values)
+    v = potential(mean, windows[nominal], t_values)
+    vb = potential(w_blocks[index].mean(1), windows[nominal], t_values)
     se = vb.std(axis=0, ddof=1)
     v_win = np.stack([potential(mean, w, t_values) for w in windows], axis=-1)
     spread = v_win.std(axis=-1)

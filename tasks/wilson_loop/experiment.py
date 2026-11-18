@@ -16,8 +16,11 @@ def develop(output):
     data = blocks(load_data(output, 'development'), p['block_length'])
     index = bootstrap_indices(len(data), p['bootstrap_samples'], p['seed'])
     windows = p['reference_windows']
-    v_ref = potential(data[:, p['reference_kernel']].mean(0), windows[1], p['t_values'])
-    results = {spec['name']: risk(data[:, k], index, windows, p['t_values'], v_ref)
+    nominal = p['reference_nominal_window']
+    if not 0 <= nominal < len(windows):
+        raise ValueError('reference_nominal_window is out of range')
+    v_ref = potential(data[:, p['reference_kernel']].mean(0), windows[nominal], p['t_values'])
+    results = {spec['name']: risk(data[:, k], index, windows, p['t_values'], v_ref, nominal=nominal)
                for k, spec in enumerate(p['kernels'])}
     identity = results['identity']
     failures = []
@@ -29,7 +32,8 @@ def develop(output):
     frozen = {'protocol_hash': fingerprint(p),
               'development_sha256': digest(output / 'development.npz'),
               'kernel_sha256': digest(Path(__file__).with_name('kernels.py')),
-              'windows': windows, 'nominal_window': windows[1],
+              'windows': windows, 'nominal_window': windows[nominal],
+              'nominal_window_index': nominal,
               'reference_passed': not failures, 'failure_reasons': failures,
               'identity': identity, 'kernels': p['kernels'], 'v_ref': v_ref.tolist(), 'results': results,
               'best_nonidentity': {'name': best_name, 'risk': best_risk}}
@@ -57,7 +61,8 @@ def evaluate(output):
     index = bootstrap_indices(len(data), p['bootstrap_samples'], p['seed'] + 1)
     windows = frozen['windows']
     v_ref = np.array(frozen['identity']['v'])
-    results = {spec['name']: risk(data[:, k], index, windows, p['t_values'], v_ref)
+    nominal = p['reference_nominal_window']
+    results = {spec['name']: risk(data[:, k], index, windows, p['t_values'], v_ref, nominal=nominal)
                for k, spec in enumerate(p['kernels'])}
     base = results['identity']['risk']
     eps = p['score_epsilon']
