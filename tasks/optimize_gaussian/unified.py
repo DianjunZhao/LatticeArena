@@ -5,6 +5,7 @@ does a fold-local evaluation (reference refitted on each training fold). The
 learned BCB kernel needs the collected response data and is reported as
 archived/PARTIAL, not re-evaluated here.
 """
+import hashlib
 import json
 from pathlib import Path
 
@@ -19,7 +20,7 @@ from tasks.pion_projection.reference import make_reference
 from tasks.pion_projection.statistics import blocks, bootstrap_indices, fold, inverse_covariance, risk, shape
 
 RUN = Path('results/pion_projection/s16t16_v1')
-OUT = Path('results/optimize_gaussian/unified_v1')
+OUT = Path('results/optimize_gaussian/cpu_next_package_b')
 
 
 def load():
@@ -36,19 +37,32 @@ def evaluate(data, weights, p, mass, masses, seed, late_inverse=None):
                 late_inverse=np.asarray(late_inverse) if late_inverse is not None else None)
 
 
-def risk_with_fixed_amplitude(data, weights, mass, masses, index, config, amplitude, amplitude_se):
+def risk_with_fixed_amplitude(data, weights, mass, masses, index, config, amplitude, amplitude_se,
+                              amplitude_source='train', late_inverse=None):
     """Same metric as statistics.risk but with the amplitude fitted on the training fold."""
     values = np.einsum('nbt,b->nt', data, np.asarray(weights, dtype=float))
     mean = values.mean(axis=0)
     late, early = config['amplitude_window'], config['score_window']
-    inv = inverse_covariance(values[:, late], config['covariance_shrinkage'])
     f = shape(mass, np.arange(values.shape[-1]), config['geometry'][3])
     boot_mean = values[index].mean(axis=1)
     fb = shape(masses, np.arange(values.shape[-1]), config['geometry'][3])
-    amps = np.einsum('bi,ij,bj->b', fb[:, late], inv, boot_mean[:, late]) / np.einsum(
-        'bi,ij,bj->b', fb[:, late], inv, fb[:, late])
-    amp = float(amplitude)
-    amp_se = float(amplitude_se)
+    if amplitude_source == 'train':
+        # fixed training amplitude: point and replicas use the same value
+        amp = float(amplitude)
+        amp_se = float(amplitude_se)
+        amps = np.full(len(boot_mean), amp)
+        late_source = 'train'
+    elif amplitude_source == 'test':
+        # amplitude re-estimated on the test fold with the same algorithm in point and replicas
+        inv = late_inverse if late_inverse is not None else inverse_covariance(
+            values[:, late], config['covariance_shrinkage'])
+        amp = float(np.einsum('i,ij,j->', f[late], inv, mean[late]) / np.einsum('i,ij,j->', f[late], inv, f[late]))
+        amps = (np.einsum('bi,ij,bj->b', fb[:, late], inv, boot_mean[:, late])
+                / np.einsum('bi,ij,bj->b', fb[:, late], inv, fb[:, late]))
+        amp_se = float('nan')
+        late_source = 'test'
+    else:
+        raise ValueError(f'unknown amplitude_source {amplitude_source!r}')
     z = abs(amp) / amp_se
     q = mean[early] / (amp * f[early])
     qb = boot_mean[:, early] / (amps[:, None] * fb[:, early])
@@ -58,7 +72,9 @@ def risk_with_fixed_amplitude(data, weights, mass, masses, index, config, amplit
     snr = np.divide(abs(mean), se, out=np.zeros_like(mean), where=se > 0)
     return {'risk': variance + bias, 'variance': variance, 'departure_squared': bias,
             'amplitude': amp, 'amplitude_se': amp_se, 'amplitude_z': z,
-            'amplitude_source': 'fixed (outer training)', 'q': q.tolist(),
+            'amplitude_source': amplitude_source, 'late_covariance_source': late_source,
+            'estimand': ('training-frozen amplitude' if amplitude_source == 'train'
+                         else 'test-estimated amplitude'), 'q': q.tolist(),
             'q_se': qb.std(axis=0, ddof=1).tolist(), 'mean': mean.tolist(),
             'se': se.tolist(), 'snr': snr.tolist()}
 
@@ -87,8 +103,15 @@ def select_on_train(train, p, mass, masses, index):
         if fit.success and abs(fit.x.sum() - 1) < 1e-6 and abs(fit.x).sum() <= p['optimizer_l1_bound'] + 1e-6 and fit.fun < 1e9:
             outcomes.append(fit)
     if not outcomes:
-        return None, best
-    return min(outcomes, key=lambda f: f.fun).x / scales, best
+        return None, best, {'outcomes': 0, 'starts': len(starts)}
+    fit = min(outcomes, key=lambda f: f.fun)
+    info = {'outcomes': len(outcomes),
+            'starts': len([*basis, np.ones(len(basis)) / len(basis)][:p['optimizer_starts']]),
+            'nfev': [int(f.nfev) for f in outcomes],
+            'best_nfev': int(fit.nfev), 'best_success': bool(fit.success),
+            'feasible': bool(abs(fit.x.sum() - 1) < 1e-6 and abs(fit.x).sum() <= p['optimizer_l1_bound'] + 1e-6),
+            'budget': p['optimizer_max_iterations']}
+    return fit.x / scales, best, info
 
 
 def main():
@@ -116,7 +139,10 @@ def main():
         test = dev[test_ids]
         fold_ref = make_reference(train, p, window, 'single')
         fold_m0, fold_masses = fold_ref.bootstrap(bootstrap_indices(len(train), p['bootstrap_samples'], p['seed'] + i))
-        fold = {'fold': i, 'mass': float(fold_m0['mass'])}
+        fold = {'fold': i, 'mass': float(fold_m0['mass']),
+                'train_blocks': [int(x) for x in np.setdiff1d(np.arange(len(dev)), test_ids)],
+                'test_blocks': [int(x) for x in test_ids],
+                'estimand': 'training-frozen amplitude'}
         for name, weights in sub['submissions'].items():
             train_metric = evaluate(train, weights, p, fold_m0['mass'], fold_masses, p['seed'] + i)
             fixed = (train_metric['amplitude'], train_metric['amplitude_se'])
@@ -137,8 +163,8 @@ def main():
         test = dev[test_ids]
         fold_ref = make_reference(train, p, window, 'single')
         fold_m0, fold_masses = fold_ref.bootstrap(bootstrap_indices(len(train), p['bootstrap_samples'], p['seed'] + i))
-        weights, best_power = select_on_train(train, p, fold_m0['mass'], fold_masses,
-                                              bootstrap_indices(len(train), p['bootstrap_samples'], p['seed'] + i))
+        weights, best_power, search_info = select_on_train(train, p, fold_m0['mass'], fold_masses,
+                                                            bootstrap_indices(len(train), p['bootstrap_samples'], p['seed'] + i))
         train_amp = evaluate(train, weights, p, fold_m0['mass'], fold_masses, p['seed'] + i)['amplitude']
         train_amp_se = evaluate(train, weights, p, fold_m0['mass'], fold_masses, p['seed'] + i)['amplitude_se']
         basis = np.eye(len(p['powers']))
@@ -151,8 +177,14 @@ def main():
         tuned_risk = risk_with_fixed_amplitude(test, basis[best_power], fold_m0['mass'], fold_masses, idx_test, p, *tuned_fixed)['risk']
         slsqp_risk = risk_with_fixed_amplitude(test, weights, fold_m0['mass'], fold_masses, idx_test, p, train_amp, train_amp_se)['risk']
         search_rows.append({'fold': i, 'mass': float(fold_m0['mass']), 'best_power': int(best_power),
+                            'best_power_value': float(p['powers'][best_power]),
                             'local': local_risk, 'tuned': tuned_risk, 'slsqp': slsqp_risk,
-                            'tuned_over_slsqp': tuned_risk / slsqp_risk})
+                            'tuned_over_slsqp': tuned_risk / slsqp_risk,
+                            'train_blocks': [int(x) for x in np.setdiff1d(np.arange(len(dev)), test_ids)],
+                            'test_blocks': [int(x) for x in test_ids],
+                            'weights_sha256': hashlib.sha256(np.asarray(weights).tobytes()).hexdigest(),
+                            'estimand': 'training-frozen amplitude (outer-training fit, no inner CV)',
+                            'search': search_info})
     ratios = np.array([f['local_over_slsqp'] for f in fold_rows])
     result = {'point': {name: {k: rows[name][k] for k in ('risk', 'variance', 'departure_squared', 'amplitude', 'amplitude_z')}
                         for name in rows},

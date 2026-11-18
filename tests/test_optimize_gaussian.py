@@ -324,3 +324,22 @@ def test_crosslink_target_and_oracle():
     assert np.linalg.norm(q - (h @ h - np.trace(h @ h) / 3 * np.eye(3))) < 1e-12
     X, Y = samples(rng, links, 100, 0.1, augmented=True)
     assert X.shape[1] == 72 + 27 and Y.shape[1] == 9
+
+
+def test_unified_estimator_amplitude_sources():
+    import numpy as np
+    from tasks.optimize_gaussian.unified import risk_with_fixed_amplitude
+    rng = np.random.default_rng(0)
+    t = np.arange(9)
+    data = np.ones((6, 3, 9)) * (np.exp(-0.5 * t) + np.exp(-0.5 * (8 - t)))
+    data *= 1 + 0.01 * rng.normal(size=data.shape)
+    p = {'amplitude_window': [6, 7, 8], 'score_window': [2, 3, 4, 5], 'geometry': [4, 4, 4, 8],
+         'covariance_shrinkage': 0.1}
+    idx = np.array([[0, 1, 2], [3, 4, 5]])
+    train = risk_with_fixed_amplitude(data, np.ones(3), 0.5, np.full(2, 0.5), idx, p, 1.0, 0.01,
+                                      amplitude_source='train')
+    test = risk_with_fixed_amplitude(data, np.ones(3), 0.5, np.full(2, 0.5), idx, p, 1.0, 0.01,
+                                     amplitude_source='test')
+    assert train['late_covariance_source'] == 'train' and train['amplitude'] == 1.0
+    assert test['late_covariance_source'] == 'test'
+    assert np.isfinite(train['risk']) and np.isfinite(test['risk'])

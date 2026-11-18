@@ -47,7 +47,7 @@
 | P0.2 basis/输入身份 | ✅ | 依赖 hash + gauge/propagator 摘要；mutation 测试 |
 | P0.3 audit | ✅ | manifest 分类（v9 = current）；显式 --out；dev_val 不回退 |
 | 包C 跨 links teacher | 🟡 | `cpu_next_p3_crosslink/`：独立 links、同规则、2 类 × 2 优化器 + oracle；类包含与跨 links 迁移已证（B oracle 0 vs A 0.5），优化器失败；GPU 2×2 ⛔ |
-| P1 统一统计/fold-local | 🟡 | 统一入口逐位一致；fold-local 幅度/超参重选；学习核 ⛔ |
+| P1 统一统计/fold-local | 🟡 | `cpu_next_package_b/`：point/replica 同算法（training-frozen 或 test-estimated），fold IDs/weights hash/nfev 已存；synthetic regression 与完全分离的图 ⛔ |
 | P2 teacher | 🟡 | 七幂误差 0.01268 > 谱外 0.01239；训练实验 ⛔ |
 | P3 CPU 判别 | 🟡 | 跨样本 teacher PASS（ε=0 恢复、ε=0.1 谱类 0.0127 vs 增广 6.7e-16）；GPU 2×2 ⛔ |
 
