@@ -28,32 +28,35 @@ def plaquettes(links):
     return xp.stack(out, axis=-1)
 
 
-def clover_plaquettes(links):
-    """Average of the four plaquettes of each plane sharing the site x.
+def link_plaquettes(links):
+    """Plaquettes averaged over the two sides of each link, in the planes containing it.
 
-    The forward-anchored plaquette is not rotation covariant when a direction
-    flips sign (the anchor moves); the clover average is centred on x and
-    reflection even, which restores full O_h covariance.
+    For the link (x, mu) and transverse direction nu the two plaquettes are
+    P_{mu nu}(x) and P_{mu nu}(x - nu). Their average is centred on the link,
+    so a cube rotation maps it to the corresponding link-centred average
+    without moving the anchor. Returns (3, z, y, x, 2):
+    mu=x -> (xy, xz), mu=y -> (yx, yz), mu=z -> (zx, zy).
     """
     xp = _lib(links)
     p = plaquettes(links)
-    out = []
-    for i, (mu, nu) in enumerate(((0, 1), (0, 2), (1, 2))):
-        q = p[..., i]
-        q = q + shift(q, -1, mu) + shift(q, -1, nu) + shift(shift(q, -1, mu), -1, nu)
-        out.append(q / 4)
-    return xp.stack(out, axis=-1)
+
+    def side(i, nu):
+        return 0.5 * (p[..., i] + shift(p[..., i], -1, nu))
+
+    return xp.stack([xp.stack([side(0, 1), side(1, 2)], axis=-1),
+                     xp.stack([side(0, 0), side(2, 2)], axis=-1),
+                     xp.stack([side(1, 0), side(2, 1)], axis=-1)], axis=0)
 
 
 def directional_features(links):
-    """For direction mu, symmetric combinations of the two plaquettes containing mu.
+    """Link-centred, exchange-symmetric inputs for each direction: (3, z, y, x, 2).
 
-    x -> (P_xy, P_xz), y -> (P_xy, P_yz), z -> (P_xz, P_yz), then (sum, product).
-    The sum/product pair is invariant under exchanging the two transverse
-    directions, which is what a 90-degree rotation about mu does; sharing one
-    function across the three directions then makes the kernel A1+.
+    The link-centred plaquette averages are rotation covariant (the anchor is
+    the link, not a corner); the (sum, product) pair is invariant under
+    exchanging the two transverse directions and sharing one function across
+    the three directions makes the coefficient field an A1+ vector.
     """
-    p = clover_plaquettes(links)
-    pairs = [p[..., [0, 1]], p[..., [0, 2]], p[..., [1, 2]]]
+    p = link_plaquettes(links)
+    pairs = [p[0], p[1], p[2]]
     return _lib(links).stack([_lib(links).stack([q[..., 0] + q[..., 1], q[..., 0] * q[..., 1]], axis=-1)
                               for q in pairs], axis=0)

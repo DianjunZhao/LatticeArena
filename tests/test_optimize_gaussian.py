@@ -193,8 +193,6 @@ def _transform(field_or_links, r, shift, dagger):
     return np.stack(out)
 
 
-@pytest.mark.xfail(strict=True, reason='known P0: current forward/clover-anchored coefficient '
-                                         'features are not O_h covariant; see README audit status')
 def test_full_proper_cubic_group_covariance():
     from tasks.optimize_gaussian.features import dagger, shift
     rng = np.random.default_rng(11)
@@ -209,7 +207,6 @@ def test_full_proper_cubic_group_covariance():
         np.testing.assert_allclose(build_kernel(ug, p).apply(fg), _transform(base, r, shift, dagger), atol=1e-11)
 
 
-@pytest.mark.xfail(strict=True, reason='known P0: parity covariance fails for the same anchor reason')
 def test_parity_covariance():
     from tasks.optimize_gaussian.features import dagger, shift
     rng = np.random.default_rng(12)
