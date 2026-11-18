@@ -53,9 +53,19 @@ $$
 - 在真实数据上，若 GEVP 的 $E_0$ 与单 cosh/两态一致且在误差内，则说明参考问题缓解；
   若不一致，输出“参考不可识别”，不强行给分。
 
-### 2.4 现状
+### 2.4 合成数据验证（CPU，已完成）
 
-**NOT_RUN**：需要新的 source 涂抹测量（GPU，约 4× 当前反演成本）。
+`tasks/pion_projection/gevp.py` 实现了 GEVP 求解，并在已知两态谱的合成矩阵上验证：
+
+- $N=3$ 个算符、$m_0=0.8$、$m_1=1.4$、200 个 block、1% 乘性噪声、$t_0=2$；
+- 基态 $E_0=0.800\pm0.002$（真值 0.8），激发态 $E_1=1.40\pm0.02$（真值 1.4）；
+- 奇异 $C(t_0)$ 与非 Hermitian 矩阵会明确拒绝。
+
+![gevp synthetic](../results/pion_projection/score_diagnostics_v2/gevp_synthetic.png)
+
+### 2.5 现状
+
+**合成验证已完成；真实数据 NOT_RUN**：需要新的 source 涂抹测量（GPU，约 4× 当前反演成本）。
 
 ## 3. C3：直接面向能量误差的目标
 

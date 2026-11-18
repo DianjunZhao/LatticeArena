@@ -228,3 +228,27 @@ def test_candidate_dependency_check(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match='helper.py changed'):
         check_dependencies(good)
     assert check_dependencies({}) == {}
+
+
+def test_gevp_recovers_a_two_state_matrix():
+    from tasks.pion_projection.gevp import gevp_energies, summary, synthetic
+    data = synthetic(nblocks=200, n_ops=3, m0=0.8, m1=1.4, seed=3, noise=0.01)
+    rows = gevp_energies(data, t0=2, times=[5, 6, 7])
+    result = summary(rows, state=0)
+    assert abs(result['energy'] - 0.8) < 0.02
+    assert result['se_boot'] > 0
+    excited = summary(rows, state=1)
+    assert abs(excited['energy'] - 1.4) < 0.1
+
+
+def test_gevp_rejects_bad_matrices():
+    from tasks.pion_projection.gevp import gevp_energies, synthetic
+    data = synthetic(nblocks=4, n_ops=2, seed=4)
+    with pytest.raises(ValueError, match='Hermitian'):
+        gevp_energies(data * (1 + 0.1j), t0=2, times=[5])
+    singular = data.copy()
+    singular[..., 2] = 0.0
+    with pytest.raises(ValueError, match='positive definite'):
+        gevp_energies(singular, t0=2, times=[5])
+    with pytest.raises(ValueError, match='nblocks'):
+        gevp_energies(data[0], t0=2, times=[5])
