@@ -1,5 +1,10 @@
 # 项目状态（2026-11）
 
+> **2026-11-18 审计更新**：三个 task 的 P0 问题已修——`optimize_gaussian` 的 plaquette 路径闭合、
+> `wilson_loop` 的 APE 改成双边极分解投影（staple 归一化 /4）、`pion_projection` 的参考 spec 冻结
+> 与反射检查泛化。历史结果按各 task README 的状态表区分“已失效/仍可用”；`optimize_gaussian` 的
+> 全 O_h 群协变仍未通过（xfail 记录），A1+ 标签不能当作已证明。CPU 测试 31 passed, 2 xfailed。
+
 三条线目前的结论。所有数字都可以在 `results/` 与 `doc/` 里找到原始产物。
 
 ## 1. `pion_projection`：流水线完整，但参考模型不可信
