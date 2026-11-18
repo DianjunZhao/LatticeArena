@@ -88,7 +88,7 @@ def main():
     out.write_text(json.dumps({'runs': rows, 'candidate_v8': compare,
                                'classification': 'manifest-based (features field); v9 is '
                                                  'current_operator_diagnostic, earlier runs historical',
-                               'note': 'Legacy risks are diagnostics only; new GPU runs are NOT_RUN.'},
+                               'note': 'Legacy risks are diagnostics only; this audit did not execute a new GPU measurement (the v9 archive remains separate).'},
                               indent=2) + '\n')
     for row in rows:
         print(row.get('version'), row.get('status'), row.get('feature_version'), row.get('ratio'))

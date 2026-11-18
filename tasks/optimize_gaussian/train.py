@@ -34,6 +34,21 @@ def model_space(p, seed):
     return rng.normal(size=(p['hidden'], 2)) * 0.5
 
 
+def _input_summary(p, ids, cache):
+    try:
+        detail = validate_inputs(p, ids, cache)
+    except ValueError as exc:
+        return {'status': 'rejected', 'detail': str(exc)}
+    statuses = [row['status'] for row in detail.values()]
+    if statuses and all(status == 'verified' for status in statuses):
+        status = 'verified'
+    elif any(status == 'verified' for status in statuses):
+        status = 'archived_diagnostic'
+    else:
+        status = 'unknown'
+    return {'status': status, 'detail': detail}
+
+
 def run_manifest(p, W, theta, fit_ids, devval_ids, test_ids, cache):
     here = Path(__file__).parent
     return {'schema': 'optgauss-run-v1', 'protocol': p, 'protocol_fingerprint': fingerprint(p),
@@ -44,7 +59,52 @@ def run_manifest(p, W, theta, fit_ids, devval_ids, test_ids, cache):
             'propagator_cache': {str(i): cache[i] for i in fit_ids + devval_ids + test_ids},
             'dependencies': {name: digest(here / name) for name in
                              ('features.py', 'kernels.py', 'submission.py', 'train.py')},
-            'statistics_sha256': digest(here.parent / 'pion_projection' / 'statistics.py')}
+            'statistics_sha256': digest(here.parent / 'pion_projection' / 'statistics.py'),
+            'inputs': _input_summary(p, list(fit_ids) + list(devval_ids) + list(test_ids), cache),
+            'environment': {'software': 'unknown', 'hardware': 'unknown', 'timing': 'unknown'},
+            'reference': reference_identity(p, fit_ids, cache)}
+
+
+def validate_inputs(p, ids, cache):
+    """Check gauge/propagator content, metadata and inversion residual.
+
+    Returns per-id status: verified only when the gauge digest, the propagator
+    digest and the residual all match; missing metadata is archived_diagnostic;
+    a mismatch is a hard refusal for the trusted entry.
+    """
+    rows = {}
+    if not p.get('ensemble'):
+        return {str(i): {'gauge': None, 'propagator': None, 'residual': None,
+                         'status': 'unknown'} for i in ids}
+    for i in ids:
+        gauge = Path(f"{p['ensemble']}/wilson_b6.{i}")
+        prop = Path('.cache/pion_projection/propagators') / f'{cache[i]}.npy'
+        meta_path = prop.with_suffix('.json')
+        row = {'gauge': None, 'propagator': None, 'residual': None, 'status': 'unknown'}
+        if gauge.exists() and prop.exists() and meta_path.exists():
+            meta = json.loads(meta_path.read_text())
+            keydata = meta.get('keydata', {})
+            row['gauge'] = keydata.get('gauge') == digest(gauge)
+            row['propagator'] = meta.get('array_sha256') == digest(prop)
+            row['residual'] = keydata.get('residual_max', meta.get('residual_max'))
+            tolerance = p.get('tolerance', 1e-10)
+            residual_ok = row['residual'] is not None and row['residual'] <= tolerance
+            if not (row['gauge'] and row['propagator']):
+                raise ValueError(f'cfg {i}: gauge/propagator metadata does not match the files')
+            row['status'] = 'verified' if residual_ok else 'archived_diagnostic'
+        rows[str(i)] = row
+    return rows
+
+
+def reference_identity(p, fit_ids, cache):
+    """Digest of the reference file and bootstrap content if present."""
+    ref = Path(p.get('reference_path', 'results/pion_projection/s16t16_v1/reference.npz'))
+    out = {'path': str(ref), 'digest': digest(ref) if ref.exists() else None,
+           'model': 'single-cosh', 'source_split': 'development'}
+    boot = ref.with_name('nested_bootstrap.npz')
+    if boot.exists():
+        out['bootstrap_digest'] = digest(boot)
+    return out
 
 
 def input_digests(p, ids, cache):
