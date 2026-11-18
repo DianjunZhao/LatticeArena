@@ -199,7 +199,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | 模型平均（AIC/BIC） | 已生成 `model_average.json`：权重退化为两态（$\approx1$），但两态过拟合，排序随模型翻转 |
 | 两态 profile likelihood | 1σ 区间 $[1.025,1.065]$，宽度 0.04 ≈ 4× bootstrap SE——存在 sloppy 方向 |
 | 新数据 / 新 blind validation / anchor | NOT_RUN（C2 GEVP 与 C3 能量目标的设计见 [`doc/pion_gevp_design.md`](../../doc/pion_gevp_design.md)） |
-| C2 GEVP | 合成验证通过；真实数据 2×2（$E_0=1.067\pm0.010$）与补测 $H^{24}$ 后的 3×3（dev 1.026±0.017 / val 0.997±0.018）**都无平台** → powers-of-$H$ 不够，需要多 source |
+| C2 GEVP | 合成验证通过；真实数据 2×2（$E_0=1.067\pm0.010$）与补测 $H^{24}$ 后的 3×3（dev 1.026±0.017 / val 0.997±0.018）**都无平台** → powers-of-$H$ 不够，多 source 方案见 [`doc/pion_multisource_plan.md`](../../doc/pion_multisource_plan.md) |
 | C3 能量目标 | 合成数据验证通过（`energy_target.py`，认证/拒绝/无差别三种场景）；真实数据 NOT_RUN（需要独立 anchor） |
 | S1 评分证书模块 | 已实现 `scoring.py` + `score_spec.example.json` + 合成测试（真实数据仍无法认证） |
 

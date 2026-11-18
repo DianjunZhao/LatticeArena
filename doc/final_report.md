@@ -83,7 +83,7 @@ $V(1)$ 几乎不变，$V(3)$ 的误差减半（0.0073 → 0.0034），中心值 
 
 - `reference.py`：参考 spec 冻结（kind + 源码 hash），evaluate/candidate 强制校验；
 - `scoring.py`：S1 保守改善证书（Bonferroni + min-over-models）；
-- `gevp.py`：C2 GEVP，合成两态恢复 $E_0=0.800\pm0.002$；现有数据的 2×2 Hankel 尝试（$E_0=1.067\pm0.010$）与补测 $H^{24}$ 后的 3×3（dev 1.026±0.017 / val 0.997±0.018）**都无平台**，powers-of-$H$ 家族不够独立；
+- `gevp.py`：C2 GEVP，合成两态恢复 $E_0=0.800\pm0.002$；现有数据的 2×2 Hankel 尝试（$E_0=1.067\pm0.010$）与补测 $H^{24}$ 后的 3×3（dev 1.026±0.017 / val 0.997±0.018）**都无平台**，powers-of-$H$ 家族不够独立；多 source 的可执行方案见 [`doc/pion_multisource_plan.md`](pion_multisource_plan.md)；
 - `energy_target.py`：C3 能量误差目标，合成场景下认证/拒绝/无差别行为符合预期。
 
 详见 [`tasks/pion_projection/README.md`](../tasks/pion_projection/README.md) 与
