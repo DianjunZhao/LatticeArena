@@ -1,0 +1,64 @@
+{
+  "machine": "kunshan-dcu",
+  "geometry": [
+    16,
+    16,
+    16,
+    16
+  ],
+  "splits": {
+    "development": [
+      0,
+      59
+    ],
+    "gap": [
+      60,
+      69
+    ],
+    "validation": [
+      70,
+      99
+    ]
+  },
+  "validation_report_sha256": "0c7c75a174a7d4b331fd28e95b1a31e3bb73338a82bc6d1bca4fb95eee485a93",
+  "reference_passed": false,
+  "reference_failure_reasons": [
+    "Nominal correlated reference fit fails the approximate goodness-of-fit gate",
+    "Reference window [4, 5, 6, 7, 8] shifts by 21.62 paired standard errors",
+    "Reference window [6, 7, 8] shifts by 7.82 paired standard errors"
+  ],
+  "score_status": "unscored_reference_failed",
+  "results": {
+    "local": {
+      "risk": 0.31267025495979806,
+      "score": null,
+      "risk_95_interval": [
+        0.2527005384278396,
+        0.39669640315771537
+      ]
+    },
+    "tuned_gaussian": {
+      "risk": 0.012556369241192862,
+      "score": null,
+      "risk_95_interval": [
+        0.00587647897111044,
+        0.01990642702786734
+      ]
+    },
+    "agent_signed_mixture": {
+      "risk": 0.007702708042566136,
+      "score": null,
+      "risk_95_interval": [
+        0.0026795730157994236,
+        0.01438354699909677
+      ]
+    }
+  },
+  "agent_vs_tuned_gaussian": {
+    "risk_ratio": 1.6301239994823615,
+    "risk_ratio_95_interval": [
+      1.396310154172884,
+      2.190467036489882
+    ]
+  }
+}

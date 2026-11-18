@@ -164,3 +164,25 @@ bash scripts/run_pion.sh candidate --definition results/pion_projection/s16t16_v
 The generic matrix-free Python route is slower than the QUDA diffusion fast path;
 these checks do not retrain the proposal. Reusing the now-public validation set
 for subsequent proposals must be disclosed and cannot support fresh held-out claims.
+
+## LLM search and report
+
+Set `LLM_API_KEY` and choose a model available at your chat-completions endpoint.
+`LLM_BASE` defaults to `https://api.deepseek.com/v1`. The agent sends the development
+basis amplitudes, risks and previous proposals to this endpoint. Each round evaluates
+up to three proposals using the pion pilot's single-state reference and risk function.
+
+```bash
+python -m tasks.pion_projection --output results/pion_projection/reproduction agent --model MODEL --rounds 3
+python -m tasks.pion_projection --output results/pion_projection/reproduction report --model MODEL
+```
+
+Search requires the development measurements and their provenance. Each invocation
+writes to its own `agent/search-*/` directory inside the run. Search defaults to
+development only. Add `--with-validation` to compute one post-hoc diagnostic for
+the selected LLM proposal after search. The original frozen SLSQP submission is
+evaluated with the existing `evaluate` command.
+
+The report command reads `validation_results.json`, sends the ranking and reference
+status to the model, and writes `REPORT.md` with the computed table and model commentary.
+Machine-specific display examples live in [examples/](../../examples/README.md).

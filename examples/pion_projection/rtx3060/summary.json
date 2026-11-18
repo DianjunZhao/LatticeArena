@@ -1,0 +1,65 @@
+{
+  "machine": "rtx3060",
+  "geometry": [
+    16,
+    16,
+    16,
+    16
+  ],
+  "splits": {
+    "development": [
+      0,
+      29
+    ],
+    "gap": [
+      30,
+      34
+    ],
+    "validation": [
+      35,
+      49
+    ]
+  },
+  "validation_report_sha256": "16383f3e19445190bde85f69fbe51a476bac2b4b4b6b7c6a0f4e9b8131027965",
+  "reference_passed": false,
+  "reference_failure_reasons": [
+    "Nominal correlated reference fit fails the approximate goodness-of-fit gate",
+    "Reference window [4, 5, 6, 7, 8] shifts by 10.66 paired standard errors",
+    "Reference window [6, 7, 8] shifts by 9.45 paired standard errors",
+    "Forward/backward symmetry check exceeds the fixed z threshold"
+  ],
+  "score_status": "unscored_reference_failed",
+  "results": {
+    "local": {
+      "risk": 0.49662374617552446,
+      "score": null,
+      "risk_95_interval": [
+        0.40467880328190864,
+        0.6272828291102437
+      ]
+    },
+    "tuned_gaussian": {
+      "risk": 0.004018318289001184,
+      "score": null,
+      "risk_95_interval": [
+        0.0018062651491760702,
+        0.010524299281528097
+      ]
+    },
+    "agent_signed_mixture": {
+      "risk": 0.0005719007536597173,
+      "score": null,
+      "risk_95_interval": [
+        0.00032193964662821325,
+        0.002419302483549073
+      ]
+    }
+  },
+  "agent_vs_tuned_gaussian": {
+    "risk_ratio": 7.0262510816554995,
+    "risk_ratio_95_interval": [
+      0.9779114359188658,
+      14.093394017477532
+    ]
+  }
+}
