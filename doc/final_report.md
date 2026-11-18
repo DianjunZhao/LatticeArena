@@ -7,7 +7,7 @@
 
 - **`wilson_loop`**：修复核的协变性、扩大系综后，协变 APE **显著优于 identity**（留出分数 263/233/222，
   三个配对区间都不含 1）；
-- **`optimize_gaussian`**：修复特征后学习核比高斯基座好 **2.12 倍**，候选 risk 与 7 参数 SLSQP **打平**
+- **`optimize_gaussian`**：修复特征后学习核比高斯基座好 **2.12 倍**，候选 risk 与 7 参数 SLSQP **未检出差异**
   （0.998 [0.78,1.18]）；
 - **`pion_projection`**：参考模型仍不可识别，正式 `score` 保持 `null`；GEVP（C2）与能量目标（C3）
   的合成验证已完成，真实数据需要新测量。
@@ -17,7 +17,7 @@
 | task | 修复前 | 修复后 | 统计结论 |
 | --- | --- | --- | --- |
 | wilson_loop | 旧 APE 核不协变，结果作废 | v3：identity 100、APE(0.4,5) **263.3**、APE(0.4,10) 232.8、APE(0.6087,10) 221.9；v4（+$R=4$）663–808（尺度不同） | 配对中位数 2.8–3.1（v3）/ 6.6–9.5（v4），区间均不含 1 |
-| optimize_gaussian | v7：1.52×，候选 0.009597，输给 SLSQP（0.803 [0.636,0.944]） | v9：**2.12×**，候选 **0.007721** vs SLSQP 0.007703 | 配对 **0.998 [0.78,1.18]**，打平 |
+| optimize_gaussian | v7：1.52×，候选 0.009597，输给 SLSQP（0.803 [0.636,0.944]） | v9：**2.12×**，候选 **0.007721** vs SLSQP 0.007703 | 配对 **0.998 [0.78,1.18]**，未检出差异 |
 | pion_projection | 参考 gate 未过（χ²=52/8，窗口偏移 21.6σ/7.8σ） | 诊断更完整，参考仍不可识别；C2/C3 合成验证通过 | 无正式分数（设计如此） |
 
 ## 2. wilson_loop：静态势
@@ -61,7 +61,7 @@ $V(1)$ 几乎不变，$V(3)$ 的误差减半（0.0073 → 0.0034），中心值 
 | v7 | 旧的前向锚点 | 0.012870 | 1.52× | 0.009597 |
 | **v9** | **link 中心 A1+** | **0.009236** | **2.12×** | **0.007721** |
 
-与 SLSQP 的配对比值 $0.998\ [0.78,1.18]$，统计上打平。学到的系数从“几乎纯均匀”变成有实质
+与 SLSQP 的配对比值 $0.998\ [0.78,1.18]$，统计上未检出差异（区间跨 1，不是等效性证明）。学到的系数从“几乎纯均匀”变成有实质
 空间调制（$|v_h|\approx0.13$）。
 
 详见 [`tasks/optimize_gaussian/README.md`](../tasks/optimize_gaussian/README.md)。
@@ -99,7 +99,7 @@ T=16 索引造成的假警报，按真实 $C(t)-C(T-t)$ 应为 2.40——但 χ�
 | 参考 | $m_0$ | tuned score | SLSQP score | SLSQP/tuned | 结论 |
 | --- | ---: | ---: | ---: | ---: | --- |
 | 单 cosh | 1.0862 | 2504 | 4098 | 1.629 [1.398, 2.192] | SLSQP 更好 |
-| 两态 | 1.0570 | 18214 | 18119 | 1.089 [0.659, 2.288] | 打平 |
+| 两态 | 1.0570 | 18214 | 18119 | 1.089 [0.659, 2.288] | 未检出差异 |
 | GEVP | 1.0350 | 6305 | 4425 | 0.701 [0.679, 0.731] | tuned 更好 |
 
 **“谁更好”本身依赖参考质量**：单 cosh 是唯一给出 SLSQP 更好的选择。
@@ -136,7 +136,7 @@ pion 没有可信分数，不是因为“统计量差一点点”，而是因为
 | 逐方向独立系数 | 破坏立方对称，是过拟合 |
 | 加长 $T$ 到 32（pion） | 参考仍失败；反射失败是假警报 |
 | 模型平均（pion） | 权重退化，不能救参考 |
-| 学习核超过 SLSQP | v9 只打平，没有超越 |
+| 学习核超过 SLSQP | v9 只做到未检出差异，没有超越 |
 
 ## 6. 仍然 NOT_RUN
 
@@ -155,3 +155,57 @@ pion 没有可信分数，不是因为“统计量差一点点”，而是因为
 | 学习核记录 | [`tasks/optimize_gaussian/README.md`](../tasks/optimize_gaussian/README.md) |
 | todo 覆盖报告 | [`doc/todo_coverage.md`](todo_coverage.md) |
 | 测试 | `PYTHONDONTWRITEBYTECODE=1 python -B -m pytest -q -p no:cacheprovider tests/`（50 项） |
+
+## 10. 2026-11-18 晚：按新开工单的审计与实现
+
+这一轮按更新后的三份 `tasks/*/todo.md` 重做，新增结果如下（证据路径都在括号里）。
+
+### pion_projection
+
+- **GEVP 矩阵身份**：sink–sink Gram 与标准 source–sink 矩阵差约 30%，且后者本身有 30% 的
+  anti-Hermitian 部分；旧 Gram GEVP 降级为探索性（`doc/gram_operator_identity.md`）。
+- **GEVP 统计**：去重 → block bootstrap → replica 平均矩阵 → 秩截断 → 平台；已知谱 100 个独立
+  数据集的 95% 覆盖率为 0.95（`gevp_stats.py`、`doc/gevp_stats.md`）。
+- **评分契约**：`score_contract.md` + `scoring.py` 强制模型/候选集合、等长 draw、原始正值、
+  invalid 比例、近零 baseline、improvement 门槛；反例（未批准模型、广播、负 risk）全部拒绝。
+- **联合 resampling**：`joint.py` 在同一 draw 内重拟合参考并评估所有模型/候选；参考 gate 失败 →
+  强制 abstain（`results/pion_projection/joint_20261118/`）。
+- **双层校准**：完整估计器 24 blocks 假阳性 0.025，fixed-metric 0.095（反保守），6/12 blocks 时
+  0.235/0.085；两态真值拒绝率约 0.53（`score_calibration_v1/`）。
+- **120-dev 诊断**：秩满但条件数 $10^6$–$10^8$；$m_0$ 随窗口从 1.44 掉到 1.08；两态 profile
+  半宽/SE=2.7（`score_diagnostics_v3/`）。
+- **nested CV**：5 折、每折重拟合参考/标度/协方差/SLSQP；local/SLSQP 209–750（平均 427±89）
+  （`nested_cv_v1/`）。
+- **能量估计实验**：单 cosh 偏差 0.0065、覆盖率 0；两态无偏但 SE 0.039；基态消失偏差 0.33、
+  覆盖率 0；$N_{\rm boot}$ 增加只缩小 naive SE（`energy_target_v1/`）。
+
+### wilson_loop
+
+- **投影数值边界**：逐矩阵 Newton–Schulz 尺度 + 收敛检查；混尺度 batch 与单矩阵一致（1e-16），
+  rank-2 受控拒绝（`audit_20261118_projection/`）。
+- **可信加载**：generation、resume 前缀、gauge 头部几何、`trust_status`；v3 归档判
+  archived_diagnostic（`audit_20261118_identity/`）。
+- **配对审计**：v2 点值 1.07–1.18 vs 嵌套中位数 3.0–3.4；6 blocks 的唯一 block 分布、jackknife
+  0.49–4.53、相关性 0.14–0.30 解释了差异（`paired_audit_v1/`）。
+- **谱质量**：合成“平但错”反例偏差 170σ、risk $2.7\times10^{-7}$、gate 通过；v3/v4 窗口
+  $V$ 图（`spectral_quality_v1/`、`doc/wilson_spectral_quality.md`）。
+- **HMC**：manifest 审计（seed 20261109、τ_int=0.512），但 ΔH/接受率/热化声明缺失；toy SU(3)
+  积分器可逆性 $10^{-10}$、$\Delta H$ 二阶（`hmc_quality_v1/`）。
+
+### 公共框架
+
+- F0 证据 schema、F1 五类接口与跨入口一致性（4 个下界差值 0；改数据/改协议均 fail-closed）、
+  F2 候选校验与搜索/validation 隔离、F3 状态机与成本账本、F4 审计（`doc/interfaces.md`、
+  `doc/agent_isolation.md`、`doc/run_state.md`、`doc/evidence_framework.md`）。
+
+### optimize_gaussian
+
+- 完整 BCB 闭环验证通过（非立方格点、多 theta、$f\ne g$，残差 <1e-10；
+  `audit_20261118_bcb/`）。
+- P0.2（basis/输入身份闭包）与 P0.3（audit 分类/措辞）仍未做；README 的“打平/追平”已改为
+  “未检出差异”。
+
+### 仍未做（NOT_RUN）
+
+pion 的真实 anchor、共同目标预测、新测量先决条件；wilson 的 P4 研究扩展、生产 HMC ΔH/接受率、
+多 rank；optimize 的 P0.2/P0.3 及之后的统一统计/函数类实验。
