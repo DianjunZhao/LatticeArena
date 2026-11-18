@@ -34,3 +34,26 @@ def plot(output):
     fig.savefig(output / 'potential.png', dpi=160)
     plt.close(fig)
     print(f'wrote {output / "potential.png"}')
+
+
+def paired_plot(output):
+    output = Path(output)
+    paired = json.loads((output.parent / f'paired_{output.name}' / 'paired.json').read_text())
+    names = list(paired['candidates'])
+    med = [100 * c['median'] for c in (paired['candidates'][n] for n in names)]
+    low = [100 * c['ci95'][0] for c in (paired['candidates'][n] for n in names)]
+    high = [100 * c['ci95'][1] for c in (paired['candidates'][n] for n in names)]
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.bar(range(len(names)), med, color='#087F8C')
+    err = [[med[i] - low[i] for i in range(len(names))],
+           [high[i] - med[i] for i in range(len(names))]]
+    ax.errorbar(range(len(names)), med, yerr=err, fmt='none', ecolor='k', capsize=4)
+    ax.axhline(100, color='k', ls='--', lw=0.8)
+    ax.set_xticks(range(len(names)))
+    ax.set_xticklabels(names, rotation=20, ha='right', fontsize=8)
+    ax.set(ylabel='score relative to identity', title='Paired improvement (95% interval)')
+    ax.grid(alpha=0.2, axis='y')
+    fig.tight_layout()
+    fig.savefig(output.parent / f'paired_{output.name}' / 'score_paired.png', dpi=150)
+    plt.close(fig)
+    print(f'wrote {output.parent / f"paired_{output.name}" / "score_paired.png"}')
