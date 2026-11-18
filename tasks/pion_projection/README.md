@@ -182,3 +182,15 @@ bash scripts/run_pion.sh candidate --definition results/pion_projection/s16t16_v
 The generic matrix-free Python route is slower than the QUDA diffusion fast path;
 these checks do not retrain the proposal. Reusing the now-public validation set
 for subsequent proposals must be disclosed and cannot support fresh held-out claims.
+
+## 2026-11-18 审计状态
+
+| 项 | 状态 |
+| --- | --- |
+| reference spec（kind + 源码哈希）冻结 | 已实现（`reference.py`，schema `pion-reference-v1`） |
+| `evaluate`/`candidate` 校验冻结 spec | 已实现；旧 submission 需 `LATTICEARENA_LEGACY_REFERENCE=1` 只读重放 |
+| 反射检查任意偶数 T | 已实现；零 SE 时返回 0 而不是 NaN |
+| 合成 develop→evaluate 端到端 | 通过（CPU，见本轮提交说明） |
+| 归档只读诊断（inventory/参考扫描/协方差谱/T32 反射修正） | 已生成 `results/pion_projection/score_diagnostics_v2/` |
+| 协方差 shrinkage/block 长度预声明扫描 | NOT_RUN |
+| 新数据 / 新 blind validation / anchor | NOT_RUN |

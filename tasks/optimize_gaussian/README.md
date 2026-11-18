@@ -352,3 +352,16 @@ python -m tasks.optimize_gaussian.compare_plot
 | $W_h$ | 固定随机的隐藏层权重（不训练） |
 | $\lambda_2$ | L2 正则系数 |
 | $G^m$ | $m=8$ 步高斯基座 |
+
+## 2026-11-18 审计状态
+
+| 项 | 状态 |
+| --- | --- |
+| plaquette 路径闭合 | 已修（原先第二/三段沿错方向平移） |
+| 规范不变 / 厄米 / 协变 / 立方对称 | 已测（`tests/test_optimize_gaussian.py`） |
+| A1+ 横向交换 | 已改为对称输入 $(P_1+P_2,\,P_1P_2)$ 并测试 |
+| 训练线性响应 vs 直接关联函数 | 已测（误差 < 1e-11） |
+| 训练缓存 identity | 已加（protocol hash、seed、W、steps、alpha、hidden、IDs、特征版本） |
+| 全 O_h 群（24 旋转 + 宇称）测试 | NOT_RUN（当前只有 y↔z、x↔z 交换与反射） |
+| v1–v8 历史 risk | **失效**（旧特征），保留为流程/负结果记录 |
+| 修复后的 GPU 重训 | NOT_RUN |
