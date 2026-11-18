@@ -20,13 +20,13 @@ def indices(split):
     return np.arange(first, last + 1)
 
 
-def read_nersc(path, expected_geometry=None):
-    """Read a NERSC 4D_SU3_GAUGE_3x3 file into (mu, t, z, y, x, 3, 3).
+def _nersc_payload(path, expected_geometry=None):
+    """Parse a NERSC gauge file; return (raw bytes, checksum status, dims).
 
-    Validates the header keys we rely on and the exact payload length; unknown
-    optional keys are tolerated, but a wrong data type or truncated payload is
-    rejected instead of being reshaped silently.
+    A trailing 16-byte MD5 (NERSC checksum trailer) is verified when present;
+    an absent trailer is reported as 'absent' rather than treated as verified.
     """
+    import hashlib
     with open(path, 'rb') as f:
         f.readline()
         header = {}
@@ -56,10 +56,41 @@ def read_nersc(path, expected_geometry=None):
     if expected_geometry is not None and [nx, ny, nz, nt] != list(expected_geometry):
         raise ValueError(f'{path}: header geometry {[nx, ny, nz, nt]} != run geometry {list(expected_geometry)}')
     expected = nt * nz * ny * nx * 4 * 3 * 3 * 16
-    if len(payload) != expected:
-        raise ValueError(f'{path}: payload has {len(payload)} bytes, expected {expected}')
-    raw = np.frombuffer(payload, dtype='<c16')
-    return raw.reshape(nt, nz, ny, nx, 4, 3, 3).transpose(4, 0, 1, 2, 3, 5, 6)
+    if len(payload) == expected:
+        status, raw = 'absent', payload
+    elif len(payload) == expected + 16:
+        raw, trailer = payload[:expected], payload[expected:]
+        if hashlib.md5(raw).digest() != trailer:
+            raise ValueError(f'{path}: NERSC trailing MD5 mismatch')
+        status = 'verified'
+    else:
+        raise ValueError(f'{path}: payload has {len(payload)} bytes, expected {expected}'
+                         f' (or {expected + 16} with a checksum trailer)')
+    return raw, status, (nx, ny, nz, nt)
+
+
+def read_nersc(path, expected_geometry=None):
+    """Read a NERSC 4D_SU3_GAUGE_3x3 file into (mu, t, z, y, x, 3, 3).
+
+    Validates the header keys we rely on, the exact payload length and the
+    optional MD5 trailer; unknown optional keys are tolerated, but a wrong data
+    type or truncated payload is rejected instead of being reshaped silently.
+    """
+    raw, _, (nx, ny, nz, nt) = _nersc_payload(path, expected_geometry)
+    return np.frombuffer(raw, dtype='<c16').reshape(nt, nz, ny, nx, 4, 3, 3).transpose(4, 0, 1, 2, 3, 5, 6)
+
+
+def read_nersc_with_status(path, expected_geometry=None):
+    """Read the array and report the checksum trailer status in one parse."""
+    raw, status, (nx, ny, nz, nt) = _nersc_payload(path, expected_geometry)
+    array = np.frombuffer(raw, dtype='<c16').reshape(nt, nz, ny, nx, 4, 3, 3).transpose(4, 0, 1, 2, 3, 5, 6)
+    return array, status
+
+
+def nersc_checksum_status(path, expected_geometry=None):
+    """'verified' (trailer matched) or 'absent'; a mismatch raises."""
+    _, status, _ = _nersc_payload(path, expected_geometry)
+    return status
 
 
 def indices_for(p, split):

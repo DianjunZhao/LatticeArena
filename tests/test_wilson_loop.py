@@ -450,7 +450,8 @@ def test_measure_entry_end_to_end(tmp_path, monkeypatch):
     links = rng.normal(size=(4, 16, 4, 4, 4, 3, 3)) + 1j * rng.normal(size=(4, 16, 4, 4, 4, 3, 3))
     q, _ = np.linalg.qr(links)
     links = q / np.linalg.det(q)[..., None, None] ** (1 / 3)
-    monkeypatch.setattr(measure_mod, 'read_nersc', lambda path, geometry=None: links)
+    monkeypatch.setattr(measure_mod, 'read_nersc_with_status',
+                        lambda path, expected_geometry=None: (links, 'absent'))
     monkeypatch.setattr(measure_mod, 'protocol', lambda: p)
     monkeypatch.setattr(common, 'protocol', lambda: p)
     out = tmp_path / 'out'
@@ -492,3 +493,26 @@ def test_risk_fails_closed_on_invalid_w():
     nan_data[0, 0, 0] = np.nan
     with pytest.raises(ValueError, match='non-finite W'):
         risk(blocks(nan_data, 2), bootstrap_indices(3, 10, 1), [[4, 5, 6]], [4, 5, 6, 7, 8], [1.0], nominal=0)
+
+
+def test_nersc_checksum_trailer(tmp_path):
+    import hashlib
+    from tasks.wilson_loop.common import nersc_checksum_status, read_nersc
+    rng = np.random.default_rng(3)
+    data = (rng.normal(size=(2, 2, 2, 2, 4, 3, 3)) + 1j * rng.normal(size=(2, 2, 2, 2, 4, 3, 3))).astype('<c16')
+    payload = data.tobytes()
+    header = (b'4D_SU3_GAUGE_3x3\nDATATYPE=4D_SU3_GAUGE_3x3\n'
+              b'DIMENSION_1=2\nDIMENSION_2=2\nDIMENSION_3=2\nDIMENSION_4=2\n'
+              b'FLOATING_POINT=IEEE64LITTLE\nEND_HEADER\n')
+    good = tmp_path / 'good'
+    good.write_bytes(header + payload + hashlib.md5(payload).digest())
+    assert nersc_checksum_status(good) == 'verified'
+    array = read_nersc(good)
+    assert array.shape == (4, 2, 2, 2, 2, 3, 3)
+    absent = tmp_path / 'absent'
+    absent.write_bytes(header + payload)
+    assert nersc_checksum_status(absent) == 'absent'
+    bad = tmp_path / 'bad'
+    bad.write_bytes(header + payload + b'0' * 16)
+    with pytest.raises(ValueError, match='MD5 mismatch'):
+        read_nersc(bad)

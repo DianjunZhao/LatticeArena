@@ -27,7 +27,7 @@
 | P1 恢复事务 | ✅ | 三文件 npz+provenance+commit marker；generation/文件 hash/records/gauge hash 互验；部分事务拒绝 |
 | P1 依赖闭包 | ✅ | spec/provenance 含 kernels/statistics/measure/common/identity hash |
 | P1 投影失败定位 | ✅ | 失败信息带 batch indices；measure 附 cfg |
-| P1 NERSC checksum | 🟡 | 格式/payload/geometry 校验已有；checksum 支持范围未单列 |
+| P1 NERSC checksum | ✅ | trailer 支持 verified/absent、mismatch 拒绝；measure 记录 `checksum_status`；本机无真实数据，集群运行时落盘 |
 | P2 点值/jackknife | ✅ | `paired_audit_v2/`：归档点值 0.967–1.055 与诊断重算分列；leave-one-block-out jackknife |
 | P2 非退化 coverage | ✅ | 已知增益/零效应各 0.983（60 次模拟） |
 | P2 invalid 接入 | ✅ | `risk` fail-closed；evaluate 记 invalid_reason；paired/audit 计数与阈值 |

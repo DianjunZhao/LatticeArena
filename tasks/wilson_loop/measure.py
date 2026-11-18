@@ -7,7 +7,7 @@ from time import perf_counter
 
 import numpy as np
 
-from .common import digest, fingerprint, indices, protocol, read_nersc, write_json
+from .common import digest, fingerprint, indices, protocol, read_nersc_with_status, write_json
 from core.ledger import Ledger
 
 from .identity import check_resume, generation, loops_sha256, measurement_spec, write_marker
@@ -75,7 +75,8 @@ def measure(output, split, limit=None):
     for cfg in pending:
         gauge_path = Path(p['ensemble']) / f'wilson_b6.{cfg}'
         cfg_start = perf_counter()
-        u = xp.asarray(read_nersc(gauge_path, p['geometry']))
+        u, checksum_status = read_nersc_with_status(gauge_path, expected_geometry=p['geometry'])
+        u = xp.asarray(u)
         setup = perf_counter() - cfg_start
         measured = perf_counter()
         try:
@@ -84,7 +85,7 @@ def measure(output, split, limit=None):
             raise ValueError(f'cfg {cfg}: {exc}') from exc
         rows.append(row)
         ledger.add('setup', setup).add('kernel', perf_counter() - measured)
-        records.append({'id': int(cfg), 'gauge_path': str(gauge_path),
+        records.append({'id': int(cfg), 'gauge_path': str(gauge_path), 'checksum_status': checksum_status,
                         'gauge_sha256': digest(gauge_path), 'loops_sha256': loops_sha256(np.asarray(row)),
                         'setup_seconds': setup, 'measure_seconds': perf_counter() - measured,
                         'total_seconds': perf_counter() - cfg_start})
