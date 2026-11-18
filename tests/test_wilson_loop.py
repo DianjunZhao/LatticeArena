@@ -516,3 +516,14 @@ def test_nersc_checksum_trailer(tmp_path):
     bad.write_bytes(header + payload + b'0' * 16)
     with pytest.raises(ValueError, match='MD5 mismatch'):
         read_nersc(bad)
+
+
+def test_hmc_manifest_audit_reports_missing_fields():
+    from tasks.wilson_loop.hmc_quality import audit_manifest
+    result = audit_manifest({'seed': 1, 'tau_int': 0.5})
+    assert result['status'] == 'archived_diagnostic'
+    assert 'acceptance_rate_missing' in result['reasons']
+    ok = audit_manifest({field: 0 for field in ('seed', 'first_trajectory', 'spacing',
+                                                 'tau_int', 'n_configs', 'acceptance_rate',
+                                                 'delta_h', 'thermalization')})
+    assert ok['status'] == 'verified'

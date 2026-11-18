@@ -177,3 +177,19 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+MANIFEST_FIELDS = ('seed', 'first_trajectory', 'spacing', 'tau_int', 'n_configs',
+                   'acceptance_rate', 'delta_h', 'thermalization')
+
+
+def audit_manifest(manifest):
+    """Classify an HMC manifest by which production fields are actually present."""
+    reasons = []
+    for field in MANIFEST_FIELDS:
+        if manifest.get(field) is None:
+            reasons.append(f'{field}_missing')
+    fields = {field: manifest.get(field) for field in MANIFEST_FIELDS}
+    return {'status': 'verified' if not reasons else 'archived_diagnostic',
+            'reasons': reasons, 'fields': fields,
+            'note': ('unknown fields are reported as missing, not filled with local defaults')}

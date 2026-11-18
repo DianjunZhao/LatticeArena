@@ -36,7 +36,7 @@
 | F1 shapes/comparator | ✅ | `check_draws` 一维等长有限、重复/乱序拒绝；paired_ratio 不广播 |
 | F2 SearchAdapter | ✅ | loop 真走 `core.search`；NaN/Inf 拒绝；`search_trace.json`；预算 |
 | F3 状态证据 | ✅ | RunState 需 evidence hash；physical_ready/score_or_null；develop 绑定 hash；conditional/physical score 分离 |
-| F4 HMC | 🟡 | manifest 审计（seed/τint）；toy 可逆性/二阶；生产 ΔH/接受率 ⛔ |
+| F4 HMC | 🟡 | manifest 审计（seed/τint）+ 缺失字段分类（`hmc_manifest_audit_v1/`）；toy 可逆性/二阶；生产 ΔH/接受率 ⛔ |
 
 ## 3. optimize_gaussian
 
