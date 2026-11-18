@@ -182,6 +182,15 @@ def test_verify_reference_rejects_missing_spec():
             verify_reference(spec)
 
 
+def score_spec(**overrides):
+    spec = dict(schema='pion-score-v1', version='test', estimand='x', baseline_id='local',
+                accepted_models=['m'], candidate_ids=['c'], analysis_version='v2', alpha=0.05,
+                comparison_family={'candidates': 1, 'models': 1}, min_baseline_risk=1e-6,
+                invalid_tolerance=0.05, min_improvement=1.0)
+    spec.update(overrides)
+    return spec
+
+
 def test_improvement_certificate_accepts_only_real_improvements():
     from tasks.pion_projection.scoring import improvement_certificate
     rng = np.random.default_rng(3)
@@ -190,9 +199,8 @@ def test_improvement_certificate_accepts_only_real_improvements():
     bad = base * np.exp(0.2)
     risks = {'m1': {'local': base, 'good': good, 'bad': bad},
              'm2': {'local': base, 'good': good, 'bad': bad}}
-    spec = {'schema': 'pion-score-v1', 'version': 'test', 'estimand': 'x',
-            'baseline_id': 'local', 'alpha': 0.05,
-            'comparison_family': {'candidates': 2, 'models': 2}, 'risk_floor': 0.0}
+    spec = score_spec(accepted_models=['m1', 'm2'], candidate_ids=['good', 'bad'],
+                      comparison_family={'candidates': 2, 'models': 2})
     out = improvement_certificate(risks, spec)
     assert out['status'] == 'certified'
     assert out['candidates']['good']['certified']
@@ -200,20 +208,29 @@ def test_improvement_certificate_accepts_only_real_improvements():
     assert out['candidates']['good']['improvement_lower_bound'] > 1.4
 
 
-def test_improvement_certificate_validates_spec_and_abstains_on_nan():
+def test_scoring_contract_rejects_bad_inputs():
     from tasks.pion_projection.scoring import improvement_certificate, validate_spec
+    base = np.ones(50)
     with pytest.raises(ValueError, match='missing'):
         validate_spec({'schema': 'pion-score-v1'})
-    with pytest.raises(ValueError, match='schema'):
-        validate_spec({'schema': 'other', 'version': 'v', 'estimand': 'x', 'baseline_id': 'b',
-                       'alpha': 0.05, 'comparison_family': {'candidates': 1, 'models': 1}})
-    base = np.ones(100)
-    bad = np.full(100, np.nan)
-    spec = {'schema': 'pion-score-v1', 'version': 't', 'estimand': 'x', 'baseline_id': 'local',
-            'alpha': 0.05, 'comparison_family': {'candidates': 1, 'models': 1},
-            'invalid_tolerance': 0.01}
-    out = improvement_certificate({'m': {'local': base, 'c': bad}}, spec)
-    assert out['abstain'] and out['status'] == 'abstain'
+    with pytest.raises(ValueError, match='non-empty'):
+        validate_spec(score_spec(accepted_models=[]))
+    with pytest.raises(ValueError, match='accepted set'):
+        improvement_certificate({'unapproved': {'local': base, 'c': base * 0.5}}, score_spec())
+    with pytest.raises(ValueError, match='declared set'):
+        improvement_certificate({'m': {'local': base, 'other': base * 0.5}}, score_spec())
+    with pytest.raises(ValueError, match='one-dimensional'):
+        improvement_certificate({'m': {'local': np.ones((50, 1)), 'c': np.ones((50, 1))}}, score_spec())
+    with pytest.raises(ValueError, match='different lengths'):
+        improvement_certificate({'m': {'local': base, 'c': np.ones(49)}}, score_spec())
+    near_zero = improvement_certificate({'m': {'local': np.full(50, 1e-9), 'c': np.full(50, 1e-10)}}, score_spec())
+    assert near_zero['abstain'] and not near_zero['candidates']['c']['certified']
+    invalid = improvement_certificate({'m': {'local': base, 'c': np.full(50, np.nan)}}, score_spec())
+    assert invalid['abstain'] and not invalid['candidates']['c']['certified']
+    negative = improvement_certificate({'m': {'local': base, 'c': np.full(50, -0.1)}}, score_spec(risk_floor=1.0))
+    assert negative['abstain'] and not negative['candidates']['c']['certified']
+    weak = improvement_certificate({'m': {'local': base, 'c': base * 0.5}}, score_spec(min_improvement=3.0))
+    assert not weak['candidates']['c']['certified']
 
 
 def test_candidate_dependency_check(tmp_path, monkeypatch):

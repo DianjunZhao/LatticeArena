@@ -4,7 +4,10 @@
   "estimand": "frozen conditional risk improvement over the baseline",
   "target": "ground-state shape",
   "baseline_id": "local",
-  "accepted_models": ["single", "twostate"],
+  "accepted_models": [
+    "single",
+    "twostate"
+  ],
   "model_weights": "development-only AIC weights (frozen)",
   "train_ids_hash": "filled at run creation",
   "anchor_id": null,
@@ -12,8 +15,22 @@
   "risk_floor_policy": "add delta^2 only if the baseline is unresolved; delta from development power",
   "risk_floor": 0.0,
   "alpha": 0.05,
-  "comparison_family": {"candidates": 2, "models": 2},
+  "comparison_family": {
+    "candidates": 2,
+    "models": 2
+  },
   "invalid_tolerance": 0.05,
-  "bootstrap_plan": {"outer": 200, "inner": 128, "shared_draws": true},
-  "cost_policy": "not part of the primary endpoint"
+  "bootstrap_plan": {
+    "outer": 200,
+    "inner": 128,
+    "shared_draws": true
+  },
+  "cost_policy": "not part of the primary endpoint",
+  "analysis_version": "s1-certificate-v2",
+  "candidate_ids": [
+    "tuned_gaussian",
+    "agent_signed_mixture"
+  ],
+  "min_baseline_risk": 1e-06,
+  "min_improvement": 1.0
 }

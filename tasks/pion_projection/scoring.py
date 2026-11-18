@@ -1,15 +1,16 @@
-"""Conservative improvement certificate for a frozen candidate set (todo S1).
+"""Conservative improvement certificate with an enforced contract (todo P0.4/P0.5).
 
-The function below works on per-model bootstrap risk draws, not on correlators:
-the caller must produce the draws with a frozen analysis plan. A candidate is
-certified only if its log-risk improvement over the baseline is positive at a
-simultaneous lower bound across the accepted reference models and the compared
-candidates (Bonferroni over J*K).
+The function works on per-model bootstrap risk draws. It is a *conditional*
+summariser: it checks the caller's spec and draw shapes, but it cannot certify
+a reference by itself. A separate gate must establish that the accepted models
+and the joint draws are trustworthy.
 """
 import numpy as np
 
 SCHEMA = 'pion-score-v1'
-REQUIRED = ('schema', 'version', 'estimand', 'baseline_id', 'alpha', 'comparison_family')
+REQUIRED = ('schema', 'version', 'estimand', 'baseline_id', 'accepted_models',
+            'candidate_ids', 'analysis_version', 'alpha', 'comparison_family',
+            'min_baseline_risk', 'invalid_tolerance', 'min_improvement')
 
 
 def validate_spec(spec):
@@ -20,57 +21,102 @@ def validate_spec(spec):
         raise ValueError(f'unsupported score schema {spec["schema"]!r}')
     if not 0 < spec['alpha'] < 1:
         raise ValueError('alpha must be in (0, 1)')
+    if not spec['accepted_models']:
+        raise ValueError('accepted_models must be non-empty; an empty model set must abstain')
+    if not spec['candidate_ids']:
+        raise ValueError('candidate_ids must be non-empty')
+    if len(set(spec['accepted_models'])) != len(spec['accepted_models']):
+        raise ValueError('accepted_models contains duplicates')
     family = spec['comparison_family']
-    if not isinstance(family, dict) or family.get('candidates', 0) < 1 or family.get('models', 0) < 1:
-        raise ValueError('comparison_family needs positive candidates and models')
-    if spec.get('risk_floor', 0.0) < 0:
-        raise ValueError('risk_floor must be non-negative')
+    if (not isinstance(family, dict) or family.get('candidates') != len(spec['candidate_ids'])
+            or family.get('models') != len(spec['accepted_models'])):
+        raise ValueError('comparison_family must match the declared candidate and model counts')
+    if spec['min_baseline_risk'] < 0 or float(spec.get('risk_floor', 0.0)) < 0:
+        raise ValueError('risk_floor and min_baseline_risk must be non-negative')
+    if not 0 <= spec['invalid_tolerance'] < 1:
+        raise ValueError('invalid_tolerance must be in [0, 1)')
+    if spec['min_improvement'] <= 0:
+        raise ValueError('min_improvement must be positive')
     return spec
 
 
-def improvement_certificate(risks, spec):
-    """risks: {model: {candidate: array of risk draws}}; the baseline must be present."""
-    spec = validate_spec(spec)
-    baseline = spec['baseline_id']
+def _check_draws(risks, spec, draw_ids):
     models = list(risks)
-    if len(models) != spec['comparison_family']['models']:
-        raise ValueError('model count does not match comparison_family')
-    candidates = [c for c in risks[models[0]] if c != baseline]
-    if len(candidates) != spec['comparison_family']['candidates']:
-        raise ValueError('candidate count does not match comparison_family')
-    if any(baseline not in risks[m] for m in models):
-        raise ValueError('baseline missing in at least one model')
+    if set(models) != set(spec['accepted_models']):
+        raise ValueError(f'risk models {sorted(models)} are not the accepted set {sorted(spec["accepted_models"])}')
+    baseline = spec['baseline_id']
+    for model in models:
+        if baseline not in risks[model]:
+            raise ValueError(f'baseline {baseline!r} missing for model {model!r}')
+        for name, values in risks[model].items():
+            array = np.asarray(values)
+            if array.ndim != 1:
+                raise ValueError(f'{model}/{name}: risk draws must be one-dimensional, got shape {array.shape}')
+    candidates = [name for name in risks[models[0]] if name != baseline]
+    if set(candidates) != set(spec['candidate_ids']):
+        raise ValueError(f'candidate ids {sorted(candidates)} are not the declared set {sorted(spec["candidate_ids"])}')
+    lengths = {np.asarray(values).size for model in models for values in risks[model].values()}
+    if len(lengths) != 1:
+        raise ValueError(f'risk draw arrays have different lengths {sorted(lengths)} (broadcasting is not allowed)')
+    if draw_ids is not None and len(draw_ids) != lengths.pop():
+        raise ValueError('draw_ids length does not match the risk draws')
+    return models, candidates, lengths.pop()
+
+
+def improvement_certificate(risks, spec, draw_ids=None):
+    """Certify (or refuse) a simultaneous improvement over the baseline."""
+    spec = validate_spec(spec)
+    models, candidates, n_draws = _check_draws(risks, spec, draw_ids)
+    if draw_ids is not None and 'draw_ids_hash' in spec:
+        import hashlib
+        digest = hashlib.sha256(np.asarray(draw_ids, dtype=np.int64).tobytes()).hexdigest()
+        if digest != spec['draw_ids_hash']:
+            raise ValueError('draw_ids do not match the frozen draw_ids_hash')
+    baseline = spec['baseline_id']
     floor = float(spec.get('risk_floor', 0.0))
     level = spec['alpha'] / (len(candidates) * len(models))
-    tolerance = float(spec.get('invalid_tolerance', 0.0))
-    out = {'spec_version': spec['version'], 'level': level, 'candidates': {}, 'abstain': False,
-           'failure_reasons': []}
-    for cand in candidates:
-        row = {'per_model_lower_bound': {}, 'per_model_median_improvement': {}, 'invalid_draws': 0}
+    out = {'spec_version': spec['version'], 'analysis_version': spec['analysis_version'],
+           'level': level, 'models': models, 'baseline_id': baseline,
+           'candidates': {}, 'abstain': False, 'failure_reasons': []}
+    for name in candidates:
+        row = {'per_model_lower_bound': {}, 'per_model_median_improvement': {},
+               'invalid_draws': 0, 'certified': False}
         bounds = []
-        for m in models:
-            base = np.asarray(risks[m][baseline], dtype=float) + floor
-            value = np.asarray(risks[m][cand], dtype=float) + floor
-            valid = np.isfinite(base) & np.isfinite(value) & (base > 0) & (value > 0)
+        for model in models:
+            raw_base = np.asarray(risks[model][baseline], dtype=float)
+            raw_cand = np.asarray(risks[model][name], dtype=float)
+            valid = np.isfinite(raw_base) & np.isfinite(raw_cand) & (raw_base > 0) & (raw_cand > 0)
             row['invalid_draws'] += int((~valid).sum())
-            d = np.log(base[valid]) - np.log(value[valid])
-            if len(d) == 0:
-                row['per_model_lower_bound'][m] = None
+            base = raw_base[valid] + floor
+            cand = raw_cand[valid] + floor
+            if len(base) == 0:
+                row['per_model_lower_bound'][model] = None
                 bounds.append(-np.inf)
                 continue
+            d = np.log(base) - np.log(cand)
             low = float(np.quantile(d, level))
-            row['per_model_lower_bound'][m] = low
-            row['per_model_median_improvement'][m] = float(np.median(d))
+            row['per_model_lower_bound'][model] = low
+            row['per_model_median_improvement'][model] = float(np.median(d))
             bounds.append(low)
         row['lower_bound'] = float(min(bounds))
         row['improvement_lower_bound'] = float(np.exp(min(bounds))) if np.isfinite(min(bounds)) else 0.0
-        row['certified'] = bool(np.isfinite(min(bounds)) and min(bounds) > 0)
-        out['candidates'][cand] = row
-    total = sum(risks[m][baseline].__len__() for m in models)
-    invalid = sum(row['invalid_draws'] for row in out['candidates'].values())
-    if total and invalid / (total * len(candidates)) > tolerance:
+        out['candidates'][name] = row
+    baseline_medians = []
+    for m in models:
+        values = np.asarray(risks[m][baseline], dtype=float)
+        finite = values[np.isfinite(values)]
+        baseline_medians.append(float(np.median(finite)) if finite.size else np.nan)
+    if min(baseline_medians) < spec['min_baseline_risk']:
         out['abstain'] = True
-        out['failure_reasons'].append('invalid draw fraction above tolerance')
-    out['status'] = 'abstain' if out['abstain'] else (
-        'certified' if any(row['certified'] for row in out['candidates'].values()) else 'not_certified')
+        out['failure_reasons'].append('baseline_unresolved: median baseline risk below min_baseline_risk')
+    invalid = sum(row['invalid_draws'] for row in out['candidates'].values())
+    if invalid / (n_draws * len(candidates)) > spec['invalid_tolerance']:
+        out['abstain'] = True
+        out['failure_reasons'].append('invalid draw fraction above invalid_tolerance')
+    threshold = float(spec['min_improvement'])
+    for row in out['candidates'].values():
+        if not out['abstain'] and np.isfinite(row['lower_bound']) and row['lower_bound'] > np.log(threshold):
+            row['certified'] = True
+    out['status'] = ('abstain' if out['abstain'] else
+                     'certified' if any(r['certified'] for r in out['candidates'].values()) else 'not_certified')
     return out
