@@ -343,3 +343,10 @@ def test_unified_estimator_amplitude_sources():
     assert train['late_covariance_source'] == 'train' and train['amplitude'] == 1.0
     assert test['late_covariance_source'] == 'test'
     assert np.isfinite(train['risk']) and np.isfinite(test['risk'])
+
+
+def test_estimator_regression_runs():
+    from tasks.optimize_gaussian.estimator_regression import run
+    result = run(n_dataset=5, n_boot=20)
+    assert set(result['summary']) == {'train', 'test'}
+    assert abs(result['summary']['train']['bias_mean']) < 1e-2

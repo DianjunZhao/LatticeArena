@@ -38,7 +38,7 @@ def evaluate(data, weights, p, mass, masses, seed, late_inverse=None):
 
 
 def risk_with_fixed_amplitude(data, weights, mass, masses, index, config, amplitude, amplitude_se,
-                              amplitude_source='train', late_inverse=None):
+                              amplitude_source='train', late_inverse=None, return_draws=False):
     """Same metric as statistics.risk but with the amplitude fitted on the training fold."""
     values = np.einsum('nbt,b->nt', data, np.asarray(weights, dtype=float))
     mean = values.mean(axis=0)
@@ -70,13 +70,16 @@ def risk_with_fixed_amplitude(data, weights, mass, masses, index, config, amplit
     bias = float(np.mean((q - 1) ** 2))
     se = boot_mean.std(axis=0, ddof=1)
     snr = np.divide(abs(mean), se, out=np.zeros_like(mean), where=se > 0)
-    return {'risk': variance + bias, 'variance': variance, 'departure_squared': bias,
+    result = {'risk': variance + bias, 'variance': variance, 'departure_squared': bias,
             'amplitude': amp, 'amplitude_se': amp_se, 'amplitude_z': z,
             'amplitude_source': amplitude_source, 'late_covariance_source': late_source,
             'estimand': ('training-frozen amplitude' if amplitude_source == 'train'
                          else 'test-estimated amplitude'), 'q': q.tolist(),
             'q_se': qb.std(axis=0, ddof=1).tolist(), 'mean': mean.tolist(),
             'se': se.tolist(), 'snr': snr.tolist()}
+    if return_draws:
+        result['q_boot'] = qb.tolist()
+    return result
 
 
 def select_on_train(train, p, mass, masses, index):
