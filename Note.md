@@ -166,7 +166,7 @@ LatticeArena/
 │   │       └── local.json     一份"示例答卷"（恒等核），**代码其实不读它**
 │   └── wilson_loop/           第二个任务：静态势（Wilson 圈、APE 核、平台稳定性打分）
 ├── tests/
-│   └── test_pion_projection.py  7 个不需要 GPU 的单元测试
+│   └── test_pion_projection.py  CPU 单元测试（含 test_optimize_gaussian/test_wilson_loop 共 51 项）
 └── results/                   跑出来的结果（被 .gitignore 忽略）
     ├── pion_projection/s16t16_v1/
     └── kunshan_logs/

@@ -13,7 +13,7 @@ LatticeArena 把格点规范理论里的研究问题，改造成**有固定测�
 ## 快速开始（CPU 就能跑）
 
 ```bash
-python -m pytest -q                       # 47 个不需要 GPU 的单元测试
+python -m pytest -q                       # 51 个不需要 GPU 的单元测试
 python -m tasks.pion_projection --help    # measure / develop / evaluate / plot / candidate / agent / report
 ```
 
