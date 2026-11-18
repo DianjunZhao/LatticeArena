@@ -5,6 +5,8 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import minimize
 
+from core.candidates import validate_weights
+
 from .common import digest, fingerprint, load_data, protocol, write_json
 from .statistics import (ReferenceFit, blocks, bootstrap_indices, fold, inverse_covariance, risk)
 
@@ -80,7 +82,7 @@ def develop(output):
                        constraints=[{'type': 'eq', 'fun': lambda u: u.sum()-1},
                                     {'type': 'ineq', 'fun': lambda u: p['optimizer_l1_bound']-abs(u).sum()}],
                        options={'maxiter': p['optimizer_max_iterations'], 'ftol': 1e-11})
-        feasible = abs(fit.x.sum()-1) < 1e-6 and abs(fit.x).sum() <= p['optimizer_l1_bound']+1e-6
+        feasible, _ = validate_weights(fit.x, len(basis), p['optimizer_l1_bound'])
         if fit.success and feasible and fit.fun < 1e9:
             outcomes.append(fit)
     if not outcomes:

@@ -39,6 +39,13 @@ scores or SOTA claims are issued.
 See [environment setup and verification](doc/environment.md) for the project
 `.venv`, local QUDA/MPI requirements, and the single-configuration smoke test.
 
+## Agent search and machine examples
+
+The pion CLI includes a development-set LLM search and a report command. See
+the [agent commands](tasks/pion_projection/README.md#llm-search-and-report) and
+[results from the RTX 3060 and Kunshan DCU pilots](examples/README.md).
+Working measurements, caches and run reports belong in ignored output directories.
+
 ## Archived implementation
 
 The previous implementation, including all tasks, datasets, benchmarks, tests,

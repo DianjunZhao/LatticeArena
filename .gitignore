@@ -7,3 +7,6 @@ build/
 dist/
 temp/
 results/
+data/
+logs/
+.pytest_cache/

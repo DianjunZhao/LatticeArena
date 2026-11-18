@@ -53,9 +53,8 @@ development amplitudes. The normalized coefficients were:
 
 The coefficients sum to one and have L1 norm 1.747, below the fixed limit of 8.
 All eight optimization starts converged. The raw, directly applicable kernel
-coefficients are preserved in the [candidate definition](../results/pion_projection/s16t16_v1/agent_candidate.json),
-and all calibration and search choices are in the
-[frozen submission](../results/pion_projection/s16t16_v1/submission.json).
+coefficients are preserved in the local run file `agent_candidate.json`,
+and all calibration and search choices are in its frozen `submission.json`.
 The negative local term can cancel part of the short-distance contribution;
 this interpretation is a hypothesis, not a measured spectral decomposition.
 
@@ -89,7 +88,7 @@ win: relative to the tuned Gaussian, the agent's SNR at t=2 drops by about 9%,
 and relative to the local sink early-time SNR is substantially lower. The total
 loss trades raw SNR against the ground-state-normalized departure and uncertainty.
 
-![Pilot diagnostics](../results/pion_projection/s16t16_v1/pilot_results.png)
+![Pilot diagnostics](../examples/pion_projection/rtx3060/pilot_results.png)
 
 The effective-mass panel plots the effective mass of the mean correlator, without
 error bars; missing points are undefined cosh effective masses, not clipped values.
@@ -126,12 +125,10 @@ for the proposed scoring rule under the fixed v1 protocol.
 
 ## Artifacts and next research step
 
-See the [executable protocol and commands](../tasks/pion_projection/README.md),
-[validation results](../results/pion_projection/s16t16_v1/validation_results.json),
-[development results](../results/pion_projection/s16t16_v1/development_results.json),
-and [exportable PDF figure](../results/pion_projection/s16t16_v1/pilot_results.pdf).
-Per-configuration correlators, checksums, solver diagnostics, reference bootstrap
-draws, and nested loss draws accompany them in the same result directory.
+See the [executable protocol and commands](../tasks/pion_projection/README.md)
+and the [archived diagnostic summary](../examples/pion_projection/rtx3060/summary.json).
+Each local run writes per-configuration correlators, checksums, solver diagnostics,
+and bootstrap draws under its output directory.
 
 The next priority is to establish a controlled reference, not to continue tuning
 on these 15 validation configurations. A follow-up protocol should investigate
