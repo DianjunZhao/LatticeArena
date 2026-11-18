@@ -352,3 +352,17 @@ def test_agent_prompt_follows_the_protocol():
     text = render_prompt(q, [[0, 1.0, 0.0]], [])
     assert '32-t' in text and '0.1' in text and '[0, 2, 4]' in text
     assert '3, 4, 5' in text and '[[3 u values], [3 u values], [3 u values]]' in text
+
+
+def test_gevp_dedupe_and_known_spectrum():
+    from tasks.pion_projection.gevp_stats import bootstrap_gevp, dedupe, summarise, synthetic_correlators
+    rng = np.random.default_rng(23)
+    base = synthetic_correlators(rng, ncfg=60, noise=0.0)
+    matrix, keep = dedupe(np.concatenate([base, base[:, :1]], axis=1))
+    assert len(keep) == base.shape[1]
+    data = synthetic_correlators(rng, ncfg=60, noise=0.01)
+    index = rng.integers(0, 60, (200, 60))
+    energies, failures = bootstrap_gevp(data, index, t0=2, times=(4, 5, 6), rank=2)
+    summary = summarise(energies, (4, 5, 6), 0)
+    assert summary['energy'] == pytest.approx(0.80, abs=0.01)
+    assert summary['se'] > 0 and not failures
