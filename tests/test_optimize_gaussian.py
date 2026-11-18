@@ -269,3 +269,11 @@ def test_submission_matches_linear_response_and_is_hermitian():
         # full BCB Hermiticity with distinct fields
         np.testing.assert_allclose(np.vdot(g, build_kernel(u, spec).apply(f)),
                                    np.vdot(build_kernel(u, spec).apply(g), f), atol=1e-10)
+
+
+def test_teacher_seven_power_basis_gap():
+    from tasks.optimize_gaussian.teacher_check import teacher_result
+    result = teacher_result(shape=(2, 2, 2), seed=7)
+    assert result['hermiticity_H'] < 1e-12 and result['hermiticity_Q'] < 1e-12
+    assert result['augmented_error'] < 1e-10
+    assert result['seven_power_error'] > result['spectral_floor']
