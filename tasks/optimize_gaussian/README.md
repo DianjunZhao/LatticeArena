@@ -367,6 +367,7 @@ python -m tasks.optimize_gaussian.compare_plot
 | 训练线性响应 vs 直接关联函数 | 已测（误差 < 1e-11） |
 | 训练缓存 identity | 已加（protocol hash、seed、W、steps、alpha、hidden、IDs、特征版本） |
 | 运行 manifest | 已加（`manifest.json`：协议、W/θ、IDs、传播子缓存 key、依赖文件 hash） |
+| 历史运行 audit | 已生成 `results/optimize_gaussian/audit.json`（v2–v8 的统一口径表，全部标记 legacy） |
 | 全 O_h 群（24 旋转 + 宇称）测试 | **PASSED**（link 中心特征；A1+ 认证） |
 | v1–v8 历史 risk | **失效**（旧特征），保留为流程/负结果记录 |
 | 修复后的 GPU 重训 | NOT_RUN |

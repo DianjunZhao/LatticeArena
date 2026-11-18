@@ -13,7 +13,7 @@ from scipy.optimize import minimize
 from tasks.pion_projection.common import digest, fingerprint
 from tasks.pion_projection.statistics import blocks, bootstrap_indices, risk
 
-from .features import _lib, directional_features
+from .features import FEATURE_VERSION, _lib, directional_features
 from .kernels import apply_kernel, correlator
 
 
@@ -37,7 +37,7 @@ def model_space(p, seed):
 def run_manifest(p, W, theta, fit_ids, devval_ids, test_ids, cache):
     here = Path(__file__).parent
     return {'schema': 'optgauss-run-v1', 'protocol': fingerprint(p),
-            'features': 'a1plus-link-centred-v3', 'geometry': p['geometry'],
+            'features': FEATURE_VERSION, 'geometry': p['geometry'],
             'base_steps': p['base_steps'], 'base_alpha': p['base_alpha'],
             'W': np.asarray(W).tolist(), 'theta': [float(x) for x in np.asarray(theta).ravel()],
             'ids': {'fit': list(fit_ids), 'dev_val': list(devval_ids), 'test': list(test_ids)},
@@ -51,7 +51,7 @@ def basis_key(p, seed, W, fit_ids, dev_ids):
     return {'protocol': fingerprint(p), 'seed': seed, 'W': np.asarray(W).tolist(),
             'steps': p['base_steps'], 'alpha': p['base_alpha'], 'hidden': p['hidden'],
             'fit_ids': list(fit_ids), 'dev_val_ids': list(dev_ids),
-            'features': 'a1plus-symmetric-v2'}
+            'features': FEATURE_VERSION}
 
 
 def save_basis(path, key, C_fit, C_dev):

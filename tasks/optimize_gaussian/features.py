@@ -1,4 +1,6 @@
 """Gauge-invariant, time-local features, arranged in the A1+ cubic channel."""
+
+FEATURE_VERSION = 'a1plus-link-centred-v3'
 import numpy as np
 
 
