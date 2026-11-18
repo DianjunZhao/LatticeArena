@@ -101,6 +101,7 @@ python -m pytest -q tests/test_wilson_loop.py
 | 项 | 状态 |
 | --- | --- |
 | P0 双边极分解投影 + det 修正 | 已实现；`project(gMg')=g·project(M)·g'`、APE 多 alpha/steps 协变测试 |
+| F2 LLM/搜索隔离 | 共享 `core/candidates.validate_weights`；mock 轨迹 + 拦截测试见 [`doc/agent_isolation.md`](../../doc/agent_isolation.md) |
 | F0 证据 schema | 新增 `core/evidence.py`、`core/operator_checks.py`、`scripts/audit_run.py`、`scripts/summarize_evidence.py`；wilson v3 与 pion 200 各产出一份同 schema 证据（`results/*/evidence/`）；见 [`doc/evidence_framework.md`](../../doc/evidence_framework.md) |
 | P3 物理质量门控 | 新增 `spectral_quality.py` + `doc/wilson_spectral_quality.md`：合成“平但错”反例（偏差 170σ、risk $2.7\times10^{-7}$、gate 通过）；v3/v4 窗口 $V$ 图；`reference_nominal_window` 改为显式 spec |
 | P2 配对统计审计 | 新增 `paired_audit.py` + `results/wilson_loop/paired_audit_v1/`：v2 点值 1.07–1.18 vs 嵌套中位数 3.0–3.4（唯一 block 分布、jackknife 0.49–4.53、相关性 0.14–0.30 解释）；`probability_better` 改名 `exceedance_fraction` |

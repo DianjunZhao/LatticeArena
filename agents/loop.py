@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from agents.llm import chat
+from core.candidates import validate_weights
 from core.io import fingerprint, write_json
 from tasks.pion_projection.common import protocol
 from tasks.pion_projection.experiment import late_metric
@@ -42,7 +43,7 @@ def render_prompt(p, baselines, history):
                          history=json.dumps(history[-6:]), n_powers=len(p['powers']))
 
 
-def run(output, model, rounds):
+def run(output, model, rounds, allow_validation=True):
     output = Path(output)
     run_protocol = json.loads((output / 'development_provenance.json').read_text())['protocol']
     if run_protocol != protocol():
@@ -65,7 +66,7 @@ def run(output, model, rounds):
     print('basis (n, amplitude, risk)', baselines)
 
     worst = [s['risk'] for s in scores]
-    history, llm_best = [], None
+    history, rejections, llm_best = [], [], None
     best = {'risk': min(worst), 'weights': basis[int(np.argmin(worst))].tolist(), 'round': -1}
     for r in range(rounds):
         prompt = render_prompt(p, baselines, history)
@@ -77,7 +78,12 @@ def run(output, model, rounds):
         cfg = json.loads(match.group(0))
         for i, raw in enumerate(cfg.get('candidates') or [cfg['weights']]):
             u = np.asarray(raw, dtype=float)
-            if len(u) != len(p['powers']) or not np.any(u):
+            ok, reason = validate_weights(u, len(p['powers']), p['optimizer_l1_bound'])
+            if not ok:
+                history.append([u.tolist() if u.ndim == 1 else str(u), reason])
+                safe = ([None if not np.isfinite(x) else float(x) for x in u]
+                        if u.ndim == 1 else str(u))
+                rejections.append({'round': f'{r}.{i}', 'u': safe, 'reason': reason})
                 continue
             weights = u / scales
             try:
@@ -98,7 +104,20 @@ def run(output, model, rounds):
                 best = {'risk': value['risk'], 'weights': weights.tolist(), 'u': u.tolist(), 'round': f'{r}.{i}'}
 
     best['llm_best'] = llm_best
+    write_json(output / 'agent' / 'rejections.json', rejections)
+    if not allow_validation:
+        best.update({'model': model, 'rounds': rounds, 'protocol_hash': fingerprint(p),
+                     'validation_status': 'not_read', 'validation_risk': None,
+                     'note': 'search only; validation was not opened'})
+        write_json(output / 'agent' / 'best.json', best)
+        print('BEST (search only)', json.dumps(best, indent=2))
+        return best
     weights = np.asarray((llm_best or best)['weights'])
+    provenance = json.loads((output / 'validation_provenance.json').read_text())
+    if str(np.load(output / 'validation.npz')['protocol_hash']) != fingerprint(p):
+        raise ValueError('validation protocol hash does not match the frozen protocol')
+    if provenance.get('protocol') != p:
+        raise ValueError('validation provenance protocol differs from the run protocol')
     validation = blocks(fold(np.load(output / 'validation.npz')['correlators']), p['block_length'])
     vindex = bootstrap_indices(len(validation), p['bootstrap_samples'], p['seed'] + 1)
     local = risk(validation, basis[0], ref['mass'], masses, vindex, p,
@@ -112,6 +131,7 @@ def run(output, model, rounds):
     except ValueError as exc:
         best['validation_invalid'] = str(exc)
     best.update({'model': model, 'rounds': rounds, 'protocol_hash': fingerprint(p),
+                 'validation_status': 'post_hoc_diagnostic',
                  'note': 'post-hoc diagnostic, not an official submission'})
     write_json(output / 'agent' / 'best.json', best)
     print('BEST', json.dumps(best, indent=2))

@@ -19,12 +19,13 @@ def main():
     agent = commands.add_parser('agent')
     agent.add_argument('--model', default='deepseek-flash')
     agent.add_argument('--rounds', type=int, default=4)
+    agent.add_argument('--no-validation', action='store_true')
     report = commands.add_parser('report')
     report.add_argument('--model', default='deepseek-flash')
     args = parser.parse_args()
     if args.command == 'agent':
         from agents.loop import run
-        run(args.output, args.model, args.rounds)
+        run(args.output, args.model, args.rounds, allow_validation=not args.no_validation)
     elif args.command == 'report':
         from agents.report import run
         run(args.output, args.model)

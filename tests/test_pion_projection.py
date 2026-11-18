@@ -381,3 +381,31 @@ def test_joint_draws_share_ids_and_abstain_on_failed_gate(tmp_path):
     assert certificate['status'] == 'abstain'
     assert certificate['failure_reasons'] == ['reference_gate_failed']
     assert not any(row['certified'] for row in certificate['candidates'].values())
+
+
+def test_agent_mock_rejects_illegal_candidates_without_reading_validation(tmp_path, monkeypatch):
+    import json
+    import shutil
+    from pathlib import Path
+    run_dir = Path('results/pion_projection/s16t16_gevp200')
+    if not (run_dir / 'submission.json').exists():
+        pytest.skip('run data not available')
+    for name in ('development.npz', 'development_provenance.json', 'submission.json'):
+        shutil.copy(run_dir / name, tmp_path / name)
+    import agents.llm as llm
+    from agents.loop import run
+    llm.MOCK_QUEUE[:] = [
+        json.dumps({'candidates': [[float('nan')] * 8, [1, 2, 3], [0.0] * 8, [5.0, -4.0] + [0.0] * 6]}),
+        json.dumps({'candidates': [[1.0] + [0.0] * 7]}),
+    ]
+    original_load = np.load
+    def guarded_load(path, *args, **kwargs):
+        if 'validation' in str(path):
+            raise AssertionError('validation was opened during search')
+        return original_load(path, *args, **kwargs)
+    monkeypatch.setattr(np, 'load', guarded_load)
+    result = run(tmp_path, 'mock', 1, allow_validation=False)
+    assert result['validation_status'] == 'not_read'
+    reasons = json.loads((tmp_path / 'agent' / 'rejections.json').read_text())
+    text = ' '.join(item['reason'] for item in reasons)
+    assert 'non-finite' in text and 'length 8' in text and 'sum to 1' in text and 'L1' in text
