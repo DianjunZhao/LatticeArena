@@ -1,5 +1,6 @@
 """Measure Wilson loops W(R,T) from smeared spatial lines and original temporal links."""
 import os
+import subprocess
 from pathlib import Path
 from time import perf_counter
 
@@ -33,6 +34,17 @@ def loops(links, temporal, p):
     return out.get() if hasattr(out, 'get') else out
 
 
+def git_state():
+    try:
+        commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True,
+                                         stderr=subprocess.DEVNULL).strip()
+        dirty = bool(subprocess.check_output(['git', 'status', '--porcelain'], text=True,
+                                             stderr=subprocess.DEVNULL).strip())
+        return {'commit': commit, 'dirty': dirty}
+    except (OSError, subprocess.CalledProcessError):
+        return {'commit': 'unavailable', 'dirty': None}
+
+
 def measure(output, split, limit=None):
     p = protocol()
     try:
@@ -60,6 +72,6 @@ def measure(output, split, limit=None):
         os.replace(tmp, output / f'{split}.npz')
         write_json(output / f'{split}_provenance.json',
                    {'protocol': p, 'kernel_sha256': kernel_sha, 'ensemble': p['ensemble'],
-                    'records': records})
+                    'git': git_state(), 'records': records})
         print(f'cfg {cfg}: {records[-1]["total_seconds"]:.2f}s', flush=True)
     return records

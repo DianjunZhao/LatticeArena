@@ -103,6 +103,6 @@ python -m pytest -q tests/test_wilson_loop.py
 | P0 双边极分解投影 + det 修正 | 已实现；`project(gMg')=g·project(M)·g'`、APE 多 alpha/steps 协变测试 |
 | P0 staple 归一化 | 已从 `/6` 改为 `/4`；`alpha` 数值口径变化（旧 α ↔ 新 $2\alpha/(3-\alpha)$） |
 | 旧 APE 结果 | **失效**（旧投影不协变），保留为历史诊断；identity 不受影响 |
-| P1 provenance（gauge/hash/原子保存） | NOT_RUN |
+| P1 provenance | 部分完成：NPZ/loop 形状与有限性校验、每配置 gauge sha256、kernel 源码 hash、setup/measure/total 计时、git commit/dirty、原子保存；仍缺硬件/QUDA 版本 |
 | P2 配对区间 | 只有探索性 nested bootstrap，未校准 |
 | 修复后的 GPU 重测 | NOT_RUN（需要集群与新 run 目录） |
