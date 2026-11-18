@@ -282,3 +282,16 @@ def test_energy_target_certificate_behaviour():
     assert same['certified_fraction'] < 0.15
     assert worse['certified_fraction'] < 0.1
     assert better['median_delta'] > 0 > worse['median_delta']
+
+
+def test_hankel_matrix_uses_sum_channels():
+    from tasks.pion_projection.hankel_gevp import build_hankel
+    powers = [0, 2, 4, 8, 16, 32, 64]
+    data = np.arange(2 * 7 * 5, dtype=float).reshape(2, 7, 5)
+    matrix = build_hankel(data, powers, ops=(0, 8))
+    assert matrix.shape == (2, 2, 2, 5)
+    np.testing.assert_array_equal(matrix[:, 0, 0], data[:, 0])
+    np.testing.assert_array_equal(matrix[:, 0, 1], data[:, 3])
+    np.testing.assert_array_equal(matrix[:, 1, 1], data[:, 4])
+    with pytest.raises(ValueError, match='not measured'):
+        build_hankel(data, powers, ops=(8, 16))
