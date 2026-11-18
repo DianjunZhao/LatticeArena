@@ -58,9 +58,10 @@ def _check_draws(risks, spec, draw_ids):
     lengths = {np.asarray(values).size for model in models for values in risks[model].values()}
     if len(lengths) != 1:
         raise ValueError(f'risk draw arrays have different lengths {sorted(lengths)} (broadcasting is not allowed)')
-    if draw_ids is not None and len(draw_ids) != lengths.pop():
+    n_draws = lengths.pop()
+    if draw_ids is not None and len(draw_ids) != n_draws:
         raise ValueError('draw_ids length does not match the risk draws')
-    return models, candidates, lengths.pop()
+    return models, candidates, n_draws
 
 
 def improvement_certificate(risks, spec, draw_ids=None):

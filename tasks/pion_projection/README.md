@@ -204,6 +204,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | S1 评分证书模块 | 已实现 `scoring.py` + `score_spec.example.json` + 合成测试（真实数据仍无法认证） |
 | P0.2/P0.3 GEVP 统计 | 新增 `gevp_stats.py`：去重 → block bootstrap → replica 平均矩阵 → 秩截断 GEVP → forward/cosh 有效能量；已知谱 100 次模拟覆盖率 **0.95**；真实 Gram 数据 forward $E_0=1.0629\pm0.0075$（探索性）；见 [`doc/gevp_stats.md`](../../doc/gevp_stats.md) |
 | P0.1 GEVP 矩阵身份 | 新增 [`doc/gram_operator_identity.md`](../../doc/gram_operator_identity.md) + `gram_identity_check.json`：$M$（sink–sink Gram）与标准 source–sink $C$ 差约 30%，$C$ 的 anti-Hermitian 部分也是 30% → 旧 Gram GEVP 降级为探索性；multisource 才是标准矩阵，但源端核需对齐 |
+| P0.6 联合 resampling | 新增 `joint.py` 与 `python -m tasks.pion_projection.joint`：同一 draw 重拟合参考、同一组 validation 重采样、所有模型/候选共享 draw；产物 `results/pion_projection/joint_20261118/`，因参考 gate 失败而 abstain |
 | P0.4 评分契约 | 新增 [`doc/score_contract.md`](../../doc/score_contract.md)：estimand、证书统计量、独立单位、有效范围、abstain 条件 |
 | P0.5 schema 强制 | `scoring.py` 现在精确校验模型/候选集合、一维等长 draw、原始正值、invalid 比例、近零 baseline、improvement 门槛；反例测试见 `tests/test_pion_projection.py` |
 | $m_0$ 敏感度扫描 | 分数随 $m_0$ 变化约 7 倍、排序在 1.06 附近翻转（`score_diagnostics_v2/m0_scan.json`） |

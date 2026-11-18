@@ -76,3 +76,18 @@ Bonferroni 只在下界各自有覆盖时提供同时覆盖；它不能修复失
 | baseline 近零（低于分辨尺度） | abstain |
 | 参考未认证 / anchor 缺失 | abstain，score `null` |
 | 错误激发态、集合外模型 | 不在认证范围，拒绝 |
+
+## 6. 联合 resampling 的实现（P0.6）
+
+`tasks/pion_projection/joint.py` 实现了 4.2/4.3 的联合方案：
+
+1. 每个 draw 先重采样 development blocks，重拟合参考（single / two-state），并在同一份重采样数据内
+   bootstrap 参考质量；
+2. 同一 draw 的参考质量用于所有候选、所有模型；validation block 重采样也按 draw 共享；
+3. 输出 `joint_draws.npz`（draw ID、模型、候选、质量）与 `metric_results.json`（证书、失败原因、
+   per-model 下界、point risks）；
+4. 若 `validation_results.json` 的 `reference_passed=False`，证书强制 abstain，所有候选
+   `certified=False`——即使下界很大。
+
+示例（探索性）：`results/pion_projection/joint_20261118/`，200×64，single+twostate 两个模型，
+因参考 gate 失败而 abstain。

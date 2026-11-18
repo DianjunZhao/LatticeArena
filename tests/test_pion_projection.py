@@ -366,3 +366,18 @@ def test_gevp_dedupe_and_known_spectrum():
     summary = summarise(energies, (4, 5, 6), 0)
     assert summary['energy'] == pytest.approx(0.80, abs=0.01)
     assert summary['se'] > 0 and not failures
+
+
+def test_joint_draws_share_ids_and_abstain_on_failed_gate(tmp_path):
+    from pathlib import Path
+    from tasks.pion_projection.joint import run
+    run_dir = 'results/pion_projection/s16t16_gevp200'
+    if not Path(run_dir, 'validation_results.json').exists():
+        pytest.skip('run data not available')
+    certificate = run(run_dir, models=('single',), outer=4, inner=4, dest=tmp_path)
+    draws = np.load(tmp_path / 'joint_draws.npz')
+    assert draws['draw_id'].tolist() == [0, 1, 2, 3]
+    assert 'risk_single_local' in draws
+    assert certificate['status'] == 'abstain'
+    assert certificate['failure_reasons'] == ['reference_gate_failed']
+    assert not any(row['certified'] for row in certificate['candidates'].values())
