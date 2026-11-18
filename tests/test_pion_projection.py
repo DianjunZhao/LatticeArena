@@ -520,3 +520,18 @@ def test_verify_run_identity_rejects_tampering(tmp_path):
     (tmp_path / 'submission.json').write_text(json.dumps(sub))
     kind, reasons = verify_run_identity(tmp_path)
     assert any('development data hash' in reason for reason in reasons)
+
+
+def test_draw_ids_reject_duplicates_and_reordering():
+    from tasks.pion_projection.scoring import improvement_certificate
+    base = np.ones(50)
+    risks = {'m': {'local': base, 'c': base * 0.5}}
+    spec = score_spec(require_draw_ids=True)
+    ids = np.arange(50)
+    out = improvement_certificate(risks, spec, draw_ids=ids)
+    assert out['candidates']['c']['certified']
+    with pytest.raises(ValueError, match='duplicates'):
+        improvement_certificate(risks, spec, draw_ids=np.zeros(50, dtype=int))
+    with pytest.raises(ValueError, match='reordered'):
+        improvement_certificate(risks, spec, draw_ids=ids,
+                                draw_ids_by_name={'c': ids[::-1]})

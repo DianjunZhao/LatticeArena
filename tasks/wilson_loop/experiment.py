@@ -89,9 +89,15 @@ def evaluate(output):
     windows = frozen['windows']
     v_ref = np.array(frozen['identity']['v'])
     nominal = p['reference_nominal_window']
-    results = {spec['name']: risk(data[:, k], index, windows, p['t_values'], v_ref, nominal=nominal)
-               for k, spec in enumerate(p['kernels'])}
-    base = results['identity']['risk']
+    results = {}
+    for k, spec in enumerate(p['kernels']):
+        try:
+            results[spec['name']] = risk(data[:, k], index, windows, p['t_values'], v_ref, nominal=nominal)
+        except ValueError as exc:
+            results[spec['name']] = {'invalid_reason': str(exc), 'risk': None, 'score': None}
+    base = results['identity'].get('risk')
+    if base is None:
+        raise ValueError('identity risk is invalid; refusing to score')
     eps = p['score_epsilon']
     for value in results.values():
         value['loss_ratio_vs_identity'] = (base + eps) / (value['risk'] + eps)

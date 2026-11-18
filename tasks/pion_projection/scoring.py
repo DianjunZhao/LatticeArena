@@ -62,11 +62,17 @@ def _check_draws(risks, spec, draw_ids):
     return models, candidates, n_draws
 
 
-def improvement_certificate(risks, spec, draw_ids=None):
+def improvement_certificate(risks, spec, draw_ids=None, draw_ids_by_name=None):
     """Certify (or refuse) a simultaneous improvement over the baseline."""
     spec = validate_spec(spec)
     if spec.get('require_draw_ids') and draw_ids is None:
         raise ValueError('this certificate requires explicit draw_ids')
+    if draw_ids_by_name is not None:
+        if draw_ids is None:
+            raise ValueError('draw_ids_by_name requires the shared draw_ids')
+        for name, ids in draw_ids_by_name.items():
+            if not np.array_equal(np.asarray(ids), np.asarray(draw_ids)):
+                raise ValueError(f'{name}: draw ids are reordered relative to the shared draw axis')
     models, candidates, n_draws = _check_draws(risks, spec, draw_ids)
     if draw_ids is not None and 'draw_ids_hash' in spec:
         import hashlib

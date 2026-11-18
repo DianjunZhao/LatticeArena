@@ -116,6 +116,7 @@ python -m pytest -q tests/test_wilson_loop.py
 | F0 证据 schema | 新增 `core/evidence.py`、`core/operator_checks.py`、`scripts/audit_run.py`、`scripts/summarize_evidence.py`；wilson v3 与 pion 200 各产出一份同 schema 证据（`results/*/evidence/`）；见 [`doc/evidence_framework.md`](../../doc/evidence_framework.md) |
 | P3 两态谱反例 | 新增 `spectral_physical.py` + `results/wilson_loop/spectral_physical_v1/`：$W=c_0e^{-E_0T}+c_1e^{-E_1T}$ 扫描 $c_1$；spread gate 全部通过而 bias/SE 到 32.5，`window_z` 在 $c_1\ge0.2$ 才超 3；有限 $N_t$ 谱写入文档 |
 | P3 物理质量门控 | 新增 `spectral_quality.py` + `doc/wilson_spectral_quality.md`：合成“平但错”反例（偏差 170σ、risk $2.7\times10^{-7}$、gate 通过）；v3/v4 窗口 $V$ 图；`reference_nominal_window` 改为显式 spec |
+| P2 invalid 接入 | `statistics.risk` 现在对非有限/非正 W fail-closed；`evaluate` 逐核记录 `invalid_reason`；`paired` 剔除无效 draw 并记录 `invalid_draws`，比例超 5% 即拒绝 |
 | P2 点值/jackknife/coverage | `paired_audit_v2/`：归档点值（v2 0.967–1.055）与诊断重算分列；jackknife 改为 leave-one-block-out；非退化 coverage（已知增益/零效应各 0.983，60 次模拟） |
 | P2 无效样本计数 | 新增 `invalid_audit.py` + `results/wilson_loop/invalid_audit_v1/`：预声明 mean/bootstrap 非正、NaN、零分母规则；v2/v3/v4 计数全为 0（规则未触发）；合成数据单测覆盖计数路径 |
 | P2 配对统计审计 | 新增 `paired_audit.py` + `results/wilson_loop/paired_audit_v1/`：v2 点值 1.07–1.18 vs 嵌套中位数 3.0–3.4（唯一 block 分布、jackknife 0.49–4.53、相关性 0.14–0.30 解释）；`probability_better` 改名 `exceedance_fraction` |

@@ -26,6 +26,8 @@ def check_draws(risks, draw_ids=None, finite=True):
         ids = np.asarray(draw_ids)
         if ids.ndim != 1 or ids.size != n:
             raise ValueError('draw_ids must be a one-dimensional array of the same length')
+        if np.unique(ids).size != n:
+            raise ValueError('draw_ids contain duplicates; each draw must be unique')
         digest = hashlib.sha256(np.asarray(ids, dtype=np.int64).tobytes()).hexdigest()
         return n, digest
     return n, None
