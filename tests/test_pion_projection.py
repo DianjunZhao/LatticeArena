@@ -422,3 +422,24 @@ def test_measurement_plan_schema():
         validate_plan(broken)
     with pytest.raises(ValueError, match='status'):
         validate_plan(dict(plan, status='MAYBE'))
+
+
+def test_pion_develop_records_run_state(tmp_path, monkeypatch):
+    import json
+    import shutil
+    from pathlib import Path
+    from tasks.pion_projection import common, experiment
+    run = Path('results/pion_projection/s16t16_v1')
+    if not (run / 'development.npz').exists():
+        pytest.skip('v1 development data not available')
+    shutil.copy(run / 'development.npz', tmp_path / 'development.npz')
+    shutil.copy(run / 'development_provenance.json', tmp_path / 'development_provenance.json')
+    protocol = json.loads((run / 'protocol.json').read_text())
+    monkeypatch.setattr(common, 'protocol', lambda: protocol)
+    monkeypatch.setattr(experiment, 'protocol', lambda: protocol)
+    experiment.develop(tmp_path)
+    frozen = json.loads((tmp_path / 'submission.json').read_text())
+    statuses = frozen['run_state']['status']
+    assert statuses['operator'] == 'validated' and statuses['numerical'] == 'validated'
+    assert statuses['reference'] in ('validated', 'failed')
+    assert statuses['statistical'] == 'validated'

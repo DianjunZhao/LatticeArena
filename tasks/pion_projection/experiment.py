@@ -6,6 +6,8 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import minimize
 
+from core.state import RunState
+
 from .common import digest, fingerprint, load_data, protocol, write_json
 from .reference import make_reference, reference_kind, reference_spec, verify_reference
 from .statistics import blocks, bootstrap_indices, fold, inverse_covariance, risk
@@ -105,6 +107,21 @@ def develop(output):
     submissions = {'local': basis[0].tolist(), 'tuned_gaussian': basis[best].tolist(),
                    'agent_signed_mixture': weights.tolist()}
     metrics = {name: late_metric(data, w, p).tolist() for name, w in submissions.items()}
+    state = RunState()
+    state.set('operator', 'draft', 'kernels.py')
+    state.set('operator', 'validated', 'tests/test_pion_projection.py')
+    state.set('numerical', 'draft', 'condition numbers / floor diagnostics')
+    state.set('numerical', 'validated', 'results/pion_projection/score_diagnostics_v3/')
+    state.set('reference', 'draft', 'single-cosh calibration')
+    if calibration['reference_passed']:
+        state.set('reference', 'validated', 'reference gate passed')
+    else:
+        state.set('reference', 'failed', '; '.join(calibration['failure_reasons']))
+    state.set('statistical', 'draft', 'block bootstrap')
+    state.set('statistical', 'validated', f'{len(data)} blocks, {p["bootstrap_samples"]} draws')
+    state.set('comparison', 'draft', 'risk ratios')
+    if not calibration['reference_passed']:
+        state.set('comparison', 'failed', 'reference gate failed')
     frozen = {'protocol_hash': fingerprint(p), 'development_sha256': digest(output/'development.npz'),
               'statistics_sha256': digest(Path(__file__).with_name('statistics.py')),
               'kernel_sha256': digest(Path(__file__).with_name('kernels.py')),
@@ -113,7 +130,7 @@ def develop(output):
               'late_inverse_covariances': metrics, 'selected_gaussian_power': p['powers'][best],
               'optimizer': {'converged_starts': len(outcomes), 'objective': float(fit.fun),
                             'iterations': int(fit.nit), 'l1': float(abs(fit.x).sum())},
-              'calibration': calibration, 'reference': spec}
+              'calibration': calibration, 'reference': spec, 'run_state': state.summary()}
     write_json(output/'development_results.json', {'basis': baseline_results, 'agent': candidate_result})
     write_json(output/'submission.json', frozen)
     np.savez_compressed(output/'reference_bootstrap.npz', masses=mb, indices=index)
@@ -171,7 +188,16 @@ def evaluate(output):
     model = make_reference(dev, p, p['reference_windows'][p['reference_nominal_window']], kind)
     reference, mb = model.bootstrap(bootstrap_indices(len(dev), p['bootstrap_samples'], p['seed']))
     vi = bootstrap_indices(len(val), p['bootstrap_samples'], p['seed']+1)
+    state = RunState()
+    frozen_state = frozen.get('run_state', {})
+    for name in ('operator', 'reference', 'numerical', 'statistical'):
+        state.status[name] = frozen_state.get('status', {}).get(name, 'draft')
+    state.set('comparison', 'draft', 'evaluate')
+    state.observe_validation(f'evaluate:{p["version"]}')
+    if not frozen['calibration']['reference_passed']:
+        state.set('comparison', 'failed', 'reference gate failed')
     report = {'protocol': p, 'submission_sha256': digest(output/'submission.json'),
+              'run_state': state.summary(),
               'validation_sha256': digest(output/'validation.npz'), 'reference': reference,
               'reference_passed': frozen['calibration']['reference_passed'],
               'reference_failure_reasons': frozen['calibration']['failure_reasons'],

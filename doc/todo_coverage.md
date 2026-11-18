@@ -41,7 +41,7 @@
 | F0 证据 schema | ✅ | `core/evidence.py`、`operator_checks.py`、`scripts/audit_run.py`、`summarize_evidence.py` |
 | F1 五类接口 | ✅ | `core/specs/measurement/comparator/search/reference_provider`；一致性 + 缓存失效反例 PASS |
 | F2 LLM/搜索隔离 | ✅ | `core/candidates.validate_weights`、mock 轨迹、`--no-validation` 拦截测试 |
-| F3 状态/账本 | 🟡 | wilson develop/evaluate 已持久化 run_state、measure 带 ledger；pion nested_cv bindings；pion evaluate 与 GPU 账本仍未接 |
+| F3 状态/账本 | 🟡 | wilson/pion 的 develop/evaluate 已持久化 run_state；measure 带 ledger；pion nested_cv bindings；candidate 与 GPU 账本仍未接 |
 | F4 HMC 质量 | 🟡 | manifest 审计（seed/间隔/τ_int=0.512；ΔH/接受率缺失）；toy 可逆性 $10^{-10}$、$\Delta H$ 二阶；生产 ΔH/接受率/多 rank ⛔ |
 
 结论：P0–P3 与 F0–F2 完成；F3 部分；F4 的 toy 通过、生产证据缺失；P4 仅设计。

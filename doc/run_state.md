@@ -59,6 +59,9 @@ baseline、score spec、搜索预算、seed、`validation_observed=False`。
 - **wilson `evaluate`**：从冻结的 run_state 继承前四个状态，评估后写 `comparison` 并永久记录
   `validation_observed`；
 - **wilson `measure`**：provenance 现在带 `ledger`（setup/kernel 阶段、设备、精度、并行度）；
+- **pion `develop`**：`submission.json` 带 `run_state`（operator/numerical/reference/statistical/
+  comparison；reference gate 失败时 reference/comparison 为 failed）；
+- **pion `evaluate`**：继承冻结状态、写 comparison、永久记录 `validation_observed`；
 - **pion `nested_cv`**：`fold_plan.json` 的 bindings（split/block/bootstrap/reference/baseline/
   score spec/搜索预算/seed/validation 未观察）；
 - **pion consistency**：`core/comparator` 与证书的 4 个下界逐位一致（same-draw 跨入口）。
@@ -68,7 +71,7 @@ baseline、score spec、搜索预算、seed、`validation_observed=False`。
 
 ## 6. 未做（NOT_RUN）
 
-- pion `evaluate`/`candidate` 的持久化 run_state（当前只有 wilson）；
+- pion `candidate` 的持久化 run_state（evaluate 已接）；
 - 真实 GPU 计时账本（device/cache/parallel 字段已就绪，但没有新测量）；
 - 跨 task 的统一 same-draw 入口（pion 有 draw ID，wilson 用同一 block index，但未统一生成）。
 
