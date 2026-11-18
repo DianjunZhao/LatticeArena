@@ -207,6 +207,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | P1.3 120-dev 参考诊断 | 新增 `diagnostics_200.py` + `results/pion_projection/score_diagnostics_v3/`：协方差谱（15/12/9 维，rank 满、条件数 $10^6$–$10^8$）、block×shrinkage 全失败、$m_0$ 随窗口从 1.44 掉到 1.08、两态 profile 半宽/SE=2.7；见 `score_diagnostics_v3/README.md` |
 | P0.2/P0.3 GEVP 统计 | 新增 `gevp_stats.py`：去重 → block bootstrap → replica 平均矩阵 → 秩截断 GEVP → forward/cosh 有效能量；已知谱 100 次模拟覆盖率 **0.95**；真实 Gram 数据 forward $E_0=1.0629\pm0.0075$（探索性）；见 [`doc/gevp_stats.md`](../../doc/gevp_stats.md) |
 | P0.1 GEVP 矩阵身份 | 新增 [`doc/gram_operator_identity.md`](../../doc/gram_operator_identity.md) + `gram_identity_check.json`：$M$（sink–sink Gram）与标准 source–sink $C$ 差约 30%，$C$ 的 anti-Hermitian 部分也是 30% → 旧 Gram GEVP 降级为探索性；multisource 才是标准矩阵，但源端核需对齐 |
+| §6.1 能量估计实验 | 新增 `energy_experiment.py` + `results/pion_projection/energy_target_v1/`：单 cosh 偏差 0.0065/覆盖率 0、两态无偏但 SE 0.039、基态消失偏差 0.33/覆盖率 0；$N_{\rm boot}$ 从 50→800 使 naive SE 缩小 4 倍而独立数据集 SE 不随其变化；真实 anchor NOT_RUN |
 | F3 状态/账本切片 | 新增 `core/state.py`（子状态、合法迁移、score 可空、validation 观察永久）与 `core/ledger.py`（分阶段/环境账本，拒绝混合设备）；`nested_cv` 的 `fold_plan.json` 增加 bindings；见 [`doc/run_state.md`](../../doc/run_state.md) |
 | F1 接口切片 5 | 新增 `core/search.py`（Budget + search + SearchResult）；`agents/loop.py` 的每轮候选已改走该路径，非法/异常候选带原因记录 |
 | F1 接口切片 3–4 | 新增 `core/measurement.py`（bundle + 能力声明 + 拒绝）与 `core/comparator.py`（共享 draw 校验、paired ratio、log 下界）；`scoring.py` 已改为调用 comparator；pion bundle 声明 linear_response=True、cross_matrix=False |
