@@ -202,6 +202,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | C2 GEVP | 合成验证通过；真实数据 2×2（$E_0=1.067\pm0.010$）与补测 $H^{24}$ 后的 3×3（dev 1.026±0.017 / val 0.997±0.018）**都无平台** → Gram GEVP（2–3 族算符）在 $t=3$–$5$ 给出 $m_0\approx1.02$–$1.05$，偏向两态参考（1.057）而非单 cosh（1.086）；$t=6$ 噪声大，仍不足以认证 |
 | C3 能量目标 | 合成数据验证通过（`energy_target.py`，认证/拒绝/无差别三种场景）；真实数据 NOT_RUN（需要独立 anchor） |
 | S1 评分证书模块 | 已实现 `scoring.py` + `score_spec.example.json` + 合成测试（真实数据仍无法认证） |
+| $m_0$ 敏感度扫描 | 分数随 $m_0$ 变化约 7 倍、排序在 1.06 附近翻转（`score_diagnostics_v2/m0_scan.json`） |
 
 ## S1 评分证书模块（`scoring.py`）
 
