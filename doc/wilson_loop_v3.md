@@ -87,3 +87,25 @@ WILSON_PROTOCOL=tasks/wilson_loop/protocol_v3.json python -m tasks.wilson_loop \
 WILSON_PROTOCOL=tasks/wilson_loop/protocol_v3.json WILSON_RUN=results/wilson_loop/s16t16_v3 \
   python -m tasks.wilson_loop.paired
 ```
+
+## 7. 扩展：加入 $R=4$（v4）
+
+同一个 200 组态系综上把 $R$ 扩到 4（`protocol_v4.json`，留出 80 组态 / 16 blocks）：
+
+| 核 | $V(4)$ | SE(4) | 留出 risk | 留出 score |
+| --- | ---: | ---: | ---: | ---: |
+| identity | 0.8022 | 0.0233 | $2.79\times10^{-4}$ | 100 |
+| APE(0.4, 5) | 0.7840 | 0.0068 | $4.20\times10^{-5}$ | 663.3 |
+| APE(0.4, 10) | 0.7844 | 0.0059 | $3.74\times10^{-5}$ | 745.8 |
+| APE(0.6087, 10) | 0.7846 | 0.0053 | $3.45\times10^{-5}$ | **808.0** |
+
+配对分析（500×500）：中位数 6.6 / 8.2 / 9.5，95% 区间 [2.49, 21.6] 等，**全部不含 1**，
+$P(\\text{优于 identity})=1.0$。
+
+- 在 $R=4$ 上涂抹的收益最大：identity 的 SE 是 0.0233，APE 约 0.005–0.007（3–4 倍改善）；
+- $V(4)$ 的中心值从 0.802 移到 0.784；
+- **但分数尺度与 v3 不可比**：$R=4$ 的 identity 噪声把 baseline risk 抬高了 5 倍（$2.8\\times10^{-4}$
+  vs $5.6\\times10^{-5}$），所以 663–808 不是“比 v3 更好”，而是换了 $R$ 集合后的新刻度。
+
+结论：v4 把“涂抹对大 $R$ 最有用”这件事量化了，也再次确认改善显著；正式报告仍以 v3 为主，
+v4 作为 $R$ 依赖的补充。
