@@ -350,3 +350,13 @@ def test_estimator_regression_runs():
     result = run(n_dataset=5, n_boot=20)
     assert set(result['summary']) == {'train', 'test'}
     assert abs(result['summary']['train']['bias_mean']) < 1e-2
+
+
+def test_adapt_instance_contract_and_search():
+    from tasks.optimize_gaussian.adapt import contract_checks, search_theta
+    import numpy as np
+    rng = np.random.default_rng(0)
+    checks = contract_checks(rng)
+    assert all(checks['contract'][k] for k in ('linear_in_field', 'hermitian', 'identity_at_theta0'))
+    info = search_theta(rng)
+    assert info['accepted'] == 3 and info['rejected'] == 1
