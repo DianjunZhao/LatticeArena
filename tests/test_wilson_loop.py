@@ -236,3 +236,21 @@ def test_protocol_v2_documents_the_normalization_change():
     for kernel in p['kernels'][1:]:
         old = kernel['equivalent_v1_alpha']
         assert kernel['alpha'] == pytest.approx(2 * old / (3 - old), rel=1e-4)
+
+
+def test_paired_ratios_are_one_for_identical_kernels_and_below_one_for_noise():
+    from tasks.wilson_loop.common import protocol
+    from tasks.wilson_loop.paired import paired_ratios
+    p = protocol()
+    t = np.array(p['t_values'], dtype=float)
+    v = np.array([0.4, 0.55, 0.7])
+    base = np.exp(-np.outer(v, t))
+    blocks = 6
+    same = np.repeat(base[None, None], blocks, axis=0).repeat(2, axis=1)
+    rng = np.random.default_rng(0)
+    noisy = same.copy()
+    noisy[:, 1] *= np.exp(0.01 * rng.normal(size=noisy[:, 1].shape))
+    r_same = paired_ratios(same, p['reference_windows'], p['t_values'], v, outer=40, inner=40, seed=1)
+    r_noisy = paired_ratios(noisy, p['reference_windows'], p['t_values'], v, outer=40, inner=40, seed=1)
+    np.testing.assert_allclose(r_same, 1.0, rtol=1e-12)
+    assert np.median(r_noisy) < 1.0

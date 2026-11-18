@@ -104,7 +104,7 @@ python -m pytest -q tests/test_wilson_loop.py
 | P0 staple 归一化 | 已从 `/6` 改为 `/4`；`alpha` 数值口径变化（旧 α ↔ 新 $2\alpha/(3-\alpha)$） |
 | 旧 APE 结果 | **失效**（旧投影不协变），保留为历史诊断；identity 不受影响 |
 | P1 provenance | 部分完成：NPZ/loop 校验、每配置 gauge sha256、kernel hash、计时、git commit/dirty、原子保存；`evaluate` 现在校验 development SHA、kernel hash 与 kernel 参数；仍缺硬件/QUDA 版本 |
-| P2 配对区间 | 只有探索性 nested bootstrap，未校准 |
+| P2 配对区间 | 已写好预注册的 `paired.py`（outer 500 × inner 500，统计量 risk(identity)/risk(candidate)，报告中位数/95% 区间/P(优于 identity)）；在 v1 归档上做了 pipeline demo，标记 `legacy_non_covariant`；等 v2 重测数据重跑 |
 | v2 协议（alpha/4 + 极分解） | 已准备（`protocol_v2.json`），可用 `WILSON_PROTOCOL` 选择 |
 | 修复后的 GPU 重测 | NOT_RUN（需要集群与新 run 目录） |
 
