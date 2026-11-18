@@ -155,7 +155,9 @@ def test_basis_cache_rejects_identity_change(tmp_path):
     for mutated in (basis_key(p, 8, W, [0, 1], [2, 3]),
                     basis_key(p, 7, W + 1, [0, 1], [2, 3]),
                     basis_key(p, 7, W, [0, 1], [2, 4]),
-                    basis_key({**p, 'base_steps': 9}, 7, W, [0, 1], [2, 3])):
+                    basis_key({**p, 'base_steps': 9}, 7, W, [0, 1], [2, 3]),
+                    basis_key(p, 7, W, [0, 1], [2, 3], dependencies={'train.py': 'changed'}),
+                    basis_key(p, 7, W, [0, 1], [2, 3], inputs={'gauge': {'0': 'changed'}})):
         with pytest.raises(ValueError, match='does not match'):
             load_basis(tmp_path / 'b.npz', mutated)
     np.savez(tmp_path / 'legacy.npz', C_fit=np.zeros(1), C_dev=np.zeros(1))

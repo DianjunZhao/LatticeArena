@@ -47,11 +47,28 @@ def run_manifest(p, W, theta, fit_ids, devval_ids, test_ids, cache):
             'statistics_sha256': digest(here.parent / 'pion_projection' / 'statistics.py')}
 
 
-def basis_key(p, seed, W, fit_ids, dev_ids):
-    return {'protocol': fingerprint(p), 'seed': seed, 'W': np.asarray(W).tolist(),
-            'steps': p['base_steps'], 'alpha': p['base_alpha'], 'hidden': p['hidden'],
-            'fit_ids': list(fit_ids), 'dev_val_ids': list(dev_ids),
-            'features': FEATURE_VERSION}
+def input_digests(p, ids, cache):
+    """Content hashes of the gauge files and propagators a basis is built from."""
+    return {'gauge': {str(i): digest(f"{p['ensemble']}/wilson_b6.{i}") for i in ids},
+            'propagator': {str(i): digest(f".cache/pion_projection/propagators/{cache[i]}.npy")
+                           for i in ids}}
+
+
+def basis_key(p, seed, W, fit_ids, dev_ids, cache=None, inputs=None, dependencies=None):
+    here = Path(__file__).parent
+    key = {'protocol': fingerprint(p), 'seed': seed, 'W': np.asarray(W).tolist(),
+           'steps': p['base_steps'], 'alpha': p['base_alpha'], 'hidden': p['hidden'],
+           'fit_ids': list(fit_ids), 'dev_val_ids': list(dev_ids),
+           'features': FEATURE_VERSION,
+           'dependencies': dependencies if dependencies is not None else
+           {name: digest(here / name) for name in
+            ('features.py', 'kernels.py', 'submission.py', 'train.py')},
+           'statistics': digest(here.parent / 'pion_projection' / 'statistics.py')}
+    if inputs is not None:
+        key['inputs'] = inputs
+    elif cache is not None:
+        key['inputs'] = input_digests(p, list(fit_ids) + list(dev_ids), cache)
+    return key
 
 
 def save_basis(path, key, C_fit, C_dev):
@@ -214,7 +231,7 @@ def main():
     for seed in p['seeds']:
         W = model_space(p, seed)
         cache_file = out / f'basis_s{seed}.npz'
-        key = basis_key(p, seed, W, fit_ids, devval_ids)
+        key = basis_key(p, seed, W, fit_ids, devval_ids, cache=cache)
         if cache_file.exists():
             C_fit, C_dev = load_basis(cache_file, key)
         else:
