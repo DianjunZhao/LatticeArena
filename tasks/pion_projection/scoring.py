@@ -7,6 +7,8 @@ and the joint draws are trustworthy.
 """
 import numpy as np
 
+from core.comparator import check_draws, log_lower_bound
+
 SCHEMA = 'pion-score-v1'
 REQUIRED = ('schema', 'version', 'estimand', 'baseline_id', 'accepted_models',
             'candidate_ids', 'analysis_version', 'alpha', 'comparison_family',
@@ -55,12 +57,8 @@ def _check_draws(risks, spec, draw_ids):
     candidates = [name for name in risks[models[0]] if name != baseline]
     if set(candidates) != set(spec['candidate_ids']):
         raise ValueError(f'candidate ids {sorted(candidates)} are not the declared set {sorted(spec["candidate_ids"])}')
-    lengths = {np.asarray(values).size for model in models for values in risks[model].values()}
-    if len(lengths) != 1:
-        raise ValueError(f'risk draw arrays have different lengths {sorted(lengths)} (broadcasting is not allowed)')
-    n_draws = lengths.pop()
-    if draw_ids is not None and len(draw_ids) != n_draws:
-        raise ValueError('draw_ids length does not match the risk draws')
+    flat = {f'{model}/{name}': np.asarray(values) for model in models for name, values in risks[model].items()}
+    n_draws, _ = check_draws(flat, draw_ids)
     return models, candidates, n_draws
 
 
@@ -88,17 +86,14 @@ def improvement_certificate(risks, spec, draw_ids=None):
             raw_cand = np.asarray(risks[model][name], dtype=float)
             valid = np.isfinite(raw_base) & np.isfinite(raw_cand) & (raw_base > 0) & (raw_cand > 0)
             row['invalid_draws'] += int((~valid).sum())
-            base = raw_base[valid] + floor
-            cand = raw_cand[valid] + floor
-            if len(base) == 0:
+            low, _ = log_lower_bound(raw_base, raw_cand, level, floor)
+            if low is None:
                 row['per_model_lower_bound'][model] = None
                 bounds.append(-np.inf)
                 continue
-            d = np.log(base) - np.log(cand)
-            low = float(np.quantile(d, level))
-            row['per_model_lower_bound'][model] = low
-            row['per_model_median_improvement'][model] = float(np.median(d))
-            bounds.append(low)
+            row['per_model_lower_bound'][model] = float(low)
+            row['per_model_median_improvement'][model] = float(np.median(np.log(raw_base[valid]) - np.log(raw_cand[valid])))
+            bounds.append(float(low))
         row['lower_bound'] = float(min(bounds))
         row['improvement_lower_bound'] = float(np.exp(min(bounds))) if np.isfinite(min(bounds)) else 0.0
         out['candidates'][name] = row

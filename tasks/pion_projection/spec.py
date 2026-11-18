@@ -30,3 +30,30 @@ def operator_contract_for():
         dependencies={'kernels': digest(Path(__file__).with_name('kernels.py'))},
         constraints={'hermitian': True, 'zero_momentum': True, 'gauge_covariant': True},
     )
+
+
+def bundle_for(run):
+    """Measurement bundle for a pion run (arrays + manifest + capabilities)."""
+    import json
+
+    import numpy as np
+
+    from core.io import fingerprint
+    from core.measurement import bundle
+
+    run = Path(run)
+    p = json.loads((run / 'development_provenance.json').read_text())['protocol']
+    arrays = {}
+    splits = {}
+    for split in ('development', 'validation'):
+        path = run / f'{split}.npz'
+        if not path.exists():
+            continue
+        with np.load(path) as f:
+            arrays[split] = f['correlators'].copy()
+            splits[split] = {'n': int(f['correlators'].shape[0]),
+                             'protocol_hash': str(f['protocol_hash'])}
+    manifest = {'protocol_hash': fingerprint(p), 'splits': splits,
+                'powers': p['powers'], 'alpha': p['alpha']}
+    return bundle('pion_projection', arrays, manifest,
+                  {'linear_response': True, 'cross_matrix': False, 'new_source': False})

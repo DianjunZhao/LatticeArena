@@ -45,9 +45,35 @@ ReferenceProvider/Metric、SearchAdapter）仍未抽取**，任务仍直接调�
 | pion | `pion-kernel-v1` | `(z,y,x,3,nrhs)` | spin_scalar | time_slice |
 | wilson | `wilson-kernel-v1` | `(mu,t,z,y,x,3,3)` | gauge_covariant | spacetime_local |
 
-## 4. 未做（NOT_RUN）
+## 4. Measurement bundle（第 3 类，已完成最小切片）
 
-- MeasurementProvider/Bundle（声明 linear_response / cross_matrix / new_source 能力）；
+`core/measurement.bundle(task, arrays, manifest, capabilities)` + `require()`：
+
+- 能力声明：`linear_response`、`cross_matrix`、`new_source`，缺哪个就拒绝哪个
+  （`UnsupportedCapability`），绝不从单源/对角缓存推断缺失响应；
+- 校验数组非空、有限，manifest 是映射，能力必须是 bool。
+
+两个 task 的 adapter：
+
+| task | arrays | linear_response | cross_matrix | new_source |
+| --- | --- | --- | --- | --- |
+| pion | development/validation 关联函数 | True | False | False |
+| wilson | development/validation 圈 | False | False | False |
+
+## 5. Comparator（第 4 类，已完成最小切片）
+
+`core/comparator.py`：
+
+- `check_draws(risks, draw_ids)`：所有数组必须等长，禁止广播；可返回 draw_ids 的 hash；
+- `paired_ratio(baseline, candidate)`：中位数、中心 95% 区间、exceedance fraction；
+- `log_lower_bound(baseline, candidate, level, floor)`：pion 证书用的对数下界。
+
+`tasks/pion_projection/scoring.py` 已改为调用这两个函数（真实复用，而不是复制逻辑）。
+
+## 6. 未做（NOT_RUN）
+
+- ReferenceProvider（把参考质量的抽取独立成接口；当前各 task 直接调自己的 reference）；
+- SearchAdapter（optimizer 与 LLM 的统一候选、预算与 evaluator）；
 - ReferenceProvider/Metric/Comparator（共享 draw ID 与 baseline 身份）；
 - SearchAdapter（optimizer 与 LLM 的统一候选、预算与 evaluator）；
 - 跨 task 的缓存失效反例与统计一致性报告。
