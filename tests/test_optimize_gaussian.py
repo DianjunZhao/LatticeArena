@@ -277,3 +277,13 @@ def test_teacher_seven_power_basis_gap():
     assert result['hermiticity_H'] < 1e-12 and result['hermiticity_Q'] < 1e-12
     assert result['augmented_error'] < 1e-10
     assert result['seven_power_error'] > result['spectral_floor']
+
+
+def test_p3_teacher_spectral_vs_augmented():
+    from tasks.optimize_gaussian.p3_teacher import run
+    result = run(shape=(2, 2, 2), seed=11, n_probe=16)
+    assert result['status'] == 'PASS'
+    rows = result['rows']
+    assert rows[0]['spectral_test_error'] < 1e-10
+    assert rows[-1]['spectral_test_error'] > 1e-3
+    assert rows[-1]['augmented_test_error'] < 1e-10

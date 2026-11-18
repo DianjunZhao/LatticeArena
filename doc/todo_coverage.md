@@ -55,7 +55,7 @@
 | P0.3 audit 与措辞修正 | ✅ | audit.py 按 manifest 分类（v9 = current_operator_diagnostic）；显式 --out 拒绝覆盖；dev_val 不回退；措辞已改“未检出差异” |
 | P1 统一统计/fold-local | 🟡 | `unified.py`：同一入口复算 local/SLSQP 逐位一致；3 折 fold-local 比率 88–251；学习核重算与整链 nested CV 仍 ⛔ |
 | §P2 函数类实验 | 🟡 | `teacher_check.py`：七幂基对非对易 teacher 的误差 0.01268 > 谱外 0.01239，增广基 1.8e-16；训练的 class×optimizer 实验 ⛔（GPU） |
-| §P3 共同目标预测 | ⛔ | 未做 |
+| §P3 最小判别实验 | 🟡 | CPU 跨样本 teacher PASS（ε=0 恢复、ε=0.1 谱类 0.0127 vs 增广 6.7e-16）；GPU class×optimizer/消融 ⛔（[`doc/optimize_p3_design.md`](optimize_p3_design.md)） |
 
 结论：只有 P0.1 完成；P0.2/P0.3 是下一轮的直接工作。
 

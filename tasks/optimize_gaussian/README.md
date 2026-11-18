@@ -376,6 +376,7 @@ python -m tasks.optimize_gaussian.compare_plot
 | 规范不变 / 厄米 / 协变 / 立方对称 | 已测（`tests/test_optimize_gaussian.py`） |
 | A1+ 横向交换 | 已改为对称输入 $(s_1+s_2,\,s_1s_2)$ 并测试；全群通过 |
 | 训练线性响应 vs 直接关联函数 | 已测（误差 < 1e-11） |
+| P3 CPU teacher（跨样本） | 新增 `p3_teacher.py` + `results/optimize_gaussian/p3_teacher_v1/`：ε=0 谱类误差 $8.5\times10^{-16}$；ε=0.1 谱类 0.0127、增广类 $6.7\times10^{-16}$ → 新类在独立 probe 上确实有效；GPU 第二步见 [`doc/optimize_p3_design.md`](../../doc/optimize_p3_design.md)（NOT_RUN） |
 | P2 teacher 表示检查 | 新增 `teacher_check.py` + `results/optimize_gaussian/teacher_v1/`：真实 kernel 的 $H$ 与非对易 $Q$ 的 teacher，七幂误差 0.01268 > 谱外分量 0.01239，增广基 $1.8\times10^{-16}$ → 七幂基有覆盖盲区；训练实验 ⛔（需 GPU） |
 | P1 统一统计/fold-local | 新增 `unified.py` + `results/optimize_gaussian/unified_v1/`：同一入口复算 local/SLSQP 与归档逐位一致（差 0）；3 折 fold-local 的 local/SLSQP=88/251/207（平均 182±49），说明 fold 比率方差大；a1p 标 archived/PARTIAL |
 | P0.2 basis/输入身份闭包 | basis_key 现在包含依赖 hash（features/kernels/submission/train/statistics）与输入内容摘要（gauge 文件 + propagator 文件 sha256）；mutation 测试覆盖依赖/输入/ID 顺序变更 → 拒绝复用 |
