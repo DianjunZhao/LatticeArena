@@ -311,3 +311,16 @@ def test_validate_inputs_status(tmp_path, monkeypatch):
     p = {'ensemble': str(tmp_path), 'tolerance': 1e-10}
     row = train.validate_inputs(p, [7], {7: 'k'})['7']
     assert row['status'] == 'verified' and row['gauge'] and row['propagator']
+
+
+def test_crosslink_target_and_oracle():
+    import numpy as np
+    from tasks.optimize_gaussian.p3_crosslink import B_of, H_of, samples, su3, target
+    rng = np.random.default_rng(2)
+    links = su3(rng, 0.1) @ su3(rng, 0.5)
+    h, b = H_of(links, (1, 1, 1, 1)), B_of(links, (1, 1, 1, 1))
+    q = target(h, b, 0.0)
+    assert np.linalg.norm(q - q.conj().T) < 1e-12 and abs(np.trace(q)) < 1e-12
+    assert np.linalg.norm(q - (h @ h - np.trace(h @ h) / 3 * np.eye(3))) < 1e-12
+    X, Y = samples(rng, links, 100, 0.1, augmented=True)
+    assert X.shape[1] == 72 + 27 and Y.shape[1] == 9

@@ -381,6 +381,7 @@ python -m tasks.optimize_gaussian.compare_plot
 | P1 整链 fold-local | `unified.py` 新增 fold 内 SLSQP/幂次重选：三折都选 H^32，fold-SLSQP 在 2/3 折优于 tuned；全样本冻结结果不矛盾（fold 仅 4 blocks，比率方差大）；学习核 NOT_RUN |
 | P1 统一统计/fold-local | 新增 `unified.py` + `results/optimize_gaussian/unified_v1/`：同一入口复算 local/SLSQP 与归档逐位一致（差 0）；3 折 fold-local 的 local/SLSQP=88/251/207（平均 182±49），说明 fold 比率方差大；a1p 标 archived/PARTIAL |
 | P0.2 basis/输入身份闭包 | basis_key 现在包含依赖 hash（features/kernels/submission/train/statistics）与输入内容摘要（gauge 文件 + propagator 文件 sha256）；mutation 测试覆盖依赖/输入/ID 顺序变更 → 拒绝复用 |
+| 包C 跨 links teacher | `p3_crosslink.py` + `results/optimize_gaussian/cpu_next_p3_crosslink/`：train/test 独立 links、同一 $Q[U]$ 规则、属性检查；oracle 显示 ε>0 时嵌套类误差 0、谱类 0.06→0.5；SLSQP/Powell 不收敛（nfev 1.3e4–9.4e4），不能读成学习收益 |
 | P0.3 audit 修正 | `audit.py` 按 manifest 分类（v9 = current_operator_diagnostic，v7 及更早 = historical）；显式 `--out` 且拒绝覆盖；`dev_val` 不再回退到 `best_lam2`；产物 `results/optimize_gaussian/audit_v2/audit.json` |
 | P0.1 完整 BCB 闭环 | 已测：`submission.build_kernel` 与线性响应在非立方格点、多 theta 下一致 <1e-10；证据 `results/optimize_gaussian/audit_20261118_bcb/` |
 | 训练缓存 identity | 已加（protocol hash、seed、W、steps、alpha、hidden、IDs、特征版本） |
