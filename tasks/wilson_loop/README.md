@@ -107,6 +107,7 @@ python -m pytest -q tests/test_wilson_loop.py
 | P2 配对区间 | 已写好预注册的 `paired.py`（outer 500 × inner 500，统计量 risk(identity)/risk(candidate)，报告中位数/95% 区间/P(优于 identity)）；在 v1 归档上做了 pipeline demo，标记 `legacy_non_covariant`；等 v2 重测数据重跑 |
 | v2 协议（alpha/4 + 极分解） | 已使用（`protocol_v2.json`），`WILSON_PROTOCOL` 选择 |
 | v2 配对分析 | 已完成（`paired_s16t16_v2`）；点估计 3× 但 95% 区间跨 1，未证明改善 |
+| v3 扩大系综重测 | **已完成**：80 留出组态 / 16 blocks，三个配对区间均不含 1，APE 显著优于 identity |
 | 修复后的 GPU 重测 | **已完成**（`s16t16_v2`，60+30 组态，2026-11-18） |
 
 ## 重新测量准备：v2 协议
@@ -154,3 +155,24 @@ python -m pytest -q tests/test_wilson_loop.py
 
 > 过程中修的两个执行问题：真实 NERSC 头的 `FLOATING_POINT` 是 `IEEE64LITTLE`（不是 `1`/`true`）；
 > 原子保存的临时文件必须以 `.npz` 结尾，否则 numpy 会再追加一个 `.npz`。
+
+## v3：扩大系综后 APE 显著优于 identity（2026-11-18）
+
+v2 的 6 个留出 block 太窄，配对区间跨 1。按 todo 的建议“扩留出集到 60+”，新生成了一套
+200 组态的系综（`data/S16T16B`，接受率 97.7%），开发 0–99、留出 120–199（80 组态 = **16 blocks**）：
+
+| 核 | 留出 risk | 留出 score | 配对中位数 | 95% 区间 | $P(\text{优于 identity})$ |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| identity | $5.625\times10^{-5}$ | 100 | — | — | — |
+| APE(0.4, 5) | $2.136\times10^{-5}$ | **263.3** | 3.08 | [1.32, 5.93] | 0.986 |
+| APE(0.4, 10) | $2.416\times10^{-5}$ | 232.8 | 2.94 | [1.25, 5.82] | 0.982 |
+| APE(0.6087, 10) | $2.535\times10^{-5}$ | 221.9 | 2.84 | [1.17, 6.34] | 0.982 |
+
+**三个配对区间全部不含 1**，这是这个 task 第一次在预注册分析下证明“协变 APE 优于 identity”。
+参考 gate 通过（identity 的 $V(R)=0.41042/0.59893/0.70849$，新系综与 v1 在噪声内一致）。
+
+产物：`results/wilson_loop/s16t16_v3/`、`results/wilson_loop/paired_s16t16_v3/`；
+协议 `tasks/wilson_loop/protocol_v3.json`。
+
+**这也解释了 v2 的“未证明”**：不是 APE 无效，而是 6 个留出 block 的功效不够。v2 与 v3 的
+点估计（约 3 倍改善）一致，v3 只是把区间收窄到了 1 以上。

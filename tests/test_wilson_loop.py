@@ -257,3 +257,13 @@ def test_paired_ratios_are_one_for_identical_kernels_and_below_one_for_noise():
     r_noisy = paired_ratios(noisy, p['reference_windows'], p['t_values'], v, outer=40, inner=40, seed=1)
     np.testing.assert_allclose(r_same, 1.0, rtol=1e-12)
     assert np.median(r_noisy) < 1.0
+
+
+def test_protocol_v3_is_consistent():
+    import json
+    from pathlib import Path
+    p = json.loads(Path('tasks/wilson_loop/protocol_v3.json').read_text())
+    assert p['version'].endswith('-v3')
+    assert p['development'] == [0, 99] and p['validation'] == [120, 199]
+    assert p['gap'] == [100, 119]
+    assert p['kernels'] == json.loads(Path('tasks/wilson_loop/protocol_v2.json').read_text())['kernels']
