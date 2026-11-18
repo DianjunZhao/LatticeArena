@@ -313,3 +313,16 @@ def test_multisource_matrix_and_regularization():
     assert np.all(values > 0)
     with pytest.raises(ValueError, match='match'):
         build_matrix(data, [0, 2, 4, 8, 16, 24, 32, 64], sinks=(0, 4))
+
+
+def test_gram_gevp_floor_makes_positive_semidefinite():
+    from tasks.pion_projection.gram_gevp import floored
+    rng = np.random.default_rng(0)
+    gram = np.zeros((3, 4, 4, 16))
+    for t in range(16):
+        a = rng.normal(size=(4, 4))
+        gram[:, :, :, t] = a @ a.T
+    gram[0, 0, 0, 5] = -1.0
+    fixed = floored(gram)
+    values = np.linalg.eigvalsh(fixed.transpose(0, 3, 1, 2).reshape(-1, 4, 4))
+    assert np.all(values >= 0)
