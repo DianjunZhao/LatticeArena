@@ -425,3 +425,34 @@ def test_invalid_sample_counting():
     assert rows[0]['mean_nonpositive'] == 1
     assert rows[1]['mean_nan'] >= 1
     assert rows[0]['bootstrap_nonpositive'] > 0
+
+
+def test_measure_entry_end_to_end(tmp_path, monkeypatch):
+    import json
+    from pathlib import Path
+    import tasks.wilson_loop.measure as measure_mod
+    from tasks.wilson_loop import common
+    p = json.loads(Path('tasks/wilson_loop/protocol_v3.json').read_text())
+    p = dict(p, version='test-entry', geometry=[4, 4, 4, 16], r_values=[1, 2],
+             kernels=p['kernels'][:2], ensemble=str(tmp_path / 'ensemble'))
+    (tmp_path / 'ensemble').mkdir()
+    for cfg in common.indices('development')[:3] if False else range(3):
+        (tmp_path / 'ensemble' / f'wilson_b6.{cfg}').write_bytes(b'x')
+    rng = np.random.default_rng(3)
+    links = rng.normal(size=(4, 16, 4, 4, 4, 3, 3)) + 1j * rng.normal(size=(4, 16, 4, 4, 4, 3, 3))
+    q, _ = np.linalg.qr(links)
+    links = q / np.linalg.det(q)[..., None, None] ** (1 / 3)
+    monkeypatch.setattr(measure_mod, 'read_nersc', lambda path, geometry=None: links)
+    monkeypatch.setattr(measure_mod, 'protocol', lambda: p)
+    monkeypatch.setattr(common, 'protocol', lambda: p)
+    out = tmp_path / 'out'
+    measure_mod.measure(out, 'development', limit=2)
+    with np.load(out / 'development.npz') as f:
+        assert f['ids'].tolist() == [0, 1] and f['loops'].shape[0] == 2
+    records = json.loads((out / 'development_provenance.json').read_text())['records']
+    assert [r['id'] for r in records] == [0, 1]
+    measure_mod.measure(out, 'development', limit=2)   # resume: no new rows
+    with np.load(out / 'development.npz') as f:
+        assert f['ids'].tolist() == [0, 1] and f['loops'].shape[0] == 2
+    records = json.loads((out / 'development_provenance.json').read_text())['records']
+    assert [r['id'] for r in records] == [0, 1]

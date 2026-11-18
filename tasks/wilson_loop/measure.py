@@ -1,6 +1,7 @@
 """Measure Wilson loops W(R,T) from smeared spatial lines and original temporal links."""
 import os
 import subprocess
+import json
 from pathlib import Path
 from time import perf_counter
 
@@ -60,30 +61,33 @@ def measure(output, split, limit=None):
     spec = measurement_spec(p, split)
     if limit:
         spec = dict(spec, ids=spec['ids'][:limit])
-    start = check_resume(output, split, spec)
-    if start:
-        print(f'resuming {split} from row {start}/{len(ids)}', flush=True)
-    ids = ids[start:]
+    completed = check_resume(output, split, spec)
+    if completed:
+        print(f'resuming {split} from row {completed}/{len(ids)}', flush=True)
+    pending = ids[completed:]
     rows, records = [], []
-    if start:
+    if completed:
         with np.load(output / f'{split}.npz', allow_pickle=False) as f:
             rows = f['loops'].tolist()
-        records = json.loads((output / f'{split}_provenance.json').read_text())['records'][:start]
+        records = json.loads((output / f'{split}_provenance.json').read_text())['records'][:completed]
     kernel_sha = digest(Path(__file__).with_name('kernels.py'))
     ledger = Ledger(device='cupy' if xp is not np else 'cpu', precision='complex128', parallel=1)
-    for cfg in ids:
+    for cfg in pending:
         gauge_path = Path(p['ensemble']) / f'wilson_b6.{cfg}'
-        start = perf_counter()
+        cfg_start = perf_counter()
         u = xp.asarray(read_nersc(gauge_path, p['geometry']))
-        setup = perf_counter() - start
+        setup = perf_counter() - cfg_start
         measured = perf_counter()
         rows.append([loops(build_kernel(u[:3], k), u[3], p) for k in p['kernels']])
         ledger.add('setup', setup).add('kernel', perf_counter() - measured)
         records.append({'id': int(cfg), 'gauge_sha256': digest(gauge_path),
                         'setup_seconds': setup, 'measure_seconds': perf_counter() - measured,
-                        'total_seconds': perf_counter() - start})
+                        'total_seconds': perf_counter() - cfg_start})
+        saved = completed + len(rows)
+        if saved != len(records) or saved != len(spec['ids'][:saved]):
+            raise RuntimeError(f'row accounting mismatch: {saved=} {len(rows)=} {len(records)=}')
         tmp = output / f'.{split}.tmp.npz'
-        np.savez_compressed(tmp, ids=np.asarray(spec['ids'][:start + len(rows)]),
+        np.savez_compressed(tmp, ids=np.asarray(spec['ids'][:saved]),
                             loops=np.asarray(rows), protocol_hash=fingerprint(p),
                             generation=generation(spec))
         os.replace(tmp, output / f'{split}.npz')

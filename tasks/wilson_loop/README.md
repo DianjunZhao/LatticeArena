@@ -115,6 +115,7 @@ python -m pytest -q tests/test_wilson_loop.py
 | P2 配对统计审计 | 新增 `paired_audit.py` + `results/wilson_loop/paired_audit_v1/`：v2 点值 1.07–1.18 vs 嵌套中位数 3.0–3.4（唯一 block 分布、jackknife 0.49–4.53、相关性 0.14–0.30 解释）；`probability_better` 改名 `exceedance_fraction` |
 | P1 恢复故障注入 | `check_resume` 现在校验 provenance 记录数与 id 顺序；故障注入表见 [`doc/run_state.md`](../../doc/run_state.md) §7（generation/前缀/记录不一致均拒绝，残留 tmp 忽略） |
 | P1 可信加载/冻结 | 新增 `identity.py`：generation 写入 NPZ/provenance、resume 只接同 generation 前缀、`read_nersc` 校验头部几何、`trust_status` 只看身份；`paired.main` 改用 `load_data`；v3 归档被判 archived_diagnostic（证据 `results/wilson_loop/audit_20261118_identity/`） |
+| P0 measure 入口修复 | 修掉 `start` 被 `perf_counter()` 覆盖、`spec['ids'][:start+...]` 用浮点切片的 bug；新增端到端 mock reader 测试（空目录/limit/已完成后 resume 不重复测量）；行数逐次核对 |
 | P0 投影数值边界 | 已修：逐矩阵 Newton–Schulz 尺度 + 收敛检查；混尺度 batch 与单矩阵一致（1e-16），rank-2 受控拒绝；证据 `results/wilson_loop/audit_20261118_projection/` |
 | P0 staple 归一化 | 已从 `/6` 改为 `/4`；`alpha` 数值口径变化（旧 α ↔ 新 $2\alpha/(3-\alpha)$） |
 | 旧 APE 结果 | **失效**（旧投影不协变），保留为历史诊断；identity 不受影响 |
