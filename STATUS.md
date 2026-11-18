@@ -53,8 +53,15 @@
 - wilson：NERSC checksum 支持范围、F4 生产 ΔH/接受率、P4 扩展；
 - optimize：GPU class×optimizer 2×2、消融、新盲测、power simulation。
 
+## 结项状态（CPU 范围）
+
+- 三份 todo 的 CPU 必做项均已有代码、反例/诊断与有限结论；
+- 未跑项（pion §6.2/§7、wilson F4 生产 ΔH/接受率、optimize 真实 GPU metadata/2×2/盲测）
+  已逐项标 NOT_RUN 并写明原因；
+- 结论：**CPU 范围可结项**；GPU/新测量需另行授权。
+
 ## 健康检查
 
-- 102 个 CPU 测试通过；
+- 104 个 CPU 测试通过；
 - 所有非公式链接有效；
 - README / 总报告 / 结果 JSON 数字一致。

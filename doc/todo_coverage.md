@@ -1,7 +1,7 @@
 # todo 覆盖报告（2026-11-18，按新开工单第二轮）
 
 对应三份更新后的 `tasks/*/todo.md`。状态：✅ 完成（代码+证据）、🟡 部分、⛔ NOT_RUN。
-基线：最新提交；CPU 测试 **102 项通过**。
+基线：最新提交；CPU 测试 **104 项通过**。
 
 ## 1. pion_projection
 
@@ -52,9 +52,21 @@
 | P2 teacher | 🟡 | 七幂误差 0.01268 > 谱外 0.01239；训练实验 ⛔ |
 | P3 CPU 判别 | 🟡 | 跨样本 teacher PASS（ε=0 恢复、ε=0.1 谱类 0.0127 vs 增广 6.7e-16）；GPU 2×2 ⛔ |
 
-## 4. 总结
+## 4. 结项条件核对（CPU 范围）
+
+- pion：A/B/C 均有代码、反例与有限结论（A1 身份/证书复用、A2 draw 与 gate artifact、
+  B1/B2、C1/C2/C3 含 blocks/J-K/错误激发态）；§6.2/§7 新测量显式移交（NOT_RUN）；
+- wilson：P0–P3 与 F0–F3 逐项有证据（measure 入口、三文件事务、点值重放/jackknife/coverage、
+  两态反例、证据/身份/状态）；F4 生产 ΔH/接受率与 P4 扩展显式延期（NOT_RUN）；
+- optimize：包 A（本机）/B/C/D 均有产物；真实 GPU metadata 重采与 GPU 2×2/盲测延期；
+- 报告已删除被反例推翻的完成主张（spread gate、naïve anchor 证书、SLSQP/Powell 收益）。
+
+结论：**CPU 必做项逐项有证据；未跑生产与可选路线已明确延期/停止。**
+本轮 CPU 包可以结项，GPU/新测量需另行授权。
+
+## 5. 总结
 
 - pion：A/B/C 的主要 CPU 切片已交；剩余 A1 的证书复用、A2 的 gate artifact、C2 的扫描、§7 执行；
 - wilson：P0–P3 与 F0–F3 完成；F4 生产证据与 P4 扩展 ⛔；
 - optimize：P0 完成；P1/P2/P3 为 CPU 部分/设计，GPU 实验 ⛔；
-- 102 个 CPU 测试通过；所有非公式链接有效。
+- 104 个 CPU 测试通过；所有非公式链接有效。

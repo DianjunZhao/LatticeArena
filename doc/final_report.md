@@ -154,7 +154,7 @@ pion 没有可信分数，不是因为“统计量差一点点”，而是因为
 | pion 评分诊断 | [`results/pion_projection/score_diagnostics_v2/`](../results/pion_projection/score_diagnostics_v2/) |
 | 学习核记录 | [`tasks/optimize_gaussian/README.md`](../tasks/optimize_gaussian/README.md) |
 | todo 覆盖报告 | [`doc/todo_coverage.md`](todo_coverage.md) |
-| 测试 | `PYTHONDONTWRITEBYTECODE=1 python -B -m pytest -q -p no:cacheprovider tests/`（102 项） |
+| 测试 | `PYTHONDONTWRITEBYTECODE=1 python -B -m pytest -q -p no:cacheprovider tests/`（104 项） |
 
 ## 10. 2026-11-18 晚：按新开工单的审计与实现
 
@@ -228,4 +228,4 @@ pion 的 §6.2/§7 执行（真实 anchor、共同目标预测、新测量先决
   非退化 coverage 0.983）、`spectral_physical_v1/`（两态反例 bias/SE 32.5）；
 - optimize：包 A/B/C/D（`cpu_next_package_b/`、`cpu_next_p3_crosslink/`、`cpu_next_package_d/`）。
 
-三份 todo 的逐项状态见 [`doc/todo_coverage.md`](todo_coverage.md)；当前 102 个 CPU 测试通过。
+三份 todo 的逐项状态见 [`doc/todo_coverage.md`](todo_coverage.md)；当前 104 个 CPU 测试通过。
