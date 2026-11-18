@@ -202,6 +202,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | C2 GEVP | 合成验证通过；真实数据 2×2（$E_0=1.067\pm0.010$）与补测 $H^{24}$ 后的 3×3（dev 1.026±0.017 / val 0.997±0.018）**都无平台** → Gram GEVP（2–3 族算符）在 $t=3$–$5$ 给出 $m_0\approx1.02$–$1.05$，偏向两态参考（1.057）而非单 cosh（1.086）；$t=6$ 噪声大，仍不足以认证 |
 | C3 能量目标 | 合成数据验证通过（`energy_target.py`，认证/拒绝/无差别三种场景）；真实数据 NOT_RUN（需要独立 anchor） |
 | S1 评分证书模块 | 已实现 `scoring.py` + `score_spec.example.json` + 合成测试（真实数据仍无法认证） |
+| C2 证书端到端校准 | 新增 `certificate_calibration.py` + `results/pion_projection/certificate_calibration_v1/`：每 dataset 走 dev/val→gate→joint→certificate；no_improvement 假认证 0.067（1/15）、known_improvement 功效 1.0、misspecified 全 abstain；blocks/JK 扫描与错误激发态场景 NOT_RUN |
 | C1 参考 gate 校准 | 新增 `reference_gate.py` + `reference_gate_calibration_v1/`：dof=8（旧脚本 10）、每 dataset null 校准、N_dataset=100/N_null=50、cfg/time 噪声分开；正确模型假拒绝 0.02/0.03、失配功效 0.66/0.59 |
 | B2 GEVP 失败计数 | `summarise` 用固定平台时间集合：任一时间缺失 → 整 replica 失败；输出 local/replica 失败与有效时间；cosh/rank 失败记入 reasons；`gram_stats_v2/` 重跑（forward 1.0629±0.0075，0 失败）；反例测试 `partial_plateaus` |
 | B1 CV 冻结度量 | `nested_cv_v2/`：每个 training fold 计算 `late_metric` 并传给 held-out risk；fold_plan 保存 train/test IDs、late hash、protocol hash；5 折 local/SLSQP=480.6±146.8（折间散布，不是独立 SE）；明确定名为 outer cross-fit |

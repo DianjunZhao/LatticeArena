@@ -482,3 +482,14 @@ def test_reference_gate_dof_and_null_pvalue():
     assert dof == fit.samples.shape[1] - len(__import__('tasks.pion_projection.reference_gate', fromlist=['BASIS']).BASIS) - 1
     p, null_costs = null_pvalue(fit, mass, cost, data.mean(axis=0), rng, n_null=5)
     assert 0 < p <= 1 and len(null_costs) == 5
+
+
+def test_certificate_calibration_chain():
+    from tasks.pion_projection.certificate_calibration import run_simulation
+    rng = np.random.default_rng(3)
+    flat = np.zeros(7)
+    same = flat.copy(); same[1] = same[2] = 0.5
+    result = run_simulation(rng, same, same, outer=4, inner=4)
+    assert 'abstain' in result
+    if not result['abstain']:
+        assert 'certified' in result and 'lower_bound' in result
