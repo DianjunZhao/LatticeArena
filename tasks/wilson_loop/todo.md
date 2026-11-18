@@ -1,373 +1,240 @@
-# Wilson loop 后续工作交接（2026-11-18）
+# Wilson loop 与公共框架：下一轮开工单
 
-核对基线：Git提交`40a7c9d`。下面区分当前源码的CPU反例、已有档案数值和未来实验；实施前先核对代码版本。
+核查基线：`dfa63fe`；2026-11-18。**保留本文件：部分完成，仍有具体 CPU 工作。**
+本轮仅重新组织计划，不修改实现或历史数据，不启动 GPU/MPI/远程/模型 API。
+默认所有新结果写新 run；下文新增输出路径均为**拟议**，不得覆盖旧 results。
+研究负结果、受控拒绝及有证据的停止均可验收，不要求无限扩展直到成功。
 
-## 判定与首要行动
+## 1. 已完成证据与当前结论
 
-当前是 **测量/打分 pilot 已跑通；APE 的物理有效性未通过审查**。
-最先做 `kernels.project` 的独立左右规范变换回归测试与协变投影修复，随后重新测量。
-不能先扩组态、训练核或把旧 score 当作物理基线。
-本文件仅规划；本轮未修改实现、数据或旧报告，未运行 GPU/MPI/远程任务。
+| 类别 | 当前证据 | 结论及边界 |
+|---|---|---|
+| SU3 / APE | `kernels.project` 改 polar+det phase；四空间 staples 改 α/4；新增双侧协变、多参数测试 | 旧 Gram–Schmidt bug 已修；不能再列作未修问题；病态/分支仍见 P0 |
+| 数组与读取 | `common.load_data` 验完整shape/ID/hash/finite；NERSC验支持格式与payload长度 | 完整通用NERSC、checksum与geometry一致性仍未完成 |
+| 冻结 | `experiment.evaluate` 检查开发数据SHA、kernel SHA、参数；测量记录gauge hash/git/时间 | 依赖闭包与测量身份绑定仍不完整 |
+| 保存 | NPZ、JSON各自临时文件替换 | 单文件原子保存已做；跨文件一致恢复未做 |
+| 重测 | v2/v3/v4档案存在；v3留出80组态/16块 | 属归档实测证据，本轮未复跑GPU |
+| 配对 | `paired.py` 同块同索引nested bootstrap | 区间已实现；覆盖率、功效、自相关与多比较尚未校准 |
+| 回归 | 主agent复跑51 tests全过 | Python3.13.12 / NumPy2.5.1 / SciPy1.18.0 / pytest9.1.1；不等于物理问题全部解决 |
+| 环境 | 本地无GPU/MPI相关库 | GPU/MPI/backend一致性为NOT_RUN，CPU任务照常推进 |
+| 公共层 | `core/io.py`、`core/stats.py`；LLM prompt已按协议动态生成 | 五类公共接口与统一证据流程尚未实现 |
 
-## 已完成与证据
+当前几何为16⁴、纯规范β=6.0；link轴 `(mu,t,z,y,x,3,3)`。
+空间d对应数组axis=3-d，时间axis=0；temporal links不smear。
+圈orientation为 `K(x)P(x+R)K†(x+T)P†(x)`，平均ReTr/(9×四维体积)。
+冷场、非对易暴力圈、原始gauge与新增APE协变测试覆盖主要约定。
+势仍是log(mean W)对T的无权线性回归，名义窗口仍写作windows[1]。
+risk仍为 `mean_R[(SEboot/Vref)^2+(std_windows(V)/Vref)^2]`；Vref是开发identity的尺度。
+该目标衡量固定窗口精度/稳定性，**不是已证明的基态总误差**。
 
-- 根 README、STATUS、task README、protocol、源码和七项测试已审阅。
-- 实物目录为 `results/wilson_loop/s16t16_v1/`。
-- 有 development/validation NPZ、两份 provenance、submission 和 validation_results JSON。
-- 协议：16⁴、纯规范 β=6.0；development IDs 0–59，gap 60–69，validation 70–99。
-- 每组态四核、R=1,2,3，T=4,5,6,7,8；block_length=5。
-- 因而开发 12 块、留出 6 块；seed=20261116，bootstrap=1000。
-- 规范数组 `(mu,t,z,y,x,color,color)`；空间方向 d=0,1,2 对应 axis=3-d。
-- 时间方向链路未经 smearing。
-- `measure.loops` 在全部空间点、时间原点及三个轴向平均。
-- 归一化为 `ReTr/(3 color × 3 directions × volume)`。
-- orientation 为 `K(x) P(x+R) K†(x+T) P†(x)`。
-- 冷场、随机非对易场暴力 Wilson 圈、原始链路 gauge invariance 测试覆盖此 orientation。
-- 它们没有覆盖 **先做 APE 后的规范不变性**。
-- `statistics.potential` 是 log(mean W) 对 T 的无权线性回归，不是相关 χ² 拟合。
-- 名义窗口固定为 windows[1]，不是动态读取 nominal 索引。
-- risk 是 `mean_R[(SEboot/Vref)^2+(std_windows(V)/Vref)^2]`。
-- 后一项只是窗口一致性代理，不是真实基态偏差的估计。
-- Vref 为开发 identity：0.4102935140、0.5972295854、0.7033454544。
-- 开发 identity spread：0.0003867054、0.0024845589、0.0058308088。
-- 现行 gate 仅检查正势与 spread/V≤0.05；并没有验证谱模型正确。
-- `reference_max_window_z=2.5` 未使用；`reference_max_relative_se` 实际用作 spread 门槛。
-- 开发 identity risk=7.8203575253e-5；APE(0.5,5)=1.9476781811e-5。
-- 开发最佳由冻结 submission 选择，不能根据留出最佳另选候选。
-- 留出精确数值以下以 JSON 为准，README 有少量舍入/旧数值偏差。
+### 归档数字：严禁混用点估计和bootstrap中位数
 
-| 核 | validation risk | score |
-|---|---:|---:|
-| identity | 5.5532964283e-5 | 100 |
-| APE(0.5,5) | 5.8009775642e-5 | 95.73035529 |
-| APE(0.5,10) | 5.4096534442e-5 | 102.65530838 |
-| APE(0.7,10) | 5.4722119354e-5 | 101.48174984 |
+| 版本 | 原样本score | 配对bootstrap结论 |
+|---|---|---|
+| v2 | 96.669 / 103.253 / 105.535 | 中位数3.013 / 3.425 / 3.410；与点比值严重偏移，待诊断 |
+| v3 | 263.3 / 232.8 / 221.9 | 比值95%区间[1.315887,5.932374] / [1.248364,5.819607] / [1.171982,6.336328] |
+| v4 | 663.3 / 745.8 / 808.0 | 同系综扩R=4的诊断，不能当独立复现或与v3同刻度比较 |
 
-## P0：协变性阻断项（CPU 即可）
+v2已用当前代码只读复算，与归档一致；约3倍是bootstrap中位数，绝非其点改善。
+v3区间支持当前重采样假设下的固定risk降低，不直接证明ground-state accuracy。
+[已有v3图](../../results/wilson_loop/paired_s16t16_v3/score_paired.png) 的柱高是100×bootstrap中位数，
+不是原样本263/233/222；报告/图例须明确二者。
+同一天/同机器不决定盲性；应核查冻结、信息访问和split记录。
+找不到validation打开前的plan身份，就不能补称历史预注册。
+数值来源：[v3 原样本结果](../../results/wilson_loop/s16t16_v3/validation_results.json)、
+[v3 配对结果](../../results/wilson_loop/paired_s16t16_v3/paired.json)、
+[v4 原样本结果](../../results/wilson_loop/s16t16_v4/validation_results.json)。
 
-`project` 逐列 Gram–Schmidt 只自然保持左酉作用，不保持一般右酉作用。
-link 必须满足 `P(Gx M Gy†)=Gx P(M) Gy†`，独立左右 G 均需成立。
-单纯 `U†U=I, det(U)=1` 并不蕴含该条件。
-本轮直接在随机 SU(3) 2⁴ 场测了一步 APE，α=0.5：
-使用 tests 的 QR SU3 生成器、default_rng(3)，先生成 links 再生成 g；
-比较 `ape(g U g_next†)` 与 `g ape(U) g_next†`。
-最大逐元素绝对差 **0.442292531289015**。
-这是 CPU 实证，不是 GPU 数值舍入猜测。
-因此 README 所称此 Gram–Schmidt 保持规范协变应修正。
-旧 APE 输出保留作历史实现诊断，当前不能据它宣称合法空间算符优化。旧provenance未冻结核源码，须恢复对应实现身份才可判断哪些历史运行受同一缺陷影响；本轮反例直接证明的是当前源码。
+## 2. P0：投影数值边界（第一优先，CPU）
 
-下一 agent：
+文件：`kernels.py`、`tests/test_wilson_loop.py`。
+已知反例：`project(I)`残差0，`project(1e4 I)`残差约1.11e-16；
+合批 `stack[I,1e4 I]` 却拒绝（unitarity defect约0.3998），1e6混批约0.9999。
+原因线索：inverse-square-root用全batch同一scale与固定24次Newton–Schulz。
+这是batch尺度敏感实证，**不说明v3所有测量失败**。
 
-1. 在 `tests/test_wilson_loop.py` 加上述失败回归、独立左右投影测试。
-2. 在 `kernels.project` 实现双边酉协变投影：非奇异M先取`Q=M(M†M)^(-1/2)`，再取`P=Q exp[-i Arg(det Q)/3]`以回到SU(3)。polar factor本身只保证U(3)，不能省掉det修正；这也不等同于未经证明的最优SU(3)距离投影。
-3. 明确奇异值阈值、近奇异行为、有限性、复数精度与 det 相位分支。
-4. 不能静默 clip 后输出不合格 SU3；失败要给出组态/方向/位置摘要。
-5. 检查 determinant cube-root 在分支附近的连续性与左右变换稳定性。
-6. 检查 NumPy/CuPy batched SVD/eigh 行为与成本。
-7. APE 在三空间维仅有四个 staples，而代码除以 6。
-8. 若用规范化 staple 平均应为 α/4；这是 v2 参数口径改变，不能原地重命名旧 α。
-9. 四-staple 当前口径在正齐次投影下可映射有效权重`α_eff=2α/(3-α)`（对本pilot的0≤α<1成立），但不能假定旧 GS 等于正确 APE。
-10. 修复完成后，全部 APE 数据需重测；identity 可在核/输入校验相同的条件下复核复用。
+只读复现（从仓库根目录；当前合批项会受控拒绝）：
 
-验收：随机独立端点变换、至少多 seed、多 α、多步均满足约定容差；
-complex128 CPU 建议 atol 1e-10（待实现时按条件数设计），同时检验 det、unitarity、finite。
-冷场、α=0、steps=0、非对易暴力圈须继续通过。
-若协变性失败或近奇异未定义，停止生成新物理分数。
-
-## P1：缓存与冻结可信边界（CPU 即可）
-
-涉及 `common.read_nersc/load_data`、`measure.measure`、`experiment.develop/evaluate`。
-现行 provenance 保存 protocol 和每组态秒数，但没有原始 gauge hash、代码 hash、环境/设备记录。
-NERSC reader 固定 `<c16`，没有验证 DATATYPE、FLOATING_POINT、checksum、payload 长度。
-必须先确认共享生成器写出的实际格式，不能把它当任意 NERSC reader。
-共享来源还包括 `tasks/pion_projection/measure.py` 对相同 `wilson_b6.ID` 的读取。
-应核对生成链、保存间隔、热化、随机种子、action 和读写轴序；本轮没有当地原始 gauge 数据。
-
-- NPZ 强制验证完整 shape `(Ncfg,Nkernel,3,5)`、dtype、finite、ID 唯一有序。
-- 验证 protocol 几何与实际 gauge header 一致。
-- 加 payload hash、每个输入 gauge hash、kernel source hash、commit/dirty 状态。
-- 保留硬件、库版本、精度、setup/measurement/write 分时。
-- measure 目前循环覆盖同名 NPZ，无完整 resume 校验；改为新 run 目录与原子保存。
-- develop 保存 development_sha256，但 evaluate 没有重新检查它。
-- evaluate 只核对协议 hash，不能证明执行核与冻结核相同。
-- submission 应冻结核实现、参数、投影版本、输入清单、统计版本及全部 hash。
-- 任意 build_kernel candidate CLI 尚未实现；现行仅四核列表。
-- 后续 candidate 先离线审查时间局域、协变、确定性、无 temporal links，再允许重测。
-- 修改代码与协议后使用新 version、新目录；旧 submission 永不覆盖。
-
-验收：修改一字节数据、换核源码、调换 ID、换协议、重复 ID 均明确拒绝。
-缺少输入 gauge hash 的旧产物标为 legacy provenance，不能补造历史 hash。
-
-## P2：配对区间与统计审查（缓存可做）
-
-旧 JSON 只有每个核 risk 点估计，没有 risk 比值的区间。
-同一 `bootstrap_indices` 保持了核间配对，但 vb 的 SE 不是 score 的置信区间。
-因此“±3% 不显著”原报告没有附其所需的配对检验依据；也绝不等于等效。
-
-本轮缓存探索：validation 按 5 组态成 6 块；外层1000次整块配对重采样，
-seed=773；每个外层样本都对四核使用同一 inner indices，
-inner=1000，seed=20261117，按原 risk 和固定开发 Vref 重算。
-对 identity risk/candidate risk 的 percentile [2.5%,50%,97.5%]：
-
-| 候选 | 2.5% | 50% | 97.5% |
-|---|---:|---:|---:|
-| APE(0.5,5) | 0.673643 | 2.434330 | 23.475481 |
-| APE(0.5,10) | 0.702845 | 2.761984 | 21.019946 |
-| APE(0.7,10) | 0.689504 | 2.738871 | 19.924634 |
-
-这些仅是**探索性 nested bootstrap**，六块下有重复块退化与强偏斜，不能当校准过的正式 CI。
-它们均跨 1，支持“目前未证明改善”，不支持“无效/等效”。
-且 P0 已表明旧 APE 核无协变性，以上只能保留为统计流程诊断。
-
-下一步输出独立 audit JSON（未来实现时新增，不在本轮创建）：
-
-- 精确复算旧点值，记录 score epsilon、seed、完整窗口与 denominator 定义。
-- 输出每 R 的 SE²/Vref² 与 spread²/Vref²，避免均值掩盖 R=3 主导。
-- 配对外层重采样保持整个 `(kernel,R,T)` 向量，不独立重采样各核。
-- 区分 outer 数据不确定性与 inner Monte Carlo SE，不混用两类 bootstrap。
-- 不允许对单组态 W 先取 log；先 ensemble mean，再 log。
-- 非正均值、bootstrap 非正 W、NaN 明确计数并失败，不能只丢失败样本。
-- 小样本下比较 percentile、jackknife、合成校准；不机械推荐 BCa。
-- 用构造的同效、已知增益、强相关、弱相关数据校准覆盖率/假阳性。
-- 扫 block length、链段、leave-one-block-out，记录有效块数与结果敏感性。
-- 根据原始 Markov 保存间隔与 τint 选择 block；当前“5 保守”没有验证。
-- 禁止用本次留出重调 α、N、窗口、门槛后再称其为验证集。
-
-正式成功标准须预注册：配对比值区间下界>1且超过预设最小有用增益；
-最小增益、置信度、多候选校正和统计功效均待设计，不把60组态当保证。
-失败条件：区间跨1、参考失败、质量失败；保留负结果。
-等效结论需要预设等效界和相应检验，不能由未拒绝零假设代替。
-
-## P3：谱/平台目标重审（先CPU，后新测量）
-
-纯规范静态源的理想谱表达为 `W_ij(R,T)=Σn Z_i,n Z_j,n* exp(-E_n T)`。
-空间 smear 改变 overlap，目标是更快隔离 E0，并不改变同一作用量下 E0。
-多个相邻窗口一致不排除它们共同落在错误平台。
-现行 risk 完全不罚相对真实 E0 的共同偏移，所以不是“总误差”的完整定义。
-开发 Vref 只作尺度，并非真值；gate passed 仅代表代码定义的 gate 通过。
-
-- 合成两态/多态、共同偏差、噪声相关、短平台与负均值测试。
-- 检查拟合 log bias 与 T 相关协方差，报告条件数及 shrinkage 的选择依据。
-- 预先固定更早/更晚 T 的诊断范围，不事后挑最好窗口。
-- 有限时间 Wilson 圈不应未经推导直接套 pion cosh。
-- README 的回绕项“1e-4–1e-6”没有统一支持：若仅按其模型，
-  相对因子为 exp[-V(16-2T)]，T=8 时等于1，绝非普遍可忽略。
-- 这不是断言 Wilson 圈必有等幅 cosh；需从有限时间静态源 transfer matrix 推导允许态。
-- 用较长时间方向或有限温谱对照检验，明确有无 wrap-around 路径贡献。
-- 若改 gate/拟合/risk，发布新版本；旧分数只作历史记录。
-
-## P4：确实可能成立的理论路线
-
-### 较小实现改动：纯空间 stout 对照
-
-在投影修复与回归之后，可增加独立stout候选`U'_μ=exp(iQ_μ)U_μ`，其中Q由空间staples构造为无迹Hermitian矩阵，时间links保持原样。它避免额外的SU(3)投影，但仍需相同的协变、反射、精度与成本测试。
-原始依据：[Morningstar–Peardon, hep-lat/0311018](https://arxiv.org/pdf/hep-lat/0311018)，本轮读到正文§II的定义、纯空间权重选择和规范变换证明；该文不保证本pilot的收益。固定半径/成本和开发调参预算，比较正确APE与stout；不把换算法等同于已有物理改进。
-
-### 优先：小型 operator basis + GEVP（需新 cross loops）
-
-原始依据：[Blossier et al., JHEP 0904:094](https://arxiv.org/abs/0902.1265)。
-其分析支持合适时间区间与基底下抑制未包含态污染；本轮已阅读原文摘要。
-完整实现前再读正文关于 t0、t 与矩阵非奇异条件，不能把渐近结论当短T保证。
-对相同 R 用2–3个已验证协变、时间局域空间线构建完整 Cij。
-现有四个核各自 W_ii 不能恢复 Cij，禁止从 NPZ 拼假 cross matrix。
-扩 `measure.loops` 支持底线 i、顶线 j；固定 temporal transport 和 orientation。
-解 `C(T)v=λ(T,T0)C(T0)v`，C(T0) 条件数与截断在开发集冻结。
-采用时间片内不同 smear 半径/同端点对称路径；保持静态源量子数与空间对称性。
-同一 frozen 向量/算法用于全新验证样本，报告 eigenvector 噪声与排序不稳定。
-收益假设是减少激发态，尚无本仓库实证；计算预算需先用小样本 profiling。
-
-### 次优先：multilevel（独立测量算法，不能算 kernel-only 胜利）
-
-原始依据：[Lüscher–Weisz, JHEP 0109:010](https://arxiv.org/abs/hep-lat/0108014)。
-原文摘要支持纯规范局域理论利用多层条件平均降低大圈误差，示例为 SU3 Polyakov 相关。
-本项目纯规范条件相符，但需要固定边界子晶格更新；缓存 W 无法实施。
-先验证 action/locality、子更新正确平衡、边界与空间 smear 支撑不跨错误分层。
-在独立任务比较相同总 GPU/CPU 时间成本下误差，而非仅比较组态数。
-R≤3 的小圈是否值得额外 setup 尚无证据；以先导 cost-error 曲线决定停止/继续。
-不得把论文大面积极限提升倍数外推为本任务收益。
-
-## 测试矩阵与执行顺序
-
-| 阶段 | 输入 | 必做检查 | 输出与退出条件 |
-|---|---|---|---|
-| P0 CPU | 随机SU3/冷场 | 双边协变、APE后圈不变、unitarity、singular | 测试通过才可重测 |
-| P1 CPU | 旧JSON/NPZ、合成header | hash、shape、ID、版本、拒绝篡改 | provenance audit |
-| P2 CPU | 完整缓存 | 点值复算、配对区间、覆盖率、block敏感性 | 标探索/正式边界 |
-| P3 CPU | 合成谱 | 共同偏差/两态/相关噪声/非正值 | gate与risk方案冻结 |
-| 重测GPU | 同一旧gauge | CPU/GPU逐项对照、计时、修复核 | 新版development，不覆盖旧run |
-| 新盲测 | 全新未见gauge | 输入隔离、核与统计冻结、配对评估 | PASS/INCONCLUSIVE/FAIL |
-| GEVP | 新cross matrices | Hermitian、正性、条件数、谱校准 | 独立v3实验 |
-
-旧0–99组态全部已被分析或相邻披露，均不能用作新盲验证。
-扩留出必须使用未见过的样本、足够热化/间隔和 provenance；60+只是规模建议。
-先估 τint 与最小有用增益，再做功效/资源设计；不虚构所需 N。
-现有 provenance 记录首次开发组态15.76s，其余多约1.4–1.8s，
-不能把此当新投影/新硬件下的计时承诺；setup/solve概念在此应分为加载/平滑/圈收缩/写盘。
-先小规模 profiling，再向用户报告预计总量；本文件不授权启动远程生产。
-
-## 后续 agent 第一轮交付
-
-先只做 P0 回归与小范围修复，附失败前/通过后的 CPU 证据。
-第二轮完成 P1/P2 可审计分析；再决定是否值得 GPU 重测。
-修复协变性前停止所有“更好 smearing”的物理主张。
-即使修复后仍无显著收益，也保留该负结果及成本，不无限搜索直到成功。
-
-### P0 完整复现命令（仓库根目录，无GPU，无文件输出）
-
-```bash
-PYTHONDONTWRITEBYTECODE=1 python -B - <<'PY'
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 -B - <<'PY'
 import numpy as np
-from tests.test_wilson_loop import random_su3
-from tasks.wilson_loop.kernels import ape, dagger
-from tasks.wilson_loop.measure import loops
-rng = np.random.default_rng(3)
-u = random_su3(rng, (3, 2, 2, 2, 2))
-g = random_su3(rng, (2, 2, 2, 2))
-v = random_su3(rng, (2, 2, 2, 2))
-def transform(a):
-    return np.stack([g @ a[i] @ np.roll(dagger(g), -1, axis=3-i)
-                     for i in range(3)])
-vg = g @ v @ np.roll(dagger(g), -1, axis=0)
-p = {'r_values': [1], 't_values': [1]}
-a = ape(u, 0.5, 1)
-ag = ape(transform(u), 0.5, 1)
-print('link covariance:', np.max(abs(ag-transform(a))))
-print('raw loop invariance:', np.max(abs(loops(transform(u), vg, p)-loops(u,v,p))))
-print('APE loop invariance:', np.max(abs(loops(ag,vg,p)-loops(a,v,p))))
+from tasks.wilson_loop.kernels import project
+eye = np.eye(3, dtype=complex)
+for name, matrix in [('I', eye), ('1e4 I', 1e4*eye),
+                     ('mixed', np.stack([eye, 1e4*eye]))]:
+    try:
+        print(name, np.max(np.abs(project(matrix)-eye)))
+    except ValueError as error:
+        print(name, str(error))
 PY
 ```
 
-本轮输出依次 0.442292531289015、2.2551405187698492e-17、0.008637815130061252。
-raw loop 对照排除了本反例的坐标/端点变换错配；APE 后规范不变性明显失败。
-根 agent 已运行14项现有CPU测试全通过，但该结果不覆盖此新增反例。
-GPU、CuPy、mpi4py、PyQUDA 在本地不可用，未做对应验证。
+- [ ] 增加单矩阵/同质batch/混尺度batch的等价性回归，范围与精度显式声明。
+- [ ] 生成已知奇异值谱，覆盖非零rank缺失、近奇异、极端scale、Inf/NaN。
+- [ ] 检查det相位靠近±π及独立左右SU3变换；声明分支切口和容差。
+- [ ] 比较逐矩阵规范不变scale、收敛准则或稳定fallback，给成本与拒绝策略。
+- [ ] 不静默clip失败矩阵；错误定位到batch索引，测量层再附cfg/方向。
+- [ ] 将原有冷场、α=0、steps=0、暴力圈、unitarity/det/APE协变继续作为回归。
 
-## LatticeArena 框架扩展总纲：由测试反例驱动接口设计
+拟议产物：`results/wilson_loop/audit_<new-id>/projection.json`及条件数×scale热图/文字表。
+验收：支持域内批次拆分不改变结果至预设容差，域外受控拒绝；det与unitarity均合格。
+依赖：无新数据。停止：无法定义稳定支持域时先报告边界，不启动重测。
+GPU数值/性能对照另列NOT_RUN；CPU通过不冒充CuPy通过。
 
-本节是三个任务共享的架构开工方案，不把框架扩展限定为Wilson loop。
-评分细节见[相邻pion开工单](../pion_projection/todo.md)，学习算符见[学习核开工单](../optimize_gaussian/todo.md)。
-下面列出的模块/接口都是**拟议实现**；当前仓库只有已有的core/io.py、core/stats.py及任务内函数。
-优先从现有函数抽出小接口，两个任务实际复用后再抽象，不以重建旧注册表作为第一项工作。
+## 3. P1：可信加载、冻结与原子恢复（CPU）
 
-### F0 从已执行检查提炼可复用能力
+文件：`common.py`、`measure.py`、`experiment.py`、`paired.py`、`core/io.py`。
 
-| 本次测试/源码证据 | 暴露的框架缺口 | 应当形成的公共能力 | 最小验收 |
-| --- | --- | --- | --- |
-| 原14个CPU测试通过，APE后圈却不规范不变 | SU(3)成员资格被误当完整物理约束 | operator contract及属性测试工厂 | 同时测unitarity、双侧协变和最终observable不变 |
-| 学习特征的错误闭环；修闭环后仍不满足轴交换 | 单个gauge测试覆盖不了完整表示 | 分离gauge、Hermitian、O_h、平移、时间局域各项证据 | 每项独立PASS/FAIL/NOT_RUN，不能合成一个含糊“通过” |
-| T32反射检查仍按T16索引 | geometry/源位置只是配置字符串 | 带轴名的observable spec和geometry参数化测试 | T16/T32、非立方格点、非零source-origin的适用范围有明确定义 |
-| reference由环境切换、依赖helper未被hash覆盖 | 冻结缺乏完整语义身份 | 版本化RunSpec与依赖闭包指纹 | 同一身份不允许改变reference、算符或统计目标 |
-| 固定W响应无法支持任意W训练 | 缓存没有声明数学可重用范围 | 带basis身份和能力声明的MeasurementBundle | W/基底/收缩改变使旧响应拒绝复用 |
-| 同一份数据更换reference可翻转排序 | scorer与物理目标、参考耦合 | 独立ReferenceProvider、Metric、Comparator | 每项结果携带estimand、reference、基线与比较族身份 |
-| 学习核与pion的fold/block不同 | 各task复制统计流程且口径漂移 | 共享ResamplingPlan及fold-local流水线 | 同一输入和spec在两条入口得到相同统计量 |
-| LLM入口与SLSQP入口校验不同 | 搜索器可以影响评测定义 | 统一SearchAdapter、Evaluator和预算账本 | optimizer/LLM都只能提交同一种CandidateSpec |
+- [ ] `paired.main`复用完整加载/冻结校验，禁止直接np.load绕过身份验证。
+- [ ] 去掉“协议名非v1即physical”的自动认证；从独立算符/参考/统计/输入状态导出报告。
+- [ ] 冻结measure/statistics/helper依赖闭包，绑定测量provenance、kernel、数据与split身份。
+- [ ] 检查gauge header geometry与RunSpec、payload hash/checksum支持范围；legacy明确只读身份。
+- [ ] 设计新run拒绝覆盖、可验证完整前缀resume；NPZ/provenance用共同generation身份。
+- [ ] 故障注入各替换步骤，确保恢复至同一可信generation或拒绝，不拼接不同前缀。
+- [ ] 记录设备/库/精度、加载/平滑/收缩/写盘时间；不能把旧时序当新硬件承诺。
+- [ ] 用篡改测试覆盖数据、kernel/helper/statistics、protocol、ID重复/重排、缺provenance。
 
-### F1 五个可扩展接口，先明确数据流
+拟议产物：同audit目录 `identity_audit.json`、恢复状态机文字与故障注入表。
+验收：每种不一致均fail-closed；两次恢复输出与不中断参考一致；旧档案不补造来源。
+依赖P0仅在需要新测量时；缓存身份审计现在即可做。
 
-建议状态流：`RunSpec → 数据清单/划分 → 算符认证 → development搜索 → 冻结 → validation测量 → 配对比较 → 报告`。
-已有数据离线重分析可从MeasurementBundle进入，但必须标为历史诊断，不能重新获得盲测身份。
+## 4. P2：配对统计诊断与校准（CPU缓存+合成）
 
-1. **TaskSpec/RunSpec**：任务物理定义与一次运行分开。TaskSpec定义observable、量子数、允许算符、测量后端和科学目标；RunSpec冻结geometry、边界、source、split、协议版本、reference、metric、budget与代码身份。
-2. **OperatorContract/CandidateSpec**：描述输入axes、dtype、变换律、field线性、Hermitian、时间支撑、空间表示，以及参数与依赖文件。不要求所有任务都Hermitian/正定，要求每个任务显式声明哪些条件必要。
-3. **MeasurementProvider**：输出完整数组和manifest；支持CPU小场、已缓存响应、GPU量测。能力包含`linear_response`、`requires_new_sources`、`cross_matrix`，不能从已有单源数组猜出缺失测量。
-4. **ReferenceProvider + Metric + Comparator**：reference输出同一draw_id下共享的联合参数；metric只计算定义好的统计目标；comparator负责配对效应、同时区间、质量门控和判定。搜索器没有权力改变这些对象。
-5. **SearchAdapter**：SLSQP、Powell、随机搜索、可微学习、LLM共用`propose → evaluate_development → freeze`流程，记录真实调用预算和失败候选；可插拔搜索不意味着可插拔科学定义。
+文件：`paired.py`、`statistics.py`、测试；先冻结诊断spec再跑。
 
-可先在`core/contracts.py`使用小型dataclass/JSON schema表达，保留现有CLI。
-不要先写通用深继承框架；先让pion和Wilson各接通一次最小适配器，再决定是否需要registry。
-`agents/loop.py`从RunSpec生成prompt，避免T、幂次和窗口硬编码；LLM仅收到允许的开发信息。
-`agents/report.py`读取结构化结果，数值表由代码生成，模型解释仍标为叙述。
+- [ ] 逐个复算v2/v3/v4原样本risk，分解每R的SE项和window项。
+- [ ] 专门解释v2原点比值约1而nested中位数约3：记录外层重复块、有效独立块数、
+  分子/分母分布及相关性，比较leave-one-block-out；未解释前禁止只报中位数。
+- [ ] 保留整块(kernel,R,T)配对，明确outer数据不确定性与inner Monte Carlo误差。
+- [ ] 非正mean W、非正bootstrap W、NaN、零分母逐项计数并声明拒绝规则。
+- [ ] 合成同效/已知增益/共同相关噪声下检验coverage与假阳性；不能只测同核比值等于1。
+- [ ] 扫预声明block length与seed/抽样次数，报告区间稳定性；根据保存间隔与τint选block。
+- [ ] 明确检验族、冻结候选与多比较、最小有用增益、统计功效设计；不虚构所需组态数。
+- [ ] `probability_better`改明确称bootstrap exceedance fraction，不当posterior或校准p值。
+- [ ] 查原始plan commit/hash/数据访问时间；缺证据改称历史诊断，不补造预注册。
 
-MeasurementBundle建议明确以下数组，不统一压成无语义二维表：
+拟议产物：`paired_audit.json`；点值与bootstrap中位数并列图、比值分布、block敏感性图。
+验收：点值精确重放，校准范围与失败率公开；区间跨1可验收为INCONCLUSIVE。
+依赖：P1可信入口；无新GPU。停止：coverage/自相关无法支持正式解释则只报诊断。
 
-- pion basis：`C[configuration,basis,time]`；记录source及反射/折叠约定。
-- 学习响应：`C[configuration,response,time]`；额外绑定固定W/路径基/基座，明确对哪些参数严格线性。
-- Wilson：`W[configuration,kernel,R,T]`；记录空间/时间原点平均方式。
-- GEVP扩展：`C[configuration,sink_operator,source_operator,time]`；交叉元素必须实际测量。
-- 多source：保留source轴或可审计的源内聚合，独立样本单位仍为configuration/Markov block。
+## 5. P3：物理质量门控与共同错误平台（先CPU）
 
-验收时用“同一新候选经过不同后端”而非仅JSON可解析验证接口。
-CPU/GPU对照必须固定精度、几何和输入；已有档案不能伪装成当前后端执行证据。
+- [ ] 将reference gate的含义与配置名同步：目前仅正势及spread/V≤5%；window_z未用。
+- [ ] 把nominal索引从硬编码windows[1]变成经验证的spec。
+- [ ] 构造相邻窗口全部稳定但共同偏离E0的两态/多态反例，展示现risk的盲点。
+- [ ] 比较log bias、T相关协方差及条件数；相关拟合/shrinkage须开发冻结与合成校准。
+- [ ] 从有限时间静态源transfer matrix定义允许谱；不能直接套pion cosh。
+- [ ] 文档删除普遍“回绕1e-4–1e-6”的断言；若假设等幅反向指数，
+  相对项exp[-V(16-2T)]在T=8为1，但这也不能反过来证明Wilson圈必有该cosh。
+- [ ] 对v3/v4画各R有效势、各核窗口势及风险贡献，明确共同错误平台仍未排除。
+- [ ] 区分降低当前risk、降低SE、改善overlap、提高E0准确度四类主张。
 
-### F2 将过程脚本变成可审计的测试与研究反馈
+拟议产物：`spectral_quality.json`、共同错误平台合成图和有限T推导文字。
+验收：新门控能明确哪些反例可排除/不可排除；不把gate PASS升级为真实E0证明。
+依赖：无新测量即可完成反例；更晚T/独立anchor验证再列新数据需求。
+停止：不可识别时保留诊断目标与abstain，不反复换参考直到给分。
 
-下一轮建议逐步新增以下入口；本轮只把接口与验收写入todo，未创建这些脚本：
+## 6. P4：有条件的研究扩展（先设计，后判别实验）
 
-| 拟议位置 | 输入 | 输出/职责 |
+优先只选一个扩展轴，不同时换系综、算符、参考与估计器。
+
+| 路线 | 下一步与依赖 | 图/文字验收与停止 |
+|---|---|---|
+| 纯空间stout | 定义无迹Hermitian Q与exp(iQ)U；相同协变/时间局域测试，开发冻结成本/半径 | APE对照cost-risk图；无收益可停止 |
+| 小basis GEVP | 设计底线i/顶线j完整cross loops；现有Wii不能拼Cij；冻结T0/截断/条件数 | 合成谱与矩阵质量报告；真实数据需新cross测量，无平台可验收负结果 |
+| multilevel | 先读局域纯规范条件平均算法；定义固定边界子更新与无偏性 | 独立估计器赛道的cost-error图；不能算kernel-only胜利 |
+| 新盲测 | 候选、门控、统计计划冻结后用未见样本；按τint/功效设计N | 完整manifest、成本及配对区间；跨1或质量失败保留负结果 |
+
+原始依据：[Morningstar–Peardon stout](https://arxiv.org/abs/hep-lat/0311018)、
+[Blossier et al. GEVP](https://arxiv.org/abs/0902.1265)、
+[Lüscher–Weisz multilevel](https://arxiv.org/abs/hep-lat/0108014)。
+这些论文支持方法与条件，不保证本R/T和预算下收益。
+旧已观察validation及同系综v4扩展不能重新命名为新盲测。
+
+## 7. 公共框架 F0–F5：仍需实施，先两任务复用
+
+公共层当前只有io/stats；不得把以下拟议接口写成已经存在。
+由单一集成负责人修改core/agents，各task负责人提供适配器与物理反例。
+
+### F0：统一证据与测试契约（CPU第一切片）
+
+- [ ] 公共证据schema记录test_id/task/claim/command/seed/geometry/dtype/code与input hashes、
+  observed/threshold/status/scope；scope分synthetic_CPU/archived_data/live_GPU。
+- [ ] 各自保存gauge、Hermitian、O_h、平移、时间局域等证据，不强迫全部task同一约束。
+- [ ] 将可复用残差计算抽入拟议 `core/operator_checks.py`；已知坏闭环、旧GS右协变、错反射索引作为反例fixture，与合法核同时验证，不修改生产核来重现旧bug。
+- [ ] 建立拟议 `scripts/audit_run.py`、`scripts/summarize_evidence.py`，输出真实存在的证据引用。
+
+验收/产物：Wilson与pion同schema的一份JSON和文字矩阵；反例、拒绝、NOT_RUN均可表达。
+停止：不自动把研究假设标完成；测试总数不能替代逐项验收。
+
+### F1：五类接口与不可变运行身份（CPU第二切片）
+
+按顺序小步抽取现有实现，两个任务实际使用后再扩大：
+
+1. TaskSpec/RunSpec：物理定义、geometry/BC/source/split/reference/metric/budget及依赖闭包。
+2. OperatorContract/CandidateSpec：axes/dtype/变换律/支撑/参数/依赖与适用约束。
+3. MeasurementProvider/Bundle：数组与manifest，声明linear_response/cross_matrix/new_source能力。
+4. ReferenceProvider/Metric/Comparator：分离参考、目标与比较族，共享draw IDs与baseline身份。
+5. SearchAdapter：optimizer与LLM统一候选、校验、预算与Evaluator。
+
+验收/产物：数据流文字图、两task adapter、同spec统计一致与缓存失效反例。
+不能从单源/对角缓存推测缺失响应；不首先重建泛化注册表。
+
+### F2：LLM与搜索入口的真实隔离（CPU mock，不调用API）
+
+动态prompt已完成；但loop当前只查维数/非零，risk查finite，不强制sum(u)=1与L1≤8。
+
+- [ ] 统一候选校验sum约束、L1、维数、finite与合法类型；optimizer/LLM同路径。
+- [ ] 评估入口复用全部manifest/frozen身份检查，移除直接np.load validation绕行。
+- [ ] mock LLM提交NaN、越界、错误维数、零和、合法候选，记录拒绝原因与预算。
+- [ ] development搜索期间禁止读取validation；用拦截文件访问测试证明。
+
+验收/产物：mock轨迹JSON及非法候选/无validation访问文字报告。
+可信Python插件不等于不可信提交的安全隔离；hash也不构成访问控制。
+
+### F3：状态、fold-local统计与成本账本（CPU）
+
+- [ ] run_state与operator/reference/numerical/statistical/comparison状态分离；score可null。
+- [ ] manifest绑定split、draw IDs、baseline/score spec、reference draws和搜索预算。
+- [ ] 每outer fold重建reference、normalization、covariance、feature正交化和内部超参。
+- [ ] seed选择、早停、窗口/模型选择都算搜索；观察过validation永久记录已观察。
+- [ ] 统一成本账本，区分setup、solve、残差复核、kernel apply、IO、analysis与total；记录冷/热缓存、精度、设备和并行度，不混合比较。
+
+验收/产物：状态转换表、泄漏反例和同draw跨入口一致性报告。
+INCONCLUSIVE不等于无效，evaluated不等于物理有效；不同100分不直接合榜。
+
+### F4：数据生产质量与扩展边界
+
+HMC生成器已入库，但force/reversibility/ΔH/autocorr生产质量缺少新增核验证据。
+
+- [ ] CPU小场先做force有限差分、可逆性/积分误差阶、ΔH与接受率诊断设计。
+- [ ] 归档生成链热化、保存间隔、seed及自相关证据缺失处明确NOT_RUN。
+- [ ] 多体积/多动量/多rank按geometry、相位/复共轭、little group、halo与归约分别验收。
+- [ ] GEVP/训练网络必须声明新source/cross响应与函数类；估计器与kernel赛道分开。
+
+验收/产物：HMC质量文字/图表与扩展能力表；无生产证据不能仅凭高接受率认证系综。
+新GPU生产与多rank执行另行规划，不妨碍先完成CPU测试和设计。
+
+可扩展部分要随诊断更新到公共能力表，而不是只罗列新task名字：
+
+| 扩展轴 | 可复用部分 | 新增物理验收 |
 | --- | --- | --- |
-| `core/operator_checks.py` | CandidateSpec、随机场/变换、seed、容差 | 每项物理约束的残差和反例；供pytest与独立audit共用 |
-| `tests/test_operator_contracts.py` | 两个已知合法核及本轮已知坏核fixture | 能抓到错误闭环、GS右协变、轴交换与时间泄漏；合法核不误拒 |
-| `core/resampling.py` | cfg IDs、chain/source映射、block/split计划 | 公共paired draw IDs及nested CV计划，不擅自估计reference |
-| `core/run_manifest.py` | spec、依赖列表、输入与输出hash | 不可变运行身份、缓存适用性检查、legacy只读读取 |
-| `scripts/audit_run.py` | 已有run目录、显式diagnostic spec、新输出目录 | 数据完整性、源码/档案身份差异、可复算指标和NOT_RUN清单 |
-| `scripts/summarize_evidence.py` | 本轮机器可读证据记录 | 生成待合并的todo进展片段；不自动把研究假设勾选完成 |
+| 多T/非立方体积/质量 | RunSpec、轴/边界、输入和fold计划 | source-origin、有限T/体积、质量/尺度与参考适用性 |
+| 跨系综迁移 | 模型制品、训练预算、ensemble-level split | 整系综留出、物理smear半径标定、domain shift |
+| 非零动量 | operator/measurement/search接口 | 相位、复共轭、±p、little group与source/sink约定 |
+| baryon/三点函数 | provenance、冻结、配对和成本 | Wick/自旋投影、source-sink间隔、激发态结构；重定义目标 |
+| 真实相关矩阵/可训练核 | capability声明与数据缓存 | 实测cross/source数据、精确可复用参数范围及梯度检查 |
+| CPU/CUDA/ROCm/MPI | 后端适配与证据schema | 相同输入/残差/精度的跨后端、halo与归约对照 |
+| 多source/multilevel | 测量接口、质量门控与成本 | 无偏性、自相关、配置内聚合；与kernel-only赛道区分 |
 
-每条证据最少记录`test_id, task_id, claim, code_hashes, input_hashes, command, seed, geometry, dtype, observed, threshold, status, evidence_scope`。
-status区分`PASS/FAIL/NOT_RUN/INCONCLUSIVE`；evidence_scope区分`synthetic_CPU/archived_data/live_GPU`。
-例如“APE协变失败”要保留坏核反例和修复后合法核结果，不能只保存最后绿色测试数。
-例如“模型排序稳健”必须附模型集合、全部配对结果和选择程序，不能由单元测试PASS推导。
+### F5：集成与关闭条件
 
-每轮工作固定做：
+1. 先交P0数值边界、P1可信入口与F0证据schema，保留失败前后记录。
+2. 再交P2/P3诊断与F1/F2两task复用、mock搜索回归。
+3. 再交F3/F4明确范围的fold-local与生产质量证据；只选一个P4判别实验。
+4. 逐项更新coverage与报告，过时bug移至已完成，未做项保留NOT_RUN，不靠删条目宣告完成。
 
-1. 读取todo当前假设、输入范围和首个未完成验收项，创建本轮运行身份。
-2. 运行范围内测试/诊断，失败样本与未运行条件同样保存。
-3. 将观察映射到具体假设：支持、反驳或信息不足；不要让摘要模型重写数值。
-4. 更新对应task todo的“已执行证据/剩余假设/下一判别实验”，保留原结论及被修订原因。
-5. 若发现跨task缺口，在此总纲增加对应接口/回归项，随后分别更新两个使用方。
-
-一个doc条目可引用`artifact:...#test_id`，但目标文件必须真实存在；未实现入口始终写“拟议”。
-不要把全部future checklist直接标为可执行脚本，也不要因源码修复把旧物理结果升级认证。
-
-### F3 结果状态、统计口径与泄漏边界
-
-运行阶段与科研结论分开保存。例如：
-
-```json
-{
-  "run_state": "evaluated",
-  "operator_status": "pass",
-  "reference_status": "unidentified",
-  "score_status": "diagnostic_only",
-  "comparison_verdict": "inconclusive",
-  "score": null,
-  "evidence_scope": "archived_data"
-}
-```
-
-此例是拟议schema示例，不是对本轮某个run新出具的认证。
-`evaluated`不等于物理有效，`score=null`不等于程序崩溃，`inconclusive`不等于方法无效。
-独立保留算符、reference、数值执行、数据完整性、统计功效各门控。
-baseline_id与score_spec_id共同定义比较口径；不同task、不同reference的100分不能直接相加作统一榜单。
-
-所有candidate共享configuration/block重采样索引和reference draws。
-CV每个outer fold重新拟合reference、幅度归一化、covariance、特征正交化以及内部超参数。
-不能仅把最后的优化器放进CV，而复用完整development拟合量。
-候选选择、早停、最佳seed、模型/窗口选择都是搜索的一部分，必须写入预算与split依赖。
-已打开的validation永久标记为已观察；改目录名或协议版本不恢复其独立性。
-现有可信Python插件仅能做流程级隔离；若将来开放不可信提交，需另建真正的数据访问隔离，当前hash不是隔离机制。
-
-### F4 在保持物理定义清楚的前提下扩大任务范围
-
-| 扩展方向 | 可以复用的部分 | 必须新增的物理/数值证据 |
-| --- | --- | --- |
-| 多体积、多T、多质量 | RunSpec、数据清单、参数化kernel tests | 非立方轴序、有限体积/温度、reference适用性；不能只改geometry |
-| 不同算符/完整相关矩阵 | MeasurementProvider、配对统计 | 新source反演、cross contraction、Hermitian和metric可识别性 |
-| 非零动量、momentum smear | 搜索预算和缓存框架 | 相位/复共轭、little group、±p与边界，重新定义表示要求 |
-| baryon/三点函数 | provenance、candidate冻结、成本比较 | Wick/自旋投影、source-sink及excited-state结构，不能沿用pion风险 |
-| 可微gauge条件核 | OperatorContract、Evaluator | U非线性但quark field线性、梯度有限差分、可重用密度缓存 |
-| 跨系综迁移 | 训练/测试数据角色和模型制品 | 以整系综留出检验domain shift；验证使用按a/体积标定的物理半径 |
-| CPU/CUDA/ROCm、多rank | 后端接口和数据规范 | 单rank到多rankhalo/全局归约/残差对照；不继承旧单rank证据 |
-| multilevel/多source等估计器 | 质量门控、成本账本 | 新测量算法的无偏性与自相关；与kernel-only任务分赛道 |
-
-先选一个扩展轴做成端到端受控实验，不同时更换系综、reference、kernel和估计器后归因于一个因素。
-跨任务汇总优先展示有效性、效应区间、成本和失败范围；若将来需要综合榜单，任务权重与缺失项规则必须预先固定。
-
-### F5 实施依赖与最小可交付切片
-
-1. **第一个切片：共用算符测试**。Wilson修投影，学习核修闭环/O_h，pion修T索引；各task所有者负责物理实现，框架只抽取确实复用的测试逻辑。交付失败前/修复后证据。
-2. **第二个切片：RunSpec与回放**。pion负责reference factory，公共层负责hash/split/draw身份；Wilson和学习核各实现一个adapter。交付两task同spec统计一致与缓存失效反例。
-3. **第三个切片：可插拔评分与搜索**。pion按相邻开工单校准Metric/Comparator，学习核做class×optimizer实验；LLM走同一候选校验与预算。交付全部CPU可复现的合成benchmark。
-4. **第四个切片：一个真实新数据实验**。冻结候选和评分，确认算符/参考门控，测新validation与成本；再决定推进GEVP、多动量或跨系综。
-
-不要让三个agent同时修改公共schema；指派一个集成负责人处理`core/`与`agents/`，task负责人实现适配器并提供反例。
-主验收不是代码行数或任务数量，而是：加入第二种reference、第三种搜索器或新geometry时，不再复制另一套冻结/统计/证据逻辑。
+每轮必须交图或可审计文字报告，并标明实际产物路径、命令、输入/代码身份与未跑范围。
+本次51项测试的复核命令为 `PYTHONDONTWRITEBYTECODE=1 python3 -B -m pytest -q -p no:cacheprovider --basetemp=.audit-todo-pytest-20261118`；该临时目录已在核查后清理。后续使用新的任务内临时路径，并仅清理本轮产生的文件。
+本文件只在所有必需条目有验收证据，或研究路线有明确负结果/停止决定且范围被接受后才可关闭。
+尚有CPU缺口时不得写“剩余只能新GPU”；未实施的低优先级研究扩展可明确延期，不能假装完成。

@@ -267,3 +267,21 @@ def test_protocol_v3_is_consistent():
     assert p['development'] == [0, 99] and p['validation'] == [120, 199]
     assert p['gap'] == [100, 119]
     assert p['kernels'] == json.loads(Path('tasks/wilson_loop/protocol_v2.json').read_text())['kernels']
+
+
+def test_projection_batch_matches_single_matrices():
+    from tasks.wilson_loop.kernels import project
+    rng = np.random.default_rng(31)
+    a = rng.normal(size=(3, 3)) + 1j * rng.normal(size=(3, 3))
+    eye = np.eye(3, dtype=complex)
+    single = [project(eye), project(1e4 * eye), project(a), project(1e-6 * a)]
+    batch = project(np.stack([eye, 1e4 * eye, a, 1e-6 * a]))
+    for i, expected in enumerate(single):
+        np.testing.assert_allclose(batch[i], expected, atol=1e-10)
+
+
+def test_projection_rejects_nonfinite_and_ill_conditioned():
+    from tasks.wilson_loop.kernels import project
+    bad = np.stack([np.eye(3, dtype=complex), np.full((3, 3), np.inf)])
+    with pytest.raises(ValueError, match='non-positive or non-finite'):
+        project(bad)

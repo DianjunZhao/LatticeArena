@@ -23,24 +23,34 @@ def dagger(a):
     return a.swapaxes(-1, -2).conj()
 
 
-def _inv_sqrt_hermitian(a, iterations=24):
+def _inv_sqrt_hermitian(a, tol=1e-10, max_iter=80, min_iter=8):
     """Numerical inverse square root of a positive-definite Hermitian 3x3 batch.
 
-    Newton-Schulz iteration: Y -> Y(3I - ZY)/2, Z -> (3I - ZY)Z/2, scaled by the
-    matrix norm. Only matrix products are used, which is much faster on the DCU
-    than a per-site eigensolver.
+    Newton-Schulz with a per-matrix norm (a batch-wide scale made mixed-scale
+    batches fail) and an explicit convergence check, so an ill-conditioned
+    matrix is reported instead of silently projected.
     """
     xp = _lib(a)
     eye = xp.broadcast_to(xp.eye(3, dtype=a.dtype), a.shape)
-    scale = xp.max(xp.abs(a).sum(axis=(-1, -2)))
-    if not xp.isfinite(scale) or scale <= 0:
+    norms = xp.abs(a).sum(axis=(-1, -2))
+    if not xp.all(xp.isfinite(norms)) or xp.any(norms <= 0):
         raise ValueError('project: non-positive or non-finite metric')
+    scale = norms[..., None, None]
     y = eye.copy()
     z = a / scale
-    for _ in range(iterations):
+    for k in range(max_iter):
         t = 0.5 * (3 * eye - z @ y)
         y = y @ t
         z = t @ z
+        if k + 1 >= min_iter:
+            error = xp.abs(z @ y - eye).max(axis=(-1, -2))
+            if xp.all(error <= tol):
+                break
+    error = xp.abs(z @ y - eye).max(axis=(-1, -2))
+    if xp.any(error > tol):
+        count = int(xp.sum(error > tol))
+        raise ValueError(f'project: Newton-Schulz did not converge for {count} matrices '
+                         f'(max error {float(xp.max(error)):.3e})')
     return y / xp.sqrt(scale)
 
 

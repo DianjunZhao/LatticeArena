@@ -101,6 +101,7 @@ python -m pytest -q tests/test_wilson_loop.py
 | 项 | 状态 |
 | --- | --- |
 | P0 双边极分解投影 + det 修正 | 已实现；`project(gMg')=g·project(M)·g'`、APE 多 alpha/steps 协变测试 |
+| P0 投影数值边界 | 已修：逐矩阵 Newton–Schulz 尺度 + 收敛检查；混尺度 batch 与单矩阵一致（1e-16），rank-2 受控拒绝；证据 `results/wilson_loop/audit_20261118_projection/` |
 | P0 staple 归一化 | 已从 `/6` 改为 `/4`；`alpha` 数值口径变化（旧 α ↔ 新 $2\alpha/(3-\alpha)$） |
 | 旧 APE 结果 | **失效**（旧投影不协变），保留为历史诊断；identity 不受影响 |
 | P1 provenance | 部分完成：NPZ/loop 校验、每配置 gauge sha256、kernel hash、计时、git commit/dirty、原子保存；`evaluate` 现在校验 development SHA、kernel hash 与 kernel 参数；仍缺硬件/QUDA 版本 |
