@@ -60,7 +60,9 @@ def develop(output):
     odd = reflection_odd(raw)
     odd_blocks = blocks(odd, p['block_length'])
     odd_se = odd_blocks.std(axis=0, ddof=1)/np.sqrt(len(odd_blocks))
-    reflection_z = float(np.max(abs(odd_blocks.mean(axis=0))/odd_se))
+    odd_mean = odd_blocks.mean(axis=0)
+    z = np.divide(np.abs(odd_mean), odd_se, out=np.zeros_like(odd_mean), where=odd_se > 0)
+    reflection_z = float(np.max(z))
     if reflection_z > p['reflection_max_z']:
         failures.append('Forward/backward symmetry check exceeds the fixed z threshold')
     sensitivity = {}
@@ -111,7 +113,7 @@ def develop(output):
               'late_inverse_covariances': metrics, 'selected_gaussian_power': p['powers'][best],
               'optimizer': {'converged_starts': len(outcomes), 'objective': float(fit.fun),
                             'iterations': int(fit.nit), 'l1': float(abs(fit.x).sum())},
-              'calibration': calibration}
+              'calibration': calibration, 'reference': spec}
     write_json(output/'development_results.json', {'basis': baseline_results, 'agent': candidate_result})
     write_json(output/'submission.json', frozen)
     np.savez_compressed(output/'reference_bootstrap.npz', masses=mb, indices=index)
