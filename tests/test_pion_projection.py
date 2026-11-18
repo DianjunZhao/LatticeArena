@@ -472,3 +472,13 @@ def test_gevp_summary_rejects_partial_plateaus():
     assert summary['failures'] == 2
     assert summary['local_failures'] == 2
     assert summary['valid_times_per_replica'] == [2, 2, 3]
+
+
+def test_reference_gate_dof_and_null_pvalue():
+    from tasks.pion_projection.reference_gate import fit_gate, generate, null_pvalue
+    rng = np.random.default_rng(5)
+    data = generate(rng, kind='single', ncfg=60, noise=0.01)
+    fit, mass, cost, dof = fit_gate(data)
+    assert dof == fit.samples.shape[1] - len(__import__('tasks.pion_projection.reference_gate', fromlist=['BASIS']).BASIS) - 1
+    p, null_costs = null_pvalue(fit, mass, cost, data.mean(axis=0), rng, n_null=5)
+    assert 0 < p <= 1 and len(null_costs) == 5
