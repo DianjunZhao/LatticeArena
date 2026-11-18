@@ -20,6 +20,12 @@ Raw losses and uncertainty intervals are still useful diagnostics.
 > remain diagnostics in `doc/pion_projection_results.md`; the absolute score on
 > this ensemble is still not trustworthy (reference-model systematics are as
 > large as the effect). No new GPU measurement was run in this audit.
+> A read-only audit of the archived runs (shapes, hashes, reference scan,
+> covariance spectra, corrected T=32 reflection) is in
+> `results/pion_projection/score_diagnostics_v2/`; it shows the 5-point
+> reference covariance is rank deficient (15 dimensions vs 12 blocks) and that
+> the archived T=32 reflection z of 274.27 was a hard-coded-T artefact
+> (corrected 2.40), while the T=32 fit and window-shift failures remain.
 
 ## Reproduce the run
 
