@@ -47,8 +47,12 @@ def read_nersc(path):
     if datatype is not None and not datatype.startswith('4D_SU3_GAUGE_3x3'):
         raise ValueError(f'{path}: unsupported DATATYPE {datatype!r}')
     floating = header.get('FLOATING_POINT')
-    if floating is not None and floating.lower() not in ('1', 'true', 'yes'):
-        raise ValueError(f'{path}: unsupported FLOATING_POINT {floating!r}')
+    if floating is not None:
+        value = floating.strip().upper()
+        if value in ('IEEE64BIG', 'IEEE32LITTLE', 'IEEE32BIG'):
+            raise ValueError(f'{path}: unsupported FLOATING_POINT {floating!r}')
+        if value not in ('1', 'TRUE', 'YES', 'IEEE64LITTLE'):
+            raise ValueError(f'{path}: unsupported FLOATING_POINT {floating!r}')
     expected = nt * nz * ny * nx * 4 * 3 * 3 * 16
     if len(payload) != expected:
         raise ValueError(f'{path}: payload has {len(payload)} bytes, expected {expected}')

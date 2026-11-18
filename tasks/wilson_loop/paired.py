@@ -5,6 +5,7 @@ non-covariant APE kernel, so the output is a pipeline demonstration only and
 must not be read as a physical result.
 """
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -12,8 +13,8 @@ import numpy as np
 from .common import protocol
 from .statistics import bootstrap_indices, risk
 
-RUN = Path('results/wilson_loop/s16t16_v1')
-OUT = Path('results/wilson_loop/paired_legacy_v1')
+RUN = Path(os.environ.get('WILSON_RUN', 'results/wilson_loop/s16t16_v1'))
+OUT = RUN.parent / f'paired_{RUN.name}'
 
 
 def paired_ratios(data, windows, t_values, v_ref, outer=500, inner=500, seed=20261118):
@@ -46,16 +47,17 @@ def main():
                          'ci95': np.quantile(col, [0.025, 0.975]).tolist(),
                          'probability_better': float(np.mean(col > 1)),
                          'draws': int(len(col))}
+    legacy = p['version'].endswith('v1')
     (OUT / 'paired.json').write_text(json.dumps(
-        {'status': 'pipeline_demo_only', 'kernel_status': 'legacy_non_covariant',
+        {'status': 'pipeline_demo_only' if legacy else 'physical',
+         'kernel_status': 'legacy_non_covariant' if legacy else 'v2_covariant',
          'plan': {'outer': 500, 'inner': 500, 'seed': 20261118,
                   'statistic': 'risk(identity)/risk(candidate) on paired block draws'},
          'candidates': summary}, indent=2) + '\n')
     (OUT / 'README.md').write_text(
-        '# paired analysis (legacy v1)\n\n'
-        'Pipeline demonstration of `tasks/wilson_loop/paired.py` on the archived v1 measurement.\n'
-        'The v1 APE kernel is **not gauge covariant**, so these intervals are not physical results;\n'
-        'they only show the pre-registered analysis works. Re-run after the v2 re-measurement.\n')
+        '# paired analysis\n\n'
+        f'Run on `{RUN}`. Status: {"legacy pipeline demonstration only (non-covariant v1 kernel)" if legacy else "physical (v2 covariant kernel)"}.\n'
+        'Statistic: risk(identity)/risk(candidate) on 500 outer block resamples x 500 inner draws.\n')
     for name, row in summary.items():
         print(name, {k: (round(v, 3) if isinstance(v, float) else v) for k, v in row.items()})
 

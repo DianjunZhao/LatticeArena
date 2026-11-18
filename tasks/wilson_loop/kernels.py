@@ -23,6 +23,27 @@ def dagger(a):
     return a.swapaxes(-1, -2).conj()
 
 
+def _inv_sqrt_hermitian(a, iterations=24):
+    """Numerical inverse square root of a positive-definite Hermitian 3x3 batch.
+
+    Newton-Schulz iteration: Y -> Y(3I - ZY)/2, Z -> (3I - ZY)Z/2, scaled by the
+    matrix norm. Only matrix products are used, which is much faster on the DCU
+    than a per-site eigensolver.
+    """
+    xp = _lib(a)
+    eye = xp.broadcast_to(xp.eye(3, dtype=a.dtype), a.shape)
+    scale = xp.max(xp.abs(a).sum(axis=(-1, -2)))
+    if not xp.isfinite(scale) or scale <= 0:
+        raise ValueError('project: non-positive or non-finite metric')
+    y = eye.copy()
+    z = a / scale
+    for _ in range(iterations):
+        t = 0.5 * (3 * eye - z @ y)
+        y = y @ t
+        z = t @ z
+    return y / xp.sqrt(scale)
+
+
 def project(m):
     """Bidirectional polar projection onto SU(3): Q = M (M^dag M)^(-1/2), det -> 1.
 
@@ -33,16 +54,13 @@ def project(m):
     xp = _lib(m)
     m = xp.asarray(m, dtype=xp.complex128)
     herm = dagger(m) @ m
-    ev, vec = xp.linalg.eigh(herm)
-    scale = xp.max(ev)
-    if not xp.isfinite(scale) or scale <= 0:
-        raise ValueError('project: non-positive or non-finite metric')
-    if xp.any(ev <= scale * 1e-12):
-        raise ValueError('project: singular or near-singular link matrix')
-    inv_sqrt = (vec * (1.0 / xp.sqrt(ev))[..., None, :]) @ dagger(vec)
-    q = m @ inv_sqrt
+    q = m @ _inv_sqrt_hermitian(herm)
     det = xp.linalg.det(q)
-    return q * xp.exp(-1j * xp.arctan2(det.imag, det.real) / 3.0)[..., None, None]
+    q = q * xp.exp(-1j * xp.arctan2(det.imag, det.real) / 3.0)[..., None, None]
+    defect = xp.max(xp.abs(dagger(q) @ q - xp.eye(3, dtype=q.dtype)))
+    if not xp.isfinite(defect) or defect > 1e-6:
+        raise ValueError(f'project: singular or ill-conditioned link (unitarity defect {float(defect):.3e})')
+    return q
 
 
 def ape(links, alpha, steps):

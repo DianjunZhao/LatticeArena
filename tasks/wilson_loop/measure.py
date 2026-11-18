@@ -66,7 +66,7 @@ def measure(output, split, limit=None):
         records.append({'id': int(cfg), 'gauge_sha256': digest(gauge_path),
                         'setup_seconds': setup, 'measure_seconds': perf_counter() - measured,
                         'total_seconds': perf_counter() - start})
-        tmp = output / f'.{split}.npz.tmp'
+        tmp = output / f'.{split}.tmp.npz'
         np.savez_compressed(tmp, ids=ids[:len(rows)], loops=np.asarray(rows),
                             protocol_hash=fingerprint(p))
         os.replace(tmp, output / f'{split}.npz')

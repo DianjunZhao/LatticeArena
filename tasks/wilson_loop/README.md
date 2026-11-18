@@ -105,8 +105,9 @@ python -m pytest -q tests/test_wilson_loop.py
 | 旧 APE 结果 | **失效**（旧投影不协变），保留为历史诊断；identity 不受影响 |
 | P1 provenance | 部分完成：NPZ/loop 校验、每配置 gauge sha256、kernel hash、计时、git commit/dirty、原子保存；`evaluate` 现在校验 development SHA、kernel hash 与 kernel 参数；仍缺硬件/QUDA 版本 |
 | P2 配对区间 | 已写好预注册的 `paired.py`（outer 500 × inner 500，统计量 risk(identity)/risk(candidate)，报告中位数/95% 区间/P(优于 identity)）；在 v1 归档上做了 pipeline demo，标记 `legacy_non_covariant`；等 v2 重测数据重跑 |
-| v2 协议（alpha/4 + 极分解） | 已准备（`protocol_v2.json`），可用 `WILSON_PROTOCOL` 选择 |
-| 修复后的 GPU 重测 | NOT_RUN（需要集群与新 run 目录） |
+| v2 协议（alpha/4 + 极分解） | 已使用（`protocol_v2.json`），`WILSON_PROTOCOL` 选择 |
+| v2 配对分析 | 已完成（`paired_s16t16_v2`）；点估计 3× 但 95% 区间跨 1，未证明改善 |
+| 修复后的 GPU 重测 | **已完成**（`s16t16_v2`，60+30 组态，2026-11-18） |
 
 ## 重新测量准备：v2 协议
 
@@ -119,3 +120,37 @@ python -m pytest -q tests/test_wilson_loop.py
 
 生成器 `pilot/hmc_generate.py` 已从 kunshan 取回仓库，重生产时可以核对输入身份。
 修复后的 GPU 重测仍为 **NOT_RUN**。
+
+## v2 重测结果（2026-11-18，GPU 已运行）
+
+用 v2 协议（$\alpha/4$ + 双边极分解投影）在 kunshan 上重测了 60 个开发组态和 30 个留出组态
+（4 个核，约 6.5 s/组态）：
+
+| 核 | 开发 risk | 留出 risk | 留出 score |
+| --- | ---: | ---: | ---: |
+| identity | $7.82\times10^{-5}$ | $5.553\times10^{-5}$ | 100 |
+| APE(α=0.4, 5 步) | $2.11\times10^{-5}$ | $5.745\times10^{-5}$ | 96.7 |
+| APE(α=0.4, 10 步) | $1.96\times10^{-5}$ | $5.378\times10^{-5}$ | 103.3 |
+| APE(α=0.6087, 10 步) | $1.90\times10^{-5}$ | $5.262\times10^{-5}$ | **105.5** |
+
+参考 gate 通过（identity 的 $V(R)=0.41029/0.59723/0.70335$，与 v1 相同）；kernel 现在是规范协变的。
+
+**但改善仍未被证明**：预注册配对分析（500 outer × 500 inner，统计量 risk(identity)/risk(candidate)）：
+
+| 核 | 中位数 | 95% 区间 | $P(\text{优于 identity})$ |
+| --- | ---: | ---: | ---: |
+| APE(0.4, 5) | 3.01 | [0.64, 28.1] | 0.842 |
+| APE(0.4, 10) | 3.42 | [0.69, 23.5] | 0.874 |
+| APE(0.6087, 10) | 3.41 | [0.72, 21.0] | 0.894 |
+
+区间全部跨 1（6 个留出 block 下重复块退化、分布强偏斜），所以只能说“点估计偏好 APE，但未达到
+预注册的置信水平”。
+
+**开发/留出差距很大**：开发集上 APE 的 risk 比 identity 低约 4 倍，留出集上只换来 3–5% 的分数。
+这说明开发集上的改善有相当一部分来自对 12 个 block 的过拟合，不能外推。
+
+产物：`results/wilson_loop/s16t16_v2/`（测量、冻结与验证）和
+`results/wilson_loop/paired_s16t16_v2/`（配对分析）。
+
+> 过程中修的两个执行问题：真实 NERSC 头的 `FLOATING_POINT` 是 `IEEE64LITTLE`（不是 `1`/`true`）；
+> 原子保存的临时文件必须以 `.npz` 结尾，否则 numpy 会再追加一个 `.npz`。

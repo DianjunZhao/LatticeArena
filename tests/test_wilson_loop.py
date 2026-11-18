@@ -167,12 +167,15 @@ def test_read_nersc_validates_header_and_payload(tmp_path):
     path.write_bytes(_nersc())
     u = read_nersc(path)
     assert u.shape == (4, 2, 2, 2, 2, 3, 3)
+    path.write_bytes(_nersc(floating='IEEE64LITTLE'))
+    read_nersc(path)
     path.write_bytes(_nersc(datatype='4D_SU2_GAUGE_3x3'))
     with pytest.raises(ValueError, match='DATATYPE'):
         read_nersc(path)
-    path.write_bytes(_nersc(floating='0'))
-    with pytest.raises(ValueError, match='FLOATING_POINT'):
-        read_nersc(path)
+    for bad in ('0', 'IEEE32LITTLE', 'IEEE64BIG'):
+        path.write_bytes(_nersc(floating=bad))
+        with pytest.raises(ValueError, match='FLOATING_POINT'):
+            read_nersc(path)
     path.write_bytes(_nersc()[:-16])
     with pytest.raises(ValueError, match='payload'):
         read_nersc(path)
