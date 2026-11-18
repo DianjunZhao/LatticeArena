@@ -219,3 +219,15 @@ def test_parity_covariance():
     fg = _transform(f, r, shift, dagger)
     np.testing.assert_allclose(build_kernel(ug, p).apply(fg),
                                _transform(build_kernel(u, p).apply(f), r, shift, dagger), atol=1e-11)
+
+
+def test_run_manifest_records_dependencies_and_ids(tmp_path):
+    from tasks.optimize_gaussian.train import run_manifest
+    p = {'geometry': [16, 16, 16, 16], 'base_steps': 8, 'base_alpha': 0.09}
+    m = run_manifest(p, np.zeros((2, 2)), np.zeros(3), [0, 1], [2], [3], {0: 'a', 1: 'b', 2: 'c', 3: 'd'})
+    assert m['schema'] == 'optgauss-run-v1'
+    assert m['ids'] == {'fit': [0, 1], 'dev_val': [2], 'test': [3]}
+    assert m['propagator_cache'] == {'0': 'a', '1': 'b', '2': 'c', '3': 'd'}
+    assert set(m['dependencies']) == {'features.py', 'kernels.py', 'submission.py', 'train.py'}
+    assert all(len(v) == 64 for v in m['dependencies'].values())
+    assert len(m['statistics_sha256']) == 64

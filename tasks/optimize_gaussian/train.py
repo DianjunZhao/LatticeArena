@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import minimize
 
-from tasks.pion_projection.common import fingerprint
+from tasks.pion_projection.common import digest, fingerprint
 from tasks.pion_projection.statistics import blocks, bootstrap_indices, risk
 
 from .features import _lib, directional_features
@@ -32,6 +32,19 @@ def init_quda(p):
 def model_space(p, seed):
     rng = np.random.default_rng(seed)
     return rng.normal(size=(p['hidden'], 2)) * 0.5
+
+
+def run_manifest(p, W, theta, fit_ids, devval_ids, test_ids, cache):
+    here = Path(__file__).parent
+    return {'schema': 'optgauss-run-v1', 'protocol': fingerprint(p),
+            'features': 'a1plus-link-centred-v3', 'geometry': p['geometry'],
+            'base_steps': p['base_steps'], 'base_alpha': p['base_alpha'],
+            'W': np.asarray(W).tolist(), 'theta': [float(x) for x in np.asarray(theta).ravel()],
+            'ids': {'fit': list(fit_ids), 'dev_val': list(devval_ids), 'test': list(test_ids)},
+            'propagator_cache': {str(i): cache[i] for i in fit_ids + devval_ids + test_ids},
+            'dependencies': {name: digest(here / name) for name in
+                             ('features.py', 'kernels.py', 'submission.py', 'train.py')},
+            'statistics_sha256': digest(here.parent / 'pion_projection' / 'statistics.py')}
 
 
 def basis_key(p, seed, W, fit_ids, dev_ids):
@@ -235,6 +248,8 @@ def main():
                'test_risk_base': risk_of(p, C_base, masses)}
     summary['test_ratio'] = summary['test_risk_base'] / summary['test_risk_learned']
     (out / 'results.json').write_text(json.dumps(summary, indent=2) + '\n')
+    (out / 'manifest.json').write_text(json.dumps(
+        run_manifest(p, W, theta, fit_ids, devval_ids, test_ids, cache), indent=2) + '\n')
     print('SUMMARY', json.dumps({'best': summary['best'], 'test_ratio': summary['test_ratio']}), flush=True)
 
 

@@ -366,6 +366,7 @@ python -m tasks.optimize_gaussian.compare_plot
 | A1+ 横向交换 | 已改为对称输入 $(s_1+s_2,\,s_1s_2)$ 并测试；全群通过 |
 | 训练线性响应 vs 直接关联函数 | 已测（误差 < 1e-11） |
 | 训练缓存 identity | 已加（protocol hash、seed、W、steps、alpha、hidden、IDs、特征版本） |
+| 运行 manifest | 已加（`manifest.json`：协议、W/θ、IDs、传播子缓存 key、依赖文件 hash） |
 | 全 O_h 群（24 旋转 + 宇称）测试 | **PASSED**（link 中心特征；A1+ 认证） |
 | v1–v8 历史 risk | **失效**（旧特征），保留为流程/负结果记录 |
 | 修复后的 GPU 重训 | NOT_RUN |
