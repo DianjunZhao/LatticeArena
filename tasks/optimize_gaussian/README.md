@@ -1,7 +1,8 @@
 # optimize_gaussian：用学习到的 smear 核替换 $H^n$
 
-**一句话结论**：我们让网络学一个逐点的 smear 核，比最好的高斯基座好约 1.5 倍，
-但**没有打败 7 个参数的 SLSQP 混合核**。下面把每个公式、每个符号、每张图都讲清楚。
+**一句话结论**：修复特征后（link 中心、A1+ 认证），学习核比最好的高斯基座好 **2.1 倍**，
+候选 risk 0.007721 与 7 参数 SLSQP 混合的 0.007703 **打平（0.2% 内）**；但参考 gate 未过，
+仍然没有官方分数。下面把每个公式、每个符号、每张图都讲清楚。
 
 > **2026-11-18 算子修正（重要）**：`features.plaquettes` 的路径原先没有闭合（第二段沿 ν、第三段沿 μ 平移），
 > 算出来的并不是规范不变的 plaquette；`directional_features` 的两个输入也不对横向交换对称，A1+ 不成立。
@@ -252,7 +253,8 @@ $$
 | v5 | 均匀/空间拆分 | 1.36× |
 | v6 | A1+ + 三明治 | **1.50×**，通过 `candidate` 冻结 |
 | v7 | 3 个 $W$ 种子 + 40 组态 | **1.52×** |
-| v8 | 与 SLSQP 配对 | **0.803 [0.636, 0.944]，输了** |
+| v8 | 与 SLSQP 配对（旧特征） | 0.803 [0.636, 0.944]，输了 |
+| **v9** | **link-centred A1+，GPU 重训** | **2.12×；候选 risk 0.007721 ≈ SLSQP 0.007703** |
 
 ### 图 1：v4 学到的系数
 
@@ -371,3 +373,31 @@ python -m tasks.optimize_gaussian.compare_plot
 | 全 O_h 群（24 旋转 + 宇称）测试 | **PASSED**（link 中心特征；A1+ 认证） |
 | v1–v8 历史 risk | **失效**（旧特征），保留为流程/负结果记录 |
 | 修复后的 GPU 重训 | NOT_RUN |
+
+## v9：修复特征后的 GPU 重训（2026-11-18）
+
+用 link 中心、A1+ 已认证的特征重新收集响应并训练（3 个 $W$ 种子、$\lambda_2\in\{0,10^{-2}\}$、
+20 拟合 / 40 dev-val / 30 测试）：
+
+| 版本 | 特征 | 测试 risk | 相对 $G^8$ | 候选 risk（官方路径） |
+| --- | --- | ---: | ---: | ---: |
+| v7 | 旧的前向锚点 | 0.012870 | 1.52× | 0.009597 |
+| **v9** | **link 中心 A1+** | **0.009236** | **2.12×** | **0.007721** |
+
+对照：SLSQP 混合 0.007703、tuned Gaussian 0.012556、local 0.312670。**v9 的候选与 SLSQP 在
+0.2% 内打平**（0.007721 vs 0.007703），比 v7 的 0.009597 明显更接近。
+
+![v9 risk](../../results/optimize_gaussian/v9/fig_risk.png)
+*图 v9-1：3 个 $W$ 种子 × $\lambda_2$ 的 dev-val；$\lambda_2=10^{-2}$ 时三条线都在 0.0036 附近。*
+
+![v9 coeff](../../results/optimize_gaussian/v9/fig_coeff.png)
+*图 v9-2：学到的 $a_x$（link 中心特征）。与 v7 的“几乎纯均匀”不同，这次特征系数到了
+$|v_h|\approx0.13$，空间调制是显著的。*
+
+v9 的配置与身份写在 `results/optimize_gaussian/v9/manifest.json`（完整 protocol、W/θ、IDs、
+传播子缓存 key、依赖 hash）。官方 `candidate` 流程仍然给出 `score: null`（参考 gate 未过），
+诊断比为 40.5 [17.6, 121.9]，**不能当作正式分数**。
+
+> 运行注意：v1 冻结目录里的 `protocol.json` 是 60/10/30 快照，仓库默认协议是 30/5/15；
+> 跑 `candidate` 时需要 `LATTICEARENA_PROTOCOL=results/pion_projection/s16t16_v1/protocol.json
+> LATTICEARENA_LEGACY_REFERENCE=1`（后者因为该冻结 submission 早于 reference spec）。

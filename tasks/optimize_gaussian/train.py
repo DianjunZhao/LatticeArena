@@ -36,7 +36,7 @@ def model_space(p, seed):
 
 def run_manifest(p, W, theta, fit_ids, devval_ids, test_ids, cache):
     here = Path(__file__).parent
-    return {'schema': 'optgauss-run-v1', 'protocol': fingerprint(p),
+    return {'schema': 'optgauss-run-v1', 'protocol': p, 'protocol_fingerprint': fingerprint(p),
             'features': FEATURE_VERSION, 'geometry': p['geometry'],
             'base_steps': p['base_steps'], 'base_alpha': p['base_alpha'],
             'W': np.asarray(W).tolist(), 'theta': [float(x) for x in np.asarray(theta).ravel()],
