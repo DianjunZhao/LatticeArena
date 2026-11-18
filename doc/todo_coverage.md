@@ -38,7 +38,7 @@
 | P2 配对统计审计 | ✅ | `paired_audit_v1/`：v2 点值 1.07–1.18 vs 中位数 3.0–3.4；唯一 block 分布、jackknife 0.49–4.53；`invalid_audit_v1/` 计数全 0 |
 | P3 物理质量门控 | ✅ | `spectral_quality_v1/`：平但错反例（偏差 170σ、risk 2.7e-7、gate 通过）；`doc/wilson_spectral_quality.md` |
 | P4 研究扩展（设计） | ⛔ | 只有 todo 中的设计表 |
-| F0 证据 schema | ✅ | `core/evidence.py`、`operator_checks.py`、`scripts/audit_run.py`、`summarize_evidence.py` |
+| F0 证据 schema | ✅ | `core/evidence.py`、`operator_checks.py`、`scripts/audit_run.py`、`summarize_evidence.py`；audit 证据带 code/inputs hash，缺 hash 判 NOT_RUN，pion 行数按 RunSpec |
 | F1 五类接口 | ✅ | `core/specs/measurement/comparator/search/reference_provider`；一致性 + 缓存失效反例 PASS |
 | F2 LLM/搜索隔离 | ✅ | `core/candidates.validate_weights`、mock 轨迹、`--no-validation` 拦截测试 |
 | F3 状态/账本 | 🟡 | wilson/pion 的 develop/evaluate 已持久化 run_state；measure 带 ledger；pion nested_cv bindings；candidate 与 GPU 账本仍未接 |

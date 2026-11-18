@@ -154,3 +154,19 @@ def test_reference_provider_both_tasks():
     wdata = blocks(np.load('results/wilson_loop/s16t16_v3/validation.npz')['loops'], 5)
     v_ref = provide(wp, wdata)['v_ref']
     assert v_ref.shape == (len(w['r_values']),)
+
+
+def test_check_draws_rejects_broadcast_and_nonfinite():
+    from core.comparator import check_draws, paired_ratio
+    with pytest.raises(ValueError, match='one-dimensional'):
+        check_draws({'a': np.zeros((3, 1)), 'b': np.zeros(3)})
+    with pytest.raises(ValueError, match='one-dimensional'):
+        check_draws({'a': np.zeros(3), 'b': np.zeros((3, 1))})
+    with pytest.raises(ValueError, match='non-finite'):
+        check_draws({'a': np.array([1.0, np.nan, 2.0]), 'b': np.ones(3)})
+    with pytest.raises(ValueError, match='different lengths'):
+        check_draws({'a': np.zeros(3), 'b': np.zeros(4)})
+    n, _ = check_draws({'a': np.zeros(3), 'b': np.ones(3)})
+    assert n == 3
+    with pytest.raises(ValueError, match='one-dimensional'):
+        paired_ratio(np.zeros((3, 1)), np.zeros(3))

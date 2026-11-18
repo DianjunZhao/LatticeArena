@@ -109,6 +109,7 @@ python -m pytest -q tests/test_wilson_loop.py
 | F1 接口切片 3–4 | `core/measurement.py` + `core/comparator.py`；wilson bundle 声明三项能力全为 False（归档 run 没有 cross/response，禁止推断） |
 | F1 接口切片 1–2 | 新增 `core/specs.py` + 两个 task 的 spec adapter（TaskSpec/RunSpec、OperatorContract/CandidateSpec）；见 [`doc/interfaces.md`](../../doc/interfaces.md)，测试 `tests/test_specs.py` |
 | F2 LLM/搜索隔离 | 共享 `core/candidates.validate_weights`；mock 轨迹 + 拦截测试见 [`doc/agent_isolation.md`](../../doc/agent_isolation.md) |
+| F0 证据绑定修复 | `audit_run` 的每条证据现在带 code/inputs hash；两个 kernel hash 缺失时判 NOT_RUN（不再 None==None 通过）；pion 行数按 RunSpec 校验（不用 len(data) 自证）；`covariance_residual` 文档明确只是固定 U 的交换关系，不是完整 gauge 协变 |
 | F0 证据 schema | 新增 `core/evidence.py`、`core/operator_checks.py`、`scripts/audit_run.py`、`scripts/summarize_evidence.py`；wilson v3 与 pion 200 各产出一份同 schema 证据（`results/*/evidence/`）；见 [`doc/evidence_framework.md`](../../doc/evidence_framework.md) |
 | P3 物理质量门控 | 新增 `spectral_quality.py` + `doc/wilson_spectral_quality.md`：合成“平但错”反例（偏差 170σ、risk $2.7\times10^{-7}$、gate 通过）；v3/v4 窗口 $V$ 图；`reference_nominal_window` 改为显式 spec |
 | P2 无效样本计数 | 新增 `invalid_audit.py` + `results/wilson_loop/invalid_audit_v1/`：预声明 mean/bootstrap 非正、NaN、零分母规则；v2/v3/v4 计数全为 0（规则未触发）；合成数据单测覆盖计数路径 |

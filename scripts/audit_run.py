@@ -12,6 +12,11 @@ import numpy as np
 from core.evidence import record, write_evidence
 from core.io import digest, fingerprint
 
+CODE = {'kernels': 'tasks/wilson_loop/kernels.py', 'common': 'tasks/wilson_loop/common.py',
+        'statistics': 'tasks/wilson_loop/statistics.py'}
+PION_CODE = {'kernels': 'tasks/pion_projection/kernels.py', 'statistics': 'tasks/pion_projection/statistics.py',
+             'experiment': 'tasks/pion_projection/experiment.py'}
+
 
 def wilson(run, protocol_path):
     from tasks.wilson_loop.common import indices, read_nersc  # noqa: F401
@@ -35,12 +40,16 @@ def wilson(run, protocol_path):
                               status='PASS' if loops.shape == (len(ids), len(p['kernels']), len(p['r_values']), len(p['t_values']))
                               and np.all(np.isfinite(loops)) else 'FAIL', scope='archived_data',
                               geometry=p['geometry']))
+    observed = {'submission': sub.get('kernel_sha256'), 'provenance': prov.get('kernel_sha256')}
+    if observed['submission'] is None or observed['provenance'] is None:
+        status = 'NOT_RUN'
+    else:
+        status = 'PASS' if observed['submission'] == observed['provenance'] else 'FAIL'
     entries.append(record('wilson.kernel_identity', 'wilson_loop', 'submission kernel hash equals the archived provenance',
-                          'sha256 compare', observed={'submission': sub.get('kernel_sha256'),
-                                                      'provenance': prov.get('kernel_sha256')},
-                          threshold={'equal': True},
-                          status='PASS' if sub.get('kernel_sha256') == prov.get('kernel_sha256') else 'FAIL',
-                          scope='archived_data', geometry=p['geometry']))
+                          'sha256 compare', observed=observed, threshold={'equal': True, 'required': True},
+                          status=status, scope='archived_data', geometry=p['geometry'],
+                          code={name: digest(Path(path)) for name, path in CODE.items()},
+                          inputs={'provenance_generation': prov.get('generation')}))
     return entries
 
 
@@ -57,11 +66,14 @@ def pion(run):
         with np.load(path) as f:
             data = f['correlators']
             stored = str(f['protocol_hash'])
-        entries.append(record(f'pion.{split}.shape', 'pion_projection', f'{split} correlators are finite with the declared shape',
-                              'shape/finite check', observed=list(data.shape),
-                              threshold={'n': len(data), 'channels': len(p['powers']), 'T': p['geometry'][3]},
-                              status='PASS' if data.shape == (len(data), len(p['powers']), p['geometry'][3])
-                              and np.all(np.isfinite(data)) else 'FAIL', scope='archived_data', geometry=p['geometry']))
+        expected_n = int(p[split][1] - p[split][0] + 1)
+        entries.append(record(f'pion.{split}.shape', 'pion_projection', f'{split} correlators have the RunSpec size and are finite',
+                              'RunSpec size/finite check', observed=list(data.shape),
+                              threshold={'n': expected_n, 'channels': len(p['powers']), 'T': p['geometry'][3]},
+                              status='PASS' if data.shape == (expected_n, len(p['powers']), p['geometry'][3])
+                              and np.all(np.isfinite(data)) else 'FAIL', scope='archived_data', geometry=p['geometry'],
+                              code={name: digest(Path(path)) for name, path in PION_CODE.items()},
+                              inputs={'protocol_hash': stored}))
         entries.append(record(f'pion.{split}.protocol_hash', 'pion_projection', f'{split} protocol hash matches the provenance',
                               'hash compare', observed=stored[:12], threshold=fingerprint(p)[:12],
                               status='PASS' if stored == fingerprint(p) else 'FAIL', scope='archived_data',

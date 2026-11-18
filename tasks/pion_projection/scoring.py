@@ -58,7 +58,7 @@ def _check_draws(risks, spec, draw_ids):
     if set(candidates) != set(spec['candidate_ids']):
         raise ValueError(f'candidate ids {sorted(candidates)} are not the declared set {sorted(spec["candidate_ids"])}')
     flat = {f'{model}/{name}': np.asarray(values) for model in models for name, values in risks[model].items()}
-    n_draws, _ = check_draws(flat, draw_ids)
+    n_draws, _ = check_draws(flat, draw_ids, finite=False)
     return models, candidates, n_draws
 
 

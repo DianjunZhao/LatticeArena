@@ -8,15 +8,25 @@ import hashlib
 import numpy as np
 
 
-def check_draws(risks, draw_ids=None, tolerance=0):
-    lengths = {np.asarray(value).size for value in risks.values()}
-    if len(lengths) != 1:
-        raise ValueError(f'draw arrays have different lengths {sorted(lengths)}')
-    n = lengths.pop()
-    if draw_ids is not None and len(draw_ids) != n:
-        raise ValueError('draw_ids length does not match the risk draws')
+def check_draws(risks, draw_ids=None, finite=True):
+    """Every array must be 1-D, the same length, and finite; no broadcasting."""
+    arrays = {name: np.asarray(value) for name, value in risks.items()}
+    for name, array in arrays.items():
+        if array.ndim != 1:
+            raise ValueError(f'draw array {name!r} must be one-dimensional, got shape {array.shape}')
+    shapes = {array.shape for array in arrays.values()}
+    if len(shapes) != 1:
+        raise ValueError(f'draw arrays have different lengths {sorted(shapes)}')
+    n = shapes.pop()[0]
+    if finite:
+        for name, array in arrays.items():
+            if not np.all(np.isfinite(array.astype(float))):
+                raise ValueError(f'draw array {name!r} has non-finite entries')
     if draw_ids is not None:
-        digest = hashlib.sha256(np.asarray(draw_ids, dtype=np.int64).tobytes()).hexdigest()
+        ids = np.asarray(draw_ids)
+        if ids.ndim != 1 or ids.size != n:
+            raise ValueError('draw_ids must be a one-dimensional array of the same length')
+        digest = hashlib.sha256(np.asarray(ids, dtype=np.int64).tobytes()).hexdigest()
         return n, digest
     return n, None
 

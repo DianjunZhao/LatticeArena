@@ -22,7 +22,12 @@ def hermiticity_residual(bilinear, f, g):
 
 
 def covariance_residual(op, transform, f, tol_basis=None):
-    """||op(T f) - T op(f)|| / ||op(f)|| for an isometry transform."""
+    """||op(T f) - T op(f)|| / ||op(f)|| for a fixed isometry transform.
+
+    This checks that the operator commutes with the field transformation for a
+    fixed link background. It is NOT a full gauge-covariance test: that needs the
+    links to be transformed together with the field (transform must act on both).
+    """
     return float(np.linalg.norm(op(transform(f)) - transform(op(f))) / max(np.linalg.norm(op(f)), 1e-300))
 
 
