@@ -4,6 +4,9 @@ from pathlib import Path
 
 import numpy as np
 
+from core.ledger import Ledger
+from core.state import RunState
+
 from .common import digest, fingerprint, load_data, protocol, write_json
 from .statistics import blocks, bootstrap_indices, potential, risk
 
@@ -23,11 +26,25 @@ def develop(output):
     results = {spec['name']: risk(data[:, k], index, windows, p['t_values'], v_ref, nominal=nominal)
                for k, spec in enumerate(p['kernels'])}
     identity = results['identity']
+    state = RunState()
+    state.set('operator', 'draft', 'kernels.py').set('operator', 'validated', 'tests/test_wilson_loop.py')
+    state.set('numerical', 'draft', 'per-matrix Newton-Schulz').set('numerical', 'validated',
+                                                                  'results/wilson_loop/audit_20261118_projection/')
     failures = []
     if np.any(np.array(identity['v']) <= 0):
         failures.append('non-positive reference potential')
     if np.any(np.array(identity['spread']) / np.array(identity['v']) > p['reference_max_relative_se']):
         failures.append('identity plateau spread across T windows exceeds the fixed threshold')
+    state.set('reference', 'draft', 'identity V')
+    if failures:
+        state.set('reference', 'failed', '; '.join(failures))
+    else:
+        state.set('reference', 'validated', 'identity V positive and spread below threshold')
+    state.set('statistical', 'draft', 'block bootstrap')
+    state.set('statistical', 'validated', f'{len(data)} blocks, {p["bootstrap_samples"]} draws')
+    state.set('comparison', 'draft', 'risk ratios')
+    if failures:
+        state.set('comparison', 'failed', 'reference gate failed')
     best_risk, best_name = min((r['risk'], n) for n, r in results.items() if n != 'identity')
     frozen = {'protocol_hash': fingerprint(p),
               'development_sha256': digest(output / 'development.npz'),
@@ -36,6 +53,7 @@ def develop(output):
               'nominal_window_index': nominal,
               'reference_passed': not failures, 'failure_reasons': failures,
               'identity': identity, 'kernels': p['kernels'], 'v_ref': v_ref.tolist(), 'results': results,
+              'run_state': state.summary(),
               'best_nonidentity': {'name': best_name, 'risk': best_risk}}
     write_json(output / 'submission.json', frozen)
     print('DEVELOP', json.dumps({'reference_passed': frozen['reference_passed'],
@@ -69,7 +87,17 @@ def evaluate(output):
     for value in results.values():
         value['loss_ratio_vs_identity'] = (base + eps) / (value['risk'] + eps)
         value['score'] = 100 * value['loss_ratio_vs_identity'] if frozen['reference_passed'] else None
+    state = RunState()
+    frozen_state = frozen.get('run_state', {})
+    for name in ('operator', 'reference', 'numerical', 'statistical'):
+        status = frozen_state.get('status', {}).get(name, 'draft')
+        state.status[name] = status
+    state.set('comparison', 'draft', 'evaluate')
+    state.observe_validation(f'evaluate:{p["version"]}')
+    if not frozen['reference_passed']:
+        state.set('comparison', 'failed', 'reference gate failed')
     report = {'protocol_version': p['version'], 'windows': windows,
+              'run_state': state.summary(),
               'identity': frozen['identity'],
               'reference_passed': frozen['reference_passed'],
               'failure_reasons': frozen['failure_reasons'],

@@ -51,9 +51,23 @@ baseline、score spec、搜索预算、seed、`validation_observed=False`。
 
 尚未接入 measure：需要 GPU 测量时手动调用。
 
-## 5. 未做（NOT_RUN）
+## 5. 已接入的位置
 
-- 把 `RunState` 接入 evaluate/candidate 的持久化（当前只在库/测试层）；
-- 真实的 GPU 计时账本（设备/缓存/并行度）；
-- 跨入口的 same-draw 一致性报告（pion joint 已有 draw ID，wilson 的 paired 用同一 block index，
-  但没有统一入口生成）。
+- **wilson `develop`**：submission.json 现在带 `run_state`（operator/numerical/reference/
+  statistical/comparison 五个状态 + evidence 引用）；reference gate 失败时 `reference`/`comparison`
+  为 `failed`；
+- **wilson `evaluate`**：从冻结的 run_state 继承前四个状态，评估后写 `comparison` 并永久记录
+  `validation_observed`；
+- **wilson `measure`**：provenance 现在带 `ledger`（setup/kernel 阶段、设备、精度、并行度）；
+- **pion `nested_cv`**：`fold_plan.json` 的 bindings（split/block/bootstrap/reference/baseline/
+  score spec/搜索预算/seed/validation 未观察）；
+- **pion consistency**：`core/comparator` 与证书的 4 个下界逐位一致（same-draw 跨入口）。
+
+测试：`test_develop_records_run_state`（临时 run 上 develop 写出的状态）、
+`test_run_state_transitions_and_score_gating`、`test_cost_ledger_phases_and_environment`。
+
+## 6. 未做（NOT_RUN）
+
+- pion `evaluate`/`candidate` 的持久化 run_state（当前只有 wilson）；
+- 真实 GPU 计时账本（device/cache/parallel 字段已就绪，但没有新测量）；
+- 跨 task 的统一 same-draw 入口（pion 有 draw ID，wilson 用同一 block index，但未统一生成）。

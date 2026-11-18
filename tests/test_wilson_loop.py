@@ -364,3 +364,25 @@ def test_toy_leapfrog_is_second_order():
     rows = order_check((0.02, 0.01))
     ratio = rows[0]['delta_H'] / rows[1]['delta_H']
     assert 3.2 < ratio < 5.0, (ratio, rows)
+
+
+def test_develop_records_run_state(tmp_path, monkeypatch):
+    import json
+    import shutil
+    from pathlib import Path
+    from tasks.wilson_loop import experiment
+    run = Path('results/wilson_loop/s16t16_v3')
+    if not (run / 'development.npz').exists():
+        pytest.skip('v3 development data not available')
+    shutil.copy(run / 'development.npz', tmp_path / 'development.npz')
+    shutil.copy(run / 'development_provenance.json', tmp_path / 'development_provenance.json')
+    v3 = json.loads(Path('tasks/wilson_loop/protocol_v3.json').read_text())
+    import tasks.wilson_loop.common as common
+    monkeypatch.setattr(common, 'protocol', lambda: v3)
+    monkeypatch.setattr(experiment, 'protocol', lambda: v3)
+    experiment.develop(tmp_path)
+    frozen = json.loads((tmp_path / 'submission.json').read_text())
+    assert frozen['run_state']['status']['operator'] == 'validated'
+    assert frozen['run_state']['status']['numerical'] == 'validated'
+    assert frozen['run_state']['status']['reference'] in ('validated', 'failed')
+    assert frozen['run_state']['status']['comparison'] in ('draft', 'failed')

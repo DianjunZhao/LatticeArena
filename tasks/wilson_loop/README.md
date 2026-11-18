@@ -102,7 +102,7 @@ python -m pytest -q tests/test_wilson_loop.py
 | --- | --- |
 | P0 双边极分解投影 + det 修正 | 已实现；`project(gMg')=g·project(M)·g'`、APE 多 alpha/steps 协变测试 |
 | F4 HMC 质量 | 新增 `hmc_quality.py` + `results/wilson_loop/hmc_quality_v1/`：manifest 审计（seed 20261109、首轨迹 401、间隔 5、$\tau_{\rm int}\approx0.512$；ΔH/接受率/热化声明缺失=NOT_RUN）；toy 积分器可逆性 $10^{-10}$、$\Delta H$ 二阶（每减半步长 ÷4）→ 通过；生产 ΔH/接受率仍 NOT_RUN |
-| F3 状态/账本切片 | 共享 `core/state.py` 与 `core/ledger.py`；见 [`doc/run_state.md`](../../doc/run_state.md) |
+| F3 状态/账本切片 | `run_state` 已写入 wilson `develop` 的 submission、`evaluate` 继承并记录 `validation_observed`；`measure` 的 provenance 带 `ledger`（setup/kernel、设备/精度/并行度）；见 [`doc/run_state.md`](../../doc/run_state.md) |
 | F1 验收（一致性） | pion 的跨入口一致性 + 缓存失效反例见 `results/pion_projection/consistency_v1/`；wilson 的 generation/kernel-hash 拒绝已有测试 |
 | F1 接口切片 4 | `core/reference_provider.py` 提供 wilson 的 identity `v_ref`；pion 的 fit/masses 也走同一入口 |
 | F1 接口切片 5 | `core/search.py`（Budget/search/SearchResult）；wilson 当前无 optimizer/LLM 搜索，适配器为 N/A，但共享校验器可用 |

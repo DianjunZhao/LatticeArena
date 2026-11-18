@@ -7,6 +7,8 @@ from time import perf_counter
 import numpy as np
 
 from .common import digest, fingerprint, indices, protocol, read_nersc, write_json
+from core.ledger import Ledger
+
 from .identity import check_resume, generation, measurement_spec
 from .kernels import _lib, build_kernel, dagger, shift
 
@@ -68,6 +70,7 @@ def measure(output, split, limit=None):
             rows = f['loops'].tolist()
         records = json.loads((output / f'{split}_provenance.json').read_text())['records'][:start]
     kernel_sha = digest(Path(__file__).with_name('kernels.py'))
+    ledger = Ledger(device='cupy' if xp is not np else 'cpu', precision='complex128', parallel=1)
     for cfg in ids:
         gauge_path = Path(p['ensemble']) / f'wilson_b6.{cfg}'
         start = perf_counter()
@@ -75,6 +78,7 @@ def measure(output, split, limit=None):
         setup = perf_counter() - start
         measured = perf_counter()
         rows.append([loops(build_kernel(u[:3], k), u[3], p) for k in p['kernels']])
+        ledger.add('setup', setup).add('kernel', perf_counter() - measured)
         records.append({'id': int(cfg), 'gauge_sha256': digest(gauge_path),
                         'setup_seconds': setup, 'measure_seconds': perf_counter() - measured,
                         'total_seconds': perf_counter() - start})
@@ -85,6 +89,7 @@ def measure(output, split, limit=None):
         os.replace(tmp, output / f'{split}.npz')
         write_json(output / f'{split}_provenance.json',
                    {'protocol': p, 'kernel_sha256': kernel_sha, 'ensemble': p['ensemble'],
-                    'git': git_state(), 'generation': generation(spec), 'records': records})
+                    'git': git_state(), 'generation': generation(spec), 'records': records,
+                    'ledger': ledger.summary()})
         print(f'cfg {cfg}: {records[-1]["total_seconds"]:.2f}s', flush=True)
     return records
