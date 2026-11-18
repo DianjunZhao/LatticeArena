@@ -117,7 +117,9 @@ def evaluate(output):
               'reference_passed': frozen['reference_passed'],
               'failure_reasons': frozen['failure_reasons'],
               'n_validation': len(data) * p['block_length'], 'n_blocks': len(data),
-              'r_values': p['r_values'], 'results': results}
+              'r_values': p['r_values'], 'results': results,
+              'score_status': ('conditional_diagnostic' if frozen['reference_passed']
+                               else 'unscored_reference_failed')}
     report['conditional_scores'] = {n: value.get('score') for n, value in results.items()}
     write_json(output / 'validation_results.json', report)
     print('VALIDATION', json.dumps({k: report[k] for k in ('reference_passed', 'failure_reasons')}),

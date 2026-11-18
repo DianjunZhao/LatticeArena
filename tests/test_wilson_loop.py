@@ -222,6 +222,13 @@ def test_develop_evaluate_roundtrip_and_tamper_rejection(tmp_path):
     report = json.loads((tmp_path / 'validation_results.json').read_text())
     assert report['reference_passed']
     assert report['results']['identity']['score'] == pytest.approx(100.0)
+    # top-level score, RunState score and the comparison verdict must agree:
+    # a conditional diagnostic is reported, never a physical score
+    assert report['physical_score'] is None
+    assert report['run_state']['score'] is None
+    assert report['run_state']['status']['comparison'] in ('draft', 'failed')
+    assert report['conditional_scores']['identity'] == pytest.approx(100.0)
+    assert report['score_status'] == 'conditional_diagnostic'
     loops = _synthetic_loops(indices('development'))
     loops[0, 0, 0, 0] += 0.5
     np.savez(tmp_path / 'development.npz', ids=indices('development'), loops=loops,

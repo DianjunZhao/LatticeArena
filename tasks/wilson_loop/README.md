@@ -109,6 +109,7 @@ python -m pytest -q tests/test_wilson_loop.py
 | F1 接口切片 3–4 | `core/measurement.py` + `core/comparator.py`；wilson bundle 声明三项能力全为 False（归档 run 没有 cross/response，禁止推断） |
 | F1 接口切片 1–2 | 新增 `core/specs.py` + 两个 task 的 spec adapter（TaskSpec/RunSpec、OperatorContract/CandidateSpec）；见 [`doc/interfaces.md`](../../doc/interfaces.md)，测试 `tests/test_specs.py` |
 | F2 搜索集成 | `agents/loop.py` 真正走 `core.search.search`；NaN/Inf evaluator 结果被拒绝；每轮写 `agent/search_trace.json`（history/rejections/best/预算） |
+| F3 状态一致性 | evaluate 报告写 `score_status`（conditional_diagnostic/unscored_reference_failed）；端到端测试断言 physical_score=None、run_state.score=None、comparison=draft/failed、conditional_scores 数值与标签一致 |
 | F3 状态证据绑定 | `RunState.set(validated)` 必须带 evidence hash；`physical_ready()`/`score_or_null()` 只在五状态全部 validated 且有 hash 时给分；develop 的 `run_state` 与 `conditional_scores`/`physical_score` 分开 |
 | F2 LLM/搜索隔离 | 共享 `core/candidates.validate_weights`；mock 轨迹 + 拦截测试见 [`doc/agent_isolation.md`](../../doc/agent_isolation.md) |
 | F0 可信 bundle | 两个 `bundle_for` 改用 `load_data(run, split, protocol)`（IDs/hash/shape/finite），manifest 带 `ids`/`inputs`/`code` hash；篡改 protocol hash 的测试拒绝 |
