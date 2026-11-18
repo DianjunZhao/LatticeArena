@@ -143,3 +143,21 @@ def test_a1p_directional_pair_is_exchange_symmetric():
 def test_invalid_shapes_are_rejected():
     with pytest.raises(Exception):
         apply_kernel(np.zeros((4, 4, 4, 3, 2)), np.zeros((2, 4, 4, 4, 3, 3)), np.zeros((3, 4, 4, 4)))
+
+
+def test_basis_cache_rejects_identity_change(tmp_path):
+    from tasks.optimize_gaussian.train import basis_key, load_basis, save_basis
+    p = {'base_steps': 8, 'base_alpha': 0.09, 'hidden': 2}
+    W = np.zeros((2, 2))
+    key = basis_key(p, 7, W, [0, 1], [2, 3])
+    save_basis(tmp_path / 'b.npz', key, np.zeros((2, 3, 4)), np.zeros((2, 3, 4)))
+    load_basis(tmp_path / 'b.npz', key)
+    for mutated in (basis_key(p, 8, W, [0, 1], [2, 3]),
+                    basis_key(p, 7, W + 1, [0, 1], [2, 3]),
+                    basis_key(p, 7, W, [0, 1], [2, 4]),
+                    basis_key({**p, 'base_steps': 9}, 7, W, [0, 1], [2, 3])):
+        with pytest.raises(ValueError, match='does not match'):
+            load_basis(tmp_path / 'b.npz', mutated)
+    np.savez(tmp_path / 'legacy.npz', C_fit=np.zeros(1), C_dev=np.zeros(1))
+    with pytest.raises(ValueError, match='no identity record'):
+        load_basis(tmp_path / 'legacy.npz', key)

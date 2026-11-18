@@ -8,7 +8,9 @@
 > 现已改为闭合路径 $U_\mu(x)U_\nu(x+\hat\mu)U_\mu^\dagger(x+\hat\nu)U_\nu^\dagger(x)$，特征取对称组合
 > $(P_1+P_2,\;P_1P_2)$。**v1–v8 的所有 risk 都是用旧特征算出来的**，只能作为流程与负结果的历史记录，
 > 不能当作“学习核在这些系综上表现如何”的物理证据；需要 GPU 重测（本轮 NOT_RUN）。
-> 新增 `tests/test_optimize_gaussian.py`（9 项）：规范不变、厄米、协变、立方对称、线性响应与 A1+ 交换。
+> 新增 `tests/test_optimize_gaussian.py`（10 项）：规范不变、厄米、协变、立方对称、线性响应、A1+ 交换，
+> 以及训练缓存的 identity 校验（protocol hash、seed、W、steps、alpha、hidden、fit/dev IDs、特征版本；
+> 任一不匹配即拒绝，旧缓存没有 identity 记录也拒绝）。
 
 ---
 

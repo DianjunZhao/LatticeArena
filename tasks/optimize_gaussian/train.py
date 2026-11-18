@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import minimize
 
+from tasks.pion_projection.common import fingerprint
 from tasks.pion_projection.statistics import blocks, bootstrap_indices, risk
 
 from .features import _lib, directional_features
@@ -31,6 +32,27 @@ def init_quda(p):
 def model_space(p, seed):
     rng = np.random.default_rng(seed)
     return rng.normal(size=(p['hidden'], 2)) * 0.5
+
+
+def basis_key(p, seed, W, fit_ids, dev_ids):
+    return {'protocol': fingerprint(p), 'seed': seed, 'W': np.asarray(W).tolist(),
+            'steps': p['base_steps'], 'alpha': p['base_alpha'], 'hidden': p['hidden'],
+            'fit_ids': list(fit_ids), 'dev_val_ids': list(dev_ids),
+            'features': 'a1plus-symmetric-v2'}
+
+
+def save_basis(path, key, C_fit, C_dev):
+    np.savez_compressed(path, C_fit=C_fit, C_dev=C_dev, meta=np.array(json.dumps(key)))
+
+
+def load_basis(path, key):
+    z = np.load(path)
+    if 'meta' not in z:
+        raise ValueError(f'Cached basis at {path} has no identity record; use a new output directory')
+    meta = json.loads(str(z['meta']))
+    if meta != key:
+        raise ValueError(f'Cached basis at {path} does not match this protocol/W/IDs; use a new output directory')
+    return z['C_fit'], z['C_dev']
 
 
 def gaussian(field, links, steps, a0):
@@ -179,13 +201,13 @@ def main():
     for seed in p['seeds']:
         W = model_space(p, seed)
         cache_file = out / f'basis_s{seed}.npz'
+        key = basis_key(p, seed, W, fit_ids, devval_ids)
         if cache_file.exists():
-            z = np.load(cache_file)
-            C_fit, C_dev = z['C_fit'], z['C_dev']
+            C_fit, C_dev = load_basis(cache_file, key)
         else:
             C_fit = collect(p, fit_ids, cache, W, steps)
             C_dev = collect(p, devval_ids, cache, W, steps)
-            np.savez_compressed(cache_file, C_fit=C_fit, C_dev=C_dev)
+            save_basis(cache_file, key, C_fit, C_dev)
         base_dev = risk_of(p, correlators(C_dev, np.zeros(1 + H), H), masses)
         for lam2 in p['l2_grid']:
             fit = optimize(C_fit, p, masses, lam2)
