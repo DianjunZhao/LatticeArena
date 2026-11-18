@@ -53,15 +53,16 @@
 | P0.1 完整 BCB 验证 | ✅ | `tests/test_optimize_gaussian.py`；`audit_20261118_bcb/`（<1e-10） |
 | P0.2 basis/输入身份闭包 | ✅ | basis_key 含依赖 hash + gauge/propagator 内容摘要；mutation 测试覆盖依赖/输入/ID 变更 |
 | P0.3 audit 与措辞修正 | ✅ | audit.py 按 manifest 分类（v9 = current_operator_diagnostic）；显式 --out 拒绝覆盖；dev_val 不回退；措辞已改“未检出差异” |
-| P1 统一统计/fold-local | 🟡 | `unified.py`：同一入口复算 local/SLSQP 逐位一致；3 折 fold-local 比率 88–251；学习核重算与整链 nested CV 仍 ⛔ |
+| P1 统一统计/fold-local | 🟡 | `unified.py`：同一入口复算 local/SLSQP 逐位一致；3 折 fold-local 比率 185/75/389（平均 216±92，训练折幅度）；学习核重算与整链 nested CV 仍 ⛔ |
+| §P2 函数类实验 | 🟡 | `teacher_check.py`：七幂误差 0.01268 > 谱外 0.01239，增广基 1.8e-16；GPU class×optimizer ⛔ |
 | §P2 函数类实验 | 🟡 | `teacher_check.py`：七幂基对非对易 teacher 的误差 0.01268 > 谱外 0.01239，增广基 1.8e-16；训练的 class×optimizer 实验 ⛔（GPU） |
 | §P3 最小判别实验 | 🟡 | CPU 跨样本 teacher PASS（ε=0 恢复、ε=0.1 谱类 0.0127 vs 增广 6.7e-16）；GPU class×optimizer/消融 ⛔（[`doc/optimize_p3_design.md`](optimize_p3_design.md)） |
 
-结论：只有 P0.1 完成；P0.2/P0.3 是下一轮的直接工作。
+结论：P0.1–P0.3 完成；P1 为部分（统一入口一致、fold-local 比率方差大）；P2/P3 只有 CPU 切片与设计；GPU 实验全部 ⛔。
 
 ## 4. 总结
 
 - pion：P0/P1/§6.1 全部完成；⛔ = anchor/预测/新测量先决条件；
 - wilson：P0–P3 与 F0–F2 完成；🟡 = F3/F4；⛔ = P4；
-- optimize：P0.1 完成；P0.2/P0.3 起未做；
+- optimize：P0 完成；P1/P2/P3 为 CPU 部分/设计；GPU 2×2、消融、新盲测 ⛔；
 - 73 个 CPU 测试通过；所有非公式链接有效；旧“CPU 已全部完成”的说法已作废。
