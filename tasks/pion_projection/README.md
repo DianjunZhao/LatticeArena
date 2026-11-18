@@ -215,6 +215,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | F1 接口切片 3–4 | 新增 `core/measurement.py`（bundle + 能力声明 + 拒绝）与 `core/comparator.py`（共享 draw 校验、paired ratio、log 下界）；`scoring.py` 已改为调用 comparator；pion bundle 声明 linear_response=True、cross_matrix=False |
 | F1 接口切片 1–2 | 新增 `core/specs.py` + `tasks/pion_projection/spec.py`（TaskSpec/RunSpec、OperatorContract）；见 [`doc/interfaces.md`](../../doc/interfaces.md) |
 | F2 LLM/搜索隔离 | 统一 `core/candidates.validate_weights`（sum=1、L1≤8、finite、维数）；`agents/loop.py` 记录拒绝原因到 `agent/rejections.json`；`--no-validation` 下搜索不打开 validation（拦截测试证明）；mock 轨迹见 `results/pion_projection/agent_mock_v1/` 与 [`doc/agent_isolation.md`](../../doc/agent_isolation.md) |
+| §7 新测量先决条件 | 新增 [`doc/pion_new_measurement_plan.md`](../../doc/pion_new_measurement_plan.md) + `measurement_plan.example.json`（schema `pion-measurement-plan-v1`，校验器 `measurement_plan.py`）；身份绑定、γ5/自收缩、source–sink 矩阵、盲性、power、预算、停止规则；执行 ⛔ |
 | P0.6 联合 resampling | 新增 `joint.py` 与 `python -m tasks.pion_projection.joint`：同一 draw 重拟合参考、同一组 validation 重采样、所有模型/候选共享 draw；产物 `results/pion_projection/joint_20261118/`，因参考 gate 失败而 abstain |
 | P0.4 评分契约 | 新增 [`doc/score_contract.md`](../../doc/score_contract.md)：estimand、证书统计量、独立单位、有效范围、abstain 条件 |
 | P0.5 schema 强制 | `scoring.py` 现在精确校验模型/候选集合、一维等长 draw、原始正值、invalid 比例、近零 baseline、improvement 门槛；反例测试见 `tests/test_pion_projection.py` |

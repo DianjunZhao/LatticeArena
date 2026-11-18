@@ -25,7 +25,7 @@
 | P1.4 全链 nested CV | ✅ | `nested_cv_v1/`：5 折，local/SLSQP 209–750（平均 427±89）；学习核重训 ⛔ |
 | §6.1 能量估计实验 | ✅ | `energy_target_v1/`：bias/variance/MSE/coverage、$N_{\rm boot}$ 语义、anchor 敏感性 |
 | §6.2 共同目标预测 | ⛔ | 未做 |
-| §7 新测量先决条件 | ⛔ | 未做（需要新 GPU 生产/访问记录） |
+| §7 新测量先决条件 | 🟡 | 设计 + schema 校验器已交（[`doc/pion_new_measurement_plan.md`](pion_new_measurement_plan.md)）；执行 ⛔ |
 
 结论：P0/P1/§6.1 已全部落地；真实 anchor、共同目标预测、新测量先决条件仍 NOT_RUN。
 

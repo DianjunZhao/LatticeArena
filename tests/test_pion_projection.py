@@ -409,3 +409,16 @@ def test_agent_mock_rejects_illegal_candidates_without_reading_validation(tmp_pa
     reasons = json.loads((tmp_path / 'agent' / 'rejections.json').read_text())
     text = ' '.join(item['reason'] for item in reasons)
     assert 'non-finite' in text and 'length 8' in text and 'sum to 1' in text and 'L1' in text
+
+
+def test_measurement_plan_schema():
+    from tasks.pion_projection.measurement_plan import load_plan, validate_plan
+    plan = load_plan('tasks/pion_projection/measurement_plan.example.json')
+    assert plan['status'] == 'NOT_RUN' and plan['sources']
+    with pytest.raises(ValueError, match='missing'):
+        validate_plan({'schema': 'pion-measurement-plan-v1'})
+    broken = dict(plan, identity={})
+    with pytest.raises(ValueError, match='identity'):
+        validate_plan(broken)
+    with pytest.raises(ValueError, match='status'):
+        validate_plan(dict(plan, status='MAYBE'))
