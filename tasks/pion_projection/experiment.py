@@ -206,14 +206,29 @@ def evaluate(output):
     if not frozen['calibration']['reference_passed']:
         state.set('comparison', 'failed', 'reference gate failed')
     kind_checked, identity_reasons = verify_run_identity(output, (kind,))
-    if kind_checked is None or identity_reasons:
-        certification = {'status': 'abstain', 'reasons': identity_reasons}
-    else:
+    certification = {'status': 'abstain', 'reasons': identity_reasons}
+    certification_source = 'identity_check'
+    joint_dir = output / 'joint'
+    if not identity_reasons and (joint_dir / 'joint_manifest.json').exists() and (joint_dir / 'metric_results.json').exists():
+        joint_manifest = json.loads((joint_dir / 'joint_manifest.json').read_text())
+        compatible = (joint_manifest.get('protocol_hash') == fingerprint(p)
+                      and joint_manifest.get('development_sha256') == digest(output / 'development.npz')
+                      and joint_manifest.get('validation_sha256') == digest(output / 'validation.npz')
+                      and joint_manifest.get('reference_kind') == kind)
+        if compatible:
+            certification = json.loads((joint_dir / 'metric_results.json').read_text())
+            certification_source = 'joint'
+        else:
+            certification = {'status': 'abstain',
+                             'reasons': ['joint manifest does not match this run identity']}
+            certification_source = 'joint_rejected'
+    elif not identity_reasons:
         certification = {'status': 'abstain',
                          'reasons': ['evaluate has no joint draws; run the joint command']}
+        certification_source = 'no_joint'
     report = {'protocol': p, 'submission_sha256': digest(output/'submission.json'),
               'run_state': state.summary(), 'physical_score': state.score_or_null(),
-              'certification': certification,
+              'certification': certification, 'certification_source': certification_source,
               'validation_sha256': digest(output/'validation.npz'), 'reference': reference,
               'reference_passed': frozen['calibration']['reference_passed'],
               'reference_failure_reasons': frozen['calibration']['failure_reasons'],

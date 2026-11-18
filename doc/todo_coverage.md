@@ -9,13 +9,13 @@
 | --- | --- | --- |
 | A1 认证身份 | ✅ | `identity.verify_run_identity` 被 joint/evaluate/candidate 共用；冻结 kind/models 精确匹配、protocol/dev hash、report kind/version；evaluate 无 joint draws 时 abstain；产物 `joint_identity_v2/`、`certification_v1/` |
 | A1 每模型 gate artifact | 🟡 | manifest 记录 spec/kind/依赖；完整 per-model artifact（model/window/prior）未落盘 |
-| A1 复用 joint 证书 | ⛔ | evaluate 未读取 joint 的 `metric_results` |
+| A1 复用 joint 证书 | ✅ | evaluate 读取 `<output>/joint/` 的 manifest/metrics，身份一致时复用（`certification_source='joint'`） |
 | A2 draw 来源 | ✅ | `joint_draws.npz` 保存 dev/val outer + inner indices、draw_id；`joint_manifest.json` 记录输入/依赖/spec |
 | A2 draw 身份强制 | ✅ | `require_draw_ids` + `draw_ids_hash`；重复/乱序 ID 拒绝 |
 | B1 CV 冻结度量 | ✅ | `nested_cv_v2/`：training late_metric 传入 held-out；fold IDs/late hash/protocol hash；480.6±146.8 折间散布 |
 | B2 GEVP 平台/失败 | ✅ | `summarise` 固定平台、局部/整 replica 失败计数；`gram_stats_v2/`；部分平台反例测试 |
 | C1 gate 校准 | ✅ | `reference_gate.py`：dof=8、内层 null；single 假拒绝 0.02/0.03、two-state 功效 0.66/0.59 |
-| C2 证书端到端 | 🟡 | `certificate_calibration_v1/`：假认证 1/15、功效 15/15、失配全 abstain；blocks/JK 扫描与错误激发态场景 ⛔ |
+| C2 证书端到端 | 🟡 | blocks 扫描：6 blocks 假认证 3/8（反保守）、12/24 blocks 0/7、0/8；功效 0.75–0.875；失配全 abstain；J/K 族与错误激发态 ⛔ |
 | C3 anchor 校准 | ✅ | `anchor_calibration_v1/`：block draws、独立共享 anchor；naïve null 假认证 27–50%，独立 dataset 控制；Nboot 50→800 宽度 0.032→0.0099 |
 | §7 新测量 | 🟡 | 设计 + schema 校验器已交；执行 ⛔ |
 

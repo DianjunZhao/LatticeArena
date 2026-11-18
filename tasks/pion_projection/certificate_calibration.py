@@ -44,8 +44,8 @@ def gate(dev_blocks):
     return ref, mass, float(chi2.sf(cost, dof))
 
 
-def run_simulation(rng, contam_baseline, contam_candidate, outer=80, inner=24):
-    ncfg = 24 * PROTOCOL['block_length']
+def run_simulation(rng, contam_baseline, contam_candidate, outer=60, inner=24, blocks_dev=24):
+    ncfg = blocks_dev * PROTOCOL['block_length']
     dev = blocks(world(rng, ncfg, contam_baseline), PROTOCOL['block_length'])
     val = blocks(world(rng, 12 * PROTOCOL['block_length'], contam_baseline), PROTOCOL['block_length'])
     ref, mass, p_value = gate(dev)
@@ -80,7 +80,7 @@ def run_simulation(rng, contam_baseline, contam_candidate, outer=80, inner=24):
             'risks': {name: values.tolist() for name, values in risks.items()}}
 
 
-def main(n_dataset=15, blocks_dev=24, seed=20261120):
+def main(n_dataset=8, blocks_list=(6, 12, 24), seed=20261120):
     OUT.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
     flat = np.zeros(7)
@@ -94,21 +94,21 @@ def main(n_dataset=15, blocks_dev=24, seed=20261120):
     }
     rows = {}
     for name, (base_c, cand_c) in scenarios.items():
-        results = []
-        for _ in range(n_dataset):
-            results.append(run_simulation(rng, base_c, cand_c))
-        valid = [r for r in results if not r['abstain']]
-        certified = sum(r['certified'] for r in valid)
-        rows[name] = {'n_dataset': n_dataset, 'abstain': n_dataset - len(valid),
-                      'valid': len(valid),
-                      'certified': certified,
-                      'unconditional_certified_rate': certified / n_dataset,
-                      'conditional_certified_rate': certified / len(valid) if valid else None,
-                      'power_or_fpr': certified / len(valid) if valid else None,
-                      'median_lower_bound': float(np.median([r['lower_bound'] for r in valid])) if valid else None,
-                      'details': results}
-        print(name, {k: rows[name][k] for k in ('n_dataset', 'abstain', 'valid', 'certified',
-                                                'unconditional_certified_rate')})
+        for blocks in blocks_list:
+            results = []
+            for _ in range(n_dataset):
+                results.append(run_simulation(rng, base_c, cand_c, blocks_dev=blocks))
+            valid = [r for r in results if not r['abstain']]
+            certified = sum(r['certified'] for r in valid)
+            key = f'{name}/blocks_{blocks}'
+            rows[key] = {'n_dataset': n_dataset, 'blocks': blocks, 'abstain': n_dataset - len(valid),
+                         'valid': len(valid), 'certified': certified,
+                         'unconditional_certified_rate': certified / n_dataset,
+                         'conditional_certified_rate': certified / len(valid) if valid else None,
+                         'median_lower_bound': float(np.median([r['lower_bound'] for r in valid])) if valid else None,
+                         'details': results}
+            print(key, {k: rows[key][k] for k in ('n_dataset', 'abstain', 'valid', 'certified',
+                                                  'unconditional_certified_rate')})
     (OUT / 'certificate_calibration.json').write_text(json.dumps(rows, indent=2) + '\n')
     print('wrote', OUT)
 

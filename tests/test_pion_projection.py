@@ -535,3 +535,26 @@ def test_draw_ids_reject_duplicates_and_reordering():
     with pytest.raises(ValueError, match='reordered'):
         improvement_certificate(risks, spec, draw_ids=ids,
                                 draw_ids_by_name={'c': ids[::-1]})
+
+
+def test_evaluate_reuses_a_compatible_joint_certificate(tmp_path):
+    import json
+    import shutil
+    from pathlib import Path
+    from tasks.pion_projection import common, experiment
+    from tasks.pion_projection.joint import run as joint_run
+    run_dir = Path('results/pion_projection/s16t16_gevp200')
+    if not (run_dir / 'submission.json').exists():
+        pytest.skip('run data not available')
+    for name in ('development.npz', 'validation.npz', 'development_provenance.json',
+                 'validation_provenance.json', 'submission.json'):
+        shutil.copy(run_dir / name, tmp_path / name)
+    protocol = json.loads((run_dir / 'development_provenance.json').read_text())['protocol']
+    common.protocol = lambda: protocol
+    experiment.protocol = lambda: protocol
+    experiment.evaluate(tmp_path)                      # first pass writes the report
+    joint_run(tmp_path, models=('single',), outer=4, inner=4, dest=tmp_path / 'joint')
+    experiment.evaluate(tmp_path)                      # second pass can reuse the certificate
+    report = json.loads((tmp_path / 'validation_results.json').read_text())
+    assert report['certification_source'] == 'joint'
+    assert report['certification']['status'] == 'abstain'
