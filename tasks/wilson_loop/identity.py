@@ -34,6 +34,14 @@ def check_resume(output, split, spec):
                          'refusing to mix a new run into it')
     if ids != spec['ids'][:len(ids)]:
         raise ValueError(f'{path}: stored ids are not a prefix of the requested split')
+    provenance = Path(output) / f'{split}_provenance.json'
+    if not provenance.exists():
+        raise ValueError(f'{provenance}: missing provenance for a resumed measurement')
+    records = json.loads(provenance.read_text()).get('records', [])
+    if len(records) != len(ids):
+        raise ValueError(f'{provenance}: {len(records)} records versus {len(ids)} stored ids')
+    if [int(r['id']) for r in records] != ids:
+        raise ValueError(f'{provenance}: record ids do not match the stored ids in order')
     return len(ids)
 
 

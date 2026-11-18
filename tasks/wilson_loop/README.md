@@ -112,6 +112,7 @@ python -m pytest -q tests/test_wilson_loop.py
 | F0 证据 schema | 新增 `core/evidence.py`、`core/operator_checks.py`、`scripts/audit_run.py`、`scripts/summarize_evidence.py`；wilson v3 与 pion 200 各产出一份同 schema 证据（`results/*/evidence/`）；见 [`doc/evidence_framework.md`](../../doc/evidence_framework.md) |
 | P3 物理质量门控 | 新增 `spectral_quality.py` + `doc/wilson_spectral_quality.md`：合成“平但错”反例（偏差 170σ、risk $2.7\times10^{-7}$、gate 通过）；v3/v4 窗口 $V$ 图；`reference_nominal_window` 改为显式 spec |
 | P2 配对统计审计 | 新增 `paired_audit.py` + `results/wilson_loop/paired_audit_v1/`：v2 点值 1.07–1.18 vs 嵌套中位数 3.0–3.4（唯一 block 分布、jackknife 0.49–4.53、相关性 0.14–0.30 解释）；`probability_better` 改名 `exceedance_fraction` |
+| P1 恢复故障注入 | `check_resume` 现在校验 provenance 记录数与 id 顺序；故障注入表见 [`doc/run_state.md`](../../doc/run_state.md) §7（generation/前缀/记录不一致均拒绝，残留 tmp 忽略） |
 | P1 可信加载/冻结 | 新增 `identity.py`：generation 写入 NPZ/provenance、resume 只接同 generation 前缀、`read_nersc` 校验头部几何、`trust_status` 只看身份；`paired.main` 改用 `load_data`；v3 归档被判 archived_diagnostic（证据 `results/wilson_loop/audit_20261118_identity/`） |
 | P0 投影数值边界 | 已修：逐矩阵 Newton–Schulz 尺度 + 收敛检查；混尺度 batch 与单矩阵一致（1e-16），rank-2 受控拒绝；证据 `results/wilson_loop/audit_20261118_projection/` |
 | P0 staple 归一化 | 已从 `/6` 改为 `/4`；`alpha` 数值口径变化（旧 α ↔ 新 $2\alpha/(3-\alpha)$） |

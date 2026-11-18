@@ -71,3 +71,22 @@ baseline、score spec、搜索预算、seed、`validation_observed=False`。
 - pion `evaluate`/`candidate` 的持久化 run_state（当前只有 wilson）；
 - 真实 GPU 计时账本（device/cache/parallel 字段已就绪，但没有新测量）；
 - 跨 task 的统一 same-draw 入口（pion 有 draw ID，wilson 用同一 block index，但未统一生成）。
+
+
+## 7. wilson 恢复的故障注入表
+
+`check_resume`（`tasks/wilson_loop/identity.py`）的拒绝矩阵（测试 `test_resume_rejects_inconsistent_prefix`、
+`test_measurement_generation_and_resume`）：
+
+| 故障 | 行为 |
+| --- | --- |
+| 归档 NPZ 没有 `generation` | 拒绝：legacy 只读 |
+| `generation` 与当前 spec 不符 | 拒绝：不混合新旧 generation |
+| 存储 ids 不是请求 split 的前缀 | 拒绝 |
+| 缺 `{split}_provenance.json` | 拒绝 |
+| provenance 的 records 数与 NPZ ids 数不符 | 拒绝 |
+| records 的 id 顺序与 ids 不一致 | 拒绝 |
+| 残留 `.{split}.tmp.npz` | 忽略（保存用临时文件 + 原子替换） |
+
+恢复的语义：只有“同一 generation + 完整前缀 + 记录逐项一致”才从第 k 行继续；否则整份归档作废，
+不拼接不同前缀。
