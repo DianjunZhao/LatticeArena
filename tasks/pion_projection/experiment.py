@@ -7,14 +7,17 @@ import numpy as np
 from scipy.optimize import minimize
 
 from .common import digest, fingerprint, load_data, protocol, write_json
-from .statistics import (ReferenceFit, blocks, bootstrap_indices, fold, inverse_covariance, risk)
+from .reference import make_reference, reference_kind, reference_spec, verify_reference
+from .statistics import blocks, bootstrap_indices, fold, inverse_covariance, risk
 
 
-def make_reference(data, p, window):
-    if os.environ.get('LATTICEARENA_REFERENCE') == 'twostate':
-        from .reference_twostate import TwoStateFit
-        return TwoStateFit(data, p, window)
-    return ReferenceFit(data, p, window)
+def reflection_odd(raw):
+    """C(t) - C(T-t) for t=1..T/2-1, valid for any even temporal extent."""
+    temporal = raw.shape[-1]
+    if temporal % 2:
+        raise ValueError('Reflection check needs an even temporal extent')
+    t = np.arange(1, temporal // 2)
+    return raw[..., t] - raw[..., temporal - t]
 
 
 def late_metric(data, weights, p):
@@ -27,12 +30,13 @@ def develop(output):
     if (output / 'submission.json').exists() or (output / 'validation.npz').exists():
         raise ValueError('Development is closed for this run; use a new run and disclose prior validation access')
     p = protocol()
+    spec = reference_spec()
     raw = load_data(output, 'development')
     data = blocks(fold(raw), p['block_length'])
     index = bootstrap_indices(len(data), p['bootstrap_samples'], p['seed'])
     windows, masses = [], []
     for window in p['reference_windows']:
-        model = make_reference(data, p, window)
+        model = make_reference(data, p, window, spec['kind'])
         result, boot = model.bootstrap(index)
         windows.append(result)
         masses.append(boot)
@@ -53,7 +57,7 @@ def develop(output):
                 failures.append(f'Reference window {window["window"]} shifts by {z:.2f} paired standard errors')
     if np.any(mb <= p['mass_bounds'][0]+1e-4) or np.any(mb >= p['mass_bounds'][1]-1e-4):
         failures.append('Reference bootstrap reaches mass bounds')
-    odd = raw[..., 1:8]-raw[..., 15:8:-1]
+    odd = reflection_odd(raw)
     odd_blocks = blocks(odd, p['block_length'])
     odd_se = odd_blocks.std(axis=0, ddof=1)/np.sqrt(len(odd_blocks))
     reflection_z = float(np.max(abs(odd_blocks.mean(axis=0))/odd_se))
@@ -114,7 +118,7 @@ def develop(output):
     print('FROZEN_SUBMISSION', json.dumps(frozen), flush=True)
 
 
-def nested_intervals(development, validation, frozen, p):
+def nested_intervals(development, validation, frozen, p, kind=None):
     """Resample the entire conditional risk statistic, including its variance.
 
     Fit metrics are frozen at development, not re-estimated on validation or
@@ -122,7 +126,7 @@ def nested_intervals(development, validation, frozen, p):
     correlations between all candidates. No replicate is silently discarded.
     """
     rng = np.random.default_rng(p['seed']+2)
-    model = make_reference(development, p, p['reference_windows'][p['reference_nominal_window']])
+    model = make_reference(development, p, p['reference_windows'][p['reference_nominal_window']], kind)
     names = list(frozen['submissions'])
     draws = []
     for outer in range(p['outer_samples']):
@@ -152,16 +156,24 @@ def evaluate(output):
         raise ValueError('Frozen protocol or development data changed')
     if frozen['statistics_sha256'] != digest(Path(__file__).with_name('statistics.py')) or frozen['kernel_sha256'] != digest(Path(__file__).with_name('kernels.py')):
         raise ValueError('Frozen scoring/kernel implementation changed')
+    spec = frozen.get('reference')
+    if spec is None:
+        if os.environ.get('LATTICEARENA_LEGACY_REFERENCE') != '1':
+            raise ValueError('Frozen submission has no reference spec; set LATTICEARENA_LEGACY_REFERENCE=1 for a read-only legacy replay')
+        kind = reference_kind()
+    else:
+        kind = verify_reference(spec)
     dev = blocks(fold(load_data(output, 'development')), p['block_length'])
     raw = load_data(output, 'validation')
     val = blocks(fold(raw), p['block_length'])
-    model = make_reference(dev, p, p['reference_windows'][p['reference_nominal_window']])
+    model = make_reference(dev, p, p['reference_windows'][p['reference_nominal_window']], kind)
     reference, mb = model.bootstrap(bootstrap_indices(len(dev), p['bootstrap_samples'], p['seed']))
     vi = bootstrap_indices(len(val), p['bootstrap_samples'], p['seed']+1)
     report = {'protocol': p, 'submission_sha256': digest(output/'submission.json'),
               'validation_sha256': digest(output/'validation.npz'), 'reference': reference,
               'reference_passed': frozen['calibration']['reference_passed'],
               'reference_failure_reasons': frozen['calibration']['failure_reasons'],
+              'reference_spec': spec, 'reference_kind': kind,
               'n_validation_configurations': len(raw), 'n_validation_blocks': len(val),
               'results': {}, 'score_status': 'pilot_only' if frozen['calibration']['reference_passed'] else 'unscored_reference_failed'}
     for name, weights in frozen['submissions'].items():
@@ -177,7 +189,7 @@ def evaluate(output):
         for value in report['results'].values():
             value['diagnostic_loss_ratio_vs_local'] = (baseline+eps)/(value['risk']+eps)
             value['score'] = 100*value['diagnostic_loss_ratio_vs_local'] if report['reference_passed'] else None
-        draws, names = nested_intervals(dev, val, frozen, p)
+        draws, names = nested_intervals(dev, val, frozen, p, kind)
         np.savez_compressed(output/'nested_bootstrap.npz', risks=draws, names=np.array(names))
         for j, name in enumerate(names):
             ratios = (draws[:, 0]+eps)/(draws[:, j]+eps)

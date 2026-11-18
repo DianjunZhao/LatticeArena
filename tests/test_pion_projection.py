@@ -122,3 +122,33 @@ def test_zero_overlap_rejected_and_missing_rows_not_ignored(tmp_path):
              protocol_hash=fingerprint(protocol()))
     with pytest.raises(ValueError, match='missing or reordered'):
         load_data(tmp_path, 'development')
+
+
+def test_reference_spec_freezes_kind_and_rejects_tampering():
+    from tasks.pion_projection.reference import make_reference, reference_spec, verify_reference
+    from tasks.pion_projection.statistics import ReferenceFit
+    p = protocol()
+    spec = reference_spec('single')
+    assert verify_reference(spec) == 'single'
+    with pytest.raises(ValueError):
+        verify_reference({**spec, 'statistics_sha256': '0' * 64})
+    with pytest.raises(ValueError):
+        verify_reference(dict(spec, kind='twostate'))
+    with pytest.raises(ValueError):
+        reference_spec('nope')
+    data = blocks(np.repeat(synthetic(), 7, axis=1), 5)
+    assert isinstance(make_reference(data, p, [5, 6, 7, 8], 'single'), ReferenceFit)
+    from tasks.pion_projection.reference_twostate import TwoStateFit
+    assert isinstance(make_reference(data, p, [5, 6, 7, 8], 'twostate'), TwoStateFit)
+
+
+def test_reflection_odd_is_temporal_extent_general():
+    from tasks.pion_projection.experiment import reflection_odd
+    for temporal in (16, 32):
+        raw = np.arange(temporal, dtype=float)[None, None, :]
+        odd = reflection_odd(raw)
+        t = np.arange(1, temporal // 2)
+        np.testing.assert_array_equal(odd[0, 0], raw[0, 0, t] - raw[0, 0, temporal - t])
+        assert odd.shape[-1] == temporal // 2 - 1
+    with pytest.raises(ValueError):
+        reflection_odd(np.zeros((1, 1, 15)))

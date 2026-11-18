@@ -11,11 +11,24 @@
 
 参考实现是带投影的 APE 平滑：
 
-```
-F = Proj[(1-a)·U + a/6 · Σ_staples]
-```
+$$
+F = \mathrm{Proj}\big[(1-\alpha)U + \tfrac{\alpha}{4}\textstyle\sum_{\text{4 staples}}\big]
+$$
 
-`Proj` 用列 Gram–Schmidt 重幺正化 + 解析 3×3 行列式修正到 det=1（保持规范协变），不是严格的最优 SU(3) 投影。
+`Proj` 是**双边极分解**投影：
+
+$$
+Q = M\,(M^\dagger M)^{-1/2},\qquad P = Q\,e^{-i\arg(\det Q)/3}
+$$
+
+它满足 $P(gMh)=gP(M)h$（独立的左右 $SU(3)$ 变换），这是 APE staple 需要的协变性。
+三个空间方向每个 link 只有 4 个 staple，所以归一化是 $\alpha/4$（旧版误用 $\alpha/6$）。
+旧版逐列 Gram–Schmidt 只保持左酉；2026-11-18 的 CPU 反例显示规范变换后最大元素差 0.44，已修复。
+
+> **2026-11-18 修复说明**：旧 APE 核不满足规范协变，所有旧 APE 结果（`APE(0.5,5)` 等）
+> 只能作为历史诊断；identity 不受影响。数值 $\alpha$ 的口径也变了，新旧关系为
+> $\alpha_{\rm new}=2\alpha_{\text{old}}/(3-\alpha_{\text{old}})$（保持 staple 与 identity 的比例）。
+> 修复后需要重新测量才能给出物理结论（本轮 GPU 重测未运行）。
 
 ## 打分
 

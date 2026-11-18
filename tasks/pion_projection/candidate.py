@@ -7,13 +7,15 @@ complex non-Hermitian observables require the future complex scoring extension.
 import importlib
 import inspect
 import json
+import os
 from pathlib import Path
 from time import perf_counter
 
 import numpy as np
 
 from .common import digest, fingerprint, indices, load_data, protocol, write_json
-from .statistics import ReferenceFit, blocks, bootstrap_indices, fold, risk
+from .reference import make_reference, reference_kind, verify_reference
+from .statistics import blocks, bootstrap_indices, fold, risk
 from .experiment import late_metric, nested_intervals
 
 
@@ -111,7 +113,15 @@ def run_candidate(output, definition_path, split, verify_only=False):
         return
     np.savez_compressed(destination/f'{split}.npz', ids=expected_ids, correlators=np.asarray(rows)[:, None, :])
     dev = blocks(fold(load_data(output, 'development')), p['block_length'])
-    model = ReferenceFit(dev, p, p['reference_windows'][p['reference_nominal_window']])
+    run_frozen = json.loads((output/'submission.json').read_text())
+    run_spec = run_frozen.get('reference')
+    if run_spec is None:
+        if os.environ.get('LATTICEARENA_LEGACY_REFERENCE') != '1':
+            raise ValueError('Frozen run has no reference spec; set LATTICEARENA_LEGACY_REFERENCE=1 for a read-only legacy replay')
+        kind = reference_kind()
+    else:
+        kind = verify_reference(run_spec)
+    model = make_reference(dev, p, p['reference_windows'][p['reference_nominal_window']], kind)
     ref, masses = model.bootstrap(bootstrap_indices(len(dev), p['bootstrap_samples'], p['seed']))
     measured = blocks(fold(np.asarray(rows)[:, None, :]), p['block_length'])
     if split == 'development':

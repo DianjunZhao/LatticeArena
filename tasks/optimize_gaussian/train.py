@@ -42,9 +42,10 @@ def gaussian(field, links, steps, a0):
 
 
 def features(links, W):
-    import cupy as cp
+    xp = _lib(links)
     f = directional_features(links)
-    phi = cp.stack([cp.tanh(f[mu] @ cp.asarray(W.T)) for mu in range(3)], axis=0)
+    W = xp.asarray(W)
+    phi = xp.stack([xp.tanh(f[mu] @ W.T) for mu in range(3)], axis=0)
     return phi - phi.mean(axis=(1, 2, 3), keepdims=True)
 
 

@@ -117,3 +117,36 @@ def test_risk_penalizes_bias_and_noise():
     worse = risk(b * shift_t, idx, windows, tv, v)
     assert base['risk'] < 1e-10
     assert worse['risk'] > base['risk']
+
+
+def test_project_is_bidirectionally_covariant():
+    from tasks.wilson_loop.kernels import project
+    rng = np.random.default_rng(21)
+    m = (rng.normal(size=(3, 3)) + 1j * rng.normal(size=(3, 3)))
+    g = random_su3(rng, ())
+    h = random_su3(rng, ())
+    q = project(m)
+    np.testing.assert_allclose(g @ q @ h, project(g @ m @ h), atol=1e-12)
+    np.testing.assert_allclose(q.conj().T @ q, np.eye(3), atol=1e-12)
+    np.testing.assert_allclose(np.linalg.det(q), 1.0, atol=1e-12)
+
+
+def test_project_rejects_singular_and_nonfinite():
+    from tasks.wilson_loop.kernels import project
+    with pytest.raises(ValueError):
+        project(np.zeros((3, 3), dtype=complex))
+    with pytest.raises(ValueError):
+        project(np.full((3, 3), np.nan, dtype=complex))
+
+
+def test_ape_gauge_covariant_multiple_parameters():
+    rng = np.random.default_rng(22)
+    latt = (4, 4, 4, 4)
+    u = random_su3(rng, (3, *latt))
+    for alpha, steps in ((0.0, 2), (0.3, 1), (0.5, 2), (0.7, 1), (1.0, 1)):
+        base = ape(u, alpha, steps)
+        g = random_su3(rng, latt)
+        gt = g.swapaxes(-1, -2).conj()
+        ug = np.stack([g @ u[d] @ np.roll(gt, -1, axis=3 - d) for d in range(3)])
+        want = np.stack([g @ base[d] @ np.roll(gt, -1, axis=3 - d) for d in range(3)])
+        np.testing.assert_allclose(ape(ug, alpha, steps), want, atol=1e-10)

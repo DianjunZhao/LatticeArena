@@ -9,6 +9,18 @@ The first run is recorded in [the results report](../../doc/pion_projection_resu
 The reference checks failed; the software consequently emits `score: null`.
 Raw losses and uncertainty intervals are still useful diagnostics.
 
+> **2026-11-18 audit and contract fixes.** The reference model identity is now
+> frozen explicitly (`reference.py`: schema `pion-reference-v1`, kind plus the
+> hashes of `statistics.py` and the selected implementation). `develop` writes
+> it into `submission.json`; `evaluate` and `candidate` must use that frozen
+> kind and refuse on a hash mismatch. Submissions predating the field can only
+> be replayed read-only with `LATTICEARENA_LEGACY_REFERENCE=1`. The reflection
+> gate no longer hard-codes `T=16`: it builds `C(t)-C(T-t)` for any even
+> temporal extent. The earlier two-state / T=32 / calibrated-p-value studies
+> remain diagnostics in `doc/pion_projection_results.md`; the absolute score on
+> this ensemble is still not trustworthy (reference-model systematics are as
+> large as the effect). No new GPU measurement was run in this audit.
+
 ## Reproduce the run
 
 From the repository root, after setting up [the environment](../../doc/environment.md):

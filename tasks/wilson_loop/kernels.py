@@ -24,24 +24,35 @@ def dagger(a):
 
 
 def project(m):
-    """Gram-Schmidt reunitarization of the columns, then det -> 1 (analytic 3x3)."""
+    """Bidirectional polar projection onto SU(3): Q = M (M^dag M)^(-1/2), det -> 1.
+
+    Gram-Schmidt only preserves left unitary transformations; the polar factor
+    satisfies P(g M h) = g P(M) h for independent SU(3) g, h, which is the
+    covariance the APE staple needs.
+    """
     xp = _lib(m)
-    q = []
-    for i in range(3):
-        v = m[..., :, i]
-        for u in q:
-            v = v - (u.conj() * v).sum(-1)[..., None] * u
-        v = v / xp.sqrt((v.conj() * v).real.sum(-1))[..., None]
-        q.append(v)
-    x = xp.stack(q, axis=-1)
-    det = (x[..., 0, 0] * (x[..., 1, 1] * x[..., 2, 2] - x[..., 1, 2] * x[..., 2, 1])
-           - x[..., 0, 1] * (x[..., 1, 0] * x[..., 2, 2] - x[..., 1, 2] * x[..., 2, 0])
-           + x[..., 0, 2] * (x[..., 1, 0] * x[..., 2, 1] - x[..., 1, 1] * x[..., 2, 0]))
-    return x / (det ** (1 / 3))[..., None, None]
+    m = xp.asarray(m, dtype=xp.complex128)
+    herm = dagger(m) @ m
+    ev, vec = xp.linalg.eigh(herm)
+    scale = xp.max(ev)
+    if not xp.isfinite(scale) or scale <= 0:
+        raise ValueError('project: non-positive or non-finite metric')
+    if xp.any(ev <= scale * 1e-12):
+        raise ValueError('project: singular or near-singular link matrix')
+    inv_sqrt = (vec * (1.0 / xp.sqrt(ev))[..., None, :]) @ dagger(vec)
+    q = m @ inv_sqrt
+    det = xp.linalg.det(q)
+    return q * xp.exp(-1j * xp.arctan2(det.imag, det.real) / 3.0)[..., None, None]
 
 
 def ape(links, alpha, steps):
-    """APE smearing with projection: F = Proj[(1-a)U + a/6 * sum(staple)]."""
+    """APE smearing: F = Proj[(1-a)U + a/4 * sum(four staples)].
+
+    With three spatial directions each link has four staples (two planes times
+    two orientations), so the normalisation is 1/4, not 1/6. This changes the
+    numeric meaning of ``alpha`` relative to the old pilot (v1); the old
+    weight corresponds to alpha_new = 2*alpha/(3-alpha).
+    """
     xp = _lib(links)
     u = links.copy()
     for _ in range(steps):
@@ -53,7 +64,7 @@ def ape(links, alpha, steps):
                     continue
                 staple = staple + u[nu] @ shift(u[mu], 1, 3 - nu) @ dagger(shift(u[nu], 1, 3 - mu))
                 staple = staple + dagger(shift(u[nu], -1, 3 - nu)) @ shift(u[mu], -1, 3 - nu) @ shift(shift(u[nu], 1, 3 - mu), -1, 3 - nu)
-            new[mu] = project((1 - alpha) * u[mu] + alpha / 6 * staple)
+            new[mu] = project((1 - alpha) * u[mu] + alpha / 4 * staple)
         u = new
     return u
 
