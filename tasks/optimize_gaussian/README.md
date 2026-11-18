@@ -376,6 +376,7 @@ python -m tasks.optimize_gaussian.compare_plot
 | 规范不变 / 厄米 / 协变 / 立方对称 | 已测（`tests/test_optimize_gaussian.py`） |
 | A1+ 横向交换 | 已改为对称输入 $(s_1+s_2,\,s_1s_2)$ 并测试；全群通过 |
 | 训练线性响应 vs 直接关联函数 | 已测（误差 < 1e-11） |
+| P0.1 完整 BCB 闭环 | 已测：`submission.build_kernel` 与线性响应在非立方格点、多 theta 下一致 <1e-10；证据 `results/optimize_gaussian/audit_20261118_bcb/` |
 | 训练缓存 identity | 已加（protocol hash、seed、W、steps、alpha、hidden、IDs、特征版本） |
 | 运行 manifest | 已加（`manifest.json`：协议、W/θ、IDs、传播子缓存 key、依赖文件 hash） |
 | 历史运行 audit | 已生成 `results/optimize_gaussian/audit.json`（v2–v8 的统一口径表，全部标记 legacy） |

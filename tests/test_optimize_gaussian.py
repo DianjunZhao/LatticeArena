@@ -231,3 +231,39 @@ def test_run_manifest_records_dependencies_and_ids(tmp_path):
     assert set(m['dependencies']) == {'features.py', 'kernels.py', 'submission.py', 'train.py'}
     assert all(len(v) == 64 for v in m['dependencies'].values())
     assert len(m['statistics_sha256']) == 64
+
+
+def test_submission_matches_linear_response_and_is_hermitian():
+    from tasks.optimize_gaussian.kernels import correlator
+    from tasks.optimize_gaussian.submission import build_kernel
+    from tasks.optimize_gaussian.train import gaussian
+    rng = np.random.default_rng(41)
+    latt = (3, 4, 5)  # non-cubic on purpose
+    u = su3(rng, (3, *latt))
+    f, g = field(rng, latt), field(rng, latt)
+    p = params(41, steps=1, hidden=3)
+    W = np.asarray(p['W'])
+    hidden = W.shape[0]
+    base = gaussian(f, u, p['steps'], p['alpha'])
+    zero = np.zeros((3, *latt))
+    C0 = correlator(base, u, zero)
+    Dc = correlator(base, u, np.ones((3, *latt))) - C0
+    phi = features(u, W)
+    Dh = [correlator(base, u, phi[:, ..., h]) - C0 for h in range(hidden)]
+    cases = [('zero', np.zeros(1 + hidden)),
+             ('c_only', np.array([0.3] + [0.0] * hidden)),
+             ('one_v', np.array([0.0, 0.4] + [0.0] * (hidden - 1))),
+             ('full', rng.normal(size=1 + hidden))]
+    for label, theta in cases:
+        a = np.full((3, *latt), theta[0])
+        for h in range(hidden):
+            a += theta[1 + h] * phi[:, ..., h]
+        linear = C0 + theta[0] * Dc + sum(theta[1 + h] * Dh[h] for h in range(hidden))
+        direct = correlator(base, u, a)
+        np.testing.assert_allclose(linear, direct, rtol=0, atol=1e-10)
+        spec = {**p, 'theta': theta.tolist()}
+        submitted = complex(np.vdot(f, build_kernel(u, spec).apply(f)))
+        np.testing.assert_allclose(submitted.real, direct, rtol=0, atol=1e-10)
+        # full BCB Hermiticity with distinct fields
+        np.testing.assert_allclose(np.vdot(g, build_kernel(u, spec).apply(f)),
+                                   np.vdot(build_kernel(u, spec).apply(g), f), atol=1e-10)
