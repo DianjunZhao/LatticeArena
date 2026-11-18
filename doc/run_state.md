@@ -1,5 +1,13 @@
 # 运行状态、fold-local 统计与成本账本（F3 切片）
 
+## 0. 状态必须有绑定证据
+
+`RunState.set(name, 'validated', evidence_hash=...)` 现在要求一个非空 hash（通常来自测试文件、
+审计 JSON 或数据文件的 digest）；只写标签/测试文件名/块数不再能把状态置为 validated。
+`physical_ready()` 要求五个子状态全部 validated **且**都有 hash；`score_or_null()` 只看它。
+develop 的 `run_state` 因此是 conditional diagnostic（comparison 仍 draft/failed），
+顶层 `conditional_scores` 与 `physical_score`（None）分开记录。
+
 ## 1. 状态机
 
 `core/state.py`：

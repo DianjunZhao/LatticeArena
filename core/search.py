@@ -4,6 +4,7 @@ Proposals are (source, candidate) pairs. The adapter validates, evaluates under
 a budget and records every rejection with its reason; it never silently drops a
 candidate.
 """
+import math
 from dataclasses import dataclass, field
 
 
@@ -53,6 +54,10 @@ def search(proposals, evaluate, validate=None, budget=None, key='risk'):
             value = evaluate(candidate)
         except Exception as exc:  # noqa: BLE001 - evaluation failures are recorded, not hidden
             result.rejected.append({'source': source, 'candidate': candidate, 'reason': f'evaluation failed: {exc}'})
+            continue
+        if value is None or not math.isfinite(float(value)):
+            result.rejected.append({'source': source, 'candidate': candidate,
+                                    'reason': 'non-finite evaluation result'})
             continue
         result.evaluations += 1
         result.accepted.append({'source': source, 'candidate': candidate, key: float(value)})

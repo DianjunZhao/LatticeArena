@@ -32,7 +32,14 @@
 `agents/llm.chat(model='mock')` 从 `agents.llm.MOCK_QUEUE` 取预设回复，用于离线回归：
 `results/pion_projection/agent_mock_v1/` 记录了四类非法候选的拒绝原因与一个合法候选的接受结果。
 
-## 5. 仍未做
+## 5. SearchAdapter 与预算（F2 集成）
+
+`agents/loop.py` 现在真正调用 `core.search.search`：每轮候选走 validate → evaluate → 记录；
+NaN/Inf 评估结果被拒绝（`non-finite evaluation result`），预算用尽即停。
+每轮写 `agent/search_trace.json`（模型、seed、history、rejections、best、validation_status），
+不再只是 import 模块却手写循环。
+
+## 6. 仍未做
 
 - 真实 LLM 调用的预算账本（token/费用/超时）与沙箱；
 - 统一 `SearchAdapter`（F1 的第 5 类接口）；

@@ -21,3 +21,9 @@ def write_json(path, value):
     tmp = path.with_suffix(path.suffix + '.tmp')
     tmp.write_text(json.dumps(value, indent=2, allow_nan=False) + '\n')
     tmp.replace(path)
+
+
+def digest_text(text):
+    """sha256 of a string, for binding in-memory artifacts in run state."""
+    import hashlib
+    return hashlib.sha256(str(text).encode()).hexdigest()

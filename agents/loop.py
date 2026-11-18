@@ -80,35 +80,47 @@ def run(output, model, rounds, allow_validation=True):
             history.append({'error': 'no json', 'reply': reply[:200]})
             continue
         cfg = json.loads(match.group(0))
-        for i, raw in enumerate(cfg.get('candidates') or [cfg['weights']]):
+        proposals = [(f'{r}.{i}', raw) for i, raw in enumerate(cfg.get('candidates') or [cfg['weights']])]
+
+        def evaluate(raw):
             u = np.asarray(raw, dtype=float)
-            ok, reason = validate_weights(u, len(p['powers']), p['optimizer_l1_bound'])
-            if not ok:
-                history.append([u.tolist() if u.ndim == 1 else str(u), reason])
-                safe = ([None if not np.isfinite(x) else float(x) for x in u]
-                        if u.ndim == 1 else str(u))
-                rejections.append({'round': f'{r}.{i}', 'u': safe, 'reason': reason})
-                continue
+            return risk(data, u / scales, ref['mass'], masses, index, p)['risk']
+
+        found = search(proposals, evaluate,
+                       validate=lambda raw: validate_weights(np.asarray(raw, dtype=float),
+                                                             len(p['powers']), p['optimizer_l1_bound']),
+                       budget=Budget(len(proposals)))
+        for item in found.rejected:
+            candidate = item['candidate']
+            safe = ([None if not isinstance(x, (int, float)) or not np.isfinite(x) else float(x)
+                     for x in candidate] if isinstance(candidate, list) else str(candidate))
+            history.append([safe, item['reason']])
+            rejections.append({'round': item['source'], 'u': safe, 'reason': item['reason']})
+        for item in found.accepted:
+            u = np.asarray(item['candidate'], dtype=float)
             weights = u / scales
-            try:
-                value = risk(data, weights, ref['mass'], masses, index, p)
-            except ValueError as exc:
-                history.append([u.tolist(), str(exc)])
-                continue
-            history.append([u.tolist(), round(value['risk'], 6)])
-            write_json(output / 'agent' / f'round{r}_{i}.json',
+            history.append([u.tolist(), round(item['risk'], 6)])
+            write_json(output / 'agent' / f"round{item['source'].replace('.', '_')}.json",
                        {'model': model, 'u': u.tolist(), 'weights': weights.tolist(),
-                        'risk': value['risk'],
+                        'risk': item['risk'],
                         'prompt_sha256': hashlib.sha256(prompt.encode()).hexdigest(),
                         'reply_sha256': hashlib.sha256(reply.encode()).hexdigest()})
-            print(f'round {r}.{i}: risk {value["risk"]:.6g}  u {np.round(u, 3).tolist()}')
-            if llm_best is None or value['risk'] < llm_best['risk']:
-                llm_best = {'risk': value['risk'], 'u': u.tolist(), 'weights': weights.tolist(), 'round': f'{r}.{i}'}
-            if value['risk'] < best['risk']:
-                best = {'risk': value['risk'], 'weights': weights.tolist(), 'u': u.tolist(), 'round': f'{r}.{i}'}
+            print(f"round {item['source']}: risk {item['risk']:.6g}  u {np.round(u, 3).tolist()}")
+            if llm_best is None or item['risk'] < llm_best['risk']:
+                llm_best = {'risk': item['risk'], 'u': u.tolist(), 'weights': weights.tolist(),
+                            'round': item['source']}
+            if item['risk'] < best['risk']:
+                best = {'risk': item['risk'], 'weights': weights.tolist(), 'u': u.tolist(),
+                        'round': item['source']}
 
     best['llm_best'] = llm_best
     write_json(output / 'agent' / 'rejections.json', rejections)
+    write_json(output / 'agent' / 'search_trace.json',
+               {'model': model, 'rounds': rounds, 'seed': int(p['seed']),
+                'budget_per_round': 'len(proposals)', 'history': history,
+                'rejections': rejections,
+                'best': {'risk': best['risk'], 'round': best['round']},
+                'validation_status': 'not_read' if not allow_validation else 'post_hoc_diagnostic'})
     if not allow_validation:
         best.update({'model': model, 'rounds': rounds, 'protocol_hash': fingerprint(p),
                      'validation_status': 'not_read', 'validation_risk': None,

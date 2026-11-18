@@ -108,6 +108,8 @@ python -m pytest -q tests/test_wilson_loop.py
 | F1 接口切片 5 | `core/search.py`（Budget/search/SearchResult）；wilson 当前无 optimizer/LLM 搜索，适配器为 N/A，但共享校验器可用 |
 | F1 接口切片 3–4 | `core/measurement.py` + `core/comparator.py`；wilson bundle 声明三项能力全为 False（归档 run 没有 cross/response，禁止推断） |
 | F1 接口切片 1–2 | 新增 `core/specs.py` + 两个 task 的 spec adapter（TaskSpec/RunSpec、OperatorContract/CandidateSpec）；见 [`doc/interfaces.md`](../../doc/interfaces.md)，测试 `tests/test_specs.py` |
+| F2 搜索集成 | `agents/loop.py` 真正走 `core.search.search`；NaN/Inf evaluator 结果被拒绝；每轮写 `agent/search_trace.json`（history/rejections/best/预算） |
+| F3 状态证据绑定 | `RunState.set(validated)` 必须带 evidence hash；`physical_ready()`/`score_or_null()` 只在五状态全部 validated 且有 hash 时给分；develop 的 `run_state` 与 `conditional_scores`/`physical_score` 分开 |
 | F2 LLM/搜索隔离 | 共享 `core/candidates.validate_weights`；mock 轨迹 + 拦截测试见 [`doc/agent_isolation.md`](../../doc/agent_isolation.md) |
 | F0 证据绑定修复 | `audit_run` 的每条证据现在带 code/inputs hash；两个 kernel hash 缺失时判 NOT_RUN（不再 None==None 通过）；pion 行数按 RunSpec 校验（不用 len(data) 自证）；`covariance_residual` 文档明确只是固定 U 的交换关系，不是完整 gauge 协变 |
 | F0 证据 schema | 新增 `core/evidence.py`、`core/operator_checks.py`、`scripts/audit_run.py`、`scripts/summarize_evidence.py`；wilson v3 与 pion 200 各产出一份同 schema 证据（`results/*/evidence/`）；见 [`doc/evidence_framework.md`](../../doc/evidence_framework.md) |

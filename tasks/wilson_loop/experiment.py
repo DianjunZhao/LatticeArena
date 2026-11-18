@@ -7,6 +7,8 @@ import numpy as np
 from core.ledger import Ledger
 from core.state import RunState
 
+from core.io import digest_text
+
 from .common import digest, fingerprint, load_data, protocol, write_json
 from .statistics import blocks, bootstrap_indices, potential, risk
 
@@ -27,21 +29,28 @@ def develop(output):
                for k, spec in enumerate(p['kernels'])}
     identity = results['identity']
     state = RunState()
-    state.set('operator', 'draft', 'kernels.py').set('operator', 'validated', 'tests/test_wilson_loop.py')
-    state.set('numerical', 'draft', 'per-matrix Newton-Schulz').set('numerical', 'validated',
-                                                                  'results/wilson_loop/audit_20261118_projection/')
+    tests_path = Path(__file__).resolve().parents[2] / 'tests' / 'test_wilson_loop.py'
+    projection_audit = Path('results/wilson_loop/audit_20261118_projection/projection.json')
+    state.set('operator', 'draft', 'kernels.py')
+    state.set('operator', 'validated', 'tests',
+              evidence_hash=digest(tests_path) if tests_path.exists() else None)
+    state.set('numerical', 'draft', 'per-matrix Newton-Schulz')
+    state.set('numerical', 'validated', 'projection audit',
+              evidence_hash=digest(projection_audit) if projection_audit.exists() else None)
     failures = []
     if np.any(np.array(identity['v']) <= 0):
         failures.append('non-positive reference potential')
     if np.any(np.array(identity['spread']) / np.array(identity['v']) > p['reference_max_relative_se']):
         failures.append('identity plateau spread across T windows exceeds the fixed threshold')
+    identity_hash = digest_text(json.dumps(identity, sort_keys=True))
     state.set('reference', 'draft', 'identity V')
     if failures:
         state.set('reference', 'failed', '; '.join(failures))
     else:
-        state.set('reference', 'validated', 'identity V positive and spread below threshold')
+        state.set('reference', 'validated', 'identity gate', evidence_hash=identity_hash)
     state.set('statistical', 'draft', 'block bootstrap')
-    state.set('statistical', 'validated', f'{len(data)} blocks, {p["bootstrap_samples"]} draws')
+    state.set('statistical', 'validated', f'{len(data)} blocks',
+              evidence_hash=digest(output / 'development.npz'))
     state.set('comparison', 'draft', 'risk ratios')
     if failures:
         state.set('comparison', 'failed', 'reference gate failed')
@@ -97,12 +106,13 @@ def evaluate(output):
     if not frozen['reference_passed']:
         state.set('comparison', 'failed', 'reference gate failed')
     report = {'protocol_version': p['version'], 'windows': windows,
-              'run_state': state.summary(),
+              'run_state': state.summary(), 'physical_score': state.score_or_null(),
               'identity': frozen['identity'],
               'reference_passed': frozen['reference_passed'],
               'failure_reasons': frozen['failure_reasons'],
               'n_validation': len(data) * p['block_length'], 'n_blocks': len(data),
               'r_values': p['r_values'], 'results': results}
+    report['conditional_scores'] = {n: value.get('score') for n, value in results.items()}
     write_json(output / 'validation_results.json', report)
     print('VALIDATION', json.dumps({k: report[k] for k in ('reference_passed', 'failure_reasons')}),
           {n: {'risk': round(r['risk'], 6), 'score': r['score']} for n, r in results.items()})

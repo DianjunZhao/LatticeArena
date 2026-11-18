@@ -107,13 +107,18 @@ def test_run_state_transitions_and_score_gating():
     from core.state import RunState
     state = RunState()
     with pytest.raises(ValueError, match='illegal transition'):
-        state.set('statistical', 'validated')
-    state.set('operator', 'draft').set('operator', 'validated')
-    state.set('statistical', 'draft')
+        state.set('statistical', 'validated', evidence_hash='h' * 12)
+    with pytest.raises(ValueError, match='bound evidence hash'):
+        state.set('operator', 'draft').set('operator', 'validated')
+    state = RunState()
+    for name in ('operator', 'numerical', 'statistical'):
+        state.set(name, 'draft').set(name, 'validated', evidence_hash='h' * 12)
     assert state.score_or_null() is None
-    state.set('statistical', 'validated')
-    state.set('comparison', 'draft').set('comparison', 'validated')
+    state.set('reference', 'draft').set('reference', 'validated', evidence_hash='h' * 12)
+    state.set('comparison', 'draft')
     state.score = 42.0
+    assert state.score_or_null() is None       # comparison still draft
+    state.set('comparison', 'validated', evidence_hash='h' * 12)
     assert state.score_or_null() == 42.0
     state.observe_validation('v3')
     assert state.validation_observed
@@ -170,3 +175,10 @@ def test_check_draws_rejects_broadcast_and_nonfinite():
     assert n == 3
     with pytest.raises(ValueError, match='one-dimensional'):
         paired_ratio(np.zeros((3, 1)), np.zeros(3))
+
+
+def test_search_rejects_nonfinite_evaluation():
+    from core.search import search
+    result = search([('a', 1.0), ('b', 2.0)], evaluate=lambda x: float('nan'))
+    assert not result.accepted and len(result.rejected) == 2
+    assert all('non-finite' in item['reason'] for item in result.rejected)
