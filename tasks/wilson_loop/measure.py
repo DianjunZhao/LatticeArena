@@ -78,7 +78,10 @@ def measure(output, split, limit=None):
         u = xp.asarray(read_nersc(gauge_path, p['geometry']))
         setup = perf_counter() - cfg_start
         measured = perf_counter()
-        row = [loops(build_kernel(u[:3], k), u[3], p) for k in p['kernels']]
+        try:
+            row = [loops(build_kernel(u[:3], k), u[3], p) for k in p['kernels']]
+        except ValueError as exc:
+            raise ValueError(f'cfg {cfg}: {exc}') from exc
         rows.append(row)
         ledger.add('setup', setup).add('kernel', perf_counter() - measured)
         records.append({'id': int(cfg), 'gauge_path': str(gauge_path),

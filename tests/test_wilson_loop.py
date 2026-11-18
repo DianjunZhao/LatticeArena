@@ -472,3 +472,11 @@ def test_spectral_two_state_counterexample():
     row = analyse(rng, 0.2)
     assert row['gate_spread_pass']
     assert row['bias_over_se'] > 3
+
+
+def test_projection_failure_reports_batch_index():
+    from tasks.wilson_loop.kernels import project
+    good = np.eye(3, dtype=complex)
+    bad = np.diag([1.0, 1.0, 0.0]).astype(complex)
+    with pytest.raises(ValueError, match=r'indices \[1\]'):
+        project(np.stack([good, bad]))

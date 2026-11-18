@@ -59,6 +59,11 @@ def run_candidate(output, definition_path, split, verify_only=False):
         raise ValueError('Frozen reference protocol/development data changed')
     if reference_frozen['statistics_sha256'] != digest(Path(__file__).with_name('statistics.py')):
         raise ValueError('Frozen scoring implementation changed')
+    from .identity import verify_run_identity
+    kind_checked, identity_reasons = verify_run_identity(output)
+    if kind_checked is None or any('protocol hash' in r or 'development data hash' in r
+                                   for r in identity_reasons):
+        raise ValueError('Run identity check failed: ' + '; '.join(identity_reasons))
     spec = json.loads(Path(definition_path).read_text())
     module, function = spec['builder'].split(':')
     builder = getattr(importlib.import_module(module), function)
@@ -158,6 +163,9 @@ def run_candidate(output, definition_path, split, verify_only=False):
                    'diagnostic_loss_ratio_95_interval': interval.tolist(),
                    'score': 100*ratio if reference_frozen['calibration']['reference_passed'] else None,
                    'reference_failure_reasons': reference_frozen['calibration']['failure_reasons'],
+                   'certification': {'status': 'abstain',
+                                     'reasons': ['candidate is diagnostic; the joint command issues certificates']},
+                   'physical_score': None,
                    'validation_sha256': digest(destination/'validation.npz')})
     write_json(destination/f'{split}_provenance.json', {'identity': identity, 'seconds_per_configuration': timings,
                'source_manifest_sha256': digest(output/f'{split}_provenance.json')})

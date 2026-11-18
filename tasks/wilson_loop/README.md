@@ -119,6 +119,7 @@ python -m pytest -q tests/test_wilson_loop.py
 | P2 点值/jackknife/coverage | `paired_audit_v2/`：归档点值（v2 0.967–1.055）与诊断重算分列；jackknife 改为 leave-one-block-out；非退化 coverage（已知增益/零效应各 0.983，60 次模拟） |
 | P2 无效样本计数 | 新增 `invalid_audit.py` + `results/wilson_loop/invalid_audit_v1/`：预声明 mean/bootstrap 非正、NaN、零分母规则；v2/v3/v4 计数全为 0（规则未触发）；合成数据单测覆盖计数路径 |
 | P2 配对统计审计 | 新增 `paired_audit.py` + `results/wilson_loop/paired_audit_v1/`：v2 点值 1.07–1.18 vs 嵌套中位数 3.0–3.4（唯一 block 分布、jackknife 0.49–4.53、相关性 0.14–0.30 解释）；`probability_better` 改名 `exceedance_fraction` |
+| P1 投影失败定位 | `_inv_sqrt_hermitian` 的失败信息带 batch indices；measure 在异常外层附 `cfg <id>`；测试 `indices [1]` |
 | P1 恢复事务 | 测量改为 npz+provenance+commit marker 三文件事务；resume 互验 generation/文件 hash/records 逐行 loops hash/gauge hash；部分文件、依赖变更、gauge 变更均拒绝；见 [`doc/run_state.md`](../../doc/run_state.md) §7 |
 | P1 恢复故障注入 | `check_resume` 现在校验 provenance 记录数与 id 顺序；故障注入表见 [`doc/run_state.md`](../../doc/run_state.md) §7（generation/前缀/记录不一致均拒绝，残留 tmp 忽略） |
 | P1 可信加载/冻结 | 新增 `identity.py`：generation 写入 NPZ/provenance、resume 只接同 generation 前缀、`read_nersc` 校验头部几何、`trust_status` 只看身份；`paired.main` 改用 `load_data`；v3 归档被判 archived_diagnostic（证据 `results/wilson_loop/audit_20261118_identity/`） |

@@ -48,9 +48,11 @@ def _inv_sqrt_hermitian(a, tol=1e-10, max_iter=80, min_iter=8):
                 break
     error = xp.abs(z @ y - eye).max(axis=(-1, -2))
     if xp.any(error > tol):
-        count = int(xp.sum(error > tol))
+        bad = xp.argwhere(error > tol).ravel()
+        count = int(bad.size)
+        indices = bad[:5].tolist() if hasattr(bad, 'tolist') else [int(x) for x in bad[:5]]
         raise ValueError(f'project: Newton-Schulz did not converge for {count} matrices '
-                         f'(max error {float(xp.max(error)):.3e})')
+                         f'(indices {indices}, max error {float(xp.max(error)):.3e})')
     return y / xp.sqrt(scale)
 
 
