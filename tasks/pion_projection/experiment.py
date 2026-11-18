@@ -11,6 +11,7 @@ from core.state import RunState
 from core.io import digest_text
 
 from .common import digest, fingerprint, load_data, protocol, write_json
+from .identity import verify_run_identity
 from .reference import make_reference, reference_kind, reference_spec, verify_reference
 from .statistics import blocks, bootstrap_indices, fold, inverse_covariance, risk
 
@@ -204,8 +205,15 @@ def evaluate(output):
     state.observe_validation(f'evaluate:{p["version"]}')
     if not frozen['calibration']['reference_passed']:
         state.set('comparison', 'failed', 'reference gate failed')
+    kind_checked, identity_reasons = verify_run_identity(output, (kind,))
+    if kind_checked is None or identity_reasons:
+        certification = {'status': 'abstain', 'reasons': identity_reasons}
+    else:
+        certification = {'status': 'abstain',
+                         'reasons': ['evaluate has no joint draws; run the joint command']}
     report = {'protocol': p, 'submission_sha256': digest(output/'submission.json'),
               'run_state': state.summary(), 'physical_score': state.score_or_null(),
+              'certification': certification,
               'validation_sha256': digest(output/'validation.npz'), 'reference': reference,
               'reference_passed': frozen['calibration']['reference_passed'],
               'reference_failure_reasons': frozen['calibration']['failure_reasons'],
@@ -235,5 +243,6 @@ def evaluate(output):
         report['agent_vs_tuned_gaussian'] = {
             'risk_ratio': report['results']['tuned_gaussian']['risk']/report['results']['agent_signed_mixture']['risk'],
             'risk_ratio_95_interval': np.quantile((draws[:, k]+eps)/(draws[:, j]+eps), [.025, .975]).tolist()}
+    report['conditional_scores'] = {name: value.get('score') for name, value in report['results'].items()}
     write_json(output/'validation_results.json', report)
     print('VALIDATION', json.dumps(report), flush=True)

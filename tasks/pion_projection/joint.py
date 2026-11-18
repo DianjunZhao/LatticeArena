@@ -27,24 +27,13 @@ def run(output, models=None, outer=200, inner=64, seed=20261119, dest=None):
     p = json.loads((output / 'development_provenance.json').read_text())['protocol']
     sub = json.loads((output / 'submission.json').read_text())
     report = json.loads((output / 'validation_results.json').read_text())
-    frozen_kind = sub.get('reference', {}).get('kind')
+    from .identity import verify_run_identity
+    frozen_kind, reasons = verify_run_identity(output, models)
     if frozen_kind is None:
-        raise ValueError('submission has no frozen reference kind; refusing a joint certification')
-    if models is None:
-        models = (frozen_kind,)
-    if tuple(models) != (frozen_kind,):
-        raise ValueError(f'joint models {tuple(models)} do not match the frozen reference kind {frozen_kind!r}; '
-                         'a gate from another run/model cannot be borrowed')
-    if sub.get('protocol_hash') != fingerprint(p):
-        raise ValueError('submission protocol hash does not match the run protocol')
-    if sub.get('development_sha256') != digest(output / 'development.npz'):
-        raise ValueError('development data hash does not match the submission')
-    if report.get('reference_kind') not in (None, frozen_kind):
-        raise ValueError('validation report reference kind differs from the frozen submission')
-    if report.get('protocol', {}).get('version') != p['version']:
-        raise ValueError('validation report protocol differs from the run protocol')
-    if models == ('single',) and report.get('reference', {}).get('mass') is None:
-        raise ValueError('validation report has no single-model reference fit')
+        raise ValueError('; '.join(reasons))
+    models = (frozen_kind,)
+    if reasons:
+        raise ValueError('; '.join(reasons))
     dev = blocks(fold(np.load(output / 'development.npz')['correlators']), p['block_length'])
     val = blocks(fold(np.load(output / 'validation.npz')['correlators']), p['block_length'])
     window = p['reference_windows'][p['reference_nominal_window']]

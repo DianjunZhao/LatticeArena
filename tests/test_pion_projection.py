@@ -501,3 +501,22 @@ def test_anchor_calibration_cell():
     row = run_cell(rng, 0.02, 0.01, 0.0, n_dataset=3, n_boot=12)
     assert 0 <= row['naive_certified_fraction'] <= 1
     assert np.isfinite(row['dataset_mean']) and row['dataset_se'] >= 0
+
+
+def test_verify_run_identity_rejects_tampering(tmp_path):
+    import json
+    import shutil
+    from pathlib import Path
+    from tasks.pion_projection.identity import verify_run_identity
+    run = Path('results/pion_projection/s16t16_gevp200')
+    if not (run / 'submission.json').exists():
+        pytest.skip('run data not available')
+    for name in ('development.npz', 'development_provenance.json', 'submission.json', 'validation_results.json'):
+        shutil.copy(run / name, tmp_path / name)
+    kind, reasons = verify_run_identity(tmp_path)
+    assert kind == 'single' and not reasons
+    sub = json.loads((tmp_path / 'submission.json').read_text())
+    sub['development_sha256'] = '0' * 64
+    (tmp_path / 'submission.json').write_text(json.dumps(sub))
+    kind, reasons = verify_run_identity(tmp_path)
+    assert any('development data hash' in reason for reason in reasons)

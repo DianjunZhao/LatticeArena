@@ -86,7 +86,9 @@ Bonferroni 只在下界各自有覆盖时提供同时覆盖；它不能修复失
 2. 同一 draw 的参考质量用于所有候选、所有模型；validation block 重采样也按 draw 共享；
 3. 输出 `joint_draws.npz`（draw ID、模型、候选、质量）与 `metric_results.json`（证书、失败原因、
    per-model 下界、point risks）；
-4. 若 `validation_results.json` 的 `reference_passed=False`，证书强制 abstain，所有候选
+4. evaluate 与 joint 共用 `identity.verify_run_identity`（冻结 kind/protocol/dev hash/report 一致性）；
+   evaluate 没有 joint draws 时写 `certification=abstain`，不自行发证书；
+5. 若 `validation_results.json` 的 `reference_passed=False`，证书强制 abstain，所有候选
    `certified=False`——即使下界很大；
 5. spec 可设 `require_draw_ids=True`：缺少 draw_ids 直接拒绝；`draw_ids_hash` 不符也拒绝。
 
