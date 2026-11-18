@@ -180,3 +180,37 @@ def test_verify_reference_rejects_missing_spec():
     for spec in (None, {}, {'schema': 'other'}):
         with pytest.raises(ValueError, match='legacy|schema'):
             verify_reference(spec)
+
+
+def test_improvement_certificate_accepts_only_real_improvements():
+    from tasks.pion_projection.scoring import improvement_certificate
+    rng = np.random.default_rng(3)
+    base = np.exp(rng.normal(0, 0.05, 4000))
+    good = base * np.exp(-0.5)
+    bad = base * np.exp(0.2)
+    risks = {'m1': {'local': base, 'good': good, 'bad': bad},
+             'm2': {'local': base, 'good': good, 'bad': bad}}
+    spec = {'schema': 'pion-score-v1', 'version': 'test', 'estimand': 'x',
+            'baseline_id': 'local', 'alpha': 0.05,
+            'comparison_family': {'candidates': 2, 'models': 2}, 'risk_floor': 0.0}
+    out = improvement_certificate(risks, spec)
+    assert out['status'] == 'certified'
+    assert out['candidates']['good']['certified']
+    assert not out['candidates']['bad']['certified']
+    assert out['candidates']['good']['improvement_lower_bound'] > 1.4
+
+
+def test_improvement_certificate_validates_spec_and_abstains_on_nan():
+    from tasks.pion_projection.scoring import improvement_certificate, validate_spec
+    with pytest.raises(ValueError, match='missing'):
+        validate_spec({'schema': 'pion-score-v1'})
+    with pytest.raises(ValueError, match='schema'):
+        validate_spec({'schema': 'other', 'version': 'v', 'estimand': 'x', 'baseline_id': 'b',
+                       'alpha': 0.05, 'comparison_family': {'candidates': 1, 'models': 1}})
+    base = np.ones(100)
+    bad = np.full(100, np.nan)
+    spec = {'schema': 'pion-score-v1', 'version': 't', 'estimand': 'x', 'baseline_id': 'local',
+            'alpha': 0.05, 'comparison_family': {'candidates': 1, 'models': 1},
+            'invalid_tolerance': 0.01}
+    out = improvement_certificate({'m': {'local': base, 'c': bad}}, spec)
+    assert out['abstain'] and out['status'] == 'abstain'

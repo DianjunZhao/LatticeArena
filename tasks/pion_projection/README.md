@@ -199,3 +199,31 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | 模型平均（AIC/BIC） | 已生成 `model_average.json`：权重退化为两态（$\approx1$），但两态过拟合，排序随模型翻转 |
 | 两态 profile likelihood | 1σ 区间 $[1.025,1.065]$，宽度 0.04 ≈ 4× bootstrap SE——存在 sloppy 方向 |
 | 新数据 / 新 blind validation / anchor | NOT_RUN |
+| S1 评分证书模块 | 已实现 `scoring.py` + `score_spec.example.json` + 合成测试（真实数据仍无法认证） |
+
+## S1 评分证书模块（`scoring.py`）
+
+`todo.md` 推荐的“保守改善证书”已经落成一个纯函数：
+
+```python
+from tasks.pion_projection.scoring import improvement_certificate
+out = improvement_certificate({model: {candidate: risk_draws}}, spec)
+```
+
+- `spec` 走 `pion-score-v1` schema（示例：`score_spec.example.json`），必须显式给出
+  `estimand`、`baseline_id`、`alpha`、`comparison_family`、`risk_floor`；
+- 每个模型 $m$、候选 $c$ 用同一组 bootstrap draw 计算
+  $D_{cm}=\log R_{b,m}-\log R_{c,m}$；
+- 同时下界用 Bonferroni 水平 $\alpha/(J\cdot K)$ 的分位数，再对所有模型取最小：
+
+$$
+L_c=\min_m \operatorname{quantile}_{\alpha/(JK)}(D_{cm}),
+\qquad \text{improvement}=\exp(L_c);
+$$
+
+- 只有 $L_c>0$ 才算 certified；无效 draw 比例超过 `invalid_tolerance` 直接 **abstain**；
+- 不把原始 risk 比值直接平均（分母接近零会爆），也不对每个候选单独抽参考质量。
+
+**当前真实数据仍不能认证**：单 cosh / 两态两个参考都失配（见上面的模型平均与 profile），
+这个模块只保证“给定可信参考 draws 时，证书的定义是可执行的”。合成测试覆盖：真实改善被认证、
+变差被拒绝、NaN draw 触发 abstain、schema 校验。
