@@ -100,8 +100,8 @@ $\{0,2,4,8,16,24,32,64\}$，重测了同一批 60/30 组态（GPU，约 20 分�
 ### 2.7 现状
 
 **合成验证已完成；真实数据的 2×2 与 3×3 尝试都无平台**。结论：仅靠 powers-of-$H$ 不够，
-真正的 C2 需要**不同的 source 涂抹/算符结构**（多 source 反演，约 4× 当前成本），
-这一步仍是 NOT_RUN。
+真正的 C2 需要**不同的 source 涂抹/算符结构**。多 source 的可执行方案（source 集合、成本、
+预注册判据）见 [`doc/pion_multisource_plan.md`](pion_multisource_plan.md)，仍是 NOT_RUN。
 
 ## 3. C3：直接面向能量误差的目标
 
