@@ -295,3 +295,21 @@ def test_hankel_matrix_uses_sum_channels():
     np.testing.assert_array_equal(matrix[:, 1, 1], data[:, 4])
     with pytest.raises(ValueError, match='not measured'):
         build_hankel(data, powers, ops=(8, 16))
+
+
+def test_multisource_matrix_and_regularization():
+    from tasks.pion_projection.multisource_gevp import build_matrix, regularize
+    data = np.zeros((4, 3, 8, 16))
+    for j in range(3):
+        for k in range(8):
+            data[:, j, k] = (j + 1) * (k + 1) * np.exp(-0.8 * np.arange(16))[None]
+    matrix = build_matrix(data, [0, 2, 4, 8, 16, 24, 32, 64])
+    assert matrix.shape == (4, 3, 3, 16)
+    np.testing.assert_allclose(matrix, matrix.swapaxes(1, 2))
+    bad = matrix.copy()
+    bad[:, 0, 0, 2] = -1.0
+    fixed = regularize(bad)
+    values = np.linalg.eigvalsh(fixed[:, :, :, 2])
+    assert np.all(values > 0)
+    with pytest.raises(ValueError, match='match'):
+        build_matrix(data, [0, 2, 4, 8, 16, 24, 32, 64], sinks=(0, 4))

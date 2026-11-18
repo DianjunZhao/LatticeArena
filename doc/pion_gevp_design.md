@@ -100,8 +100,9 @@ $\{0,2,4,8,16,24,32,64\}$，重测了同一批 60/30 组态（GPU，约 20 分�
 ### 2.7 现状
 
 **合成验证已完成；真实数据的 2×2 与 3×3 尝试都无平台**。结论：仅靠 powers-of-$H$ 不够，
-真正的 C2 需要**不同的 source 涂抹/算符结构**。多 source 的可执行方案（source 集合、成本、
-预注册判据）见 [`doc/pion_multisource_plan.md`](pion_multisource_plan.md)，仍是 NOT_RUN。
+真正的 C2 需要**不同的 source 涂抹/算符结构**。多 source 的测量**已经跑通**（90 组态、约 4 分钟），但 `gaussian12` 的 source 剖面与 sink 核不匹配，
+GEVP 无效；详见 [`doc/pion_multisource_plan.md`](pion_multisource_plan.md)。下一步是用同一个 $H^n$ 做
+source smearing，仍是 NOT_RUN。
 
 ## 3. C3：直接面向能量误差的目标
 

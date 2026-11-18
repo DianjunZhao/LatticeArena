@@ -65,7 +65,33 @@ $$
   `references` 集合的第三个模型；
 - 在它通过之前，pion 的正式 score 保持 `null`。
 
-## 5. 状态
+## 5. 执行结果（2026-11-18，已跑）
 
-**NOT_RUN**：需要新的 GPU 测量与 `measure.py` 的 source 扩展。本文只固定方案与判据，
-不包含执行结果。
+`measure_multisource.py` 实现了 3 个 source（point、`gaussian12` 的 gauss4/gauss16）的测量，
+在 60 开发 + 30 留出组态上跑完（每配置约 2.5 秒，远低于原估的 50–70 分钟）：
+
+- 产物：`results/pion_projection/s16t16_ms/`（`correlators` shape `(ncfg, 3, 8, 16)`）；
+- 矩阵 $M_{ab}(t)=C[\text{source }a,\text{sink }H^{n_b}](t)$，$a,b\in\{$point, $H^4$, $H^{16}\}$；
+- $C(t_0=2)$ 有 1.6% 的负本征值（噪声），用相对 $10^{-6}$ 的本征值 floor 正则化后求解。
+
+结果**仍然不稳定**：
+
+| 数据 | $E_0$ | 每时间点 $E_0(t=3,4,5,6)$ |
+| --- | ---: | --- |
+| development | $0.832\pm0.169$ | 0.676 / 0.780 / 0.947 / 0.924 |
+| validation | $0.818\pm0.123$ | 0.698 / 0.817 / 0.939 / 0.820 |
+
+### 诊断：source 与 sink 的基不一致
+
+`gaussian12` 用的是 Wuppertal smearing（$\alpha=1/(4n/\rho^2-6)$），不是我们的
+$H=(I+0.2\,\mathrm{hop})/2.2$。source 剖面和 sink 核不匹配，$M_{ab}$ 不是同一组算符的
+关联矩阵，GEVP 因此没有物理意义。
+
+**修复方向**：用与 sink 完全相同的 $H^n$ 作用到 source 场（`kernels.apply_kernel` 可以直接
+作用在 source12 的每一列上），再做反演。这需要把 source12 的列转成时间片场格式、应用核、
+写回——代码量不大，但要先在小样本上验证 $C_{ab}$ 的对称性。
+
+## 6. 状态
+
+**测量已跑通（3 sources，90 组态，约 4 分钟）；GEVP 因 source/sink 基不匹配而无效。**
+下一步是“用同一个 $H^n$ 做 source smearing”，仍然 NOT_RUN。
