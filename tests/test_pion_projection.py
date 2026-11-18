@@ -443,3 +443,13 @@ def test_pion_develop_records_run_state(tmp_path, monkeypatch):
     assert statuses['operator'] == 'validated' and statuses['numerical'] == 'validated'
     assert statuses['reference'] in ('validated', 'failed')
     assert statuses['statistical'] == 'validated'
+
+
+def test_joint_rejects_a_borrowed_gate(tmp_path):
+    from pathlib import Path
+    from tasks.pion_projection.joint import run
+    run_dir = 'results/pion_projection/s16t16_twostate'
+    if not (Path(run_dir) / 'submission.json').exists():
+        pytest.skip('twostate run not available')
+    with pytest.raises(ValueError, match='no frozen reference kind|cannot be borrowed'):
+        run(run_dir, models=('single',), outer=2, inner=2, dest=tmp_path)

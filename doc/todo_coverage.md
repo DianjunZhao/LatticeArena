@@ -18,7 +18,7 @@
 | P0.3 已知谱验收 | ✅ | 100 个独立数据集覆盖率 **0.95**、偏差 2e-4 |
 | P0.4 estimand | ✅ | `doc/score_contract.md` |
 | P0.5 schema/身份强制 | ✅ | `scoring.py`：模型/候选集合、一维等长、原始正值、invalid 比例、近零 baseline、门槛 |
-| P0.6 联合 resampling | ✅ | `joint.py` + `results/pion_projection/joint_20261118/`（200×64，gate 失败→abstain） |
+| P0.6 联合 resampling | ✅ | `joint.py` + `joint_20261118/`；A1 身份绑定后新增 `joint_identity_v1/`（冻结 kind/models 精确匹配/hash 校验/拒绝覆盖） |
 | P1.1 双层校准 | ✅ | `calibration_full.py`：full 0.025、fixed 0.095、两态拒绝率 0.53 |
 | P1.2 校准分辨率 | ✅ | $(k+1)/(N+1)$，400 次模拟；6/12/24 blocks 扫描 |
 | P1.3 120-dev 诊断 | ✅ | `score_diagnostics_v3/`：秩满但条件数 $10^6$–$10^8$；$m_0$ 从 1.44 掉到 1.08；两态 profile 半宽/SE=2.7 |
