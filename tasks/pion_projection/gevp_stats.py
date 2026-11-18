@@ -67,23 +67,39 @@ def bootstrap_gevp(matrix, index, t0=2, times=(3, 4, 5, 6), model='forward', ran
                 failures.append({'replica': b, 'time': int(t), 'reason': 'nonpositive eigenvalue'})
                 continue
             for m in range(len(lam)):
-                energies[k, m, b] = effective_energy(lam[m], t, t0, T, model)
+                value = effective_energy(lam[m], t, t0, T, model)
+                energies[k, m, b] = value
+                if not np.isfinite(value):
+                    failures.append({'replica': b, 'time': int(t), 'mode': m,
+                                     'reason': 'energy undefined (cosh root or rank)'})
     return energies, failures
 
 
-def summarise(energies, times, mode=0):
-    """Plateau average over the times and block-bootstrap standard error."""
+def summarise(energies, times, mode=0, require_all_times=True):
+    """Plateau average with a fixed time set and explicit failure counts.
+
+    A replica is valid only if every required plateau time is finite (the
+    pre-declared whole-replica policy); partial times are never averaged.
+    """
     values = energies[:, mode, :]
-    per_time = np.nanmean(values, axis=1)
-    se_time = np.nanstd(values, axis=1, ddof=1)
-    per_replica = np.nanmean(values, axis=0)
-    ok = np.isfinite(per_replica)
-    estimate = float(np.nanmean(per_replica[ok]))
-    se = float(np.nanstd(per_replica[ok], ddof=1)) if ok.sum() > 1 else float('nan')
+    finite = np.isfinite(values)
+    local_failures = int((~finite).sum())
+    ok = finite.all(axis=0) if require_all_times else finite.any(axis=0)
+    per_time = np.array([values[i][finite[i]].mean() if finite[i].any() else np.nan
+                         for i in range(values.shape[0])])
+    se_time = np.array([values[i][finite[i]].std(ddof=1) if finite[i].sum() > 1 else np.nan
+                        for i in range(values.shape[0])])
+    per_replica = np.array([values[:, b][finite[:, b]].mean() if ok[b] else np.nan
+                            for b in range(values.shape[1])])
+    valid = per_replica[ok]
+    estimate = float(valid.mean()) if valid.size else float('nan')
+    se = float(valid.std(ddof=1)) if valid.size > 1 else float('nan')
     return {'energy': estimate, 'se': se,
             'per_time': {int(t): float(v) for t, v in zip(times, per_time)},
             'per_time_se': {int(t): float(v) for t, v in zip(times, se_time)},
-            'replicas': int(ok.sum()), 'failures': int((~ok).sum())}
+            'replicas': int(ok.sum()), 'failures': int((~ok).sum()),
+            'local_failures': local_failures,
+            'valid_times_per_replica': finite.sum(axis=0).tolist()}
 
 
 def synthetic_correlators(rng, ncfg=60, d=3, T=16, energies=(0.80, 1.30), noise=0.02,

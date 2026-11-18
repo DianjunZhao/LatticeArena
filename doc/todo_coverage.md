@@ -14,7 +14,7 @@
 | §1 C3：能量目标 | 🟡 | `energy_experiment.py`：单 cosh 覆盖率 0、两态 0.99；真实 anchor ⛔ |
 | §1 D：新 campaign | ✅ | S16T16C 200 组态；参考仍失败（χ²=90.6/8，m0=1.0771） |
 | P0.1 测量对象推导 | ✅ | `doc/gram_operator_identity.md` + `gram_identity_check.json` |
-| P0.2 估计顺序 | ✅ | `gevp_stats.py`：去重→block bootstrap→replica 平均→秩截断→平台 |
+| P0.2 估计顺序 | ✅ | `gevp_stats.py`：去重→block bootstrap→replica 平均→秩截断→固定平台，失败分层计数 |
 | P0.3 已知谱验收 | ✅ | 100 个独立数据集覆盖率 **0.95**、偏差 2e-4 |
 | P0.4 estimand | ✅ | `doc/score_contract.md` |
 | P0.5 schema/身份强制 | ✅ | `scoring.py`：模型/候选集合、一维等长、原始正值、invalid 比例、近零 baseline、门槛 |

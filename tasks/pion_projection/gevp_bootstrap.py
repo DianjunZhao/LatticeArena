@@ -10,7 +10,7 @@ import numpy as np
 from .gevp_stats import bootstrap_gevp, dedupe, summarise
 
 RUN = Path('results/pion_projection/s16t16_gram3')
-OUT = Path('results/pion_projection/gram_stats')
+OUT = Path('results/pion_projection/gram_stats_v2')
 
 
 def block_index(rng, ncfg, block=5, replicas=200):
@@ -43,7 +43,8 @@ def main():
         energies, failures = bootstrap_gevp(matrix, index, t0=2, times=(3, 4, 5, 6),
                                             model=model, rank=rank)
         summary = summarise(energies, (3, 4, 5, 6), mode=0)
-        result['estimators'][model] = {'summary': summary, 'failures': len(failures)}
+        result['estimators'][model] = {'summary': summary, 'failures': len(failures),
+                                       'failure_reasons': failures[:5]}
         per_time = [summary['per_time'][t] for t in (3, 4, 5, 6)]
         per_se = [summary['per_time_se'][t] for t in (3, 4, 5, 6)]
         axes[1].errorbar([3, 4, 5, 6], per_time, yerr=per_se, fmt='o-', capsize=3, label=model)

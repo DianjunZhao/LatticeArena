@@ -460,3 +460,15 @@ def test_joint_rejects_a_borrowed_gate(tmp_path):
         pytest.skip('twostate run not available')
     with pytest.raises(ValueError, match='no frozen reference kind|cannot be borrowed'):
         run(run_dir, models=('single',), outer=2, inner=2, dest=tmp_path)
+
+
+def test_gevp_summary_rejects_partial_plateaus():
+    from tasks.pion_projection.gevp_stats import summarise
+    energies = np.full((3, 2, 3), 1.0)   # times x modes x replicas
+    energies[2, 0, 0] = np.nan
+    energies[1, 0, 1] = np.nan
+    summary = summarise(energies, (4, 5, 6), mode=0)
+    assert summary['replicas'] == 1
+    assert summary['failures'] == 2
+    assert summary['local_failures'] == 2
+    assert summary['valid_times_per_replica'] == [2, 2, 3]
