@@ -169,14 +169,14 @@ sandbox or an automatic proof of those properties. Time limits are cooperative
 checks; the CuPy limit does not cap QUDA's separately allocated memory.
 
 The real submitted operator for this run is in
-[`agent_candidate.json`](../../results/pion_projection/s16t16_v1/agent_candidate.json).
+[`agent_candidate.json`](../../results/pion_projection/s16t16_v1/agent/llm_candidate.json).
 For the diffusion family, a quick independent operator check uses the first
 configuration of each split and compares the generic contraction against the
 previously measured basis combination:
 
 ```bash
-bash scripts/run_pion.sh candidate --definition results/pion_projection/s16t16_v1/agent_candidate.json --split development --verify-only
-bash scripts/run_pion.sh candidate --definition results/pion_projection/s16t16_v1/agent_candidate.json --split validation --verify-only
+bash scripts/run_pion.sh candidate --definition results/pion_projection/s16t16_v1/agent/llm_candidate.json --split development --verify-only
+bash scripts/run_pion.sh candidate --definition results/pion_projection/s16t16_v1/agent/llm_candidate.json --split validation --verify-only
 ```
 
 The generic matrix-free Python route is slower than the QUDA diffusion fast path;

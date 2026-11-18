@@ -53,7 +53,7 @@ development amplitudes. The normalized coefficients were:
 
 The coefficients sum to one and have L1 norm 1.747, below the fixed limit of 8.
 All eight optimization starts converged. The raw, directly applicable kernel
-coefficients are preserved in the [candidate definition](../results/pion_projection/s16t16_v1/agent_candidate.json),
+coefficients are preserved in the [candidate definition](../results/pion_projection/s16t16_v1/agent/llm_candidate.json),
 and all calibration and search choices are in the
 [frozen submission](../results/pion_projection/s16t16_v1/submission.json).
 The negative local term can cancel part of the short-distance contribution;
@@ -151,8 +151,12 @@ kernel search space or a comprehensive set of literature SOTA methods.
 - 配对比 $\mathrm{risk}_{SLSQP}/\mathrm{risk}_{learned}=0.803$，95% 区间 $[0.636, 0.944]$；
 - 官方 `score` 仍为 `null`（参考 gate 未通过）。
 
-结论：学习核比 Gaussian 基座好（约 1.5 倍），但**没有**超过 7 参数的 SLSQP 混合，作为
-“已排除的对照”记录在此。详见 [tasks/optimize_gaussian/README.md](../tasks/optimize_gaussian/README.md)。
+结论（v8，旧特征）：学习核比 Gaussian 基座好（约 1.5 倍），但**没有**超过 7 参数的 SLSQP 混合。
+
+> **更新（v9，2026-11-18 晚些）**：修复特征（plaquette 闭合、link 中心锚点、A1+ 认证）后重训，
+> 学习核测试 risk 0.009236（相对 $G^8$ **2.12 倍**），候选 risk **0.007721**，与 SLSQP 0.007703
+> 的配对比 $0.998\ [0.78,1.18]$——**统计上打平**。官方 `score` 仍为 `null`（参考 gate 未过）。
+> 详见 [tasks/optimize_gaussian/README.md](../tasks/optimize_gaussian/README.md)。
 
 ## 参考 p 值的模拟校准（2026-11）
 
