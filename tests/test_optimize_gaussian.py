@@ -161,3 +161,64 @@ def test_basis_cache_rejects_identity_change(tmp_path):
     np.savez(tmp_path / 'legacy.npz', C_fit=np.zeros(1), C_dev=np.zeros(1))
     with pytest.raises(ValueError, match='no identity record'):
         load_basis(tmp_path / 'legacy.npz', key)
+
+
+def _cube_rotations():
+    import itertools
+    out = []
+    for perm in itertools.permutations(range(3)):
+        for signs in itertools.product((1, -1), repeat=3):
+            r = np.zeros((3, 3), dtype=int)
+            for k, j in enumerate(perm):
+                r[k, j] = signs[k]
+            if round(np.linalg.det(r)) == 1:
+                out.append(r)
+    return out
+
+
+def _transform(field_or_links, r, shift, dagger):
+    n = field_or_links.shape[1]
+    zz, yy, xx = np.indices((n, n, n))
+    v = np.stack([xx, yy, zz], axis=-1)
+    w = np.einsum('ij,...j->...i', np.linalg.inv(r), v).round().astype(int) % n
+    idx = (w[..., 2], w[..., 1], w[..., 0])
+    if field_or_links.ndim == 5:
+        return field_or_links[idx]
+    out = []
+    for k in range(3):
+        j = int(np.argmax(np.abs(r[k])))
+        sign = int(r[k, j])
+        src = field_or_links[j] if sign > 0 else dagger(shift(field_or_links[j], -1, j))
+        out.append(src[idx])
+    return np.stack(out)
+
+
+@pytest.mark.xfail(strict=True, reason='known P0: current forward/clover-anchored coefficient '
+                                         'features are not O_h covariant; see README audit status')
+def test_full_proper_cubic_group_covariance():
+    from tasks.optimize_gaussian.features import dagger, shift
+    rng = np.random.default_rng(11)
+    latt = (4, 4, 4)
+    u = su3(rng, (3, *latt))
+    f = field(rng)
+    p = params(11, steps=2)
+    base = build_kernel(u, p).apply(f)
+    for r in _cube_rotations():
+        ug = _transform(u, r, shift, dagger)
+        fg = _transform(f, r, shift, dagger)
+        np.testing.assert_allclose(build_kernel(ug, p).apply(fg), _transform(base, r, shift, dagger), atol=1e-11)
+
+
+@pytest.mark.xfail(strict=True, reason='known P0: parity covariance fails for the same anchor reason')
+def test_parity_covariance():
+    from tasks.optimize_gaussian.features import dagger, shift
+    rng = np.random.default_rng(12)
+    latt = (4, 4, 4)
+    u = su3(rng, (3, *latt))
+    f = field(rng)
+    p = params(12, steps=2)
+    r = -np.eye(3, dtype=int)
+    ug = _transform(u, r, shift, dagger)
+    fg = _transform(f, r, shift, dagger)
+    np.testing.assert_allclose(build_kernel(ug, p).apply(fg),
+                               _transform(build_kernel(u, p).apply(f), r, shift, dagger), atol=1e-11)

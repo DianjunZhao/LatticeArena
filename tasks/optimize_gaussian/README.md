@@ -6,11 +6,15 @@
 > **2026-11-18 算子修正（重要）**：`features.plaquettes` 的路径原先没有闭合（第二段沿 ν、第三段沿 μ 平移），
 > 算出来的并不是规范不变的 plaquette；`directional_features` 的两个输入也不对横向交换对称，A1+ 不成立。
 > 现已改为闭合路径 $U_\mu(x)U_\nu(x+\hat\mu)U_\mu^\dagger(x+\hat\nu)U_\nu^\dagger(x)$，特征取对称组合
-> $(P_1+P_2,\;P_1P_2)$。**v1–v8 的所有 risk 都是用旧特征算出来的**，只能作为流程与负结果的历史记录，
+> $(P_1+P_2,\;P_1P_2)$（并用 clover 平均把锚点放到格点上）。**v1–v8 的所有 risk 都是用旧特征算出来的**，只能作为流程与负结果的历史记录，
 > 不能当作“学习核在这些系综上表现如何”的物理证据；需要 GPU 重测（本轮 NOT_RUN）。
-> 新增 `tests/test_optimize_gaussian.py`（10 项）：规范不变、厄米、协变、立方对称、线性响应、A1+ 交换，
-> 以及训练缓存的 identity 校验（protocol hash、seed、W、steps、alpha、hidden、fit/dev IDs、特征版本；
-> 任一不匹配即拒绝，旧缓存没有 identity 记录也拒绝）。
+> **但 A1+ 仍未通过认证**：24 个 proper rotation 和 parity 的测试（`test_full_proper_cubic_group_covariance`、
+> `test_parity_covariance`）目前是 **xfail**——在方向翻号的旋转下 plaquette 的锚点会移动，
+> 当前的前向/clover 锚点特征仍不满足 $a'_\mu(x)=a_{R^{-1}\mu}(R^{-1}x)$。所以 v6–v8 的“A1+”标签
+> 不能当作已证明；需要边中心反射偶特征或显式的 24 旋转群平均才能修复。
+> 新增 `tests/test_optimize_gaussian.py`（12 项）：规范不变、厄米、协变、交换对称、线性响应、A1+ 交换、
+> 全 O_h/parity（xfail 记录失败），以及训练缓存的 identity 校验（protocol hash、seed、W、steps、alpha、
+> hidden、fit/dev IDs、特征版本；任一不匹配即拒绝，旧缓存没有 identity 记录也拒绝）。
 
 ---
 
@@ -359,9 +363,9 @@ python -m tasks.optimize_gaussian.compare_plot
 | --- | --- |
 | plaquette 路径闭合 | 已修（原先第二/三段沿错方向平移） |
 | 规范不变 / 厄米 / 协变 / 立方对称 | 已测（`tests/test_optimize_gaussian.py`） |
-| A1+ 横向交换 | 已改为对称输入 $(P_1+P_2,\,P_1P_2)$ 并测试 |
+| A1+ 横向交换 | 已改为对称输入 $(P_1+P_2,\,P_1P_2)$ 并测试；**全群仍失败** |
 | 训练线性响应 vs 直接关联函数 | 已测（误差 < 1e-11） |
 | 训练缓存 identity | 已加（protocol hash、seed、W、steps、alpha、hidden、IDs、特征版本） |
-| 全 O_h 群（24 旋转 + 宇称）测试 | NOT_RUN（当前只有 y↔z、x↔z 交换与反射） |
+| 全 O_h 群（24 旋转 + 宇称）测试 | **FAILED**（xfail 记录：锚点导致旋转/宇称不协变；A1+ 未认证） |
 | v1–v8 历史 risk | **失效**（旧特征），保留为流程/负结果记录 |
 | 修复后的 GPU 重训 | NOT_RUN |

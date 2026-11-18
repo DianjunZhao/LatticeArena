@@ -28,6 +28,23 @@ def plaquettes(links):
     return xp.stack(out, axis=-1)
 
 
+def clover_plaquettes(links):
+    """Average of the four plaquettes of each plane sharing the site x.
+
+    The forward-anchored plaquette is not rotation covariant when a direction
+    flips sign (the anchor moves); the clover average is centred on x and
+    reflection even, which restores full O_h covariance.
+    """
+    xp = _lib(links)
+    p = plaquettes(links)
+    out = []
+    for i, (mu, nu) in enumerate(((0, 1), (0, 2), (1, 2))):
+        q = p[..., i]
+        q = q + shift(q, -1, mu) + shift(q, -1, nu) + shift(shift(q, -1, mu), -1, nu)
+        out.append(q / 4)
+    return xp.stack(out, axis=-1)
+
+
 def directional_features(links):
     """For direction mu, symmetric combinations of the two plaquettes containing mu.
 
@@ -36,7 +53,7 @@ def directional_features(links):
     directions, which is what a 90-degree rotation about mu does; sharing one
     function across the three directions then makes the kernel A1+.
     """
-    p = plaquettes(links)
+    p = clover_plaquettes(links)
     pairs = [p[..., [0, 1]], p[..., [0, 2]], p[..., [1, 2]]]
     return _lib(links).stack([_lib(links).stack([q[..., 0] + q[..., 1], q[..., 0] * q[..., 1]], axis=-1)
                               for q in pairs], axis=0)
