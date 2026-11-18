@@ -382,6 +382,7 @@ python -m tasks.optimize_gaussian.compare_plot
 | P1 统一统计/fold-local | `unified.py` + `results/optimize_gaussian/cpu_next_package_b/`（原 `unified_v1/` 在包 B 开发中被同名输出覆盖，已改为新目录）：point/replica 同算法；3 折 tuned/SLSQP=1.719/2.014/0.810；fold 间方差大；synthetic regression 偏差≈0、覆盖 0.983–1.0 |
 | P0.2 basis/输入身份闭包 | basis_key 现在包含依赖 hash（features/kernels/submission/train/statistics）与输入内容摘要（gauge 文件 + propagator 文件 sha256）；mutation 测试覆盖依赖/输入/ID 顺序变更 → 拒绝复用 |
 | 包D 框架适配 | `adapt.py` + `results/optimize_gaussian/cpu_next_package_d/`：OperatorContract（线性/Hermitian/θ=0 恒等）、MeasurementBundle（能力声明）、SearchAdapter（NaN 拒绝、预算）真实跑通；能力拒绝抛错不静默回退 |
+| 包B fold 身份/图 | 每折 reference（kind/mass/masses sha256/passed）与 failures 计数；frozen/reselected 两张独立图；本 run 3 折 reference 均未认证 |
 | 包B synthetic regression | `estimator_regression.py`：已知模型 60 数据集；point/replica 偏差 train −1.9e-6±5.9e-5、test −1.0e-5±2.1e-5（均与 0 相容）；q=1 覆盖 1.000/0.983 |
 | 包B 估计量同算法 | `risk_with_fixed_amplitude` 增加 `amplitude_source`（train/test），point 与 replica 同算法并记录 `late_covariance_source`/`estimand`；fold search 保存 train/test IDs、weights hash、nfev/feasible；新产物 `cpu_next_package_b/` |
 | 包C 跨 links teacher | `p3_crosslink.py` + `results/optimize_gaussian/cpu_next_p3_crosslink/`：train/test 独立 links、同一 $Q[U]$ 规则、属性检查；oracle 显示 ε>0 时嵌套类误差 0、谱类 0.06→0.5；SLSQP/Powell 不收敛（nfev 1.3e4–9.4e4），不能读成学习收益 |

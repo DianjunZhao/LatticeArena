@@ -48,7 +48,7 @@
 | P0.3 audit | ✅ | manifest 分类（v9 = current）；显式 --out；dev_val 不回退 |
 | 包D 框架适配 | ✅ | `cpu_next_package_d/adapt.json`：OperatorContract 三项残差 <1e-12、bundle 能力声明、capability 拒绝、search NaN 拒绝/预算；真实 C_fit 与生产搜索同一路径 ⛔ |
 | 包C 跨 links teacher | 🟡 | `cpu_next_p3_crosslink/`：独立 links、同规则、2 类 × 2 优化器 + oracle；类包含与跨 links 迁移已证（B oracle 0 vs A 0.5），优化器失败；GPU 2×2 ⛔ |
-| P1 统一统计/fold-local | 🟡 | `cpu_next_package_b/`：point/replica 同算法，fold IDs/weights hash/nfev 已存；synthetic regression 偏差≈0、覆盖 0.983–1.0；完全分离的图 ⛔ |
+| P1 统一统计/fold-local | ✅ | `cpu_next_package_b/`：同算法、fold 身份/失败计数、frozen/reselected 独立图、regression 偏差≈0/覆盖 0.983–1.0；reference 未认证→仅诊断 |
 | P2 teacher | 🟡 | 七幂误差 0.01268 > 谱外 0.01239；训练实验 ⛔ |
 | P3 CPU 判别 | 🟡 | 跨样本 teacher PASS（ε=0 恢复、ε=0.1 谱类 0.0127 vs 增广 6.7e-16）；GPU 2×2 ⛔ |
 

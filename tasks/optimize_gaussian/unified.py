@@ -145,7 +145,12 @@ def main():
         fold = {'fold': i, 'mass': float(fold_m0['mass']),
                 'train_blocks': [int(x) for x in np.setdiff1d(np.arange(len(dev)), test_ids)],
                 'test_blocks': [int(x) for x in test_ids],
-                'estimand': 'training-frozen amplitude'}
+                'estimand': 'training-frozen amplitude',
+                'reference': {'spec_kind': (sub.get('reference') or {}).get('kind') or 'legacy',
+                              'mass': float(fold_m0['mass']),
+                              'masses_sha256': hashlib.sha256(np.asarray(fold_masses).tobytes()).hexdigest(),
+                              'passed': bool(sub.get('calibration', {}).get('reference_passed', False)),
+                              'source_split': 'development'}}
         for name, weights in sub['submissions'].items():
             train_metric = evaluate(train, weights, p, fold_m0['mass'], fold_masses, p['seed'] + i)
             fixed = (train_metric['amplitude'], train_metric['amplitude_se'])
@@ -187,9 +192,19 @@ def main():
                             'test_blocks': [int(x) for x in test_ids],
                             'weights_sha256': hashlib.sha256(np.asarray(weights).tobytes()).hexdigest(),
                             'estimand': 'training-frozen amplitude (outer-training fit, no inner CV)',
+                            'reference': {'mass': float(fold_m0['mass']),
+                                          'masses_sha256': hashlib.sha256(np.asarray(fold_masses).tobytes()).hexdigest(),
+                                          'passed': bool(sub.get('calibration', {}).get('reference_passed', False))},
                             'search': search_info})
     ratios = np.array([f['local_over_slsqp'] for f in fold_rows])
-    result = {'point': {name: {k: rows[name][k] for k in ('risk', 'variance', 'departure_squared', 'amplitude', 'amplitude_z')}
+    failures = {'folds': len(fold_rows), 'search_folds_without_outcome': 0, 'reference_failed_folds': 0}
+    for row in search_rows:
+        if row['search'].get('outcomes', 1) == 0:
+            failures['search_folds_without_outcome'] += 1
+        if not row['reference']['passed']:
+            failures['reference_failed_folds'] += 1
+    result = {'failures': failures,
+              'point': {name: {k: rows[name][k] for k in ('risk', 'variance', 'departure_squared', 'amplitude', 'amplitude_z')}
                         for name in rows},
               'archived_point_check': checks,
               'fold_local': fold_rows,
@@ -214,6 +229,21 @@ def main():
     ax.legend(fontsize=7)
     fig.tight_layout()
     fig.savefig(OUT / 'fig_risk_decomposition.png', dpi=150)
+    for tag, rows_ in (('frozen', fold_rows), ('reselected', search_rows)):
+        fig2, ax2 = plt.subplots(figsize=(7, 4))
+        labels = [f'fold {row["fold"]}' for row in rows_]
+        if tag == 'frozen':
+            values = [row['local_over_slsqp'] for row in rows_]
+            ax2.set(title='frozen-weight fold ratios (local/SLSQP)',
+                    ylabel='local / SLSQP risk')
+        else:
+            values = [row['tuned_over_slsqp'] for row in rows_]
+            ax2.set(title='fold-reselected tuned/SLSQP ratios', ylabel='tuned / SLSQP risk')
+        ax2.bar(range(len(values)), values, color='tab:blue' if tag == 'frozen' else 'tab:orange')
+        ax2.axhline(1.0, color='k', ls='--', lw=0.8)
+        ax2.set_xticks(range(len(values)), labels)
+        fig2.tight_layout()
+        fig2.savefig(OUT / f'fig_folds_{tag}.png', dpi=150)
     print(json.dumps({'point': {n: round(v['risk'], 6) for n, v in rows.items()},
                       'archived_check': {n: (round(c['delta'], 8) if c['delta'] is not None else None)
                                          for n, c in checks.items()},
