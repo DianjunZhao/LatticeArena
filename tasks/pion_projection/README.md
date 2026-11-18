@@ -207,6 +207,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | P1.3 120-dev 参考诊断 | 新增 `diagnostics_200.py` + `results/pion_projection/score_diagnostics_v3/`：协方差谱（15/12/9 维，rank 满、条件数 $10^6$–$10^8$）、block×shrinkage 全失败、$m_0$ 随窗口从 1.44 掉到 1.08、两态 profile 半宽/SE=2.7；见 `score_diagnostics_v3/README.md` |
 | P0.2/P0.3 GEVP 统计 | 新增 `gevp_stats.py`：去重 → block bootstrap → replica 平均矩阵 → 秩截断 GEVP → forward/cosh 有效能量；已知谱 100 次模拟覆盖率 **0.95**；真实 Gram 数据 forward $E_0=1.0629\pm0.0075$（探索性）；见 [`doc/gevp_stats.md`](../../doc/gevp_stats.md) |
 | P0.1 GEVP 矩阵身份 | 新增 [`doc/gram_operator_identity.md`](../../doc/gram_operator_identity.md) + `gram_identity_check.json`：$M$（sink–sink Gram）与标准 source–sink $C$ 差约 30%，$C$ 的 anti-Hermitian 部分也是 30% → 旧 Gram GEVP 降级为探索性；multisource 才是标准矩阵，但源端核需对齐 |
+| F1 接口切片 1–2 | 新增 `core/specs.py` + `tasks/pion_projection/spec.py`（TaskSpec/RunSpec、OperatorContract）；见 [`doc/interfaces.md`](../../doc/interfaces.md) |
 | F2 LLM/搜索隔离 | 统一 `core/candidates.validate_weights`（sum=1、L1≤8、finite、维数）；`agents/loop.py` 记录拒绝原因到 `agent/rejections.json`；`--no-validation` 下搜索不打开 validation（拦截测试证明）；mock 轨迹见 `results/pion_projection/agent_mock_v1/` 与 [`doc/agent_isolation.md`](../../doc/agent_isolation.md) |
 | P0.6 联合 resampling | 新增 `joint.py` 与 `python -m tasks.pion_projection.joint`：同一 draw 重拟合参考、同一组 validation 重采样、所有模型/候选共享 draw；产物 `results/pion_projection/joint_20261118/`，因参考 gate 失败而 abstain |
 | P0.4 评分契约 | 新增 [`doc/score_contract.md`](../../doc/score_contract.md)：estimand、证书统计量、独立单位、有效范围、abstain 条件 |
