@@ -106,14 +106,15 @@
       "steps": 0
     },
     {
-      "name": "gauss4",
-      "rho": 0.7,
+      "name": "H4",
+      "rho": 1.4291792020209928,
       "steps": 4
     },
     {
-      "name": "gauss16",
-      "rho": 1.4,
+      "name": "H16",
+      "rho": 2.8583584040419856,
       "steps": 16
     }
-  ]
+  ],
+  "source_smear_note": "rho chosen so gaussian12 alpha = 1/(4n/rho^2-6) = 0.2*6/2.2, i.e. each step is exactly H = (I+0.2 hop)/2.2"
 }

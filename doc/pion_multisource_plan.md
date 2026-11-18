@@ -91,7 +91,36 @@ $H=(I+0.2\,\mathrm{hop})/2.2$。source 剖面和 sink 核不匹配，$M_{ab}$ �
 作用在 source12 的每一列上），再做反演。这需要把 source12 的列转成时间片场格式、应用核、
 写回——代码量不大，但要先在小样本上验证 $C_{ab}$ 的对称性。
 
-## 6. 状态
+## 6. 更正（2026-11-18）：多 source 矩阵并不是 GEVP 矩阵
 
-**测量已跑通（3 sources，90 组态，约 4 分钟）；GEVP 因 source/sink 基不匹配而无效。**
-下一步是“用同一个 $H^n$ 做 source smearing”，仍然 NOT_RUN。
+把 source 换成与 sink 相同的 $H^n$ 后重测（`rho=0.7146·sqrt(n)` 使
+$\alpha=0.2\cdot6/2.2$），GEVP 仍然没有平台（$E_0$ 在 $t=3$ 为 0.43，$t=5,6$ 约 0.88）。
+核对代数后发现**构造本身是错的**：
+
+我们的测量给的是
+
+$$
+C[\text{source }a,\text{sink }b]=\langle K_aS,\,K_bK_aS\rangle ,
+$$
+
+而 GEVP 矩阵要求的是
+
+$$
+M_{ab}=\langle K_aS,\,K_bS\rangle .
+$$
+
+两者只有在 $K_bK_a=K_b$（即 $K_a=I$）时才相等。对幂次族 $K=H^n$，正确的矩阵是
+$\langle H^{n_a/2}S,H^{n_b/2}S\rangle=C_{0,n_a+n_b}$——也就是 **Hankel 矩阵**，
+不是多 source 测量。也就是说：
+
+- 现有的 point-source 7 通道**已经**包含正确的 GEVP 矩阵（取 $n_a+n_b$ 在已测集合内的子集）；
+- 之前 2×2/3×3 Hankel 的失败是**真实的**：powers-of-$H$ 彼此太相关、高阶通道噪声大；
+- 多 source 测量（`measure_multisource.py`）对“同一 $H^n$ 家族”没有提供新矩阵元素，
+  它的价值只在将来用**不同算符结构**（不同 $\gamma$、wall、stout/APE 家族）时才有意义。
+
+## 7. 状态
+
+**测量工具已跑通（3 sources，90 组态，约 4 分钟）；但按当前构造它不给出 GEVP 矩阵。**
+正确的 GEVP 矩阵是 Hankel Gram 矩阵（已在 `hankel_gevp.py` 中实现并测试），其失败是
+算符相关性的真实限制。要突破需要**真正不同的算符**（$\gamma$ 结构、wall、或另一套 smearing
+家族），不是 powers-of-$H$ 的重新组合。
