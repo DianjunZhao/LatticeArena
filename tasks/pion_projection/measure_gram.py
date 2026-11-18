@@ -16,11 +16,14 @@ from ..wilson_loop.kernels import ape
 
 
 def kernel_specs(p):
+    """Three genuinely different operator families: H, APE-H and a stronger H."""
     specs = []
     for n in (0, 4, 16):
-        specs.append({'name': f'H{n}', 'power': n, 'ape': None})
+        specs.append({'name': f'H{n}', 'power': n, 'ape': None, 'alpha': 0.2})
     for n in (0, 4, 16):
-        specs.append({'name': f'APE0.5x3_H{n}', 'power': n, 'ape': (0.5, 3)})
+        specs.append({'name': f'APE0.5x3_H{n}', 'power': n, 'ape': (0.5, 3), 'alpha': 0.2})
+    for n in (0, 4, 16):
+        specs.append({'name': f'H{n}_a0.4', 'power': n, 'ape': None, 'alpha': 0.4})
     return specs
 
 
@@ -56,7 +59,7 @@ def measure_gram(output, split, limit=None):
             smeared = []
             for spec in specs:
                 use = lk if spec['ape'] is None else ape(lk[:, None], *spec['ape'])[:, 0]
-                kernel = build_kernel(use, {'powers': [spec['power']], 'weights': [1.0], 'alpha': p['alpha']})
+                kernel = build_kernel(use, {'powers': [spec['power']], 'weights': [1.0], 'alpha': spec['alpha']})
                 smeared.append(kernel.apply(field))
             for i in range(len(specs)):
                 for j in range(len(specs)):

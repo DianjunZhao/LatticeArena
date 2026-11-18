@@ -33,7 +33,7 @@ def main():
         matrix = floored(z['gram'])
         rows = gevp_energies(matrix, t0=2, times=times)
         print(split, 'matrix', matrix.shape[1:3])
-        for state in range(matrix.shape[1]):
+        for state in range(min(3, matrix.shape[1])):
             result = summary(rows, state=state)
             print(f'  state {state}: E = {result["energy"]:.4f} +- {result["se_boot"]:.4f} '
                   f'per-time { {t: round(v, 4) for t, v in result["per_time"].items()} }')
