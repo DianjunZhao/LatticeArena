@@ -13,6 +13,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
+from scipy.optimize import minimize
+
 from tasks.pion_projection.reference import make_reference
 from tasks.pion_projection.statistics import blocks, bootstrap_indices, fold, inverse_covariance, risk, shape
 
@@ -61,6 +63,34 @@ def risk_with_fixed_amplitude(data, weights, mass, masses, index, config, amplit
             'se': se.tolist(), 'snr': snr.tolist()}
 
 
+def select_on_train(train, p, mass, masses, index):
+    """Re-select the SLSQP mixture and the tuned Gaussian power inside a fold."""
+    basis = np.eye(len(p['powers']))
+    base = [risk(train, w, mass, masses, index, p) for w in basis]
+    scales = np.array([r['amplitude'] for r in base])
+    best = int(np.argmin([r['risk'] for r in base]))
+    normalized = train / scales[None, :, None]
+
+    def objective(u):
+        try:
+            return risk(normalized, u, mass, masses, index, p)['risk'] + p['optimizer_ridge'] * float(u @ u)
+        except (ValueError, np.linalg.LinAlgError, FloatingPointError):
+            return 1e10
+
+    outcomes = []
+    for start in [*basis, np.ones(len(basis)) / len(basis)][:p['optimizer_starts']]:
+        fit = minimize(objective, start, method='SLSQP',
+                       bounds=[(-p['optimizer_l1_bound'], p['optimizer_l1_bound'])] * len(basis),
+                       constraints=[{'type': 'eq', 'fun': lambda u: u.sum() - 1},
+                                    {'type': 'ineq', 'fun': lambda u: p['optimizer_l1_bound'] - abs(u).sum()}],
+                       options={'maxiter': p['optimizer_max_iterations'], 'ftol': 1e-11})
+        if fit.success and abs(fit.x.sum() - 1) < 1e-6 and abs(fit.x).sum() <= p['optimizer_l1_bound'] + 1e-6 and fit.fun < 1e9:
+            outcomes.append(fit)
+    if not outcomes:
+        return None, best
+    return min(outcomes, key=lambda f: f.fun).x / scales, best
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     p, sub, dev, val = load()
@@ -90,17 +120,39 @@ def main():
         for name, weights in sub['submissions'].items():
             train_metric = evaluate(train, weights, p, fold_m0['mass'], fold_masses, p['seed'] + i)
             fixed = (train_metric['amplitude'], train_metric['amplitude_se'])
-            result = risk_with_fixed_amplitude(test, weights, fold_m0['mass'], fold_masses,
+            metric = risk_with_fixed_amplitude(test, weights, fold_m0['mass'], fold_masses,
                                                bootstrap_indices(len(test), p['bootstrap_samples'], p['seed'] + 100 + i),
                                                p, fixed[0], fixed[1])
-            fold[name] = result['risk']
-            fold[f'{name}_detail'] = {'variance': result['variance'],
-                                      'departure_squared': result['departure_squared'],
-                                      'amplitude': result['amplitude'],
-                                      'amplitude_z': result['amplitude_z'],
-                                      'amplitude_source': result['amplitude_source']}
+            fold[name] = metric['risk']
+            fold[f'{name}_detail'] = {'variance': metric['variance'],
+                                      'departure_squared': metric['departure_squared'],
+                                      'amplitude': metric['amplitude'],
+                                      'amplitude_z': metric['amplitude_z'],
+                                      'amplitude_source': metric['amplitude_source']}
         fold['local_over_slsqp'] = fold['local'] / fold['agent_signed_mixture']
         fold_rows.append(fold)
+    search_rows = []
+    for i, test_ids in enumerate(folds):
+        train = dev[np.setdiff1d(np.arange(len(dev)), test_ids)]
+        test = dev[test_ids]
+        fold_ref = make_reference(train, p, window, 'single')
+        fold_m0, fold_masses = fold_ref.bootstrap(bootstrap_indices(len(train), p['bootstrap_samples'], p['seed'] + i))
+        weights, best_power = select_on_train(train, p, fold_m0['mass'], fold_masses,
+                                              bootstrap_indices(len(train), p['bootstrap_samples'], p['seed'] + i))
+        train_amp = evaluate(train, weights, p, fold_m0['mass'], fold_masses, p['seed'] + i)['amplitude']
+        train_amp_se = evaluate(train, weights, p, fold_m0['mass'], fold_masses, p['seed'] + i)['amplitude_se']
+        basis = np.eye(len(p['powers']))
+        local_fixed = (evaluate(train, basis[0], p, fold_m0['mass'], fold_masses, p['seed'] + i)['amplitude'],
+                       evaluate(train, basis[0], p, fold_m0['mass'], fold_masses, p['seed'] + i)['amplitude_se'])
+        tuned_fixed = (evaluate(train, basis[best_power], p, fold_m0['mass'], fold_masses, p['seed'] + i)['amplitude'],
+                       evaluate(train, basis[best_power], p, fold_m0['mass'], fold_masses, p['seed'] + i)['amplitude_se'])
+        idx_test = bootstrap_indices(len(test), p['bootstrap_samples'], p['seed'] + 100 + i)
+        local_risk = risk_with_fixed_amplitude(test, basis[0], fold_m0['mass'], fold_masses, idx_test, p, *local_fixed)['risk']
+        tuned_risk = risk_with_fixed_amplitude(test, basis[best_power], fold_m0['mass'], fold_masses, idx_test, p, *tuned_fixed)['risk']
+        slsqp_risk = risk_with_fixed_amplitude(test, weights, fold_m0['mass'], fold_masses, idx_test, p, train_amp, train_amp_se)['risk']
+        search_rows.append({'fold': i, 'mass': float(fold_m0['mass']), 'best_power': int(best_power),
+                            'local': local_risk, 'tuned': tuned_risk, 'slsqp': slsqp_risk,
+                            'tuned_over_slsqp': tuned_risk / slsqp_risk})
     ratios = np.array([f['local_over_slsqp'] for f in fold_rows])
     result = {'point': {name: {k: rows[name][k] for k in ('risk', 'variance', 'departure_squared', 'amplitude', 'amplitude_z')}
                         for name in rows},
@@ -109,6 +161,9 @@ def main():
               'fold_local_mean_ratio': float(ratios.mean()),
               'fold_local_se_ratio': float(ratios.std(ddof=1) / np.sqrt(len(ratios))),
               'learned_bcb_kernel': 'archived only (needs the collected response data); not re-evaluated',
+              'fold_local_search': search_rows,
+              'fold_local_search_note': 'hyperparameters re-selected inside each outer training fold; '
+                                        'the learned BCB kernel needs the collected responses and is NOT_RUN',
               'gate': 'reference not certified -> diagnostic_only'}
     (OUT / 'unified.json').write_text(json.dumps(result, indent=2) + '\n')
     fig, ax = plt.subplots(figsize=(7, 4))
