@@ -65,6 +65,8 @@ def _check_draws(risks, spec, draw_ids):
 def improvement_certificate(risks, spec, draw_ids=None):
     """Certify (or refuse) a simultaneous improvement over the baseline."""
     spec = validate_spec(spec)
+    if spec.get('require_draw_ids') and draw_ids is None:
+        raise ValueError('this certificate requires explicit draw_ids')
     models, candidates, n_draws = _check_draws(risks, spec, draw_ids)
     if draw_ids is not None and 'draw_ids_hash' in spec:
         import hashlib

@@ -6,6 +6,7 @@ the same resampled validation blocks with that draw's reference. The resulting
 risk arrays share draw IDs, so the certificate can pair candidates and models.
 """
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -65,8 +66,10 @@ def run(output, models=None, outer=200, inner=64, seed=20261119, dest=None):
                              val_inner[r], p, require_valid=False,
                              late_inverse=np.array(sub['late_inverse_covariances'][name]))
                 risks[m][name][r] = value['risk']
+    draw_ids = np.arange(outer)
     np.savez_compressed(dest / 'joint_draws.npz',
-                        draw_id=np.arange(outer), dev_index=dev_index, val_index=val_index,
+                        draw_id=draw_ids, dev_index=dev_index, val_index=val_index,
+                        dev_inner=dev_inner, val_inner=val_inner,
                         models=np.asarray(list(models)), candidates=np.asarray(names),
                         **{f'mass_{m}': masses[m] for m in models},
                         **{f'risk_{m}_{n}': risks[m][n] for m in models for n in names})
@@ -81,10 +84,12 @@ def run(output, models=None, outer=200, inner=64, seed=20261119, dest=None):
             'comparison_family': {'candidates': len(names) - 1, 'models': len(models)},
             'min_baseline_risk': 1e-6, 'invalid_tolerance': 0.05,
             'min_improvement': 1.0, 'risk_floor': 0.0,
+            'require_draw_ids': True,
+            'draw_ids_hash': hashlib.sha256(np.asarray(draw_ids, dtype=np.int64).tobytes()).hexdigest(),
         }
         certificate = improvement_certificate(
             {m: {n: risks[m][n] for n in names} for m in models}, spec,
-            draw_ids=np.arange(outer))
+            draw_ids=draw_ids)
     gate = report
     passed = bool(gate.get('reference_passed'))
     if certificate is not None:
@@ -102,6 +107,20 @@ def run(output, models=None, outer=200, inner=64, seed=20261119, dest=None):
         certificate['point_risks'] = {m: {n: gate.get('results', {}).get(n, {}).get('risk') for n in names}
                                       for m in models}
         write_json(dest / 'metric_results.json', certificate)
+        write_json(dest / 'joint_manifest.json',
+                   {'schema': 'pion-joint-manifest-v1',
+                    'protocol_hash': fingerprint(p),
+                    'development_sha256': digest(output / 'development.npz'),
+                    'validation_sha256': digest(output / 'validation.npz'),
+                    'reference_kind': sub.get('reference', {}).get('kind'),
+                    'models': list(models), 'candidates': names,
+                    'spec': {k: spec[k] for k in ('alpha', 'comparison_family', 'min_baseline_risk',
+                                                  'min_improvement', 'risk_floor', 'require_draw_ids',
+                                                  'draw_ids_hash')},
+                    'draws': {'outer': outer, 'inner': inner, 'seed': seed},
+                    'dependencies': {'statistics': digest(Path(__file__).with_name('statistics.py')),
+                                     'reference': digest(Path(__file__).with_name('reference.py')),
+                                     'scoring': digest(Path(__file__).with_name('scoring.py'))}})
     print(json.dumps(certificate, indent=2) if certificate else 'no models')
     return certificate
 

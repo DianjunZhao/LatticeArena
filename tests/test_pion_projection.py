@@ -231,6 +231,9 @@ def test_scoring_contract_rejects_bad_inputs():
     assert negative['abstain'] and not negative['candidates']['c']['certified']
     weak = improvement_certificate({'m': {'local': base, 'c': base * 0.5}}, score_spec(min_improvement=3.0))
     assert not weak['candidates']['c']['certified']
+    with pytest.raises(ValueError, match='requires explicit draw_ids'):
+        improvement_certificate({'m': {'local': base, 'c': base * 0.5}},
+                                score_spec(require_draw_ids=True))
 
 
 def test_candidate_dependency_check(tmp_path, monkeypatch):
@@ -369,6 +372,7 @@ def test_gevp_dedupe_and_known_spectrum():
 
 
 def test_joint_draws_share_ids_and_abstain_on_failed_gate(tmp_path):
+    import json
     from pathlib import Path
     from tasks.pion_projection.joint import run
     run_dir = 'results/pion_projection/s16t16_gevp200'
@@ -378,6 +382,9 @@ def test_joint_draws_share_ids_and_abstain_on_failed_gate(tmp_path):
     draws = np.load(tmp_path / 'joint_draws.npz')
     assert draws['draw_id'].tolist() == [0, 1, 2, 3]
     assert 'risk_single_local' in draws
+    assert draws['dev_inner'].shape[0] == 4 and draws['val_inner'].shape[0] == 4
+    manifest = json.loads((tmp_path / 'joint_manifest.json').read_text())
+    assert manifest['require_draw_ids'] if False else manifest['spec']['require_draw_ids']
     assert certificate['status'] == 'abstain'
     assert certificate['failure_reasons'] == ['reference_gate_failed']
     assert not any(row['certified'] for row in certificate['candidates'].values())

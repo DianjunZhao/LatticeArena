@@ -217,6 +217,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | F1 接口切片 1–2 | 新增 `core/specs.py` + `tasks/pion_projection/spec.py`（TaskSpec/RunSpec、OperatorContract）；见 [`doc/interfaces.md`](../../doc/interfaces.md) |
 | F2 LLM/搜索隔离 | 统一 `core/candidates.validate_weights`（sum=1、L1≤8、finite、维数）；`agents/loop.py` 记录拒绝原因到 `agent/rejections.json`；`--no-validation` 下搜索不打开 validation（拦截测试证明）；mock 轨迹见 `results/pion_projection/agent_mock_v1/` 与 [`doc/agent_isolation.md`](../../doc/agent_isolation.md) |
 | §7 新测量先决条件 | 新增 [`doc/pion_new_measurement_plan.md`](../../doc/pion_new_measurement_plan.md) + `measurement_plan.example.json`（schema `pion-measurement-plan-v1`，校验器 `measurement_plan.py`）；身份绑定、γ5/自收缩、source–sink 矩阵、盲性、power、预算、停止规则；执行 ⛔ |
+| A2 draw 身份 | `joint_draws.npz` 保存 inner 索引；`joint_manifest.json` 记录输入/依赖/spec；证书要求 `draw_ids` + hash，输出目录拒绝覆盖；产物 `joint_identity_v2/` |
 | A1/A2 联合认证身份 | `joint.run` 现在核对冻结 reference kind、models 精确匹配、protocol/dev hash、report kind/version，拒绝覆盖旧输出；区分 `bootstrap_mean_risks` 与 `point_risks`；新产物 `results/pion_projection/joint_identity_v1/` |
 | P0.6 联合 resampling | 新增 `joint.py` 与 `python -m tasks.pion_projection.joint`：同一 draw 重拟合参考、同一组 validation 重采样、所有模型/候选共享 draw；产物 `results/pion_projection/joint_20261118/`，因参考 gate 失败而 abstain |
 | P0.4 评分契约 | 新增 [`doc/score_contract.md`](../../doc/score_contract.md)：estimand、证书统计量、独立单位、有效范围、abstain 条件 |
