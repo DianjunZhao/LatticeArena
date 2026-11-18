@@ -15,7 +15,7 @@
 | B1 CV 冻结度量 | ✅ | `nested_cv_v2/`：training late_metric 传入 held-out；fold IDs/late hash/protocol hash；480.6±146.8 折间散布 |
 | B2 GEVP 平台/失败 | ✅ | `summarise` 固定平台、局部/整 replica 失败计数；`gram_stats_v2/`；部分平台反例测试 |
 | C1 gate 校准 | ✅ | `reference_gate.py`：dof=8、内层 null；single 假拒绝 0.02/0.03、two-state 功效 0.66/0.59 |
-| C2 证书端到端 | 🟡 | blocks 扫描：6 blocks 假认证 3/8、12/24 为 0/7、0/8；功效 0.75–0.875；失配全 abstain；J=2/K=2 族：null 0/7、better 1/7；错误激发态场景 ⛔ |
+| C2 证书端到端 | ✅ | blocks 扫描（6: 3/8、12/24: 0/7、0/8）；功效 0.75–0.875；失配全 abstain；J=2/K=2（null 0/7、better 1/7）；错误激发态 7/8 通过但独立质量 guard 7/7 标出 |
 | C3 anchor 校准 | ✅ | `anchor_calibration_v1/`：block draws、独立共享 anchor；naïve null 假认证 27–50%，独立 dataset 控制；Nboot 50→800 宽度 0.032→0.0099 |
 | §7 新测量 | 🟡 | 设计 + schema 校验器已交；执行 ⛔ |
 

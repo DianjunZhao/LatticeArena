@@ -81,6 +81,62 @@ def run_simulation(rng, contam_baseline, contam_candidate, outer=60, inner=24, b
             'risks': {name: values.tolist() for name, values in risks.items()}}
 
 
+def world_ground_weak(rng, ncfg, ground_amp=0.0, excited_amp=1.0, noise=0.02):
+    """Two-state world where the excited state dominates the correlator."""
+    T = PROTOCOL['geometry'][3]
+    t = np.arange(T)
+    profile = (ground_amp * (np.exp(-E0 * t) + np.exp(-E0 * (T - t)))
+               + excited_amp * (np.exp(-E1 * t) + np.exp(-E1 * (T - t))))
+    signal = np.ones((len(AMPS), 1)) * profile[None, :]
+    cfg = rng.normal(size=(ncfg, len(AMPS), 1)) * 0.01
+    eps = rng.normal(size=(ncfg, len(AMPS), T))
+    for k in range(1, T):
+        eps[:, :, k] = 0.5 * eps[:, :, k - 1] + np.sqrt(1 - 0.5 ** 2) * rng.normal(size=(ncfg, len(AMPS)))
+    return signal[None] * (1 + cfg + noise * eps)
+
+
+def run_wrong_state(rng, n_dataset=8, outer=40, inner=16):
+    """Gate passes on the excited state; check whether a null candidate certifies."""
+    gate_pass = wrong_mass = certified = abstain = 0
+    masses = []
+    for _ in range(n_dataset):
+        dev = blocks(world_ground_weak(rng, 24 * PROTOCOL['block_length']), PROTOCOL['block_length'])
+        val = blocks(world_ground_weak(rng, 12 * PROTOCOL['block_length']), PROTOCOL['block_length'])
+        ref, mass, p_value = gate(dev)
+        masses.append(float(mass))
+        if p_value < 0.05:
+            abstain += 1
+            continue
+        gate_pass += 1
+        if abs(mass - E0) > 0.1:
+            wrong_mass += 1
+        weights = np.eye(len(AMPS))[1]
+        draws = np.zeros(outer)
+        for b in range(outer):
+            dev_idx = rng.integers(0, len(dev), len(dev))
+            ref_b = make_reference(dev[dev_idx], PROTOCOL,
+                                   PROTOCOL['reference_windows'][PROTOCOL['reference_nominal_window']], 'single')
+            fit_b, boot = ref_b.bootstrap(rng.integers(0, len(dev), (inner, len(dev))))
+            draws[b] = risk(val[rng.integers(0, len(val), len(val))], weights, fit_b['mass'], boot,
+                            rng.integers(0, len(val), (inner, len(val))), PROTOCOL)['risk']
+        # identical baseline/candidate: a certificate would be a false improvement
+        spec = {'schema': 'pion-score-v1', 'version': 'c2-wrong-state', 'estimand': 'conditional',
+                'baseline_id': 'local', 'accepted_models': ['single'], 'candidate_ids': ['cand'],
+                'analysis_version': 'c2-wrong-state', 'alpha': 0.05,
+                'comparison_family': {'candidates': 1, 'models': 1},
+                'min_baseline_risk': 1e-9, 'invalid_tolerance': 0.05, 'min_improvement': 1.0,
+                'risk_floor': 0.0, 'require_draw_ids': True,
+                'draw_ids_hash': hashlib.sha256(np.arange(outer).astype(np.int64).tobytes()).hexdigest()}
+        certificate = improvement_certificate({'single': {'local': draws, 'cand': draws}},
+                                              spec, draw_ids=np.arange(outer))
+        certified += bool(certificate['candidates']['cand']['certified'])
+    return {'n_dataset': n_dataset, 'abstain': abstain, 'gate_pass': gate_pass,
+            'wrong_mass_gt_0.1': wrong_mass, 'certified': certified,
+            'masses': masses,
+            'note': ('ground amplitude 0, excited 1.0: the data are a pure excited state, the '
+                     'single-cosh gate passes at E1, and only an independent-mass guard can '
+                     'flag the wrong state')}
+
 def main(n_dataset=8, blocks_list=(6, 12, 24), seed=20261120):
     OUT.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
@@ -112,6 +168,8 @@ def main(n_dataset=8, blocks_list=(6, 12, 24), seed=20261120):
                                                   'unconditional_certified_rate')})
     family = run_family(rng)
     rows['family_J2_K2'] = family
+    wrong = run_wrong_state(rng)
+    rows['wrong_excited_state'] = wrong
     print('family', family)
     (OUT / 'certificate_calibration.json').write_text(json.dumps(rows, indent=2) + '\n')
     print('wrote', OUT)

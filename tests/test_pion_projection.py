@@ -571,3 +571,11 @@ def test_certificate_family_j2_k2():
     row = run_family(rng, n_dataset=2, outer=12, inner=8)
     assert row['n_dataset'] == 2 and row['valid'] >= 0
     assert 0 <= row['certified_null'] <= row['valid']
+
+
+def test_certificate_wrong_excited_state():
+    from tasks.pion_projection.certificate_calibration import run_wrong_state
+    rng = np.random.default_rng(7)
+    row = run_wrong_state(rng, n_dataset=2, outer=12, inner=8)
+    assert row['gate_pass'] >= 1
+    assert row['wrong_mass_gt_0.1'] >= 1
