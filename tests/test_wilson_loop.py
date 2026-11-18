@@ -285,3 +285,43 @@ def test_projection_rejects_nonfinite_and_ill_conditioned():
     bad = np.stack([np.eye(3, dtype=complex), np.full((3, 3), np.inf)])
     with pytest.raises(ValueError, match='non-positive or non-finite'):
         project(bad)
+
+
+def test_nersc_header_geometry_and_payload(tmp_path):
+    from tasks.wilson_loop.common import read_nersc
+    header = (b'BEGIN_HEADER\nDIMENSION_1=1\nDIMENSION_2=1\nDIMENSION_3=1\nDIMENSION_4=1\n'
+              b'DATATYPE=4D_SU3_GAUGE_3x3\nFLOATING_POINT=IEEE64LITTLE\nEND_HEADER\n')
+    path = tmp_path / 'gauge'
+    path.write_bytes(header + b'\x00' * (1 * 1 * 1 * 1 * 4 * 3 * 3 * 16))
+    read_nersc(path, [1, 1, 1, 1])
+    with pytest.raises(ValueError, match='geometry'):
+        read_nersc(path, [2, 2, 2, 16])
+
+
+def test_measurement_generation_and_resume(tmp_path):
+    from tasks.wilson_loop.common import protocol
+    from tasks.wilson_loop.identity import check_resume, generation, measurement_spec
+    spec = measurement_spec(protocol(), 'validation')
+    assert check_resume(tmp_path, 'validation', spec) == 0
+    np.savez(tmp_path / 'validation.npz', ids=np.asarray(spec['ids'][:3]),
+             loops=np.zeros((3, 2, 2, 1)), generation=np.asarray(generation(spec)))
+    assert check_resume(tmp_path, 'validation', spec) == 3
+    with pytest.raises(ValueError, match='generation'):
+        check_resume(tmp_path, 'validation', dict(spec, kernel_sha256='0' * 64))
+
+
+def test_trust_status_does_not_use_the_protocol_name(monkeypatch):
+    from pathlib import Path
+    from tasks.wilson_loop.common import protocol
+    from tasks.wilson_loop.identity import trust_status
+    run = Path('results/wilson_loop/s16t16_v3')
+    if not (run / 'submission.json').exists():
+        pytest.skip('v3 run not available')
+    import tasks.wilson_loop.common as common
+    import json
+    v3 = json.loads(Path('tasks/wilson_loop/protocol_v3.json').read_text())
+    monkeypatch.setattr(common, 'protocol', lambda: v3)
+    status = trust_status(run, v3, json.loads((run / 'submission.json').read_text()),
+                          json.loads((run / 'validation_provenance.json').read_text()))
+    assert status['status'] == 'archived_diagnostic'
+    assert status['reasons']

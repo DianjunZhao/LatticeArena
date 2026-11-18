@@ -20,7 +20,7 @@ def indices(split):
     return np.arange(first, last + 1)
 
 
-def read_nersc(path):
+def read_nersc(path, expected_geometry=None):
     """Read a NERSC 4D_SU3_GAUGE_3x3 file into (mu, t, z, y, x, 3, 3).
 
     Validates the header keys we rely on and the exact payload length; unknown
@@ -53,6 +53,8 @@ def read_nersc(path):
             raise ValueError(f'{path}: unsupported FLOATING_POINT {floating!r}')
         if value not in ('1', 'TRUE', 'YES', 'IEEE64LITTLE'):
             raise ValueError(f'{path}: unsupported FLOATING_POINT {floating!r}')
+    if expected_geometry is not None and [nx, ny, nz, nt] != list(expected_geometry):
+        raise ValueError(f'{path}: header geometry {[nx, ny, nz, nt]} != run geometry {list(expected_geometry)}')
     expected = nt * nz * ny * nx * 4 * 3 * 3 * 16
     if len(payload) != expected:
         raise ValueError(f'{path}: payload has {len(payload)} bytes, expected {expected}')

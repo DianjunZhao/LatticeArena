@@ -10,7 +10,8 @@ from pathlib import Path
 
 import numpy as np
 
-from .common import protocol
+from .common import load_data, protocol
+from .identity import trust_status
 from .statistics import bootstrap_indices, risk
 
 RUN = Path(os.environ.get('WILSON_RUN', 'results/wilson_loop/s16t16_v1'))
@@ -34,7 +35,9 @@ def paired_ratios(data, windows, t_values, v_ref, outer=500, inner=500, seed=202
 def main():
     p = protocol()
     frozen = json.loads((RUN / 'submission.json').read_text())
-    data = np.load(RUN / 'validation.npz')['loops']
+    provenance = json.loads((RUN / 'validation_provenance.json').read_text())
+    trust = trust_status(RUN, p, frozen, provenance)
+    data = load_data(RUN, 'validation')
     from .statistics import blocks
     data = blocks(data, p['block_length'])
     names = [k['name'] for k in p['kernels']][1:]
@@ -47,16 +50,17 @@ def main():
                          'ci95': np.quantile(col, [0.025, 0.975]).tolist(),
                          'probability_better': float(np.mean(col > 1)),
                          'draws': int(len(col))}
-    legacy = p['version'].endswith('v1')
     (OUT / 'paired.json').write_text(json.dumps(
-        {'status': 'pipeline_demo_only' if legacy else 'physical',
-         'kernel_status': 'legacy_non_covariant' if legacy else 'v2_covariant',
+        {'status': trust['status'] if trust['status'] == 'physical' else 'pipeline_demo_only',
+         'trust_reasons': trust['reasons'],
          'plan': {'outer': 500, 'inner': 500, 'seed': 20261118,
-                  'statistic': 'risk(identity)/risk(candidate) on paired block draws'},
+                  'statistic': 'risk(identity)/risk(candidate) on paired block draws',
+                  'status_source': 'identity checks (kernel/protocol/data), not the protocol name'},
          'candidates': summary}, indent=2) + '\n')
     (OUT / 'README.md').write_text(
         '# paired analysis\n\n'
-        f'Run on `{RUN}`. Status: {"legacy pipeline demonstration only (non-covariant v1 kernel)" if legacy else "physical (v2 covariant kernel)"}.\n'
+        f'Run on `{RUN}`. Status: {json.loads((OUT / "paired.json").read_text())["status"]} '
+        f'(reasons: {json.loads((OUT / "paired.json").read_text())["trust_reasons"] or "none"}).\n'
         'Statistic: risk(identity)/risk(candidate) on 500 outer block resamples x 500 inner draws.\n')
     for name, row in summary.items():
         print(name, {k: (round(v, 3) if isinstance(v, float) else v) for k, v in row.items()})

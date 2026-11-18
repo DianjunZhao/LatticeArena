@@ -7,6 +7,7 @@ from time import perf_counter
 import numpy as np
 
 from .common import digest, fingerprint, indices, protocol, read_nersc, write_json
+from .identity import check_resume, generation, measurement_spec
 from .kernels import _lib, build_kernel, dagger, shift
 
 
@@ -54,12 +55,23 @@ def measure(output, split, limit=None):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     ids = indices(split)[:limit] if limit else indices(split)
+    spec = measurement_spec(p, split)
+    if limit:
+        spec = dict(spec, ids=spec['ids'][:limit])
+    start = check_resume(output, split, spec)
+    if start:
+        print(f'resuming {split} from row {start}/{len(ids)}', flush=True)
+    ids = ids[start:]
     rows, records = [], []
+    if start:
+        with np.load(output / f'{split}.npz', allow_pickle=False) as f:
+            rows = f['loops'].tolist()
+        records = json.loads((output / f'{split}_provenance.json').read_text())['records'][:start]
     kernel_sha = digest(Path(__file__).with_name('kernels.py'))
     for cfg in ids:
         gauge_path = Path(p['ensemble']) / f'wilson_b6.{cfg}'
         start = perf_counter()
-        u = xp.asarray(read_nersc(gauge_path))
+        u = xp.asarray(read_nersc(gauge_path, p['geometry']))
         setup = perf_counter() - start
         measured = perf_counter()
         rows.append([loops(build_kernel(u[:3], k), u[3], p) for k in p['kernels']])
@@ -67,11 +79,12 @@ def measure(output, split, limit=None):
                         'setup_seconds': setup, 'measure_seconds': perf_counter() - measured,
                         'total_seconds': perf_counter() - start})
         tmp = output / f'.{split}.tmp.npz'
-        np.savez_compressed(tmp, ids=ids[:len(rows)], loops=np.asarray(rows),
-                            protocol_hash=fingerprint(p))
+        np.savez_compressed(tmp, ids=np.asarray(spec['ids'][:start + len(rows)]),
+                            loops=np.asarray(rows), protocol_hash=fingerprint(p),
+                            generation=generation(spec))
         os.replace(tmp, output / f'{split}.npz')
         write_json(output / f'{split}_provenance.json',
                    {'protocol': p, 'kernel_sha256': kernel_sha, 'ensemble': p['ensemble'],
-                    'git': git_state(), 'records': records})
+                    'git': git_state(), 'generation': generation(spec), 'records': records})
         print(f'cfg {cfg}: {records[-1]["total_seconds"]:.2f}s', flush=True)
     return records
