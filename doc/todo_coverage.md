@@ -1,67 +1,57 @@
-# todo 覆盖报告（2026-11-18，按新开工单）
+# todo 覆盖报告（2026-11-18，按新开工单第二轮）
 
-对应三份更新后的 `tasks/*/todo.md`。状态：✅ 完成（代码+证据）、🟡 部分（有设计/合成证据，
-真实数据或完整验收未做）、⛔ NOT_RUN。基线：`ded77ae`。
+对应三份更新后的 `tasks/*/todo.md`。状态：✅ 完成（代码+证据）、🟡 部分、⛔ NOT_RUN。
+基线：最新提交；CPU 测试 **94 项通过**。
 
 ## 1. pion_projection
 
-| 条目 | 状态 | 证据 |
+| 包/条目 | 状态 | 证据 |
 | --- | --- | --- |
-| §1 A：reference 身份/工厂、反射动态化 | ✅ | `reference.py`、`experiment.py`、T32 反射 274.27→2.40 |
-| §1 B：归档/参考/窗口/两态诊断 | ✅ | `score_diagnostics_v2/`（旧 60 dev）；P1.3 扩展到 120 dev |
-| §1 S1：保守评分 | ✅ | `scoring.py` + `score_contract.md`（P0.4/P0.5 强制边界） |
-| §1 C2：矩阵探索 | ✅ | `gram_operator_identity.md`：M≠标准 C（差 30%，C 自身 anti-Hermitian 30%） |
-| §1 C3：能量目标 | 🟡 | `energy_experiment.py`：单 cosh 覆盖率 0、两态 0.99；真实 anchor ⛔ |
-| §1 D：新 campaign | ✅ | S16T16C 200 组态；参考仍失败（χ²=90.6/8，m0=1.0771） |
-| P0.1 测量对象推导 | ✅ | `doc/gram_operator_identity.md` + `gram_identity_check.json` |
-| P0.2 估计顺序 | ✅ | `gevp_stats.py`：去重→block bootstrap→replica 平均→秩截断→固定平台，失败分层计数 |
-| P0.3 已知谱验收 | ✅ | 100 个独立数据集覆盖率 **0.95**、偏差 2e-4 |
-| P0.4 estimand | ✅ | `doc/score_contract.md` |
-| P0.5 schema/身份强制 | ✅ | `scoring.py`：模型/候选集合、一维等长、原始正值、invalid 比例、近零 baseline、门槛 |
-| P0.6 联合 resampling | ✅ | `joint.py` + `joint_20261118/`；A1 身份绑定后新增 `joint_identity_v1/`（冻结 kind/models 精确匹配/hash 校验/拒绝覆盖） |
-| P1.1 双层校准 | ✅ | `calibration_full.py`：full 0.025、fixed 0.095、两态拒绝率 0.53 |
-| P1.2 校准分辨率 | ✅ | $(k+1)/(N+1)$，400 次模拟；6/12/24 blocks 扫描 |
-| P1.3 120-dev 诊断 | ✅ | `score_diagnostics_v3/`：秩满但条件数 $10^6$–$10^8$；$m_0$ 从 1.44 掉到 1.08；两态 profile 半宽/SE=2.7 |
-| P1.4 全链 nested CV | ✅ | `nested_cv_v2/`：training late_metric 传入 held-out；fold IDs/late hash/protocol hash 保存；5 折 480.6±146.8（折间散布）；学习核重训 ⛔ |
-| §6.1 能量估计实验 | ✅ | `energy_target_v1/`：bias/variance/MSE/coverage、$N_{\rm boot}$ 语义；C2 `certificate_calibration_v1/`（假认证 0.067、功效 1.0、失配全 abstain）；C3 `anchor_calibration_v1/`（naïve 证书 null 下 27–50%，Nboot 缩放已示） |
-| §6.2 共同目标预测 | ⛔ | 未做 |
-| §7 新测量先决条件 | 🟡 | 设计 + schema 校验器已交（[`doc/pion_new_measurement_plan.md`](pion_new_measurement_plan.md)）；执行 ⛔ |
-
-结论：P0/P1/§6.1 已全部落地；真实 anchor、共同目标预测、新测量先决条件仍 NOT_RUN。
+| A1 认证身份 | ✅ | `identity.verify_run_identity` 被 joint/evaluate/candidate 共用；冻结 kind/models 精确匹配、protocol/dev hash、report kind/version；evaluate 无 joint draws 时 abstain；产物 `joint_identity_v2/`、`certification_v1/` |
+| A1 每模型 gate artifact | 🟡 | manifest 记录 spec/kind/依赖；完整 per-model artifact（model/window/prior）未落盘 |
+| A1 复用 joint 证书 | ⛔ | evaluate 未读取 joint 的 `metric_results` |
+| A2 draw 来源 | ✅ | `joint_draws.npz` 保存 dev/val outer + inner indices、draw_id；`joint_manifest.json` 记录输入/依赖/spec |
+| A2 draw 身份强制 | ✅ | `require_draw_ids` + `draw_ids_hash`；重复/乱序 ID 拒绝 |
+| B1 CV 冻结度量 | ✅ | `nested_cv_v2/`：training late_metric 传入 held-out；fold IDs/late hash/protocol hash；480.6±146.8 折间散布 |
+| B2 GEVP 平台/失败 | ✅ | `summarise` 固定平台、局部/整 replica 失败计数；`gram_stats_v2/`；部分平台反例测试 |
+| C1 gate 校准 | ✅ | `reference_gate.py`：dof=8、内层 null；single 假拒绝 0.02/0.03、two-state 功效 0.66/0.59 |
+| C2 证书端到端 | 🟡 | `certificate_calibration_v1/`：假认证 1/15、功效 15/15、失配全 abstain；blocks/JK 扫描与错误激发态场景 ⛔ |
+| C3 anchor 校准 | ✅ | `anchor_calibration_v1/`：block draws、独立共享 anchor；naïve null 假认证 27–50%，独立 dataset 控制；Nboot 50→800 宽度 0.032→0.0099 |
+| §7 新测量 | 🟡 | 设计 + schema 校验器已交；执行 ⛔ |
 
 ## 2. wilson_loop
 
-| 条目 | 状态 | 证据 |
+| 包/条目 | 状态 | 证据 |
 | --- | --- | --- |
-| P0 投影数值边界 | ✅ | 逐矩阵 Newton–Schulz + 收敛检查；混尺度 batch 1e-16；rank-2 拒绝；`audit_20261118_projection/` |
-| P1 可信加载/冻结 | ✅ | `identity.py`：generation、resume、gauge 几何、trust_status；v3 归档判 archived_diagnostic |
-| P2 配对统计审计 | ✅ | `paired_audit_v2/`：归档点值重放（v2 0.967–1.055）、leave-one-block-out jackknife、非退化 coverage 0.983；`invalid_audit_v1/` 计数全 0 |
-| P3 物理质量门控 | ✅ | `spectral_quality_v1/`（平但错）+ `spectral_physical_v1/`（两态：bias/SE 32.5 而 spread gate 通过，window_z 仅在 c1≥0.2 报警）；`doc/wilson_spectral_quality.md` |
-| P4 研究扩展（设计） | ⛔ | 只有 todo 中的设计表 |
-| F0 证据 schema | ✅ | audit 证据带 code/inputs hash、缺 hash 判 NOT_RUN；两个 `bundle_for` 用可信加载 + RunSpec 行数校验并记录 ids/inputs/code/run_spec |
-| F1 五类接口 | ✅ | `core/specs/measurement/comparator/search/reference_provider`；一致性 + 缓存失效反例 PASS |
-| F2 LLM/搜索隔离 | ✅ | `core/candidates.validate_weights`、mock 轨迹、`--no-validation` 拦截测试 |
-| F3 状态/账本 | 🟡 | wilson/pion 的 develop/evaluate 已持久化 run_state；measure 带 ledger；pion nested_cv bindings；candidate 与 GPU 账本仍未接 |
-| F4 HMC 质量 | 🟡 | manifest 审计（seed/间隔/τ_int=0.512；ΔH/接受率缺失）；toy 可逆性 $10^{-10}$、$\Delta H$ 二阶；生产 ΔH/接受率/多 rank ⛔ |
-
-结论：P0–P3 与 F0–F2 完成；F3 部分；F4 的 toy 通过、生产证据缺失；P4 仅设计。
+| P0 measure 入口 | ✅ | `start` 被计时覆盖/浮点切片的 bug 已修；端到端 mock reader 测试（空/limit/resume） |
+| P1 恢复事务 | ✅ | 三文件 npz+provenance+commit marker；generation/文件 hash/records/gauge hash 互验；部分事务拒绝 |
+| P1 依赖闭包 | ✅ | spec/provenance 含 kernels/statistics/measure/common/identity hash |
+| P1 投影失败定位 | ✅ | 失败信息带 batch indices；measure 附 cfg |
+| P1 NERSC checksum | 🟡 | 格式/payload/geometry 校验已有；checksum 支持范围未单列 |
+| P2 点值/jackknife | ✅ | `paired_audit_v2/`：归档点值 0.967–1.055 与诊断重算分列；leave-one-block-out jackknife |
+| P2 非退化 coverage | ✅ | 已知增益/零效应各 0.983（60 次模拟） |
+| P2 invalid 接入 | ✅ | `risk` fail-closed；evaluate 记 invalid_reason；paired/audit 计数与阈值 |
+| P3 两态谱反例 | ✅ | `spectral_physical_v1/`：bias/SE 到 32.5 而 spread gate 通过；window_z 仅 c1≥0.2 报警 |
+| F0 证据/bundle | ✅ | audit code/inputs、缺 hash 判 NOT_RUN、bundle 可信加载 + RunSpec 校验 |
+| F1 shapes/comparator | ✅ | `check_draws` 一维等长有限、重复/乱序拒绝；paired_ratio 不广播 |
+| F2 SearchAdapter | ✅ | loop 真走 `core.search`；NaN/Inf 拒绝；`search_trace.json`；预算 |
+| F3 状态证据 | ✅ | RunState 需 evidence hash；physical_ready/score_or_null；develop 绑定 hash；conditional/physical score 分离 |
+| F4 HMC | 🟡 | manifest 审计（seed/τint）；toy 可逆性/二阶；生产 ΔH/接受率 ⛔ |
 
 ## 3. optimize_gaussian
 
 | 条目 | 状态 | 证据 |
 | --- | --- | --- |
-| P0.1 完整 BCB 验证 | ✅ | `tests/test_optimize_gaussian.py`；`audit_20261118_bcb/`（<1e-10） |
-| P0.2 basis/输入身份闭包 | ✅ | basis_key 含依赖 hash + gauge/propagator 内容摘要；mutation 测试覆盖依赖/输入/ID 变更 |
-| P0.3 audit 与措辞修正 | ✅ | audit.py 按 manifest 分类（v9 = current_operator_diagnostic）；显式 --out 拒绝覆盖；dev_val 不回退；措辞已改“未检出差异” |
-| P1 统一统计/fold-local | 🟡 | `unified.py`：同一入口复算逐位一致；3 折 fold-local 比率 185/75/389；fold 内重选 SLSQP/幂次（三折 H^32，SLSQP 2/3 折更优）；学习核 ⛔ |
-| §P2 函数类实验 | 🟡 | `teacher_check.py`：七幂基对非对易 teacher 的误差 0.01268 > 谱外 0.01239，增广基 1.8e-16；训练的 class×optimizer 实验 ⛔（GPU） |
-| §P3 最小判别实验 | 🟡 | CPU 跨样本 teacher PASS（ε=0 恢复、ε=0.1 谱类 0.0127 vs 增广 6.7e-16）；GPU class×optimizer/消融 ⛔（[`doc/optimize_p3_design.md`](optimize_p3_design.md)） |
-
-结论：P0.1–P0.3 完成；P1 为部分（统一入口一致、fold-local 比率方差大）；P2/P3 只有 CPU 切片与设计；GPU 实验全部 ⛔。
+| P0.1 BCB 闭环 | ✅ | <1e-10；`audit_20261118_bcb/` |
+| P0.2 basis/输入身份 | ✅ | 依赖 hash + gauge/propagator 摘要；mutation 测试 |
+| P0.3 audit | ✅ | manifest 分类（v9 = current）；显式 --out；dev_val 不回退 |
+| P1 统一统计/fold-local | 🟡 | 统一入口逐位一致；fold-local 幅度/超参重选；学习核 ⛔ |
+| P2 teacher | 🟡 | 七幂误差 0.01268 > 谱外 0.01239；训练实验 ⛔ |
+| P3 CPU 判别 | 🟡 | 跨样本 teacher PASS（ε=0 恢复、ε=0.1 谱类 0.0127 vs 增广 6.7e-16）；GPU 2×2 ⛔ |
 
 ## 4. 总结
 
-- pion：P0/P1/§6.1 完成；§7 设计已交；⛔ = 真实 anchor、§6.2、§7 执行；
-- wilson：P0–P3 与 F0–F2 完成；🟡 = F3/F4；⛔ = P4；
-- optimize：P0 完成；P1/P2/P3 为 CPU 部分/设计；GPU 2×2、消融、新盲测 ⛔；
-- 80 个 CPU 测试通过；所有非公式链接有效；旧“CPU 已全部完成”的说法已作废。
+- pion：A/B/C 的主要 CPU 切片已交；剩余 A1 的证书复用、A2 的 gate artifact、C2 的扫描、§7 执行；
+- wilson：P0–P3 与 F0–F3 完成；F4 生产证据与 P4 扩展 ⛔；
+- optimize：P0 完成；P1/P2/P3 为 CPU 部分/设计，GPU 实验 ⛔；
+- 94 个 CPU 测试通过；所有非公式链接有效。
