@@ -641,3 +641,21 @@ def test_measure_requires_plan_before_gpu(tmp_path, monkeypatch):
     from tasks.pion_projection.measure import measure
     with pytest.raises(ValueError, match='measurement plan is required'):
         measure(tmp_path, 'development')
+
+
+def test_identity_rejects_report_submission_verdict_mismatch(tmp_path):
+    import json
+    import shutil
+    from pathlib import Path
+    from tasks.pion_projection.identity import verify_run_identity
+    run = Path('results/pion_projection/s16t16_gevp200')
+    if not (run / 'submission.json').exists():
+        pytest.skip('run data not available')
+    for name in ('development.npz', 'validation.npz', 'development_provenance.json',
+                 'submission.json', 'validation_results.json'):
+        shutil.copy(run / name, tmp_path / name)
+    report = json.loads((tmp_path / 'validation_results.json').read_text())
+    report['reference_passed'] = not report['reference_passed']
+    (tmp_path / 'validation_results.json').write_text(json.dumps(report))
+    kind, reasons = verify_run_identity(tmp_path)
+    assert any('reference verdict' in reason for reason in reasons)

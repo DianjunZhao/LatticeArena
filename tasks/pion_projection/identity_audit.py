@@ -36,6 +36,13 @@ def tamper_validation_ids(work):
              protocol_hash=protocol_hash)
 
 
+def tamper_report_verdict(work):
+    path = work / 'validation_results.json'
+    report = json.loads(path.read_text())
+    report['reference_passed'] = not report['reference_passed']
+    path.write_text(json.dumps(report))
+
+
 def tamper_statistics_hash(work):
     path = work / 'submission.json'
     sub = json.loads(path.read_text())
@@ -49,7 +56,8 @@ def main():
     rows = [case(root, 'legal', lambda work: None),
             case(root, 'stale_report', tamper_report_hash),
             case(root, 'validation_reordered', tamper_validation_ids),
-            case(root, 'source_changed', tamper_statistics_hash)]
+            case(root, 'source_changed', tamper_statistics_hash),
+            case(root, 'report_verdict_changed', tamper_report_verdict)]
     # missing artifact / score spec are legacy-run states: joint already abstains
     import tasks.pion_projection.joint as joint
     dest = root / 'joint_missing'
