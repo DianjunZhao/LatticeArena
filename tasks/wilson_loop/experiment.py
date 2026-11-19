@@ -100,6 +100,10 @@ def evaluate(output):
         raise ValueError('identity risk is invalid; refusing to score')
     eps = p['score_epsilon']
     for value in results.values():
+        if value.get('risk') is None:
+            value['loss_ratio_vs_identity'] = None
+            value['score'] = None
+            continue
         value['loss_ratio_vs_identity'] = (base + eps) / (value['risk'] + eps)
         value['score'] = 100 * value['loss_ratio_vs_identity'] if frozen['reference_passed'] else None
     state = RunState()
@@ -123,4 +127,5 @@ def evaluate(output):
     report['conditional_scores'] = {n: value.get('score') for n, value in results.items()}
     write_json(output / 'validation_results.json', report)
     print('VALIDATION', json.dumps({k: report[k] for k in ('reference_passed', 'failure_reasons')}),
-          {n: {'risk': round(r['risk'], 6), 'score': r['score']} for n, r in results.items()})
+          {n: {'risk': (round(r['risk'], 6) if r.get('risk') is not None else None),
+               'score': r['score']} for n, r in results.items()})

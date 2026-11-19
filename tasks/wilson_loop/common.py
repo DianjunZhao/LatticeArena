@@ -20,11 +20,33 @@ def indices(split):
     return np.arange(first, last + 1)
 
 
+def nersc_word_checksum(payload, floating_point):
+    """32-bit word sum as used by the standard NERSC CHECKSUM header.
+
+    Grid computes this on host-order values: for IEEE64LITTLE the file words are
+    already host order; for IEEE64BIG the doubles are byte-swapped first. The
+    sum is modulo 2**32.
+    """
+    value = (floating_point or 'IEEE64LITTLE').strip().upper()
+    if value in ('1', 'TRUE', 'YES', 'IEEE64LITTLE'):
+        words = np.frombuffer(payload, dtype='<u4')
+    elif value == 'IEEE64BIG':
+        words = np.frombuffer(payload, dtype='>f8').astype('<f8').view('<u4')
+    elif value in ('IEEE32',):
+        words = np.frombuffer(payload, dtype='<u4')
+    elif value == 'IEEE32BIG':
+        words = np.frombuffer(payload, dtype='>f4').astype('<f4').view('<u4')
+    else:
+        raise ValueError(f'unsupported FLOATING_POINT {floating_point!r}')
+    return int(np.asarray(words, dtype=np.uint64).sum() & np.uint64(0xFFFFFFFF))
+
+
 def _nersc_payload(path, expected_geometry=None):
     """Parse a NERSC gauge file; return (raw bytes, checksum status, dims).
 
-    A trailing 16-byte MD5 (NERSC checksum trailer) is verified when present;
-    an absent trailer is reported as 'absent' rather than treated as verified.
+    The standard header CHECKSUM is verified when present; a trailing private
+    16-byte MD5 is verified separately. A failed standard header cannot be
+    rescued by a valid MD5, and an absent check is reported by name.
     """
     import hashlib
     with open(path, 'rb') as f:
@@ -49,23 +71,36 @@ def _nersc_payload(path, expected_geometry=None):
     floating = header.get('FLOATING_POINT')
     if floating is not None:
         value = floating.strip().upper()
-        if value in ('IEEE64BIG', 'IEEE32LITTLE', 'IEEE32BIG'):
-            raise ValueError(f'{path}: unsupported FLOATING_POINT {floating!r}')
-        if value not in ('1', 'TRUE', 'YES', 'IEEE64LITTLE'):
+        if value in ('IEEE64', 'IEEE64BIG', 'IEEE64LITTLE', 'IEEE32', 'IEEE32BIG', '1', 'TRUE', 'YES'):
+            pass
+        else:
             raise ValueError(f'{path}: unsupported FLOATING_POINT {floating!r}')
     if expected_geometry is not None and [nx, ny, nz, nt] != list(expected_geometry):
         raise ValueError(f'{path}: header geometry {[nx, ny, nz, nt]} != run geometry {list(expected_geometry)}')
     expected = nt * nz * ny * nx * 4 * 3 * 3 * 16
+    status = {'standard': 'absent', 'md5': 'absent', 'verified': False}
     if len(payload) == expected:
-        status, raw = 'absent', payload
+        raw = payload
     elif len(payload) == expected + 16:
         raw, trailer = payload[:expected], payload[expected:]
-        if hashlib.md5(raw).digest() != trailer:
+        if hashlib.md5(raw).digest() == trailer:
+            status['md5'] = 'verified'
+        else:
             raise ValueError(f'{path}: NERSC trailing MD5 mismatch')
-        status = 'verified'
     else:
         raise ValueError(f'{path}: payload has {len(payload)} bytes, expected {expected}'
                          f' (or {expected + 16} with a checksum trailer)')
+    if 'CHECKSUM' in header:
+        try:
+            declared = int(header['CHECKSUM'], 16)
+        except ValueError as exc:
+            raise ValueError(f'{path}: unparsable CHECKSUM {header["CHECKSUM"]!r}') from exc
+        computed = nersc_word_checksum(raw, floating)
+        if computed != declared:
+            raise ValueError(f'{path}: NERSC header checksum mismatch '
+                             f'(computed {computed:08x}, header {declared:08x})')
+        status['standard'] = 'verified'
+    status['verified'] = status['standard'] == 'verified'
     return raw, status, (nx, ny, nz, nt)
 
 
@@ -81,14 +116,14 @@ def read_nersc(path, expected_geometry=None):
 
 
 def read_nersc_with_status(path, expected_geometry=None):
-    """Read the array and report the checksum trailer status in one parse."""
+    """Read the array and return the explicit checksum status in one parse."""
     raw, status, (nx, ny, nz, nt) = _nersc_payload(path, expected_geometry)
     array = np.frombuffer(raw, dtype='<c16').reshape(nt, nz, ny, nx, 4, 3, 3).transpose(4, 0, 1, 2, 3, 5, 6)
     return array, status
 
 
 def nersc_checksum_status(path, expected_geometry=None):
-    """'verified' (trailer matched) or 'absent'; a mismatch raises."""
+    """Checksum status dict; a mismatch raises."""
     _, status, _ = _nersc_payload(path, expected_geometry)
     return status
 

@@ -21,14 +21,15 @@ def load(run):
     root = Path(RUNS[run])
     sub = json.loads((root / 'submission.json').read_text())
     loops = np.load(root / 'validation.npz')['loops']
-    return blocks(loops, BLOCK), sub['windows'], sub['identity']['v']
+    p = json.loads((root / 'validation_provenance.json').read_text())['protocol']
+    return blocks(loops, BLOCK), sub['windows'], sub['identity']['v'], p['reference_nominal_window']
 
 
-def decomposition(run, data, windows, t_values, v_ref):
+def decomposition(run, data, windows, t_values, v_ref, nominal=1):
     index = bootstrap_indices(len(data), 500, 7)
     rows = []
     for k in range(data.shape[1]):
-        r = risk(data[:, k], index, windows, T_VALUES, np.asarray(v_ref))
+        r = risk(data[:, k], index, windows, T_VALUES, np.asarray(v_ref), nominal=nominal)
         rows.append({'kernel': k, 'risk': r['risk'],
                      'se_term': float(np.mean((np.asarray(r['se']) / np.asarray(v_ref)) ** 2)),
                      'spread_term': float(np.mean((np.asarray(r['spread']) / np.asarray(v_ref)) ** 2)),
@@ -36,7 +37,7 @@ def decomposition(run, data, windows, t_values, v_ref):
     return rows
 
 
-def nested(data, windows, v_ref, seed, outer=500, inner=500):
+def nested(data, windows, v_ref, seed, outer=500, inner=500, nominal=1):
     rng = np.random.default_rng(seed)
     vi = bootstrap_indices(len(data), inner, seed + 1)
     ratios = np.zeros((outer, data.shape[1] - 1))
@@ -48,13 +49,13 @@ def nested(data, windows, v_ref, seed, outer=500, inner=500):
         rows = rng.integers(0, len(data), len(data))
         unique[o] = len(np.unique(rows))
         try:
-            base = risk(data[rows, 0], vi, windows, T_VALUES, np.asarray(v_ref))['risk']
+            base = risk(data[rows, 0], vi, windows, T_VALUES, np.asarray(v_ref), nominal=nominal)['risk']
         except ValueError:
             invalid += 1
             continue
         for k in range(1, data.shape[1]):
             try:
-                cand = risk(data[rows, k], vi, windows, T_VALUES, np.asarray(v_ref))['risk']
+                cand = risk(data[rows, k], vi, windows, T_VALUES, np.asarray(v_ref), nominal=nominal)['risk']
             except ValueError:
                 invalid += 1
                 continue
@@ -67,16 +68,16 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     result = {}
     for run in RUNS:
-        data, windows, v = load(run)
+        data, windows, v, nominal = load(run)
         index = bootstrap_indices(len(data), 500, 7)
         archived = json.loads((Path(RUNS[run]) / 'validation_results.json').read_text())['results']
         rows = []
         for k in range(data.shape[1]):
-            r = risk(data[:, k], index, windows, T_VALUES, v)
+            r = risk(data[:, k], index, windows, T_VALUES, v, nominal=nominal)
             rows.append({'kernel': k, 'risk': r['risk'],
                          'se_term': float(np.mean((np.asarray(r['se']) / np.asarray(v)) ** 2)),
                          'spread_term': float(np.mean((np.asarray(r['spread']) / np.asarray(v)) ** 2))})
-        nested_result = nested(data, windows, v, seed=20261118)
+        nested_result = nested(data, windows, v, seed=20261118, nominal=nominal)
         ratios = nested_result['ratios']
         names = list(archived)
         frozen_point = np.array([archived[names[0]]['risk'] / archived[name]['risk'] for name in names[1:]])
@@ -88,8 +89,8 @@ def main():
         for i in range(len(data)):
             keep = np.setdiff1d(np.arange(len(data)), [i])
             inner = bootstrap_indices(len(keep), 1000, 20261117)
-            base = risk(data[keep, 0], inner, windows, T_VALUES, v)['risk']
-            jackknife.append([base / risk(data[keep, k], inner, windows, T_VALUES, v)['risk']
+            base = risk(data[keep, 0], inner, windows, T_VALUES, v, nominal=nominal)['risk']
+            jackknife.append([base / risk(data[keep, k], inner, windows, T_VALUES, v, nominal=nominal)['risk']
                               for k in range(1, data.shape[1])])
         jackknife = np.asarray(jackknife)
         n = len(data)
@@ -120,7 +121,7 @@ def main():
         except ValueError:
             continue
         for seed in (1, 2, 3):
-            n = nested(data_b, windows, v, seed=seed, outer=300, inner=300)
+            n = nested(data_b, windows, v, seed=seed, outer=300, inner=300, nominal=nominal)
             scan.append({'block_length': block, 'blocks': len(data_b), 'seed': seed,
                          'median': np.median(n['ratios'], axis=0).tolist()})
     result['v2_scan'] = scan

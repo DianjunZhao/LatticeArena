@@ -22,10 +22,16 @@ def risk(w_blocks, index, windows, t_values, v_ref, nominal=1):
                          f'bootstrap {int((boot_mean <= 0).sum())}); log is undefined')
     v = potential(mean, windows[nominal], t_values)
     vb = potential(boot_mean, windows[nominal], t_values)
+    if not np.all(np.isfinite(v)) or not np.all(np.isfinite(vb)):
+        raise ValueError('reference potential is non-finite')
     se = vb.std(axis=0, ddof=1)
     v_win = np.stack([potential(mean, w, t_values) for w in windows], axis=-1)
     spread = v_win.std(axis=-1)
-    v_ref = np.asarray(v_ref)
+    v_ref = np.asarray(v_ref, dtype=float)
+    if not np.all(np.isfinite(v_ref)):
+        raise ValueError('v_ref is non-finite')
+    if np.any(np.abs(v_ref) < 1e-12):
+        raise ValueError('v_ref is zero or near-zero; the relative risk is undefined')
     return {'risk': float(np.mean((se / v_ref) ** 2 + (spread / v_ref) ** 2)),
             'v': v.tolist(), 'se': se.tolist(), 'spread': spread.tolist(),
             'v_windows': v_win.tolist()}

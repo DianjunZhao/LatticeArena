@@ -18,16 +18,16 @@ RUN = Path(os.environ.get('WILSON_RUN', 'results/wilson_loop/s16t16_v1'))
 OUT = RUN.parent / f'paired_{RUN.name}'
 
 
-def paired_ratios(data, windows, t_values, v_ref, outer=500, inner=500, seed=20261118):
+def paired_ratios(data, windows, t_values, v_ref, outer=500, inner=500, seed=20261118, nominal=1):
     """data: (nblocks, nkernels, nR, nT); ratios are risk(identity)/risk(candidate)."""
     rng = np.random.default_rng(seed)
     vi = bootstrap_indices(len(data), inner, seed + 1)
     ratios = np.zeros((outer, data.shape[1] - 1))
     for o in range(outer):
         rows = rng.integers(0, len(data), len(data))
-        base = risk(data[rows, 0], vi, windows, t_values, v_ref)['risk']
+        base = risk(data[rows, 0], vi, windows, t_values, v_ref, nominal=nominal)['risk']
         for k in range(1, data.shape[1]):
-            cand = risk(data[rows, k], vi, windows, t_values, v_ref)['risk']
+            cand = risk(data[rows, k], vi, windows, t_values, v_ref, nominal=nominal)['risk']
             ratios[o, k - 1] = base / cand
     return ratios
 
@@ -41,7 +41,8 @@ def main():
     from .statistics import blocks
     data = blocks(data, p['block_length'])
     names = [k['name'] for k in p['kernels']][1:]
-    ratios = paired_ratios(data, frozen['windows'], p['t_values'], np.array(frozen['identity']['v']))
+    ratios = paired_ratios(data, frozen['windows'], p['t_values'], np.array(frozen['identity']['v']),
+                           nominal=p['reference_nominal_window'])
     OUT.mkdir(parents=True, exist_ok=True)
     summary = {}
     for j, name in enumerate(names):

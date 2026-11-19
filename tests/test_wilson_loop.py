@@ -172,7 +172,7 @@ def test_read_nersc_validates_header_and_payload(tmp_path):
     path.write_bytes(_nersc(datatype='4D_SU2_GAUGE_3x3'))
     with pytest.raises(ValueError, match='DATATYPE'):
         read_nersc(path)
-    for bad in ('0', 'IEEE32LITTLE', 'IEEE64BIG'):
+    for bad in ('0', 'IEEE32LITTLE', 'NONSENSE'):
         path.write_bytes(_nersc(floating=bad))
         with pytest.raises(ValueError, match='FLOATING_POINT'):
             read_nersc(path)
@@ -461,7 +461,8 @@ def test_measure_entry_end_to_end(tmp_path, monkeypatch):
     q, _ = np.linalg.qr(links)
     links = q / np.linalg.det(q)[..., None, None] ** (1 / 3)
     monkeypatch.setattr(measure_mod, 'read_nersc_with_status',
-                        lambda path, expected_geometry=None: (links, 'absent'))
+                        lambda path, expected_geometry=None: (links, {'standard': 'absent',
+                                                                    'md5': 'absent', 'verified': False}))
     monkeypatch.setattr(measure_mod, 'protocol', lambda: p)
     monkeypatch.setattr(common, 'protocol', lambda: p)
     out = tmp_path / 'out'
@@ -516,12 +517,14 @@ def test_nersc_checksum_trailer(tmp_path):
               b'FLOATING_POINT=IEEE64LITTLE\nEND_HEADER\n')
     good = tmp_path / 'good'
     good.write_bytes(header + payload + hashlib.md5(payload).digest())
-    assert nersc_checksum_status(good) == 'verified'
+    status = nersc_checksum_status(good)
+    assert status['md5'] == 'verified' and status['standard'] == 'absent'
     array = read_nersc(good)
     assert array.shape == (4, 2, 2, 2, 2, 3, 3)
     absent = tmp_path / 'absent'
     absent.write_bytes(header + payload)
-    assert nersc_checksum_status(absent) == 'absent'
+    assert nersc_checksum_status(absent) == {'standard': 'absent', 'md5': 'absent',
+                                            'verified': False}
     bad = tmp_path / 'bad'
     bad.write_bytes(header + payload + b'0' * 16)
     with pytest.raises(ValueError, match='MD5 mismatch'):
@@ -557,7 +560,8 @@ def test_measure_real_pending_resume_same_spec(tmp_path, monkeypatch):
     q, _ = np.linalg.qr(links)
     links = q / np.linalg.det(q)[..., None, None] ** (1 / 3)
     monkeypatch.setattr(measure_mod, 'read_nersc_with_status',
-                        lambda path, expected_geometry=None: (links, 'absent'))
+                        lambda path, expected_geometry=None: (links, {'standard': 'absent',
+                                                                    'md5': 'absent', 'verified': False}))
     monkeypatch.setattr(measure_mod, 'protocol', lambda: p)
     monkeypatch.setattr(common, 'protocol', lambda: p)
     stopped = tmp_path / 'stopped'
@@ -610,3 +614,83 @@ def test_transaction_rejects_mixed_files(tmp_path):
     assert check(tmp_path, spec)['ok']
     (tmp_path / 'development.commit.json').unlink()
     assert not check(tmp_path, spec)['ok']
+
+
+def _cold_nersc(tmp_path, name, checksum=None, endian='little', extra=b''):
+    import numpy as np
+    links = np.zeros((4, 3, 3), dtype='<c16')
+    for i in range(3):
+        links[:, i, i] = 1.0
+    payload = links.tobytes() if endian == 'little' else links.astype('>c16').tobytes()
+    floating = 'IEEE64LITTLE' if endian == 'little' else 'IEEE64BIG'
+    header = (b'BEGIN_HEADER\nDATATYPE=4D_SU3_GAUGE_3x3\n'
+              b'DIMENSION_1=1\nDIMENSION_2=1\nDIMENSION_3=1\nDIMENSION_4=1\n'
+              + f'FLOATING_POINT={floating}\n'.encode()
+              + (f'CHECKSUM={checksum}\n'.encode() if checksum else b'')
+              + b'END_HEADER\n')
+    path = tmp_path / name
+    path.write_bytes(header + payload + extra)
+    return path
+
+
+def test_nersc_standard_header_checksum(tmp_path):
+    import hashlib
+    from tasks.wilson_loop.common import nersc_checksum_status, read_nersc
+    good = _cold_nersc(tmp_path, 'good', checksum='ff400000')
+    status = nersc_checksum_status(good)
+    assert status['standard'] == 'verified' and status['verified']
+    assert read_nersc(good).shape == (4, 1, 1, 1, 1, 3, 3)
+    bad = _cold_nersc(tmp_path, 'bad', checksum='ff400001')
+    with pytest.raises(ValueError, match='header checksum mismatch'):
+        nersc_checksum_status(bad)
+    md5_bad = _cold_nersc(tmp_path, 'md5_bad', checksum='ff400001',
+                          extra=hashlib.md5(open(good, 'rb').read().split(b'END_HEADER\n')[1]).digest())
+    with pytest.raises(ValueError, match='header checksum mismatch'):
+        nersc_checksum_status(md5_bad)
+    big = _cold_nersc(tmp_path, 'big', checksum=None, endian='big')
+    with open(big, 'rb') as f:
+        head = f.read().split(b'END_HEADER\n')[1]
+    from tasks.wilson_loop.common import nersc_word_checksum
+    value = nersc_word_checksum(head, 'IEEE64BIG')
+    big2 = _cold_nersc(tmp_path, 'big2', checksum=f'{value:08x}', endian='big')
+    assert nersc_checksum_status(big2)['verified']
+
+
+def test_nersc_private_md5_cannot_override_standard_header(tmp_path):
+    from tasks.wilson_loop.common import nersc_checksum_status
+    path = _cold_nersc(tmp_path, 'md5_only', checksum=None, endian='little')
+    assert nersc_checksum_status(path)['verified'] is False
+    good = _cold_nersc(tmp_path, 'good2', checksum='ff400000')
+    assert nersc_checksum_status(good)['verified'] is True
+
+
+def test_evaluate_reports_invalid_candidate_without_crash(tmp_path):
+    import json
+    from pathlib import Path
+    from tasks.pion_projection.common import fingerprint
+    from tasks.wilson_loop.common import indices, protocol
+    from tasks.wilson_loop.experiment import develop, evaluate
+    p = protocol()
+    np.savez(tmp_path / 'development.npz', ids=indices('development'),
+             loops=_synthetic_loops(indices('development')), protocol_hash=fingerprint(p))
+    develop(tmp_path)
+    np.savez(tmp_path / 'validation.npz', ids=indices('validation'),
+             loops=_synthetic_loops(indices('validation')), protocol_hash=fingerprint(p))
+    evaluate(tmp_path)
+    with np.load(tmp_path / 'validation.npz') as f:
+        ids, loops = f['ids'], f['loops'].copy()
+    loops[:, 1] = -np.abs(loops[:, 1]) - 1.0          # non-positive candidate W
+    np.savez(tmp_path / 'validation.npz', ids=ids, loops=loops,
+             protocol_hash=fingerprint(p))
+    evaluate(tmp_path)
+    report = json.loads((tmp_path / 'validation_results.json').read_text())
+    bad = report['results']['ape_a0.5_n5']
+    assert bad['risk'] is None and bad['score'] is None and 'non-positive W' in bad['invalid_reason']
+    assert bad['loss_ratio_vs_identity'] is None
+    assert report['results']['identity']['score'] == pytest.approx(100.0)
+    assert report['conditional_scores']['ape_a0.5_n5'] is None
+    loops[:, 0] = -np.abs(loops[:, 0]) - 1.0          # invalid identity must refuse
+    np.savez(tmp_path / 'validation.npz', ids=ids, loops=loops,
+             protocol_hash=fingerprint(p))
+    with pytest.raises(ValueError, match='identity risk is invalid'):
+        evaluate(tmp_path)
