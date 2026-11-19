@@ -158,6 +158,10 @@ def develop(output):
                             'iterations': int(fit.nit), 'l1': float(abs(fit.x).sum())},
               'calibration': calibration, 'reference': spec, 'run_state': state.summary(),
               'receipts': receipts,
+              'score_spec': {'alpha': p['alpha'],
+                             'comparison_family': {'candidates': len(submissions) - 1, 'models': 1},
+                             'min_baseline_risk': 1e-6, 'min_improvement': 1.0,
+                             'risk_floor': 0.0},
               'gate_artifact': {
                   'model': spec['kind'],
                   'window': p['reference_windows'][p['reference_nominal_window']],
@@ -165,6 +169,7 @@ def develop(output):
                             'min_fit_p': p['reference_min_fit_p']},
                   'reference_source': {'statistics': digest(Path(__file__).with_name('statistics.py')),
                                        'implementation': digest(Path(__file__).with_name('reference.py'))},
+                  'reference_spec_sha256': digest_text(json.dumps(spec, sort_keys=True)),
                   'development_sha256': digest(output / 'development.npz'),
                   'candidates': list(submissions),
                   'metric': {'score_window': p['score_window'], 'amplitude_window': p['amplitude_window'],

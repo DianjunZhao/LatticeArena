@@ -28,13 +28,30 @@ def replica_matrices(matrix, index):
 
 
 def _eigvals(a, b, rtol=1e-10, rank=None):
-    """Generalized eigenvalues of (a, b), restricted to the resolved subspace of b."""
+    """Generalized eigenvalues of (a, b), restricted to the resolved subspace of b.
+
+    rank must be a non-negative integer within the matrix dimension; the
+    selected metric eigenvalues must be positive. Invalid input returns an empty
+    array instead of taking the square root of a negative number.
+    """
     values, vectors = np.linalg.eigh(0.5 * (b + b.conj().T))
-    keep = values > rtol * max(values[-1], 1e-300)
+    resolved = values > rtol * max(values[-1], 1e-300)
     if rank is not None:
-        keep = np.zeros_like(keep)
-        keep[np.argsort(values)[-int(rank):]] = True
-    if keep.sum() < 2:
+        if not isinstance(rank, (int, np.integer)) or isinstance(rank, bool):
+            raise ValueError(f'rank must be an integer, got {rank!r}')
+        if rank < 0 or rank > len(values):
+            raise ValueError(f'rank {rank} is outside [0, {len(values)}]')
+        if rank == 0:
+            return np.array([])
+        order = np.argsort(values)[::-1]
+        chosen = [i for i in order if resolved[i]][:int(rank)]
+        if len(chosen) < rank:
+            return np.array([])
+        keep = np.zeros_like(resolved)
+        keep[chosen] = True
+    else:
+        keep = resolved
+    if keep.sum() < 2 or np.any(values[keep] <= 0):
         return np.array([])
     basis = vectors[:, keep] / np.sqrt(values[keep])
     reduced = basis.conj().T @ a @ basis
@@ -54,7 +71,7 @@ def effective_energy(lam, t, t0, T, model='forward'):
         return np.nan
 
 
-def bootstrap_gevp(matrix, index, t0=2, times=(3, 4, 5, 6), model='forward', rank=None):
+def bootstrap_gevp(matrix, index, t0=2, times=(3, 4, 5, 6), model='forward', rank=None, cutoff=1e-10):
     """Return energies (ntimes, nmodes, B) and a list of failures."""
     replicas = replica_matrices(matrix, index)
     B, d, _, T = replicas.shape
@@ -62,7 +79,7 @@ def bootstrap_gevp(matrix, index, t0=2, times=(3, 4, 5, 6), model='forward', ran
     failures = []
     for b in range(B):
         for k, t in enumerate(times):
-            lam = _eigvals(replicas[b, :, :, t], replicas[b, :, :, t0], rank=rank)
+            lam = _eigvals(replicas[b, :, :, t], replicas[b, :, :, t0], rtol=cutoff, rank=rank)
             if len(lam) == 0 or np.any(lam <= 0) or not np.all(np.isfinite(lam)):
                 failures.append({'replica': b, 'time': int(t), 'reason': 'nonpositive eigenvalue'})
                 continue

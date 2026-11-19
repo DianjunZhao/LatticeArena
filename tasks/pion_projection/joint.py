@@ -12,6 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
+from core.io import digest_text
 from .common import digest, fingerprint, write_json
 from .reference import make_reference
 from .scoring import improvement_certificate
@@ -47,6 +48,13 @@ def run(output, models=None, outer=200, inner=64, seed=20261119, dest=None):
             raise ValueError('gate artifact protocol hash differs from the submission')
         if artifact.get('window') != p['reference_windows'][p['reference_nominal_window']]:
             raise ValueError('gate artifact window differs from the protocol window')
+        if artifact.get('reference_spec_sha256') != digest_text(json.dumps(sub.get('reference'), sort_keys=True)):
+            raise ValueError('gate artifact reference spec hash differs from the submission')
+        expected_metric = {'score_window': p['score_window'],
+                           'amplitude_window': p['amplitude_window'],
+                           'covariance_shrinkage': p['covariance_shrinkage']}
+        if artifact.get('metric') != expected_metric:
+            raise ValueError('gate artifact metric differs from the protocol metric')
     dev = blocks(fold(np.load(output / 'development.npz')['correlators']), p['block_length'])
     val = blocks(fold(np.load(output / 'validation.npz')['correlators']), p['block_length'])
     window = p['reference_windows'][p['reference_nominal_window']]
@@ -68,6 +76,8 @@ def run(output, models=None, outer=200, inner=64, seed=20261119, dest=None):
                              val_inner[r], p, require_valid=False,
                              late_inverse=np.array(sub['late_inverse_covariances'][name]))
                 risks[m][name][r] = value['risk']
+    score_spec = sub.get('score_spec')
+    score_spec_reason = None if score_spec is not None else 'score_spec_missing'
     draw_ids = np.arange(outer)
     np.savez_compressed(dest / 'joint_draws.npz',
                         draw_id=draw_ids, dev_index=dev_index, val_index=val_index,
@@ -89,20 +99,35 @@ def run(output, models=None, outer=200, inner=64, seed=20261119, dest=None):
             'require_draw_ids': True,
             'draw_ids_hash': hashlib.sha256(np.asarray(draw_ids, dtype=np.int64).tobytes()).hexdigest(),
         }
+        if score_spec is not None:
+            spec.update({'alpha': score_spec['alpha'],
+                         'comparison_family': dict(score_spec['comparison_family']),
+                         'min_baseline_risk': score_spec['min_baseline_risk'],
+                         'min_improvement': score_spec['min_improvement'],
+                         'risk_floor': score_spec['risk_floor'],
+                         'require_draw_ids': True,
+                         'draw_ids_hash': hashlib.sha256(np.asarray(draw_ids, dtype=np.int64).tobytes()).hexdigest()})
         certificate = improvement_certificate(
             {m: {n: risks[m][n] for n in names} for m in models}, spec,
             draw_ids=draw_ids)
     gate = report
     passed = bool(gate.get('reference_passed'))
     if certificate is not None:
-        if artifact_reason:
+        if artifact_reason or score_spec_reason:
             certificate['status'] = 'abstain'
             certificate['abstain'] = True
-            certificate['failure_reasons'].append(artifact_reason)
+            if artifact_reason:
+                certificate['failure_reasons'].append(artifact_reason)
+            if score_spec_reason:
+                certificate['failure_reasons'].append(score_spec_reason)
         if not passed:
             certificate['status'] = 'abstain'
             certificate['abstain'] = True
             certificate['failure_reasons'].append('reference_gate_failed')
+        if certificate.get('abstain'):
+            for item in certificate['candidates'].values():
+                item['certified'] = False
+                item['certified_with_interval'] = False
             for row in certificate['candidates'].values():
                 row['certified'] = False
         certificate['reference_passed'] = passed
@@ -124,6 +149,10 @@ def run(output, models=None, outer=200, inner=64, seed=20261119, dest=None):
                                                   'min_improvement', 'risk_floor', 'require_draw_ids',
                                                   'draw_ids_hash')},
                     'draws': {'outer': outer, 'inner': inner, 'seed': seed},
+                    'submission_sha256': digest(output / 'submission.json'),
+                    'gate_artifact_sha256': digest_text(json.dumps(artifact, sort_keys=True)) if artifact else None,
+                    'score_spec_sha256': (digest_text(json.dumps(score_spec, sort_keys=True))
+                                          if score_spec is not None else None),
                     'dependencies': {'statistics': digest(Path(__file__).with_name('statistics.py')),
                                      'reference': digest(Path(__file__).with_name('reference.py')),
                                      'scoring': digest(Path(__file__).with_name('scoring.py'))}})

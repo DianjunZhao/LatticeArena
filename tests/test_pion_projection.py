@@ -386,7 +386,9 @@ def test_joint_draws_share_ids_and_abstain_on_failed_gate(tmp_path):
     manifest = json.loads((tmp_path / 'joint_manifest.json').read_text())
     assert manifest['require_draw_ids'] if False else manifest['spec']['require_draw_ids']
     assert certificate['status'] == 'abstain'
-    assert set(certificate['failure_reasons']) == {'gate_artifact_missing', 'reference_gate_failed'}
+    assert set(certificate['failure_reasons']) == {'gate_artifact_missing', 'score_spec_missing',
+                                                   'reference_gate_failed'}
+    assert all(not item['certified'] for item in certificate['candidates'].values())
     assert not any(row['certified'] for row in certificate['candidates'].values())
 
 
@@ -516,7 +518,8 @@ def test_verify_run_identity_rejects_tampering(tmp_path):
     run = Path('results/pion_projection/s16t16_gevp200')
     if not (run / 'submission.json').exists():
         pytest.skip('run data not available')
-    for name in ('development.npz', 'development_provenance.json', 'submission.json', 'validation_results.json'):
+    for name in ('development.npz', 'validation.npz', 'development_provenance.json',
+                 'submission.json', 'validation_results.json'):
         shutil.copy(run / name, tmp_path / name)
     kind, reasons = verify_run_identity(tmp_path)
     assert kind == 'single' and not reasons
@@ -602,3 +605,14 @@ def test_llm_loop_rejects_malformed_proposals_and_caps_budget(tmp_path):
     assert any('malformed candidate' in reason for reason in reasons)
     assert any('exceeds the per-round proposal cap' in reason for reason in reasons)
     assert result['validation_status'] == 'not_read'
+
+
+def test_eigvals_rank_legality():
+    from tasks.pion_projection.gevp_stats import _eigvals
+    assert _eigvals(np.eye(2), np.diag([-1.0, 1.0]), rank=2).size == 0
+    assert _eigvals(np.eye(2), np.eye(2), rank=0).size == 0
+    with pytest.raises(ValueError, match='outside'):
+        _eigvals(np.eye(2), np.eye(2), rank=3)
+    with pytest.raises(ValueError, match='outside'):
+        _eigvals(np.eye(2), np.eye(2), rank=-1)
+    assert _eigvals(np.eye(2), np.eye(2), rank=2).size == 2
