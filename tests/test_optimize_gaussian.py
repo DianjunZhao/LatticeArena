@@ -317,6 +317,23 @@ def test_validate_inputs_status(tmp_path, monkeypatch):
     bad = dict(p, geometry=[8, 8, 8, 8])
     with pytest.raises(ValueError, match='protocol mismatch'):
         train.validate_inputs(bad, [7], {7: 'k'})
+    # missing protocol fields cannot be verified
+    meta = json.loads((tmp_path / '.cache/pion_projection/propagators/k.json').read_text())
+    meta['keydata'].pop('geometry')
+    (tmp_path / '.cache/pion_projection/propagators/k.json').write_text(json.dumps(meta))
+    assert train.validate_inputs(p, [7], {7: 'k'}, trusted=False)['7']['status'] == 'archived_diagnostic'
+    # over-residual is refused at the trusted entry, degraded when diagnostic
+    meta['keydata']['geometry'] = [4, 4, 4, 8]
+    meta['keydata']['residual_max'] = 1.0
+    (tmp_path / '.cache/pion_projection/propagators/k.json').write_text(json.dumps(meta))
+    with pytest.raises(ValueError, match='residual'):
+        train.validate_inputs(p, [7], {7: 'k'})
+    assert train.validate_inputs(p, [7], {7: 'k'}, trusted=False)['7']['status'] == 'archived_diagnostic'
+    # reference identity binds the actually consumed bootstrap file
+    ref = tmp_path / 'reference_bootstrap.npz'
+    np.savez(ref, masses=np.zeros(3))
+    identity = train.reference_identity(dict(p, reference_bootstrap=str(ref)), [7], {7: 'k'})
+    assert identity['reference_bootstrap_digest'] is not None and identity['status'] == 'verified'
 
 
 def test_crosslink_target_and_oracle():

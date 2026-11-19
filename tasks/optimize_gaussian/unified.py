@@ -150,10 +150,13 @@ def main():
                               'mass': float(fold_m0['mass']),
                               'masses_sha256': hashlib.sha256(np.asarray(fold_masses).tobytes()).hexdigest(),
                               'passed': bool(sub.get('calibration', {}).get('reference_passed', False)),
-                              'source_split': 'development'}}
+                              'source_split': 'development',
+                              'gate_source': 'upstream submission calibration (not recomputed in-fold)'}}
         for name, weights in sub['submissions'].items():
             train_metric = evaluate(train, weights, p, fold_m0['mass'], fold_masses, p['seed'] + i)
             fixed = (train_metric['amplitude'], train_metric['amplitude_se'])
+            fold[f'{name}_weights'] = [float(w) for w in np.asarray(weights)]
+            fold[f'{name}_scale'] = float(train_metric['amplitude'])
             metric = risk_with_fixed_amplitude(test, weights, fold_m0['mass'], fold_masses,
                                                bootstrap_indices(len(test), p['bootstrap_samples'], p['seed'] + 100 + i),
                                                p, fixed[0], fixed[1])
@@ -194,7 +197,11 @@ def main():
                             'estimand': 'training-frozen amplitude (outer-training fit, no inner CV)',
                             'reference': {'mass': float(fold_m0['mass']),
                                           'masses_sha256': hashlib.sha256(np.asarray(fold_masses).tobytes()).hexdigest(),
-                                          'passed': bool(sub.get('calibration', {}).get('reference_passed', False))},
+                                          'passed': bool(sub.get('calibration', {}).get('reference_passed', False)),
+                                          'gate_source': 'upstream submission calibration (not recomputed in-fold)'},
+                            'weights': [float(w) for w in np.asarray(weights)],
+                            'scales': {'train_amplitude': float(train_amp),
+                                       'local': float(local_fixed[0]), 'tuned': float(tuned_fixed[0])},
                             'search': search_info})
     ratios = np.array([f['local_over_slsqp'] for f in fold_rows])
     failures = {'folds': len(fold_rows), 'search_folds_without_outcome': 0, 'reference_failed_folds': 0}

@@ -29,7 +29,7 @@ def dataset(rng, ncfg=80, noise=0.01):
     return signal[None, None, :] * (1 + noise * rng.normal(size=(ncfg, 1, len(t))))
 
 
-def run(n_dataset=60, n_boot=200, seed=20261123):
+def run(n_dataset=60, n_boot=200, seed=20261123, out=None):
     rng = np.random.default_rng(seed)
     rows = []
     for _ in range(n_dataset):
@@ -63,8 +63,9 @@ def run(n_dataset=60, n_boot=200, seed=20261123):
         result['summary'][source] = {'bias_mean': float(np.mean(biases)),
                                      'bias_se': float(np.std(biases, ddof=1) / np.sqrt(len(biases))),
                                      'q1_coverage': float(coverage)}
-    OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / 'regression.json').write_text(json.dumps(result, indent=2) + '\n')
+    out = Path(out) if out is not None else OUT
+    out.mkdir(parents=True, exist_ok=True)
+    (out / 'regression.json').write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps(result['summary'], indent=2))
     return result
 

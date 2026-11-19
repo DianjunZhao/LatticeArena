@@ -381,6 +381,10 @@ python -m tasks.optimize_gaussian.compare_plot
 | P1 整链 fold-local | `unified.py` 新增 fold 内 SLSQP/幂次重选：三折都选 H^32，fold-SLSQP 在 2/3 折优于 tuned；全样本冻结结果不矛盾（fold 仅 4 blocks，比率方差大）；学习核 NOT_RUN |
 | P1 统一统计/fold-local | `unified.py` + `results/optimize_gaussian/cpu_next_package_b/`（原 `unified_v1/` 在包 B 开发中被同名输出覆盖，已改为新目录）：point/replica 同算法；3 折 tuned/SLSQP=1.719/2.014/0.810；fold 间方差大；synthetic regression 偏差≈0、覆盖 0.983–1.0 |
 | P0.2 basis/输入身份闭包 | basis_key 现在包含依赖 hash（features/kernels/submission/train/statistics）与输入内容摘要（gauge 文件 + propagator 文件 sha256）；mutation 测试覆盖依赖/输入/ID 顺序变更 → 拒绝复用 |
+| 包A 协议复用/可信分流 | 缺字段→archived_diagnostic；超残差在 trusted 入口拒绝（诊断入口降级）；reference identity 绑定实际消费的 bootstrap 文件 |
+| 包B fit-state | 每折保存 weights/scales、block IDs、reference/gate 来源；回归 JSON 与 README 同步（60×200） |
+| 包C 公平 2×2 | `cpu_close_20261119_C/`：空间扩散 H、共享实系数、同一参数域；ε=0 A 精确、ε>0 B 迁移为 0、优化器=oracle |
+| 包D 真实闭环 | `cpu_close_20261119_D/`：实际 BCB response 作为 search 评价器；算子残差 ~1e−16；bundle 能力拒绝 |
 | 包D 框架适配 | `adapt.py` + `results/optimize_gaussian/cpu_next_package_d/`：OperatorContract（线性/Hermitian/θ=0 恒等）、MeasurementBundle（能力声明）、SearchAdapter（NaN 拒绝、预算）真实跑通；能力拒绝抛错不静默回退 |
 | 包B fold 身份/图 | 每折 reference（kind/mass/masses sha256/passed）与 failures 计数；frozen/reselected 两张独立图；本 run 3 折 reference 均未认证 |
 | 包B synthetic regression | `estimator_regression.py`：已知模型 60 数据集；point/replica 偏差 train −1.9e-6±5.9e-5、test −1.0e-5±2.1e-5（均与 0 相容）；q=1 覆盖 1.000/0.983 |

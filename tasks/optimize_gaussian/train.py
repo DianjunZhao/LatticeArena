@@ -65,7 +65,7 @@ def run_manifest(p, W, theta, fit_ids, devval_ids, test_ids, cache):
             'reference': reference_identity(p, fit_ids, cache)}
 
 
-def validate_inputs(p, ids, cache):
+def validate_inputs(p, ids, cache, trusted=True):
     """Check gauge/propagator content, metadata and inversion residual.
 
     Returns per-id status: verified only when the gauge digest, the propagator
@@ -105,19 +105,29 @@ def validate_inputs(p, ids, cache):
                 raise ValueError(f'cfg {i}: protocol mismatch in {mismatched}')
             tolerance = p.get('tolerance', 1e-10)
             residual_ok = row['residual'] is not None and row['residual'] <= tolerance
-            row['status'] = ('verified' if residual_ok and row['precision'] else 'archived_diagnostic')
+            if trusted and row['residual'] is not None and not residual_ok:
+                raise ValueError(f'cfg {i}: inversion residual {row["residual"]:.3e} exceeds '
+                                 f'tolerance {tolerance:.0e} at the trusted entry')
+            complete = all(row[name] is True for name in
+                           ('geometry', 'boundary', 'tolerance', 'max_iterations'))
+            row['status'] = ('verified' if complete and residual_ok and row['precision']
+                             else 'archived_diagnostic')
         rows[str(i)] = row
     return rows
 
 
 def reference_identity(p, fit_ids, cache):
-    """Digest of the reference file and bootstrap content if present."""
-    ref = Path(p.get('reference_path', 'results/pion_projection/s16t16_v1/reference.npz'))
-    out = {'path': str(ref), 'digest': digest(ref) if ref.exists() else None,
-           'model': 'single-cosh', 'source_split': 'development'}
-    boot = ref.with_name('nested_bootstrap.npz')
-    if boot.exists():
-        out['bootstrap_digest'] = digest(boot)
+    """Digest the reference/bootstrap files actually consumed, not a default neighbour."""
+    out = {'model': 'single-cosh', 'source_split': 'development'}
+    consumed = []
+    for key in ('reference_bootstrap', 'reference_path'):
+        if p.get(key):
+            path = Path(p[key])
+            out[key] = str(path)
+            out[f'{key}_digest'] = digest(path) if path.exists() else None
+            consumed.append(key)
+    out['consumed'] = consumed
+    out['status'] = 'verified' if consumed and all(out.get(f'{key}_digest') for key in consumed)         else 'unknown'
     return out
 
 
