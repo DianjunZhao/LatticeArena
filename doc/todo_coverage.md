@@ -1,72 +1,55 @@
-# todo 覆盖报告（2026-11-18，按新开工单第二轮）
+# todo 覆盖报告（2026-11-19，第三轮验收后）
 
 对应三份更新后的 `tasks/*/todo.md`。状态：✅ 完成（代码+证据）、🟡 部分、⛔ NOT_RUN。
-基线：最新提交；CPU 测试 **104 项通过**。
+基线：最新提交；CPU 测试 **117 项通过**。
 
 ## 1. pion_projection
 
 | 包/条目 | 状态 | 证据 |
 | --- | --- | --- |
-| A1 认证身份 | ✅ | `identity.verify_run_identity` 被 joint/evaluate/candidate 共用；冻结 kind/models 精确匹配、protocol/dev hash、report kind/version；evaluate 无 joint draws 时 abstain；产物 `joint_identity_v2/`、`certification_v1/` |
-| A1 每模型 gate artifact | ✅ | `develop` 写 artifact（model/window/prior/reference hash/dev hash/candidates/metric/calibration）；`joint` 校验并在缺失时 abstain（历史 run 显示 missing） |
-| A1 复用 joint 证书 | ✅ | evaluate 读取 `<output>/joint/` 的 manifest/metrics，身份一致时复用（`certification_source='joint'`） |
-| A2 draw 来源 | ✅ | `joint_draws.npz` 保存 dev/val outer + inner indices、draw_id；`joint_manifest.json` 记录输入/依赖/spec |
-| A2 draw 身份强制 | ✅ | `require_draw_ids` + `draw_ids_hash`；重复/乱序 ID 拒绝 |
-| B1 CV 冻结度量 | ✅ | `nested_cv_v2/`：training late_metric 传入 held-out；fold IDs/late hash/protocol hash；480.6±146.8 折间散布 |
-| B2 GEVP 平台/失败 | ✅ | `summarise` 固定平台、局部/整 replica 失败计数；`gram_stats_v2/`；部分平台反例测试 |
-| C1 gate 校准 | ✅ | `reference_gate.py`：dof=8、内层 null；single 假拒绝 0.02/0.03、two-state 功效 0.66/0.59 |
-| C2 证书端到端 | ✅ | blocks 扫描（6: 3/8、12/24: 0/7、0/8）；功效 0.75–0.875；失配全 abstain；J=2/K=2（null 0/7、better 1/7）；错误激发态 7/8 通过但独立质量 guard 7/7 标出 |
-| C3 anchor 校准 | ✅ | `anchor_calibration_v1/`：block draws、独立共享 anchor；naïve null 假认证 27–50%，独立 dataset 控制；Nboot 50→800 宽度 0.032→0.0099 |
-| §7 新测量 | 🟡 | 设计 + schema 校验器已交；执行 ⛔ |
+| A1 完整身份 | ✅ | `verify_run_identity` 绑定 submission/report/dev/val 内容 SHA、完整 protocol、IDs、reference 实现、候选集合、late metric；矩阵 `audit_20261119_identity/joint_identity_audit.json`（stale report/重排/换源均拒绝） |
+| A2 gate artifact | ✅ | artifact 绑定 reference spec 哈希、窗口、dev hash、metric；joint 校验并在缺失时 abstain |
+| A3 统一 abstain | ✅ | 任一理由（缺 artifact/spec、gate 失败）清除全部 `candidate.certified` |
+| A4 冻结 score spec | ✅ | joint 读取 submission 的 `score_spec`；缺失（历史 run）→ `score_spec_missing` abstain；alpha/族/floor 不可事后改 |
+| A5 manifest/复现 | ✅ | joint manifest 绑定 submission/gate/spec/deps；同 seed 两次 run 数组逐位相同 |
+| B rank/网格 | ✅ | `_eigvals` 整数/范围/正性；rank=0、负本征值反例；cutoff 贯通；`gevp_ground_failure_grid_v1/`（20 dataset/cell，bias 0.02–0.04，coverage 0——bootstrap 不含系统偏差） |
+| C1/C2 共享路径 | ✅ | 模拟先 `fold`、同一 ReferenceFit/gate；名称明确为 **χ² subgate** benchmark |
+| C3 冻结 late metric | ✅ | 每 outer draw 在 development 训练块计算并传入 validation risk |
+| C4 模型集合 | ✅ | K=2 时两模型各自 gate；缺认证则 abstain |
+| C5 wrong-state | ✅ | baseline/candidate 用不同通道（point ratio 0.49–1.68），8/8 gate 通过、质量 1.50、独立 guard 8/8 标出 |
+| C6 参数清理 | ✅ | 未使用的 `contam_candidate` 删除；场景由通道污染定义 |
+| C2 MC 语义 | ✅ | 条件/无条件率分列；0/8 的 CP 区间 [0,0.369]、单侧上界 0.312；8–20 dataset smoke 允许 INCONCLUSIVE |
+| C3 paired 区间 | ✅ | 三种估计量（naive 1.49 / paired 20.64 / independent 0.14±0.49）；固定数据 Nboot 50→800：naive 1.24→0.35，paired 7.2→9.96；共享配置 cell |
+| §5 测量计划 | ✅ | 计划校验 + preflight（GPU 前）；draft/越界/占位 hash/缺 stop rule 拒绝；`measurement_plan_audit_v1/` |
 
 ## 2. wilson_loop
 
 | 包/条目 | 状态 | 证据 |
 | --- | --- | --- |
-| P0 measure 入口 | ✅ | `start` 被计时覆盖/浮点切片的 bug 已修；端到端 mock reader 测试（空/limit/resume） |
-| P1 恢复事务 | ✅ | 三文件 npz+provenance+commit marker；generation/文件 hash/records/gauge hash 互验；部分事务拒绝 |
-| P1 依赖闭包 | ✅ | spec/provenance 含 kernels/statistics/measure/common/identity hash |
-| P1 投影失败定位 | ✅ | 失败信息带 batch indices；measure 附 cfg |
-| P1 NERSC checksum | ✅ | trailer 支持 verified/absent、mismatch 拒绝；measure 记录 `checksum_status`；本机无真实数据，集群运行时落盘 |
-| P2 点值/jackknife | ✅ | `paired_audit_v2/`：归档点值 0.967–1.055 与诊断重算分列；leave-one-block-out jackknife |
-| P2 非退化 coverage | ✅ | 已知增益/零效应各 0.983（60 次模拟） |
-| P2 invalid 接入 | ✅ | `risk` fail-closed；evaluate 记 invalid_reason；paired/audit 计数与阈值 |
-| P3 两态谱反例 | ✅ | `spectral_physical_v1/`：bias/SE 到 32.5 而 spread gate 通过；window_z 仅 c1≥0.2 报警 |
-| F0 证据/bundle | ✅ | audit code/inputs、缺 hash 判 NOT_RUN、bundle 可信加载 + RunSpec 校验 |
-| F1 shapes/comparator | ✅ | `check_draws` 一维等长有限、重复/乱序拒绝；paired_ratio 不广播 |
-| F2 SearchAdapter | ✅ | loop 真走 `core.search`；NaN/Inf 拒绝；`search_trace.json`；预算 |
-| F3 状态证据 | ✅ | RunState 需 evidence hash；physical_ready/score_or_null；develop 绑定 hash；conditional/physical score 分离 |
-| F4 HMC | 🟡 | manifest 审计（seed/τint）+ 缺失字段分类（`hmc_manifest_audit_v1/`）；toy 可逆性/二阶；生产 ΔH/接受率 ⛔ |
+| P0 真实 pending 恢复 | ✅ | `saved=len(rows)`；同 spec 中断 2/3 后续到 3，数组/IDs/逐行 sha 与干净 run 相同；ledger incremental/previous；`audit_20261119_resume/` |
+| P0b 投影支持域 | ✅ | 冻结奇异值×scale×相位网格；cond≤1e3 在 1e−9 内通过，域外策略拒绝；SU(3) 协变残差 1.4e−10；`audit_20261119_projection_domain/` |
+| P1a 事务矩阵 | ✅ | 原子 marker、必需依赖 hash；10 类故障注入全 PASS（`audit_20261119_transaction/`） |
+| P1b 标准 checksum | ✅ | header CHECKSUM=32-bit word sum；冷场 ff400000；错误头/错误头+正确 MD5 均拒绝；私有 MD5 单独状态（`audit_20261119_nersc/`） |
+| P2a invalid evaluate | ✅ | 坏候选 risk/score/ratio=null+reason；坏 identity 受控拒绝；Vref 零/非有限拒绝；paired 传 nominal（`audit_20261119_invalid/`） |
+| P2b 统计口径 | ✅ | `doc/statistics_scope.md`：点值/诊断/区间分列，0.983 为近似目标覆盖，block/τint 与多重比较延期 |
+| P3 有限 Nt/window_z | ✅ | `doc/finite_nt_scope.md`；window_z 改为配对差 SE（`window_paired_z`），naive 列保留为诊断 |
+| F0 receipt | ✅ | 证据带 receipt（code/inputs/run sha）；空/篡改 PASS 拒绝；`results/framework/audit_20261119_receipt/` |
+| F1 comparator | ✅ | 零/负分母、空 draw 明确拒绝；接入 paired 比值路径 |
+| F2 预算/畸形提案 | ✅ | 外部每轮上限；malformed 转换记录拒绝不中止；mock 覆盖 |
+| F3 receipts/状态 | ✅ | `RunState` physical 需 execution receipts；develop 造 4 个、evaluate 验证并携带；conditional-only 保持；`unverified-text` 不能 physical |
+| F4/P4 | ⛔ | 生产 ΔH/接受率/热化、stout/GEVP/multilevel/新盲测明确延期 |
 
 ## 3. optimize_gaussian
 
-| 条目 | 状态 | 证据 |
+| 包/条目 | 状态 | 证据 |
 | --- | --- | --- |
-| 包A 生产输入闭包 | ✅（本机） | `validate_inputs`：gauge/propagator 摘要、residual、geometry/boundary/tolerance/maxiter/precision，不符即拒绝；manifest 记 inputs/environment/reference；真实 GPU 档案重采 ⛔ |
-| P0.1 BCB 闭环 | ✅ | <1e-10；`audit_20261118_bcb/` |
-| P0.2 basis/输入身份 | ✅ | 依赖 hash + gauge/propagator 摘要；mutation 测试 |
-| P0.3 audit | ✅ | manifest 分类（v9 = current）；显式 --out；dev_val 不回退 |
-| 包D 框架适配 | ✅ | `cpu_next_package_d/adapt.json`：OperatorContract 三项残差 <1e-12、bundle 能力声明、capability 拒绝、search NaN 拒绝/预算；真实 C_fit 与生产搜索同一路径 ⛔ |
-| 包C 跨 links teacher | 🟡 | `cpu_next_p3_crosslink/`：独立 links、同规则、2 类 × 2 优化器 + oracle；类包含与跨 links 迁移已证（B oracle 0 vs A 0.5），优化器失败；GPU 2×2 ⛔ |
-| P1 统一统计/fold-local | ✅ | `cpu_next_package_b/`：同算法、fold 身份/失败计数、frozen/reselected 独立图、regression 偏差≈0/覆盖 0.983–1.0；reference 未认证→仅诊断 |
-| P2 teacher | 🟡 | 七幂误差 0.01268 > 谱外 0.01239；训练实验 ⛔ |
-| P3 CPU 判别 | 🟡 | 跨样本 teacher PASS（ε=0 恢复、ε=0.1 谱类 0.0127 vs 增广 6.7e-16）；GPU 2×2 ⛔ |
+| 包A 可信输入 | ✅ | 缺字段→archived_diagnostic；超残差 trusted 拒绝；reference identity 绑定实际 bootstrap 文件；mutation 测试 |
+| 包B fit-state | ✅ | 每折 weights/scales/blocks/reference/gate 来源；回归 60×200 与 README 同步；5×20 仅 smoke |
+| 包C 公平 2×2 | ✅ | `cpu_close_20261119_C/`：ε=0 A 精确、ε>0 B 迁移 0；优化器=oracle；维度/秩/nfev/梯度记录 |
+| 包D 实际闭环 | ✅ | `cpu_close_20261119_D/`：实际 BCB response 作 search 评价器；算子残差 ~1e−16；bundle 能力拒绝 |
 
-## 4. 结项条件核对（CPU 范围）
+## 4. 总结
 
-- pion：A/B/C 均有代码、反例与有限结论（A1 身份/证书复用、A2 draw 与 gate artifact、
-  B1/B2、C1/C2/C3 含 blocks/J-K/错误激发态）；§6.2/§7 新测量显式移交（NOT_RUN）；
-- wilson：P0–P3 与 F0–F3 逐项有证据（measure 入口、三文件事务、点值重放/jackknife/coverage、
-  两态反例、证据/身份/状态）；F4 生产 ΔH/接受率与 P4 扩展显式延期（NOT_RUN）；
-- optimize：包 A（本机）/B/C/D 均有产物；真实 GPU metadata 重采与 GPU 2×2/盲测延期；
-- 报告已删除被反例推翻的完成主张（spread gate、naïve anchor 证书、SLSQP/Powell 收益）。
-
-结论：**CPU 必做项逐项有证据；未跑生产与可选路线已明确延期/停止。**
-本轮 CPU 包可以结项，GPU/新测量需另行授权。
-
-## 5. 总结
-
-- pion：A/B/C 的主要 CPU 切片已交；剩余 A1 的证书复用、A2 的 gate artifact、C2 的扫描、§7 执行；
-- wilson：P0–P3 与 F0–F3 完成；F4 生产证据与 P4 扩展 ⛔；
-- optimize：P0 完成；P1/P2/P3 为 CPU 部分/设计，GPU 实验 ⛔；
-- 104 个 CPU 测试通过；所有非公式链接有效。
+- 三份 todo 的 CPU 必做项均有代码、负例/诊断与有限结论；
+- 未跑项（pion §6/新测量、wilson F4/P4、optimize GPU 2×2/真实 W）已逐项标 NOT_RUN/延期；
+- 117 个 CPU 测试通过；所有非公式链接有效。

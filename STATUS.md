@@ -3,6 +3,16 @@
 三个任务的最终状态。细节见 [`doc/final_report.md`](doc/final_report.md)、
 [`doc/todo_coverage.md`](doc/todo_coverage.md) 和各自的 task README。
 
+## 第三轮结果（2026-11-19）
+
+- 三份 todo 的 CPU 必做项逐项完成（pion A/B/C+计划、wilson P0–F3、optimize A–D），
+  证据与新目录见 `doc/todo_coverage.md`；
+- 关键修复：真实 pending 恢复（2→3 行、数组一致）、标准 NERSC CHECKSUM（冷场 ff400000、错误头拒绝）、
+  invalid 候选不崩溃、RunState 需 execution receipts、pion 完整身份/score spec/gate artifact、
+  naive/paired/independent 三种区间分离、optimize 公平 2×2（ε=0 精确、ε>0 迁移 0）；
+- 未跑项（GPU 生产、新测量、真实 W 训练）逐项标 NOT_RUN/延期；
+- **117 个 CPU 测试通过**。
+
 ## 一句话
 
 | task | 状态 | 关键数字 |

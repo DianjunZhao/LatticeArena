@@ -217,7 +217,19 @@ pion 没有可信分数，不是因为“统计量差一点点”，而是因为
 pion 的 §6.2/§7 执行（真实 anchor、共同目标预测、新测量先决条件）；wilson 的 P4 研究扩展、
 生产 HMC ΔH/接受率、多 rank；optimize 的 GPU class×optimizer 2×2、消融、新盲测、真实 W 训练。
 
-## 11. 2026-11-18 深夜：新工单的 CPU 闭环
+## 11. 2026-11-19：第三轮工单验收
+
+- pion：完整身份绑定（submission/report/dev/val 内容 SHA、IDs、reference 实现、候选、late metric）、
+  gate artifact/score spec 冻结、统一 abstain、rank 合法性网格、χ² subgate 端到端 benchmark、
+  三种区间语义与固定数据 Nboot 扫描、测量计划 preflight；
+- wilson：真实 pending 恢复、投影支持域、事务故障矩阵、标准 NERSC CHECKSUM、invalid evaluate、
+  receipt 证据、comparator 正值契约、外部预算、RunState execution receipts、有限 Nt 文档；
+- optimize：可信输入分流、fit-state 保存、公平 2×2（ε=0 精确、ε>0 嵌套类迁移）、
+  实际 BCB—response—core search 闭环。
+
+未跑项仍为 GPU/新测量/真实 W 训练，逐项标 NOT_RUN。
+
+## 12. 2026-11-18 深夜：新工单的 CPU 闭环
 
 - pion：`reference_gate_calibration_v1/`（dof=8，假拒绝 0.02/0.03、失配功效 0.66/0.59）、
   `certificate_calibration_v1/`（假认证 3/8 @6 blocks、0/7、0/8；J=2/K=2 族 null 0/7）、
