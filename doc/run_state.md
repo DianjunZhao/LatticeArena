@@ -4,7 +4,15 @@
 
 `RunState.set(name, 'validated', evidence_hash=...)` 现在要求一个非空 hash（通常来自测试文件、
 审计 JSON 或数据文件的 digest）；只写标签/测试文件名/块数不再能把状态置为 validated。
-`physical_ready()` 要求五个子状态全部 validated **且**都有 hash；`score_or_null()` 只看它。
+`physical_ready()` 要求五个子状态全部 validated **且**都有 execution receipt
+（`core/receipts.py`：kind/code/inputs/result + 自哈希）；普通的 `unverified-text` 字符串
+不能满足它。`score_or_null()` 只看 `physical_ready()`。
+
+当前两任务的策略是 **conditional-only**：develop 为 operator/numerical/reference/statistical
+生成并保存 receipt，evaluate 重新验证并携带它们，但 comparison 保持 draft（或 reference
+失败时 failed），因此 `physical_score` 恒为 None，顶层 `conditional_scores` 只作诊断。
+这是显式的 conditional-only 契约，不是伪认证；若将来要发 physical 分数，必须由本 run 的
+comparison receipt 链驱动，而不是改标签。
 develop 的 `run_state` 因此是 conditional diagnostic（comparison 仍 draft/failed），
 顶层 `conditional_scores` 与 `physical_score`（None）分开记录。
 

@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 
 from core.io import digest_text
-from .common import digest, fingerprint, write_json
+from .common import digest, fingerprint, load_data, write_json
 from .reference import make_reference
 from .scoring import improvement_certificate
 from .statistics import blocks, fold, risk
@@ -55,8 +55,8 @@ def run(output, models=None, outer=200, inner=64, seed=20261119, dest=None):
                            'covariance_shrinkage': p['covariance_shrinkage']}
         if artifact.get('metric') != expected_metric:
             raise ValueError('gate artifact metric differs from the protocol metric')
-    dev = blocks(fold(np.load(output / 'development.npz')['correlators']), p['block_length'])
-    val = blocks(fold(np.load(output / 'validation.npz')['correlators']), p['block_length'])
+    dev = blocks(fold(load_data(output, 'development', p)), p['block_length'])
+    val = blocks(fold(load_data(output, 'validation', p)), p['block_length'])
     window = p['reference_windows'][p['reference_nominal_window']]
     names = list(sub['submissions'])
     rng = np.random.default_rng(seed)

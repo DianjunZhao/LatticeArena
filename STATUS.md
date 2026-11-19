@@ -3,6 +3,12 @@
 三个任务的最终状态。细节见 [`doc/final_report.md`](doc/final_report.md)、
 [`doc/todo_coverage.md`](doc/todo_coverage.md) 和各自的 task README。
 
+## 状态口径（第三轮）
+
+两任务当前是 **conditional-only**：`RunState` 的 operator/numerical/reference/statistical
+由 execution receipts 绑定，evaluate 验证并携带；comparison 保持 draft/failed，
+`physical_score=None`，诊断分数只出现在 `conditional_scores`。未用字符串或事后标签冒充 physical。
+
 ## 第三轮结果（2026-11-19）
 
 - 三份 todo 的 CPU 必做项逐项完成（pion A/B/C+计划、wilson P0–F3、optimize A–D），
