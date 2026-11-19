@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import minimize
 
+from core.receipts import make as make_receipt
 from core.state import RunState
 
 from core.io import digest_text
@@ -111,23 +112,39 @@ def develop(output):
                    'agent_signed_mixture': weights.tolist()}
     metrics = {name: late_metric(data, w, p).tolist() for name, w in submissions.items()}
     state = RunState()
-    tests_path = Path(__file__).resolve().parents[2] / 'tests' / 'test_pion_projection.py'
-    diagnostics = Path('results/pion_projection/score_diagnostics_v3/diagnostics.json')
+    code = {'kernels.py': digest(Path(__file__).with_name('kernels.py')),
+            'statistics.py': digest(Path(__file__).with_name('statistics.py'))}
+    inputs = {'development.npz': digest(output / 'development.npz')}
+    receipts = {
+        'operator': make_receipt('operator', code, inputs,
+                                 {'submissions': list(submissions),
+                                  'finite_late_metrics': bool(all(np.isfinite(v).all()
+                                                                  for v in metrics.values()))}),
+        'numerical': make_receipt('numerical', code, inputs,
+                                  {'condition_ok': bool(np.all(np.isfinite(candidate_result['q']))) }),
+        'reference': make_receipt('reference', code, inputs,
+                                  {'passed': calibration['reference_passed'],
+                                   'failure_reasons': calibration['failure_reasons'],
+                                   'mass': calibration['reference']['mass'],
+                                   'chi2': calibration['reference']['chi2']}),
+        'statistical': make_receipt('statistical', code, inputs,
+                                    {'seed': p['seed'], 'blocks': len(data),
+                                     'bootstrap_samples': p['bootstrap_samples'],
+                                     'candidate_risk': candidate_result['risk'],
+                                     'late_metric_shapes': [list(np.asarray(v).shape)
+                                                            for v in metrics.values()]}),
+    }
     state.set('operator', 'draft', 'kernels.py')
-    state.set('operator', 'validated', 'tests',
-              evidence_hash=digest(tests_path) if tests_path.exists() else None)
+    state.set('operator', 'validated', 'kernel receipt', receipt=receipts['operator'])
     state.set('numerical', 'draft', 'condition numbers / floor diagnostics')
-    state.set('numerical', 'validated', 'score_diagnostics_v3',
-              evidence_hash=digest(diagnostics) if diagnostics.exists() else None)
-    calibration_hash = digest_text(json.dumps(calibration, sort_keys=True))
+    state.set('numerical', 'validated', 'numerical receipt', receipt=receipts['numerical'])
     state.set('reference', 'draft', 'single-cosh calibration')
     if calibration['reference_passed']:
-        state.set('reference', 'validated', 'reference gate passed', evidence_hash=calibration_hash)
+        state.set('reference', 'validated', 'reference receipt', receipt=receipts['reference'])
     else:
         state.set('reference', 'failed', '; '.join(calibration['failure_reasons']))
     state.set('statistical', 'draft', 'block bootstrap')
-    state.set('statistical', 'validated', f'{len(data)} blocks',
-              evidence_hash=digest(output / 'development.npz'))
+    state.set('statistical', 'validated', 'statistical receipt', receipt=receipts['statistical'])
     state.set('comparison', 'draft', 'risk ratios')
     if not calibration['reference_passed']:
         state.set('comparison', 'failed', 'reference gate failed')
@@ -140,6 +157,7 @@ def develop(output):
               'optimizer': {'converged_starts': len(outcomes), 'objective': float(fit.fun),
                             'iterations': int(fit.nit), 'l1': float(abs(fit.x).sum())},
               'calibration': calibration, 'reference': spec, 'run_state': state.summary(),
+              'receipts': receipts,
               'gate_artifact': {
                   'model': spec['kind'],
                   'window': p['reference_windows'][p['reference_nominal_window']],
@@ -215,8 +233,27 @@ def evaluate(output):
     vi = bootstrap_indices(len(val), p['bootstrap_samples'], p['seed']+1)
     state = RunState()
     frozen_state = frozen.get('run_state', {})
+    frozen_receipts = frozen.get('receipts') or {}
+    receipt_status = {}
     for name in ('operator', 'reference', 'numerical', 'statistical'):
-        state.status[name] = frozen_state.get('status', {}).get(name, 'draft')
+        status = frozen_state.get('status', {}).get(name, 'draft')
+        receipt = frozen_receipts.get(name)
+        if status == 'validated' and receipt is not None:
+            from core.receipts import verify as verify_receipt
+            try:
+                verify_receipt(receipt)
+            except ValueError as exc:
+                receipt_status[name] = f'rejected: {exc}'
+                state.set(name, 'draft')
+            else:
+                receipt_status[name] = 'verified'
+                state.set(name, 'draft')
+                state.set(name, 'validated', receipt=receipt)
+        elif status == 'failed':
+            state.set(name, 'failed')
+        else:
+            receipt_status[name] = 'missing receipt'
+            state.set(name, 'draft')
     state.set('comparison', 'draft', 'evaluate')
     state.observe_validation(f'evaluate:{p["version"]}')
     if not frozen['calibration']['reference_passed']:

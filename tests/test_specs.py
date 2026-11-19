@@ -104,6 +104,7 @@ def test_search_adapter_budget_and_rejections():
 
 
 def test_run_state_transitions_and_score_gating():
+    from core.receipts import make
     from core.state import RunState
     state = RunState()
     with pytest.raises(ValueError, match='illegal transition'):
@@ -118,8 +119,19 @@ def test_run_state_transitions_and_score_gating():
     state.set('comparison', 'draft')
     state.score = 42.0
     assert state.score_or_null() is None       # comparison still draft
-    state.set('comparison', 'validated', evidence_hash='h' * 12)
-    assert state.score_or_null() == 42.0
+    # a bare hash string cannot make five validated states physical
+    state.set('comparison', 'validated', evidence_hash='unverified-text')
+    assert not state.physical_ready() and state.score_or_null() is None
+    state = RunState()
+    receipt = make('test', {'a.py': '0' * 64}, {'data': '1' * 64}, {'ok': True})
+    for name in ('operator', 'reference', 'numerical', 'statistical', 'comparison'):
+        state.set(name, 'draft').set(name, 'validated', receipt=receipt)
+    state.score = 42.0
+    assert state.physical_ready() and state.score_or_null() == 42.0
+    tampered = dict(receipt, result={'ok': False})
+    state2 = RunState()
+    with pytest.raises(ValueError, match='receipt hash'):
+        state2.set('operator', 'draft').set('operator', 'validated', receipt=tampered)
     state.observe_validation('v3')
     assert state.validation_observed
 
@@ -199,3 +211,30 @@ def test_bundle_uses_trusted_loading(tmp_path):
     np.savez(tmp_path / 'development.npz', ids=ids, loops=loops, protocol_hash=np.asarray('0' * 64))
     with pytest.raises(ValueError, match='Protocol changed'):
         bundle_for(tmp_path)
+
+
+def test_comparator_rejects_zero_denominator_and_negative():
+    from core.comparator import check_draws, paired_ratio
+    with pytest.raises(ValueError, match='non-positive candidate'):
+        paired_ratio([1, 1, 1], [0, 0, 0])
+    with pytest.raises(ValueError, match='negative'):
+        paired_ratio([1, 1, 1], [-1, 1, 1])
+    with pytest.raises(ValueError, match='empty'):
+        check_draws({'a': np.array([]), 'b': np.array([])})
+    result = paired_ratio([1, 1, 1], [0.5, 0.5, 0.5])
+    assert result['median'] == pytest.approx(2.0)
+
+
+def test_evidence_receipt_binds_code_and_inputs():
+    from core.evidence import make_receipt, record, verify_receipt
+    entry = record('x.y', 'wilson_loop', 'claim', 'cmd', {'ok': True}, {'ok': True},
+                   'PASS', 'archived_data', code={'kernels.py': '0' * 64},
+                   inputs={'data': '1' * 64})
+    run_sha = '2' * 64
+    entry['receipt'] = make_receipt(entry, run_sha)
+    assert verify_receipt(entry, run_sha)
+    with pytest.raises(ValueError, match='receipt does not match'):
+        verify_receipt(dict(entry, code={'kernels.py': '3' * 64}), run_sha)
+    with pytest.raises(ValueError, match='non-empty'):
+        make_receipt(record('x.z', 'wilson_loop', 'claim', 'cmd', {}, {},
+                            'PASS', 'archived_data', code={}, inputs={}), run_sha)

@@ -36,12 +36,18 @@ def analyse(rng, c1, ncfg=80, noise=0.005):
     bias = nominal - E0
     window_v = np.array(result['v_windows'])[0]
     boot = data[index].mean(axis=1)
-    se_win = np.array([potential(boot, w, T_VALUES).std(axis=0, ddof=1)[0] for w in WINDOWS])
-    z = (window_v - window_v[1]) / np.sqrt(se_win ** 2 + se_win[1] ** 2)
+    v_boot = np.stack([potential(boot, w, T_VALUES)[:, 0] for w in WINDOWS], axis=-1)
+    se_win = v_boot.std(axis=0, ddof=1)
+    paired = v_boot - v_boot[:, [1]]
+    se_paired = paired.std(axis=0, ddof=1)
+    z = (window_v - window_v[1]) / np.where(se_paired > 0, se_paired, np.nan)
+    naive = (window_v - window_v[1]) / np.sqrt(
+        v_boot.std(axis=0, ddof=1) ** 2 + v_boot[:, [1]].std(axis=0, ddof=1) ** 2)
     se = se_win
     return {'c1': c1, 'bias': bias, 'se': float(np.mean(se)), 'bias_over_se': abs(bias) / float(np.mean(se)),
             'risk': result['risk'], 'spread_over_v': float(np.mean(np.asarray(result['spread']) / abs(v_ref))),
-            'window_z': np.abs(z).tolist(), 'gate_spread_pass': bool(np.mean(np.asarray(result['spread']) / abs(v_ref)) <= 0.05)}
+            'window_paired_z': np.abs(z).tolist(), 'window_naive_z': np.abs(naive).tolist(),
+            'gate_spread_pass': bool(np.mean(np.asarray(result['spread']) / abs(v_ref)) <= 0.05)}
 
 
 def main():
@@ -51,7 +57,7 @@ def main():
     rows = [analyse(rng, c1) for c1 in cases]
     result = {'E0': E0, 'E1': E1, 'windows': WINDOWS, 't_values': T_VALUES,
               'rows': rows,
-              'window_z_threshold': 3.0,
+              'window_paired_z_threshold': 3.0,
               'note': ('bias is the short-window potential minus E0; the spread gate can pass '
                        'while bias_over_se is large. window_z compares the nominal window with '
                        'the others in paired SE units.')}
@@ -63,7 +69,7 @@ def main():
     axes[0].set(xlabel='$c_1$', ylabel='short-window $V-E_0$', title='two-state bias vs contamination')
     axes[0].legend(fontsize=8)
     axes[0].grid(alpha=0.2)
-    axes[1].plot(c1s, [max(r['window_z']) for r in rows], 'o-', label='max |window z|')
+    axes[1].plot(c1s, [np.nanmax(r['window_paired_z']) for r in rows], 'o-', label='max |paired window z|')
     axes[1].axhline(3.0, color='k', ls='--', lw=0.8, label='z=3')
     axes[1].plot(c1s, [r['spread_over_v'] for r in rows], 's--', label='spread/V')
     axes[1].set(xlabel='$c_1$', ylabel='gate statistic', title='spread gate vs window z')
@@ -72,7 +78,8 @@ def main():
     fig.savefig(OUT / 'spectral_physical.png', dpi=150)
     for row in rows:
         print(row['c1'], 'bias %.4f' % row['bias'], 'bias/se %.1f' % row['bias_over_se'],
-              'spread/V %.4f' % row['spread_over_v'], 'max|z| %.2f' % max(row['window_z']),
+              'spread/V %.4f' % row['spread_over_v'],
+              'max|paired z| %.2f' % np.nanmax(row['window_paired_z']),
               'spread_pass', row['gate_spread_pass'])
     print('wrote', OUT)
 

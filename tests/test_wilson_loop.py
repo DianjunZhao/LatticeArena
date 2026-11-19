@@ -229,6 +229,10 @@ def test_develop_evaluate_roundtrip_and_tamper_rejection(tmp_path):
     assert report['run_state']['status']['comparison'] in ('draft', 'failed')
     assert report['conditional_scores']['identity'] == pytest.approx(100.0)
     assert report['score_status'] == 'conditional_diagnostic'
+    assert set(frozen['receipts']) == {'operator', 'numerical', 'reference', 'statistical'}
+    assert all(status == 'verified' for status in report['receipt_status'].values())
+    assert all(report['run_state']['receipts'][name] is not None
+               for name in ('operator', 'numerical', 'reference', 'statistical'))
     loops = _synthetic_loops(indices('development'))
     loops[0, 0, 0, 0] += 0.5
     np.savez(tmp_path / 'development.npz', ids=indices('development'), loops=loops,
@@ -694,3 +698,25 @@ def test_evaluate_reports_invalid_candidate_without_crash(tmp_path):
              protocol_hash=fingerprint(p))
     with pytest.raises(ValueError, match='identity risk is invalid'):
         evaluate(tmp_path)
+
+
+def test_evaluate_rejects_a_tampered_receipt(tmp_path):
+    import json
+    from pathlib import Path
+    from tasks.pion_projection.common import fingerprint
+    from tasks.wilson_loop.common import indices, protocol
+    from tasks.wilson_loop.experiment import develop, evaluate
+    p = protocol()
+    np.savez(tmp_path / 'development.npz', ids=indices('development'),
+             loops=_synthetic_loops(indices('development')), protocol_hash=fingerprint(p))
+    develop(tmp_path)
+    frozen = json.loads((tmp_path / 'submission.json').read_text())
+    frozen['receipts']['reference']['result']['passed'] = not frozen['receipts']['reference']['result']['passed']
+    (tmp_path / 'submission.json').write_text(json.dumps(frozen))
+    np.savez(tmp_path / 'validation.npz', ids=indices('validation'),
+             loops=_synthetic_loops(indices('validation')), protocol_hash=fingerprint(p))
+    evaluate(tmp_path)
+    report = json.loads((tmp_path / 'validation_results.json').read_text())
+    assert 'rejected' in report['receipt_status']['reference']
+    assert report['run_state']['status']['reference'] == 'draft'
+    assert report['physical_score'] is None

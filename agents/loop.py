@@ -82,14 +82,33 @@ def run(output, model, rounds, allow_validation=True):
         cfg = json.loads(match.group(0))
         proposals = [(f'{r}.{i}', raw) for i, raw in enumerate(cfg.get('candidates') or [cfg['weights']])]
 
+        def coerce(raw):
+            try:
+                u = np.asarray(raw, dtype=float)
+            except (TypeError, ValueError) as exc:
+                return None, f'malformed candidate: {exc}'
+            if u.ndim != 1:
+                return None, f'malformed candidate shape {u.shape}'
+            return u, None
+
         def evaluate(raw):
-            u = np.asarray(raw, dtype=float)
+            u, error = coerce(raw)
+            if error:
+                raise ValueError(error)
             return risk(data, u / scales, ref['mass'], masses, index, p)['risk']
 
-        found = search(proposals, evaluate,
-                       validate=lambda raw: validate_weights(np.asarray(raw, dtype=float),
-                                                             len(p['powers']), p['optimizer_l1_bound']),
-                       budget=Budget(len(proposals)))
+        def validate(raw):
+            u, error = coerce(raw)
+            if error:
+                return False, error
+            return validate_weights(u, len(p['powers']), p['optimizer_l1_bound'])
+
+        max_per_round = int(p.get('max_proposals_per_round', 8))
+        budget = Budget(min(len(proposals), max_per_round))
+        found = search(proposals[:max_per_round], evaluate, validate=validate, budget=budget)
+        for item in proposals[max_per_round:]:
+            rejections.append({'round': item[0], 'u': str(item[1])[:80],
+                               'reason': f'exceeds the per-round proposal cap {max_per_round}'})
         for item in found.rejected:
             candidate = item['candidate']
             safe = ([None if not isinstance(x, (int, float)) or not np.isfinite(x) else float(x)
@@ -117,7 +136,9 @@ def run(output, model, rounds, allow_validation=True):
     write_json(output / 'agent' / 'rejections.json', rejections)
     write_json(output / 'agent' / 'search_trace.json',
                {'model': model, 'rounds': rounds, 'seed': int(p['seed']),
-                'budget_per_round': 'len(proposals)', 'history': history,
+                'budget_per_round': min(len(proposals), int(p.get('max_proposals_per_round', 8))),
+                'max_proposals_per_round': int(p.get('max_proposals_per_round', 8)),
+                'history': history,
                 'rejections': rejections,
                 'best': {'risk': best['risk'], 'round': best['round']},
                 'validation_status': 'not_read' if not allow_validation else 'post_hoc_diagnostic'})

@@ -60,3 +60,30 @@ def summarise(entries):
                      'status': entry['status'], 'scope': entry['scope'],
                      'observed': entry['observed'], 'threshold': entry['threshold']})
     return rows
+
+
+def make_receipt(entry, run_sha256=None):
+    """Bind an entry to its code/inputs/run content; empty evidence cannot pass."""
+    if entry['status'] == 'PASS' and (not entry['code'] or not entry['inputs']):
+        raise ValueError(f'{entry["test_id"]}: PASS requires non-empty code and input hashes')
+    payload = {'test_id': entry['test_id'], 'run_sha256': run_sha256,
+               'code': dict(entry['code']), 'inputs': dict(entry['inputs']),
+               'status': entry['status']}
+    from core.io import digest_text
+    return {**payload, 'sha256': digest_text(json.dumps(payload, sort_keys=True))}
+
+
+def verify_receipt(entry, run_sha256=None):
+    """Recompute the receipt from the entry and the run content; any change fails."""
+    from core.io import digest_text
+    receipt = entry.get('receipt')
+    if not isinstance(receipt, dict):
+        raise ValueError(f'{entry.get("test_id")}: missing receipt')
+    payload = {'test_id': entry['test_id'], 'run_sha256': run_sha256,
+               'code': dict(entry['code']), 'inputs': dict(entry['inputs']),
+               'status': entry['status']}
+    if receipt.get('sha256') != digest_text(json.dumps(payload, sort_keys=True)):
+        raise ValueError(f'{entry["test_id"]}: receipt does not match the entry/run content')
+    if entry['status'] == 'PASS' and not (entry['code'] and entry['inputs']):
+        raise ValueError(f'{entry["test_id"]}: PASS with empty code/inputs')
+    return True

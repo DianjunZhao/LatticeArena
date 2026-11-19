@@ -8,7 +8,7 @@ import hashlib
 import numpy as np
 
 
-def check_draws(risks, draw_ids=None, finite=True):
+def check_draws(risks, draw_ids=None, finite=True, nonnegative=False):
     """Every array must be 1-D, the same length, and finite; no broadcasting."""
     arrays = {name: np.asarray(value) for name, value in risks.items()}
     for name, array in arrays.items():
@@ -18,10 +18,16 @@ def check_draws(risks, draw_ids=None, finite=True):
     if len(shapes) != 1:
         raise ValueError(f'draw arrays have different lengths {sorted(shapes)}')
     n = shapes.pop()[0]
+    if n == 0:
+        raise ValueError('draw arrays are empty')
     if finite:
         for name, array in arrays.items():
             if not np.all(np.isfinite(array.astype(float))):
                 raise ValueError(f'draw array {name!r} has non-finite entries')
+    if nonnegative:
+        for name, array in arrays.items():
+            if np.any(array.astype(float) < 0):
+                raise ValueError(f'draw array {name!r} has negative risk values')
     if draw_ids is not None:
         ids = np.asarray(draw_ids)
         if ids.ndim != 1 or ids.size != n:
@@ -34,9 +40,18 @@ def check_draws(risks, draw_ids=None, finite=True):
 
 
 def paired_ratio(baseline, candidate, draw_ids=None):
-    """Median and central 95% interval of baseline/candidate per shared draw."""
-    check_draws({'baseline': baseline, 'candidate': candidate}, draw_ids)
-    ratio = np.asarray(baseline, dtype=float) / np.asarray(candidate, dtype=float)
+    """Median and central 95% interval of baseline/candidate per shared draw.
+
+    Risk ratios require non-negative risks and a strictly positive denominator;
+    a zero candidate draw makes the ratio infinite and is rejected.
+    """
+    check_draws({'baseline': baseline, 'candidate': candidate}, draw_ids, nonnegative=True)
+    base = np.asarray(baseline, dtype=float)
+    cand = np.asarray(candidate, dtype=float)
+    if np.any(cand <= 0):
+        raise ValueError(f'non-positive candidate risk in {int((cand <= 0).sum())} draw(s); '
+                         'the ratio is infinite or undefined')
+    ratio = base / cand
     return {'median': float(np.median(ratio)),
             'ci95': np.quantile(ratio, [0.025, 0.975]).tolist(),
             'exceedance_fraction': float(np.mean(ratio > 1)),

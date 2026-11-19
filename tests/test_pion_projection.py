@@ -579,3 +579,26 @@ def test_certificate_wrong_excited_state():
     row = run_wrong_state(rng, n_dataset=2, outer=12, inner=8)
     assert row['gate_pass'] >= 1
     assert row['wrong_mass_gt_0.1'] >= 1
+
+
+def test_llm_loop_rejects_malformed_proposals_and_caps_budget(tmp_path):
+    import json
+    import shutil
+    from pathlib import Path
+    from agents import llm
+    from agents.loop import run
+    run_dir = Path('results/pion_projection/s16t16_gevp200')
+    if not (run_dir / 'submission.json').exists():
+        pytest.skip('run data not available')
+    for name in ('development.npz', 'development_provenance.json', 'submission.json'):
+        shutil.copy(run_dir / name, tmp_path / name)
+    llm.MOCK_QUEUE[:] = [json.dumps({'candidates': [
+        'not-a-number', {'bad': 'shape'}, [1.0] + [0.0] * 7,
+    ] + [[0.0] * 8] * 12})]
+    result = run(tmp_path, 'mock', 1, allow_validation=False)
+    trace = json.loads((tmp_path / 'agent' / 'search_trace.json').read_text())
+    assert trace['max_proposals_per_round'] == 8
+    reasons = [item['reason'] for item in trace['rejections']]
+    assert any('malformed candidate' in reason for reason in reasons)
+    assert any('exceeds the per-round proposal cap' in reason for reason in reasons)
+    assert result['validation_status'] == 'not_read'

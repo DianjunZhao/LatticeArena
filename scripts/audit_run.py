@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-from core.evidence import record, write_evidence
+from core.evidence import make_receipt, record, verify_receipt, write_evidence
 from core.io import digest, fingerprint
 
 CODE = {'kernels': 'tasks/wilson_loop/kernels.py', 'common': 'tasks/wilson_loop/common.py',
@@ -71,6 +71,7 @@ def pion(run):
         with np.load(path) as f:
             data = f['correlators']
             stored = str(f['protocol_hash'])
+            stored_ids = f['ids'].tolist() if 'ids' in f else None
         expected_n = int(p[split][1] - p[split][0] + 1)
         entries.append(record(f'pion.{split}.shape', 'pion_projection', f'{split} correlators have the RunSpec size and are finite',
                               'RunSpec size/finite check', observed=list(data.shape),
@@ -79,6 +80,16 @@ def pion(run):
                               and np.all(np.isfinite(data)) else 'FAIL', scope='archived_data', geometry=p['geometry'],
                               code={name: digest(Path(path)) for name, path in PION_CODE.items()},
                               inputs={'correlators_sha256': hashlib.sha256(np.ascontiguousarray(data).tobytes()).hexdigest()}))
+        expected_ids = list(range(p[split][0], p[split][1] + 1))
+        entries.append(record(f'pion.{split}.ids', 'pion_projection',
+                              f'{split} ids equal the full RunSpec range (order included)',
+                              'id list compare', observed=stored_ids,
+                              threshold=expected_ids,
+                              status='PASS' if stored_ids == expected_ids else 'FAIL',
+                              scope='archived_data', geometry=p['geometry'],
+                              code={name: digest(Path(path)) for name, path in PION_CODE.items()},
+                              inputs={'ids_sha256': hashlib.sha256(
+                                  np.asarray(stored_ids if stored_ids is not None else []).tobytes()).hexdigest()}))
         entries.append(record(f'pion.{split}.protocol_hash', 'pion_projection', f'{split} protocol hash matches the provenance',
                               'hash compare', observed=stored[:12], threshold=fingerprint(p)[:12],
                               status='PASS' if stored == fingerprint(p) else 'FAIL', scope='archived_data',
@@ -101,6 +112,10 @@ def main():
         entries = wilson(run, protocol_path)
     else:
         entries = pion(run)
+    run_sha = digest(run / 'validation.npz')
+    for entry in entries:
+        entry['receipt'] = make_receipt(entry, run_sha)
+        verify_receipt(entry, run_sha)
     write_evidence(args.out, entries)
     print(f'wrote {args.out} ({len(entries)} entries)')
 
