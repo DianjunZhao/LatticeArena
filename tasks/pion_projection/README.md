@@ -206,6 +206,7 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 | C2 错误激发态 | 纯激发态世界：7/8 gate 通过且质量 1.50（独立 guard 7/7 标出）；single-cosh gate 本身无法区分 E1/E0 |
 | C2 J/K 族 | `run_family`（J=2、K=2、alpha 分摊）：null 0/7 被认证、better 1/7（功效 0.14）；族错误控制但功效受 N 限制 |
 | C2 证书端到端校准 | `certificate_calibration_v1/`：blocks 6/12/24 扫描；no_improvement 假认证 3/8（6 blocks）、0/7、0/8；known_improvement 功效 0.75–0.875；失配全 abstain |
+| F2 预算/畸形 | loop 使用外部 `max_proposals_per_round` 与 `max_proposals_total`；畸形提案（字符串/字典）记录拒绝不中止；mock 覆盖 |
 | A1 证书复用 | `evaluate` 在 `<output>/joint/` 存在且 manifest 与 run 身份一致时复用 joint 的证书（`certification_source='joint'`）；不一致则 abstain。测试覆盖 |
 | C2 错误激发态 | 纯激发态世界：7/8 gate 通过且质量 1.50（独立 guard 7/7 标出）；single-cosh gate 本身无法区分 E1/E0 |
 | C2 J/K 族 | `run_family`（J=2、K=2、alpha 分摊）：null 0/7 被认证、better 1/7（功效 0.14）；族错误控制但功效受 N 限制 |

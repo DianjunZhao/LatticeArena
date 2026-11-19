@@ -35,7 +35,7 @@
 | P3 有限 Nt/window_z | ✅ | `doc/finite_nt_scope.md`；window_z 改为配对差 SE（`window_paired_z`），naive 列保留为诊断 |
 | F0 receipt | ✅ | 证据带 receipt（code/inputs/run sha）；空/篡改 PASS 拒绝；`results/framework/audit_20261119_receipt/` |
 | F1 comparator | ✅ | 零/负分母、空 draw 明确拒绝；接入 paired 比值路径 |
-| F2 预算/畸形提案 | ✅ | 外部每轮上限；malformed 转换记录拒绝不中止；mock 覆盖 |
+| F2 预算/畸形提案 | ✅ | 外部每轮 + 全局上限；malformed 转换记录拒绝不中止；mock 覆盖 |
 | F3 receipts/状态 | ✅ | `RunState` physical 需 execution receipts；develop 造 4 个、evaluate 验证并携带；conditional-only 保持；`unverified-text` 不能 physical |
 | F4/P4 | ⛔ | 生产 ΔH/接受率/热化、stout/GEVP/multilevel/新盲测明确延期 |
 

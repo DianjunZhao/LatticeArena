@@ -71,6 +71,7 @@ def run(output, model, rounds, allow_validation=True):
 
     worst = [s['risk'] for s in scores]
     history, rejections, llm_best = [], [], None
+    remaining_total = int(p.get('max_proposals_total', 32))
     best = {'risk': min(worst), 'weights': basis[int(np.argmin(worst))].tolist(), 'round': -1}
     for r in range(rounds):
         prompt = render_prompt(p, baselines, history)
@@ -104,11 +105,16 @@ def run(output, model, rounds, allow_validation=True):
             return validate_weights(u, len(p['powers']), p['optimizer_l1_bound'])
 
         max_per_round = int(p.get('max_proposals_per_round', 8))
-        budget = Budget(min(len(proposals), max_per_round))
-        found = search(proposals[:max_per_round], evaluate, validate=validate, budget=budget)
-        for item in proposals[max_per_round:]:
-            rejections.append({'round': item[0], 'u': str(item[1])[:80],
-                               'reason': f'exceeds the per-round proposal cap {max_per_round}'})
+        max_total = int(p.get('max_proposals_total', 32))
+        allowed = max(0, min(len(proposals), max_per_round, remaining_total))
+        budget = Budget(max(allowed, 0))
+        found = search(proposals[:allowed], evaluate, validate=validate, budget=budget)
+        for item in proposals[allowed:]:
+            reason = (f'exceeds the per-round proposal cap {max_per_round}'
+                      if len(proposals) - allowed <= max_per_round and remaining_total >= max_per_round
+                      else f'exceeds the global proposal cap {max_total}')
+            rejections.append({'round': item[0], 'u': str(item[1])[:80], 'reason': reason})
+        remaining_total -= allowed
         for item in found.rejected:
             candidate = item['candidate']
             safe = ([None if not isinstance(x, (int, float)) or not np.isfinite(x) else float(x)
@@ -138,6 +144,7 @@ def run(output, model, rounds, allow_validation=True):
                {'model': model, 'rounds': rounds, 'seed': int(p['seed']),
                 'budget_per_round': min(len(proposals), int(p.get('max_proposals_per_round', 8))),
                 'max_proposals_per_round': int(p.get('max_proposals_per_round', 8)),
+                'max_proposals_total': int(p.get('max_proposals_total', 32)),
                 'history': history,
                 'rejections': rejections,
                 'best': {'risk': best['risk'], 'round': best['round']},
