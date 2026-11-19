@@ -10,7 +10,10 @@ import numpy as np
 from .common import digest, fingerprint, indices, protocol, write_json
 
 
-def measure(output, split, limit=None):
+def measure(output, split, limit=None, plan=None):
+    if plan is not None:
+        from .measurement_plan import preflight
+        preflight(plan, output, split)
     import cupy as cp
     from mpi4py import MPI
     from pyquda_utils import core, io, source

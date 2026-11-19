@@ -625,3 +625,11 @@ def test_wrong_state_candidates_are_distinct():
     assert row['gate_pass'] >= 1
     assert len(row['point_ratios']) == row['gate_pass']
     assert any(abs(r - 1.0) > 0.05 for r in row['point_ratios'])
+
+
+def test_measurement_plan_preflight_rejects_draft_before_gpu(tmp_path):
+    from tasks.pion_projection.measurement_plan import load_plan, preflight
+    with pytest.raises(ValueError, match='NOT_RUN'):
+        preflight('tasks/pion_projection/measurement_plan.example.json', tmp_path)
+    legal = load_plan('tasks/pion_projection/measurement_plan.example.json')
+    assert legal['schema'] == 'pion-measurement-plan-v1'
