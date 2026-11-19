@@ -6,6 +6,7 @@ generation and the recorded content hashes, otherwise the entry is refused.
 """
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -16,9 +17,9 @@ DEPENDENCIES = ('kernels.py', 'statistics.py', 'measure.py', 'common.py', 'ident
 
 
 def measurement_spec(p, split):
-    from .common import indices
     here = Path(__file__).parent
-    return {'split': split, 'ids': [int(x) for x in indices(split)],
+    first, last = p[split]
+    return {'split': split, 'ids': [int(x) for x in range(first, last + 1)],
             'protocol_hash': fingerprint(p),
             'kernel_sha256': digest(here / 'kernels.py'),
             'dependencies': {name: digest(here / name) for name in DEPENDENCIES}}
@@ -72,6 +73,13 @@ def check_resume(output, split, spec, verify_gauge=True):
         raise ValueError(f'{npz_path}: loops are not a finite 4-D array')
     if ids != spec['ids'][:len(ids)]:
         raise ValueError(f'{npz_path}: stored ids are not a prefix of the requested split')
+    dependencies = provenance.get('dependencies') or {}
+    missing = [name for name in DEPENDENCIES if name not in dependencies]
+    if missing:
+        raise ValueError(f'{provenance_path}: missing dependency hashes {missing}')
+    for name in DEPENDENCIES:
+        if dependencies[name] != digest(Path(__file__).parent / name):
+            raise ValueError(f'{provenance_path}: dependency {name} changed since measurement')
     records = provenance.get('records', [])
     if len(records) != len(ids):
         raise ValueError(f'{provenance_path}: {len(records)} records versus {len(ids)} ids')
@@ -95,7 +103,10 @@ def write_marker(root, split, npz_path, provenance_path, spec, loops):
     marker = {'generation': generation(spec), 'split': split,
               'npz_sha256': _file_sha(npz_path), 'provenance_sha256': _file_sha(provenance_path),
               'loops_sha256': loops_sha256(loops)}
-    (Path(root) / f'{split}.commit.json').write_text(json.dumps(marker, indent=2) + '\n')
+    path = Path(root) / f'{split}.commit.json'
+    tmp = path.with_suffix('.json.tmp')
+    tmp.write_text(json.dumps(marker, indent=2) + '\n')
+    os.replace(tmp, path)
     return marker
 
 
@@ -120,8 +131,10 @@ def trust_status(run, p, submission, provenance):
     if not submission.get('identity'):
         reasons.append('no identity block in the submission')
     for name in DEPENDENCIES:
-        recorded = provenance.get('dependencies', {}).get(name)
-        if recorded is not None and recorded != digest(here / name):
+        recorded = (provenance.get('dependencies') or {}).get(name)
+        if recorded is None:
+            reasons.append(f'dependency {name} has no recorded hash')
+        elif recorded != digest(here / name):
             reasons.append(f'dependency {name} changed since measurement')
     states = {'operator': 'unknown', 'reference': 'unknown', 'numerical': 'unknown',
               'statistical': 'unknown'}

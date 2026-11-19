@@ -315,8 +315,11 @@ def _make_transaction(tmp_path, spec, n=3):
              generation=np.asarray(gen))
     records = [{'id': int(cid), 'loops_sha256': loops_sha256(loops[row:row + 1])}
                for row, cid in enumerate(ids)]
+    from tasks.wilson_loop.identity import DEPENDENCIES
     (tmp_path / 'validation_provenance.json').write_text(json.dumps(
-        {'generation': gen, 'kernel_sha256': spec['kernel_sha256'], 'records': records}))
+        {'generation': gen, 'kernel_sha256': spec['kernel_sha256'],
+         'dependencies': {name: spec['dependencies'][name] for name in DEPENDENCIES},
+         'records': records}))
     write_marker(tmp_path, 'validation', tmp_path / 'validation.npz',
                  tmp_path / 'validation_provenance.json', spec, loops)
     return ids
@@ -534,3 +537,76 @@ def test_hmc_manifest_audit_reports_missing_fields():
                                                  'tau_int', 'n_configs', 'acceptance_rate',
                                                  'delta_h', 'thermalization')})
     assert ok['status'] == 'verified'
+
+
+def test_measure_real_pending_resume_same_spec(tmp_path, monkeypatch):
+    """Same spec, interrupted after 2 rows, resumed to 3: arrays and IDs must match a clean run."""
+    import json
+    from pathlib import Path
+    import tasks.wilson_loop.measure as measure_mod
+    from tasks.wilson_loop import common
+    p = json.loads(Path('tasks/wilson_loop/protocol_v3.json').read_text())
+    p = dict(p, version='test-resume', development=[0, 2], validation=[0, 2],
+             geometry=[4, 4, 4, 16], r_values=[1, 2], kernels=p['kernels'][:2],
+             ensemble=str(tmp_path / 'ensemble'))
+    (tmp_path / 'ensemble').mkdir()
+    for cfg in range(3):
+        (tmp_path / 'ensemble' / f'wilson_b6.{cfg}').write_bytes(b'x')
+    rng = np.random.default_rng(4)
+    links = rng.normal(size=(4, 16, 4, 4, 4, 3, 3)) + 1j * rng.normal(size=(4, 16, 4, 4, 4, 3, 3))
+    q, _ = np.linalg.qr(links)
+    links = q / np.linalg.det(q)[..., None, None] ** (1 / 3)
+    monkeypatch.setattr(measure_mod, 'read_nersc_with_status',
+                        lambda path, expected_geometry=None: (links, 'absent'))
+    monkeypatch.setattr(measure_mod, 'protocol', lambda: p)
+    monkeypatch.setattr(common, 'protocol', lambda: p)
+    stopped = tmp_path / 'stopped'
+    with pytest.raises(KeyboardInterrupt):
+        measure_mod.measure(stopped, 'development', stop_after=2)
+    with np.load(stopped / 'development.npz') as f:
+        assert f['ids'].tolist() == [0, 1] and f['loops'].shape[0] == 2
+    records = json.loads((stopped / 'development_provenance.json').read_text())['records']
+    assert [r['id'] for r in records] == [0, 1]
+    resumed = measure_mod.measure(stopped, 'development')
+    assert [r['id'] for r in resumed] == [0, 1, 2]
+    with np.load(stopped / 'development.npz') as f:
+        assert f['ids'].tolist() == [0, 1, 2] and f['loops'].shape[0] == 3
+    provenance = json.loads((stopped / 'development_provenance.json').read_text())
+    assert provenance['ledger']['incremental'] is True
+    assert provenance['ledger']['previous'] is not None
+    clean = tmp_path / 'clean'
+    measure_mod.measure(clean, 'development')
+    with np.load(clean / 'development.npz') as f:
+        clean_loops = f['loops']
+    with np.load(stopped / 'development.npz') as f:
+        np.testing.assert_array_equal(f['loops'], clean_loops)
+    assert [r['loops_sha256'] for r in provenance['records']] == \
+           [r['loops_sha256'] for r in json.loads((clean / 'development_provenance.json').read_text())['records']]
+
+
+def test_projection_domain_support_and_rejection():
+    import numpy as np
+    from tasks.wilson_loop.projection_domain import cell, residual, supported, project, TOL
+    rng = np.random.default_rng(1)
+    assert supported((1.0, 1.0, 1e-3))
+    assert not supported((1.0, 1.0, 1e-4))
+    assert not supported((1.0, 1.0, 0.0))
+    a = cell(rng, (1.0, 1.0, 1e-3), 1.0, 0.0)
+    x = project(a[None])
+    assert residual(x[0]) <= TOL
+    with pytest.raises(ValueError):
+        project(cell(rng, (1.0, 1.0, 0.0), 1.0, 0.0)[None])
+
+
+def test_transaction_rejects_mixed_files(tmp_path):
+    import json
+    from pathlib import Path
+    from tasks.wilson_loop.transaction_audit import build, check
+    protocol = json.loads(Path('tasks/wilson_loop/protocol_v3.json').read_text())
+    p = dict(protocol, version='transaction-test', development=[0, 2], validation=[0, 2],
+             geometry=[4, 4, 4, 4], r_values=[1, 2], kernels=protocol['kernels'][:2],
+             ensemble=str(tmp_path / 'ensemble'))
+    spec = build(tmp_path, p, n=2)
+    assert check(tmp_path, spec)['ok']
+    (tmp_path / 'development.commit.json').unlink()
+    assert not check(tmp_path, spec)['ok']

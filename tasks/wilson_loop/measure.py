@@ -49,7 +49,7 @@ def git_state():
         return {'commit': 'unavailable', 'dirty': None}
 
 
-def measure(output, split, limit=None):
+def measure(output, split, limit=None, stop_after=None):
     p = protocol()
     try:
         import cupy as xp
@@ -65,11 +65,13 @@ def measure(output, split, limit=None):
     if completed:
         print(f'resuming {split} from row {completed}/{len(ids)}', flush=True)
     pending = ids[completed:]
-    rows, records = [], []
+    rows, records, previous_ledger = [], [], None
     if completed:
         with np.load(output / f'{split}.npz', allow_pickle=False) as f:
             rows = f['loops'].tolist()
-        records = json.loads((output / f'{split}_provenance.json').read_text())['records'][:completed]
+        provenance = json.loads((output / f'{split}_provenance.json').read_text())
+        records = provenance['records'][:completed]
+        previous_ledger = provenance.get('ledger')
     kernel_sha = digest(Path(__file__).with_name('kernels.py'))
     ledger = Ledger(device='cupy' if xp is not np else 'cpu', precision='complex128', parallel=1)
     for cfg in pending:
@@ -89,9 +91,10 @@ def measure(output, split, limit=None):
                         'gauge_sha256': digest(gauge_path), 'loops_sha256': loops_sha256(np.asarray(row)),
                         'setup_seconds': setup, 'measure_seconds': perf_counter() - measured,
                         'total_seconds': perf_counter() - cfg_start})
-        saved = completed + len(rows)
-        if saved != len(records) or saved != len(spec['ids'][:saved]):
-            raise RuntimeError(f'row accounting mismatch: {saved=} {len(rows)=} {len(records)=}')
+        saved = len(rows)                      # rows holds the full prefix, not only new rows
+        if saved != len(records) or [r['id'] for r in records] != spec['ids'][:saved]:
+            raise RuntimeError(f'row accounting mismatch: {saved=} {len(records)=} '
+                               f'ids={[r["id"] for r in records]} expected={spec["ids"][:saved]}')
         tmp = output / f'.{split}.tmp.npz'
         np.savez_compressed(tmp, ids=np.asarray(spec['ids'][:saved]),
                             loops=np.asarray(rows), protocol_hash=fingerprint(p),
@@ -103,8 +106,13 @@ def measure(output, split, limit=None):
                     'dependencies': {name: digest(Path(__file__).with_name(name))
                                      for name in ('kernels.py', 'statistics.py', 'measure.py',
                                                   'common.py', 'identity.py')},
-                    'records': records, 'ledger': ledger.summary()})
+                    'records': records,
+                    'ledger': {'incremental': bool(completed), 'current': ledger.summary(),
+                               'previous': previous_ledger}})
         write_marker(output, split, output / f'{split}.npz', output / f'{split}_provenance.json',
                      spec, np.asarray(rows))
         print(f'cfg {cfg}: {records[-1]["total_seconds"]:.2f}s', flush=True)
+        if stop_after is not None and len(records) >= stop_after and len(records) < len(spec['ids']):
+            print(f'interrupted after {len(records)}/{len(spec["ids"])} rows (test hook)', flush=True)
+            raise KeyboardInterrupt('stop_after reached with a complete transaction')
     return records
