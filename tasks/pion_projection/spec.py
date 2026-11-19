@@ -33,9 +33,14 @@ def operator_contract_for():
     return operator_contract(
         name='pion-kernel-v1', axes='(z,y,x,3,nrhs)', dtype='complex128',
         transformation='spin_scalar', support='time_slice',
-        parameters={'powers': 'list[int]', 'weights': 'list[float]', 'alpha': 'float'},
-        dependencies={'kernels': digest(Path(__file__).with_name('kernels.py'))},
-        constraints={'hermitian': True, 'zero_momentum': True, 'gauge_covariant': True},
+        parameters={'schema_by_builder': {
+            'tasks.pion_projection.path_kernel:build_kernel': {'terms': 'list[{path: signed spatial steps, weight: real or [real, imag]}]'},
+            'tasks.pion_projection.kernels:build_kernel': {'powers': 'list[int]', 'weights': 'list[float]', 'alpha': 'float'}},
+            'custom_builder': 'builder-defined JSON parameters'},
+        dependencies={name: digest(Path(__file__).with_name(name + '.py')) for name in ('kernels', 'path_kernel')},
+        constraints={'hermitian': True, 'zero_momentum': True, 'gauge_covariant': True,
+                     'spatial_symmetry': 'A1+', 'bilinear_irrep': 'A1-', 'isospin': 1,
+                     'G_parity': -1, 'neutral_partner_C': 1, 'translation_covariant': True, 'linear_in_field': True},
     )
 
 

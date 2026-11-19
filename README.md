@@ -41,9 +41,15 @@ See [environment setup and verification](doc/environment.md) for the project
 
 ## Agent search and machine examples
 
-The pion CLI includes a development-set LLM search and a report command. See
+The default agent search proposes the geometry and weights of spatial transport paths.
+Each new operator is contracted with the cached quark propagators to measure its
+pion two-point function. Development measurements guide subsequent proposals, and
+the selected operator can be compared with all three frozen baselines on validation. See
+the [equal-budget feedback comparison](tasks/pion_projection/README.md#measuring-an-agents-use-of-feedback),
 the [agent commands](tasks/pion_projection/README.md#llm-search-and-report) and
 [results from the RTX 3060 and Kunshan DCU pilots](examples/README.md).
+The [ranking stability study](doc/pion_ranking_stability.md) replays both runs
+across reference windows and checks the scoring rule on known spectra.
 Working measurements, caches and run reports belong in ignored output directories.
 
 ## Archived implementation

@@ -44,7 +44,7 @@ and submissions. The protocol was fixed before the first development measurement
 | Valence action | Wilson, kappa 0.14, periodic space, antiperiodic time |
 | Source / residual / iteration limit | Origin, 12 spin-color columns, 1e-10, 10000 |
 | Diffusion step | `H = (I + 0.2 * spatial_hopping) / 2.2` |
-| Measured kernels | `H^n`, n = 0, 2, 4, 8, 16, 32, 64 |
+| Baseline kernels | `H^n`, n = 0, 2, 4, 8, 16, 32, 64 |
 | Score / amplitude windows | 2–5 / 6–8, folded per configuration |
 | Common reference channels | n = 0, 8, 16; separate amplitudes, common mass |
 | Reference windows | 4–8, 5–8 (nominal), 6–8 |
@@ -80,14 +80,48 @@ favorable windows after looking at validation. Candidate failures produce an
 explicit error or invalid record; incomplete measurement checkpoints cannot be
 loaded as complete splits.
 
-## Agent search and actual operator
+### Evidence for pion ground-state dominance
+
+The source and sink carry charged isovector flavor. The spatial kernel has
+cubic irrep `A1+`, the pseudoscalar bilinear has irrep `A1−`, and the sink
+sum sets spatial momentum to zero. With degenerate valence quarks, neutral-partner
+`C=+` fixes `G=−` for the isotriplet. These quantum numbers allow radial and
+multiparticle excitations. A signed sink can even have zero overlap with the
+lowest state.
+
+In validation the scorer releases the mass parameter for each sink and fits a
+single cosh on both fixed late windows (5–8 and 6–8). It checks fit quality,
+mass precision, bootstrap bounds, agreement with the development reference
+and the paired mass shift between windows using the existing reference
+thresholds. These fits use the covariance of the validation block means, held
+fixed within their bootstrap. The earlier risk calculation still uses its
+frozen development fit metric. The report records the fits and failures under
+`pion_mass_check`. A failed reference or free-mass check yields `unresolved`
+and a null score. Passing yields `consistent_with_reference`. Finite-window
+agreement alone cannot identify a unique eigenstate. A second local sink supplies a development-only check on the same
+point propagators. Recompute local `PP` and temporal axial `A4P` with:
+
+```bash
+python -m tasks.pion_projection --output results/pion_projection/s16t16_v1 check-axial --dest results/axial-reference
+```
+
+Each local PP time series must reproduce its archived measurement. Fold PP
+evenly and A4P oddly in time. The single-state cosh and sinh both satisfy the
+same three-point effective-mass recurrence. Compare the two masses and their
+changes between neighboring times on identical bootstrap blocks. A4P vanishes
+at the folded midpoint, so only interior times in the nominal window enter.
+Intervals are pointwise and become null if any resample has an undefined mass.
+This diagnostic preserves the frozen scoring rule and requires no new inversion.
+[Example measurement using both correlators](https://doi.org/10.1103/PhysRevD.100.114514).
+
+## Diffusion baselines
 
 The baseline search evaluates all seven diffusion powers on development and
 selects the lowest loss. `H^(2k)` is the sink bilinear obtained by smearing both
 quark legs with `H^k`; its contraction equals `||H^k S||^2`. QUDA evaluates these
 norms incrementally, avoiding redundant smearing and inversions.
 
-For the agent attempt, let `A_n` be the fitted development amplitude of basis n.
+For the frozen SLSQP baseline, let `A_n` be the fitted development amplitude of basis n.
 Optimize the actual linear kernel
 
 \[
@@ -110,48 +144,58 @@ operator to propagators.
 
 ## Submit an arbitrary spatial kernel
 
-The implemented v1 channel requires a **real Hermitian, spin-scalar** observable.
-Signed kernels and negative correlators are permitted. The broader complex
-non-Hermitian scoring extension in the scientific specification is not implemented
-here and is rejected, rather than silently discarding a physical imaginary part.
+The default agent designs **weighted spatial paths**. Each term specifies a sequence
+of steps along signed x, y or z axes (±1, ±2, ±3) and an independent weight. An
+empty sequence gives the local operator. The agent chooses the number of terms,
+the extent, the path ordering, and all the weights. Paths can wind around the
+periodic lattice, bend, form closed loops or end at the same displacement via
+different routes. The evaluator parallel-transports along the actual gauge links
+in the specified order.
 
-A Python module exposes `build_kernel(spatial_links, parameters)` returning an
-object with `apply(field)`. Spatial links are CuPy arrays `(3,z,y,x,3,3)`, ordered
-x, y, z; a field is `(z,y,x,3,nrhs)`. The returned field has the same shape.
-The evaluator provides only the current time slice's spatial links, freezes
-parameters, and owns propagator loading, contraction, folding, and scoring.
-The same constructor is used at every time and configuration.
+For the zero-momentum pion, each seed is averaged over its distinct cubic
+rotations and reflections. Charge conjugation of the neutral isospin partner
+exchanges the path endpoints and keeps the seed coefficient. Taking the
+Hermitian part also complex conjugates the coefficient. The joint projection
+keeps the real part of each seed weight times the endpoint-symmetric orbit
+average. The JSON accepts a signed number or a pair `[real, imaginary]`.
+An overall real rescaling leaves the risk invariant. Components that cancel under
+projection contribute zero. The evaluator requires a nonzero projected kernel
+and a statistically identified late amplitude.
 
-The generic runner takes this JSON definition (use actual module/parameters):
-
-```json
-{
-  "builder": "tasks.pion_projection.kernels:build_kernel",
-  "parameters": {
-    "alpha": 0.2,
-    "powers": [0, 8, 32],
-    "weights": [-0.2, 0.5, 0.7]
-  }
-}
-```
+The [bent-shell example](submissions/bent_shell.json) combines a negative local
+term, straight three-link paths, and paths that turn after two links. Measure it
+directly on a run prepared with the commands above:
 
 ```bash
-bash scripts/run_pion.sh candidate --definition my_candidate.json --split development
-bash scripts/run_pion.sh candidate --definition my_candidate.json --split validation
+run=results/pion_projection/reproduction
+candidate=tasks/pion_projection/submissions/bent_shell.json
+bash scripts/run_pion.sh --output "$run" candidate --definition "$candidate" --split development
+bash scripts/run_pion.sh --output "$run" candidate --definition "$candidate" --split validation
 ```
 
-These commands use the complete cached propagator manifests from the main run.
-Development application freezes the definition, builder hash, correlators, and
-late-fit metric under `results/.../candidates/<hash>/`; validation verifies that
-freeze and evaluates against the same common reference and local baseline,
-including nested uncertainty estimates. User modules run as trusted local code:
-kernel covariance, linearity, translation/cubic symmetry, and absence of hidden
-data access remain required and subject to review/testing. This is not a Python
-sandbox or an automatic proof of those properties. Time limits are cooperative
-checks; the CuPy limit does not cap QUDA's separately allocated memory.
+For other constructions, supply a trusted Python builder as `module:function`
+and its JSON parameters. It receives the spatial links on one time slice as a
+CuPy array of shape `(3,z,y,x,3,3)` and returns an object with `apply(field)`,
+where the input and output fields have shape `(z,y,x,3,nrhs)`. This route also
+supports weights computed from the spatial gauge field. Custom builders must
+obey gauge covariance, translation and cubic symmetry, Hermiticity, and
+linearity in the input field and the neutral-partner C-even identity
+`K[U*]^T = K[U]` (transpose in site and color). Custom code is marked
+`custom_unverified` and receives diagnostics with a null score. The two
+built-in kernel constructors enforce the channel by construction.
+The same frozen rule applies at every site, time
+and configuration. The evaluator owns the point source, propagators and contraction.
 
-The real submitted operator for this run is in
-[`agent_candidate.json`](../../results/pion_projection/s16t16_v1/agent_candidate.json).
+For every configuration the evaluator measures the full time series
+`C_K(t) = vdot(S(t), K[U_t] S(t))`. New shapes reuse cached propagators. The
+development run freezes the definition, builder hash, measured correlators and
+late-fit metric under `candidates/<hash>/`. Validation checks the freeze and
+compares the new operator with the local sink, tuned Gaussian and signed SLSQP
+mixture on the same configurations. In `results.json`, each entry under
+`paired_vs_candidate` reports baseline risk divided by candidate risk and its
+paired 95% interval. A ratio above one favors the candidate. Reference failure
+suppresses the official score.
+
 For the diffusion family, a quick independent operator check uses the first
 configuration of each split and compares the generic contraction against the
 previously measured basis combination:
@@ -167,22 +211,139 @@ for subsequent proposals must be disclosed and cannot support fresh held-out cla
 
 ## LLM search and report
 
-Set `LLM_API_KEY` and choose a model available at your chat-completions endpoint.
-`LLM_BASE` defaults to `https://api.deepseek.com/v1`. The agent sends the development
-basis amplitudes, risks and previous proposals to this endpoint. Each round evaluates
-up to three proposals using the pion pilot's single-state reference and risk function.
+Prepare the development measurements and frozen reference using `measure` and
+`develop`. Set `LLM_API_KEY` and choose a model available at your chat-completions
+endpoint (`LLM_BASE` defaults to `https://api.deepseek.com/v1`).
 
 ```bash
-python -m tasks.pion_projection --output results/pion_projection/reproduction agent --model MODEL --rounds 3
-python -m tasks.pion_projection --output results/pion_projection/reproduction report --model MODEL
+bash scripts/run_pion.sh --output results/pion_projection/reproduction agent --model MODEL --rounds 3 --with-validation
 ```
 
-Search requires the development measurements and their provenance. Each invocation
-writes to its own `agent/search-*/` directory inside the run. Search defaults to
-development only. Add `--with-validation` to compute one post-hoc diagnostic for
-the selected LLM proposal after search. The original frozen SLSQP submission is
-evaluated with the existing `evaluate` command.
+Each round proposes one spatial operator and measures its development 2pt. The
+next prompt includes its folded mean, standard error, early normalized curve
+and risk components. By default only development is read. With
+`--with-validation`, prepare the validation measurements as well. The evaluator
+selects the lowest valid development risk, writes `selection.json`, then evaluates
+that operator on validation. Individual proposals, measurements and history live
+under `agent/operators-*/`. To drive the same loop from a coding agent or by hand,
+add `--terminal` and write one JSON object per round, for example
+`{"terms":[{"path":[],"weight":-0.08},{"path":[1,1,1],"weight":0.52},{"path":[1,1,2],"weight":0.56}]}`.
+
+### Measuring an agent's use of feedback
+
+Use multiple attempts to measure iterative optimization. A one-attempt run
+measures initial proposal quality. Choose the model, proposal budget and number
+of independent runs before starting. For example, run two separate sessions on
+the same prepared development data:
+
+```bash
+run=results/pion_projection/reproduction
+bash scripts/run_pion.sh --output "$run" agent --model MODEL --rounds 4 --feedback round
+bash scripts/run_pion.sh --output "$run" agent --model MODEL --rounds 4 --feedback batch
+```
+
+Both sessions receive the same initial physics diagnostics, use the full path
+space and spend one attempt per submitted reply, including malformed and
+duplicate proposals. In `round` mode the next proposal can use all earlier
+development measurements. In `batch` mode the agent sees its own prior replies,
+and the evaluator writes every proposal to disk before measuring the first.
+Both modes select the earliest candidate attaining the lowest valid development
+risk. If all attempts fail, the session has no selected operator.
+
+Each command prints its session directory. Freeze the selections for **all**
+sessions before evaluating the winners. After preparing the validation split,
+run the following once per session (substitute the printed path):
+
+```bash
+bash scripts/run_pion.sh validate-selection --session "$run/agent/operators-SESSION"
+```
+
+A repeated call returns the recorded evaluation. The session directory identifies
+its data run. For each comparison, read these artifacts:
+
+| Question | Evidence |
+| --- | --- |
+| Did both searches have the same budget, starting information, data provenance and evaluator? | Match `conditions_hash` in `search_protocol.json`. Record the model, feedback mode and terminal/API source separately. |
+| How good was the first valid idea, and how quickly did the search improve it? | Compare `first_valid_round`, `first_valid_risk` and `best_development_risk_by_attempt` in `selection.json`. The curve starts with nulls if early attempts fail. |
+| What did the proposals cost? | Compare valid proposals, attempted development measurements and evaluator wall seconds. Equal proposal counts can involve different measurement costs. |
+| Did the gains survive selection? | Read the selected operator's validation risk and its paired intervals against the frozen baselines in the report linked by `evaluation.json`. Report sessions with no valid winner and failed reference checks alongside the successful sessions. |
+
+Improvement within a single development curve can also come from trying more
+ideas. Compare feedback conditions over repeated sessions with equal budgets to
+estimate the contribution of measurement feedback. Use fresh held-out
+configurations and a passing reference for a scored comparison. The public
+S16T16 pilot supports diagnostic comparisons.
+
+For the historical seven-coefficient search, use `agent --space basis --model MODEL`.
+The existing `evaluate` and `report` commands operate on the frozen diffusion
+baselines.
 
 The report command reads `validation_results.json`, sends the ranking and reference
 status to the model, and writes `REPORT.md` with the computed table and model commentary.
 Machine-specific display examples live in [examples/](../../examples/README.md).
+
+## Ranking diagnostics and search comparison
+
+Run the sensitivity replay against a completed v1 run with both measurement arrays,
+the frozen submission, development provenance and the archived validation report.
+Use a fresh destination outside the input run. The replay checks the protocol, code,
+data and submission identities and reproduces the nominal fit, risks and intervals
+before evaluating the other reference windows. Every window uses the same kernels,
+development-only amplitude fit metrics and paired nested resampling schedule.
+
+```bash
+python -m tasks.pion_projection --output results/pion_projection/s16t16_v1 diagnose-ranking --dest results/replay/local
+python -m tasks.pion_projection check-synthetic --dest results/replay/known-spectrum
+python -m tasks.pion_projection --output results/pion_projection/s16t16_v1 compare-search --model MODEL --dest results/replay/search
+```
+
+The synthetic checks run on CPU with a known mass and independent development and
+evaluation blocks. The search comparison uses development only, with 12 proposal
+slots for each method plus shared basis diagnostics. Set `--seed` for the random
+search. SLSQP reports all objective calls across its starts, both with the pilot's
+ridge and with plain risk. For an offline replay of the four recorded RTX 3060
+rounds, pass `--terminal --model codex-gpt6-session` and redirect stdin from
+`examples/pion_projection/rtx3060/search_replies.jsonl`; each line is one round.
+
+See the [ranking stability report](../../doc/pion_ranking_stability.md) for the
+two historical runs, the known-spectrum counterexample, and the search comparison.
+
+## Evaluating optimization ability on fresh synthetic cases
+
+`benchmark-optimization` varies the ground mass, spectral gaps, signed excited-state
+overlaps and noise of seven synthetic correlator channels across episodes. Each
+episode draws 32 independent development blocks and 32 test blocks from the same
+spectrum. Channel and time correlations enter both splits. The evaluator knows the
+true mass and supplies it in the development diagnostics. This tests the search
+for weights within a fixed basis. The historical real-ensemble runs separately
+exercise measurement, kernel implementation and the reference gate.
+
+```bash
+python -m tasks.pion_projection benchmark-optimization --episodes 12 --seed 20261118 \
+  --replay examples/pion_projection/rtx3060/search_replies.jsonl --dest results/optimization/replay
+```
+
+Each method starts with the same single-channel diagnostics and may retain the
+best basis vector. It gets four batches of three proposal slots. Invalid or
+missing proposals consume the opportunity. Selection uses development risk;
+every method's weights are saved before the common test draw. Inspect
+`selection.json` for valid counts, fallback to a basis vector and the best
+development risk by round. `test.json` includes held-out risk and the error
+of an early-time fit on the known noiseless spectrum. `benchmark.json` pairs
+methods on the same episodes and records the denominator of each comparison.
+
+The fixed-center and adaptive random controls use the same random steps; only
+the adaptive method updates its center between batches. A stronger control fits
+the linearized shape departure from the initial basis diagnostics, then queries
+the full development risk for twelve ridge settings. The optional archived
+replies supply the same twelve proposals on every episode.
+
+Add `--model MODEL` to run each new case twice through the configured LLM API.
+One condition returns development risk and rejection feedback each round. The
+other shows the model its previous proposals without their outcomes. Both use
+the same automatic development selector and fresh chat requests. Condition order
+alternates by episode. Twelve episodes use 96 model calls. For a prospective
+comparison, freeze the model, prompt and budget before choosing fresh evaluator
+seeds; the published seed is intended for reproduction. Compare paired wins,
+invalid counts, held-out risk and energy bias across episodes. [Results of the
+first transfer check](../../doc/pion_ranking_stability.md#transfer-to-fresh-synthetic-correlators).

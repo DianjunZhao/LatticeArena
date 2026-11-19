@@ -1,0 +1,10 @@
+{
+  "builder": "tasks.pion_projection.path_kernel:build_kernel",
+  "parameters": {
+    "terms": [
+      {"path": [], "weight": -0.08},
+      {"path": [1, 1, 1], "weight": 0.52},
+      {"path": [1, 1, 2], "weight": 0.56}
+    ]
+  }
+}

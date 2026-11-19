@@ -14,13 +14,18 @@ import numpy as np
 
 from .common import digest, fingerprint, indices, load_data, protocol, write_json
 from .statistics import ReferenceFit, blocks, bootstrap_indices, fold, risk
-from .experiment import late_metric, nested_intervals
+from .experiment import late_metric, nested_intervals, pion_mass_check
+from . import kernels, path_kernel
+
+
+class CandidateRejected(ValueError):
+    """The measured candidate cannot be scored under the frozen metric."""
 
 
 def apply_kernel(gauge, prop, builder, parameters):
     import cupy as cp
-    links = gauge.lexico(force_numpy=False)[:3]
-    fields = prop.lexico(force_numpy=False)
+    links = cp.asarray(gauge.lexico(force_numpy=False)[:3])
+    fields = cp.asarray(prop.lexico(force_numpy=False))
     correlator = []
     for t in range(fields.shape[0]):
         shape = fields[t].shape[:3]
@@ -28,16 +33,16 @@ def apply_kernel(gauge, prop, builder, parameters):
         kernel = builder(links[:, t].copy(), parameters)
         out = kernel.apply(field.copy())
         if out.shape != field.shape or not bool(cp.all(cp.isfinite(out))):
-            raise ValueError('Kernel returned an invalid field')
+            raise CandidateRejected('Kernel returned an invalid field')
         c = complex(cp.vdot(field, out).get())
         scale = float((cp.linalg.norm(field)*cp.linalg.norm(out)).get())
         if abs(c.imag) > 1e-10*max(scale, 1e-300):
-            raise ValueError('Non-Hermitian/complex correlator is outside the executable v1 contract')
+            raise CandidateRejected('Non-Hermitian/complex correlator is outside the executable v1 contract')
         correlator.append(c.real)
     return np.asarray(correlator)
 
 
-def run_candidate(output, definition_path, split, verify_only=False):
+def run_candidate(output, definition_path, split, verify_only=False, *, candidate_root=None):
     import cupy as cp
     from mpi4py import MPI
     from pyquda_utils import core, io
@@ -51,9 +56,11 @@ def run_candidate(output, definition_path, split, verify_only=False):
     spec = json.loads(Path(definition_path).read_text())
     module, function = spec['builder'].split(':')
     builder = getattr(importlib.import_module(module), function)
+    channel_by_construction = builder in (kernels.build_kernel, path_kernel.build_kernel)
     identity = {'definition': spec, 'builder_sha256': digest(inspect.getsourcefile(builder)),
                 'protocol_hash': fingerprint(p), 'reference_submission_sha256': digest(output/'submission.json')}
-    destination = output/'candidates'/fingerprint(identity)[:16]
+    root = output / 'candidates' if candidate_root is None else Path(candidate_root)
+    destination = root / fingerprint(identity)[:16]
     destination.mkdir(parents=True, exist_ok=True)
     frozen_path = destination/'frozen.json'
     if not verify_only and split == 'development' and (frozen_path.exists() or (destination/'validation.npz').exists()):
@@ -83,15 +90,19 @@ def run_candidate(output, definition_path, split, verify_only=False):
             raise ValueError('Gauge checksum/residual provenance mismatch')
         cached = Path('.cache/pion_projection/propagators')/f'{record["cache_key"]}.npy'
         metadata = json.loads(cached.with_suffix('.json').read_text())
-        if digest(cached) != metadata['array_sha256'] or metadata['keydata']['gauge'] != record['gauge_sha256']:
+        if (fingerprint(metadata['keydata']) != record['cache_key'] or
+                metadata['keydata']['gauge'] != record['gauge_sha256'] or digest(cached) != metadata['array_sha256']):
             raise ValueError('Propagator checksum mismatch')
         gauge = io.readNERSCGauge(str(cfg))
         prop = core.LatticePropagator(latt, cp.asarray(np.load(cached, allow_pickle=False)))
-        rows.append(apply_kernel(gauge, prop, builder, spec['parameters']))
+        try:
+            rows.append(apply_kernel(gauge, prop, builder, spec['parameters']))
+        except cp.cuda.memory.OutOfMemoryError as exc:
+            raise CandidateRejected('Operator exceeded GPU memory budget') from exc
         cp.cuda.Stream.null.synchronize()
         elapsed = perf_counter()-start
         if elapsed > p['wall_seconds_per_configuration']:
-            raise ValueError('Candidate exceeded the per-configuration budget')
+            raise CandidateRejected('Candidate exceeded the per-configuration budget')
         timings.append(elapsed)
         print(f'Candidate {destination.name}: cfg {record["id"]}, {elapsed:.2f}s', flush=True)
         del gauge, prop
@@ -110,34 +121,72 @@ def run_candidate(output, definition_path, split, verify_only=False):
         print('Direct submitted operator agrees with basis contraction.', flush=True)
         return
     np.savez_compressed(destination/f'{split}.npz', ids=expected_ids, correlators=np.asarray(rows)[:, None, :])
+    write_json(destination/f'{split}_provenance.json', {'identity': identity, 'seconds_per_configuration': timings,
+               'source_manifest_sha256': digest(output/f'{split}_provenance.json')})
     dev = blocks(fold(load_data(output, 'development')), p['block_length'])
     model = ReferenceFit(dev, p, p['reference_windows'][p['reference_nominal_window']])
     ref, masses = model.bootstrap(bootstrap_indices(len(dev), p['bootstrap_samples'], p['seed']))
     measured = blocks(fold(np.asarray(rows)[:, None, :]), p['block_length'])
     if split == 'development':
-        metric = late_metric(measured, [1.], p)
-        diagnostic = risk(measured, [1.], ref['mass'], masses,
-                          bootstrap_indices(len(dev), p['bootstrap_samples'], p['seed']), p, late_inverse=metric)
+        try:
+            metric = late_metric(measured, [1.], p)
+            diagnostic = risk(measured, [1.], ref['mass'], masses,
+                              bootstrap_indices(len(dev), p['bootstrap_samples'], p['seed']), p, late_inverse=metric)
+        except (ValueError, np.linalg.LinAlgError) as exc:
+            raise CandidateRejected(str(exc)) from exc
         write_json(frozen_path, {'identity': identity, 'development_sha256': digest(destination/'development.npz'),
                                 'late_inverse': metric.tolist(), 'development_diagnostic': diagnostic})
     else:
         val = blocks(fold(load_data(output, 'validation')), p['block_length'])
-        combined = np.concatenate([val[:, :1], measured], axis=1)
-        comparison = {'submissions': {'local': [1., 0.], 'candidate': [0., 1.]},
-                      'late_inverse_covariances': {'local': reference_frozen['late_inverse_covariances']['local'],
-                                                   'candidate': frozen['late_inverse']}}
-        vi = bootstrap_indices(len(val), p['bootstrap_samples'], p['seed']+1)
-        results = {name: risk(combined, w, ref['mass'], masses, vi, p,
-                             late_inverse=np.array(comparison['late_inverse_covariances'][name]))
-                   for name, w in comparison['submissions'].items()}
-        draws, names = nested_intervals(dev, combined, comparison, p)
-        ratio = (results['local']['risk']+p['score_epsilon'])/(results['candidate']['risk']+p['score_epsilon'])
-        interval = np.quantile((draws[:, 0]+p['score_epsilon'])/(draws[:, 1]+p['score_epsilon']), [.025, .975])
-        write_json(destination/'results.json', {'results': results, 'diagnostic_loss_ratio': ratio,
-                   'diagnostic_loss_ratio_95_interval': interval.tolist(),
-                   'score': 100*ratio if reference_frozen['calibration']['reference_passed'] else None,
-                   'reference_failure_reasons': reference_frozen['calibration']['failure_reasons'],
-                   'validation_sha256': digest(destination/'validation.npz')})
-    write_json(destination/f'{split}_provenance.json', {'identity': identity, 'seconds_per_configuration': timings,
-               'source_manifest_sha256': digest(output/f'{split}_provenance.json')})
+        report = compare_candidate(dev, val, measured, reference_frozen, frozen['late_inverse'], ref['mass'], masses, p,
+                                   channel_by_construction=channel_by_construction)
+        report['validation_sha256'] = digest(destination/'validation.npz')
+        report['baseline_validation_sha256'] = digest(output/'validation.npz')
+        write_json(destination/'results.json', report)
     print(f'Candidate artifacts: {destination}', flush=True)
+    return destination
+
+
+def compare_candidate(dev, val, measured, frozen, late_inverse, mass, masses, p, *, channel_by_construction=False):
+    """Evaluate each frozen operator on identical validation blocks and reference draws."""
+    combined = np.concatenate([val, measured], axis=1)
+    weights = {name: [*w, 0.] for name, w in frozen['submissions'].items()}
+    weights['candidate'] = [0.] * val.shape[1] + [1.]
+    metrics = dict(frozen['late_inverse_covariances'], candidate=late_inverse)
+    vi = bootstrap_indices(len(val), p['bootstrap_samples'], p['seed']+1)
+    results = {}
+    valid = {}
+    for name, w in weights.items():
+        try:
+            results[name] = risk(combined, w, mass, masses, vi, p, late_inverse=np.asarray(metrics[name]))
+        except (ValueError, np.linalg.LinAlgError) as exc:
+            results[name] = {'invalid_reason': str(exc)}
+        else:
+            valid[name] = w
+
+    paired = {}
+    interval_error = None
+    if 'candidate' in valid and len(valid) > 1:
+        eps = p['score_epsilon']
+        for name in frozen['submissions']:
+            if name in valid:
+                paired[name] = {'risk_ratio': (results[name]['risk'] + eps) / (results['candidate']['risk'] + eps),
+                                'risk_ratio_95_interval': None}
+        try:
+            draws, names = nested_intervals(dev, combined, {'submissions': valid, 'late_inverse_covariances': metrics}, p)
+            for name in paired:
+                ratios = (draws[:, names.index(name)] + eps) / (draws[:, names.index('candidate')] + eps)
+                paired[name]['risk_ratio_95_interval'] = np.quantile(ratios, [.025, .975]).tolist()
+        except (ValueError, np.linalg.LinAlgError) as exc:
+            interval_error = str(exc)
+    local = paired.get('local', {})
+    ratio = local.get('risk_ratio')
+    calibration = frozen['calibration']
+    state = pion_mass_check(measured, [1.], mass, masses, vi, p, calibration)
+    eligible = channel_by_construction and state['status'] == 'consistent_with_reference'
+    return {'pion_channel': 'by_construction' if channel_by_construction else 'custom_unverified',
+            'pion_mass_check': state, 'results': results, 'diagnostic_loss_ratio': ratio,
+            'diagnostic_loss_ratio_95_interval': local.get('risk_ratio_95_interval'),
+            'paired_vs_candidate': paired, 'interval_failure_reason': interval_error,
+            'score': 100 * ratio if ratio is not None and eligible and interval_error is None else None,
+            'reference_failure_reasons': calibration['failure_reasons']}

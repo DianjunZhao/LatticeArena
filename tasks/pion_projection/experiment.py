@@ -16,6 +16,34 @@ def late_metric(data, weights, p):
                               p['covariance_shrinkage'])
 
 
+def optimize_mixture(data, scales, m, mb, index, p):
+    normalized = data/scales[None, :, None]
+
+    def objective(u):
+        try:
+            return risk(normalized, u, m, mb, index, p)['risk'] + p['optimizer_ridge']*float(u @ u)
+        except (ValueError, np.linalg.LinAlgError, FloatingPointError):
+            return 1e10
+
+    basis = np.eye(len(scales))
+    starts = [*basis, np.ones(len(basis))/len(basis)]
+    outcomes = []
+    evaluations = 0
+    for start in starts[:p['optimizer_starts']]:
+        fit = minimize(objective, start, method='SLSQP', bounds=[(-p['optimizer_l1_bound'], p['optimizer_l1_bound'])]*len(basis),
+                       constraints=[{'type': 'eq', 'fun': lambda u: u.sum()-1},
+                                    {'type': 'ineq', 'fun': lambda u: p['optimizer_l1_bound']-abs(u).sum()}],
+                       options={'maxiter': p['optimizer_max_iterations'], 'ftol': 1e-11})
+        evaluations += int(fit.nfev)
+        feasible, _ = validate_weights(fit.x, len(basis), p['optimizer_l1_bound'])
+        if fit.success and feasible and fit.fun < 1e9:
+            outcomes.append(fit)
+    if not outcomes:
+        raise ValueError('No optimizer start converged to a valid candidate')
+    fit = min(outcomes, key=lambda f: f.fun)
+    return fit, len(outcomes), evaluations
+
+
 def develop(output):
     output = Path(output)
     if (output / 'submission.json').exists() or (output / 'validation.npz').exists():
@@ -67,27 +95,7 @@ def develop(output):
     baseline_results = [risk(data, w, m, mb, index, p) for w in basis]
     best = min(range(len(basis)), key=lambda j: baseline_results[j]['risk'])
     scales = np.array([r['amplitude'] for r in baseline_results])
-    normalized = data/scales[None, :, None]
-
-    def objective(u):
-        try:
-            return risk(normalized, u, m, mb, index, p)['risk'] + p['optimizer_ridge']*float(u @ u)
-        except (ValueError, np.linalg.LinAlgError, FloatingPointError):
-            return 1e10
-
-    starts = [*basis, np.ones(len(basis))/len(basis)]
-    outcomes = []
-    for start in starts[:p['optimizer_starts']]:
-        fit = minimize(objective, start, method='SLSQP', bounds=[(-p['optimizer_l1_bound'], p['optimizer_l1_bound'])]*len(basis),
-                       constraints=[{'type': 'eq', 'fun': lambda u: u.sum()-1},
-                                    {'type': 'ineq', 'fun': lambda u: p['optimizer_l1_bound']-abs(u).sum()}],
-                       options={'maxiter': p['optimizer_max_iterations'], 'ftol': 1e-11})
-        feasible, _ = validate_weights(fit.x, len(basis), p['optimizer_l1_bound'])
-        if fit.success and feasible and fit.fun < 1e9:
-            outcomes.append(fit)
-    if not outcomes:
-        raise ValueError('No optimizer start converged to a valid candidate')
-    fit = min(outcomes, key=lambda f: f.fun)
+    fit, converged, _ = optimize_mixture(data, scales, m, mb, index, p)
     weights = fit.x/scales
     candidate_result = risk(data, weights, m, mb, index, p)
     submissions = {'local': basis[0].tolist(), 'tuned_gaussian': basis[best].tolist(),
@@ -99,7 +107,7 @@ def develop(output):
               'powers': p['powers'], 'alpha': p['alpha'], 'submissions': submissions,
               'normalized_mixture_weights': fit.x.tolist(), 'basis_amplitude_scales': scales.tolist(),
               'late_inverse_covariances': metrics, 'selected_gaussian_power': p['powers'][best],
-              'optimizer': {'converged_starts': len(outcomes), 'objective': float(fit.fun),
+              'optimizer': {'converged_starts': converged, 'objective': float(fit.fun),
                             'iterations': int(fit.nit), 'l1': float(abs(fit.x).sum())},
               'calibration': calibration}
     write_json(output/'development_results.json', {'basis': baseline_results, 'agent': candidate_result})
@@ -138,6 +146,47 @@ def nested_intervals(development, validation, frozen, p):
     return np.asarray(draws), names
 
 
+def pion_mass_check(val, weights, ref_mass, ref_draws, val_indices, p, calibration):
+    """Fit a free sink mass on validation and compare it to the development target."""
+    reasons = list(calibration['failure_reasons'])
+    if not calibration['reference_passed'] and not reasons:
+        reasons.append('Development reference failed')
+    # Resampling is paired across validation windows. Development and validation
+    # indices are drawn independently, as in the conditional risk calculation.
+    nominal = p['reference_windows'][p['reference_nominal_window']]
+    windows = [nominal, *(w for w in p['reference_windows'] if w[0] > nominal[0])]
+    results = []
+    central = None
+    def check_shift(label, difference, draws):
+        error = float(draws.std(ddof=1))
+        if abs(difference) > p['reference_max_window_z'] * error:
+            reasons.append(label)
+        return {'mass_difference': difference, 'bootstrap_se': error}
+
+    try:
+        channel = np.einsum('nbt,b->nt', val, weights)[:, None, :]
+        for window in windows:
+            fit = ReferenceFit(channel, dict(p, reference_basis=[0]), window)
+            item, draws = fit.bootstrap(val_indices)
+            results.append(item)
+            lo, hi = p['mass_bounds']
+            if (not np.isfinite(item['p_approx']) or item['p_approx'] < p['reference_min_fit_p']
+                    or item['se'] > item['mass'] * p['reference_max_relative_error']
+                    or np.any(draws <= lo + 1e-4) or np.any(draws >= hi - 1e-4)):
+                reasons.append(f'Free-mass fit unresolved on {window}')
+            item['vs_reference'] = check_shift(f'Free mass disagrees with development reference on {window}',
+                                               item['mass'] - ref_mass, draws - ref_draws)
+            if central is None:
+                central = item['mass'], draws
+            else:
+                item['vs_nominal'] = check_shift(f'Free mass changes with fit window {window}',
+                                                 item['mass'] - central[0], draws - central[1])
+    except (ValueError, np.linalg.LinAlgError) as exc:
+        reasons.append(f'Free-mass fit failed: {exc}')
+    return {'status': 'unresolved' if reasons else 'consistent_with_reference',
+            'development_reference_mass': ref_mass, 'fits': results, 'reasons': reasons}
+
+
 def evaluate(output):
     output = Path(output)
     p = protocol()
@@ -168,9 +217,11 @@ def evaluate(output):
     if valid:
         eps = p['score_epsilon']
         baseline = report['results']['local']['risk']
-        for value in report['results'].values():
+        for name, value in report['results'].items():
+            state = pion_mass_check(val, frozen['submissions'][name], reference['mass'], mb, vi, p, frozen['calibration'])
+            value['pion_mass_check'] = state
             value['diagnostic_loss_ratio_vs_local'] = (baseline+eps)/(value['risk']+eps)
-            value['score'] = 100*value['diagnostic_loss_ratio_vs_local'] if report['reference_passed'] else None
+            value['score'] = 100*value['diagnostic_loss_ratio_vs_local'] if state['status'] == 'consistent_with_reference' else None
         draws, names = nested_intervals(dev, val, frozen, p)
         np.savez_compressed(output/'nested_bootstrap.npz', risks=draws, names=np.array(names))
         for j, name in enumerate(names):

@@ -1,0 +1,127 @@
+{
+  "split": "development",
+  "configurations": 30,
+  "blocks": 6,
+  "bootstrap_samples": 1000,
+  "protocol_hash": "17ed5bf5739c7281521b2822ea10f5d9a6a64f7e4d59219bb627c4810069aa72",
+  "development_manifest_sha256": "781c27393f879df4cc091a0d3d37221b71c7bc9362231e612209e6d5adede227",
+  "submission_sha256": "b208b851e893cb63196cd31a325ef3557866988aa8f806f5aa19c93416213d3f",
+  "implementation_sha256": "0fc2f8fba6c5780fac2cc9a4ae549c17975bbac06c5f69e8c88d6db6804b865d",
+  "correlators_sha256": "300d80e2031e115137a955a8de5e27339720379f342921195a2d57fe8755cdd6",
+  "reference_passed": false,
+  "effective_masses": [
+    {
+      "t": 5,
+      "PP": {
+        "estimate": 1.2048041235464315,
+        "valid_draws": 1000,
+        "interval_95": [
+          1.1950708063267415,
+          1.2158436198879004
+        ]
+      },
+      "A4P": {
+        "estimate": 1.1802436958048328,
+        "valid_draws": 1000,
+        "interval_95": [
+          1.168608037065208,
+          1.1945073791512852
+        ]
+      },
+      "A4P_minus_PP": {
+        "estimate": -0.024560427741598723,
+        "valid_draws": 1000,
+        "interval_95": [
+          -0.02794271271962568,
+          -0.02084637696579114
+        ]
+      }
+    },
+    {
+      "t": 6,
+      "PP": {
+        "estimate": 1.1361614773973217,
+        "valid_draws": 1000,
+        "interval_95": [
+          1.1214230027035619,
+          1.150211424270055
+        ]
+      },
+      "A4P": {
+        "estimate": 1.122635663835713,
+        "valid_draws": 1000,
+        "interval_95": [
+          1.1026528001931233,
+          1.141242859077165
+        ]
+      },
+      "A4P_minus_PP": {
+        "estimate": -0.013525813561608757,
+        "valid_draws": 1000,
+        "interval_95": [
+          -0.020823572170972415,
+          -0.006798604224538702
+        ]
+      },
+      "PP_shift_from_previous": {
+        "estimate": -0.06864264614910986,
+        "valid_draws": 1000,
+        "interval_95": [
+          -0.08028177681384285,
+          -0.0609017701078236
+        ]
+      },
+      "A4P_shift_from_previous": {
+        "estimate": -0.0576080319691199,
+        "valid_draws": 1000,
+        "interval_95": [
+          -0.0719713302557341,
+          -0.04570337008762017
+        ]
+      }
+    },
+    {
+      "t": 7,
+      "PP": {
+        "estimate": 1.0848444720505022,
+        "valid_draws": 1000,
+        "interval_95": [
+          1.0755842841099843,
+          1.0952499672754479
+        ]
+      },
+      "A4P": {
+        "estimate": 1.0817503564803177,
+        "valid_draws": 1000,
+        "interval_95": [
+          1.0659984166857601,
+          1.0981167597638242
+        ]
+      },
+      "A4P_minus_PP": {
+        "estimate": -0.0030941155701844636,
+        "valid_draws": 1000,
+        "interval_95": [
+          -0.011905193754192744,
+          0.005724491889677124
+        ]
+      },
+      "PP_shift_from_previous": {
+        "estimate": -0.05131700534681949,
+        "valid_draws": 1000,
+        "interval_95": [
+          -0.057704205327300064,
+          -0.04492891883350869
+        ]
+      },
+      "A4P_shift_from_previous": {
+        "estimate": -0.040885307355395195,
+        "valid_draws": 1000,
+        "interval_95": [
+          -0.05015484171346851,
+          -0.03339376075695609
+        ]
+      }
+    }
+  ]
+}

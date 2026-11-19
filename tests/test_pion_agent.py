@@ -33,7 +33,7 @@ def test_agent_cli_uses_development_and_preserves_old_freeze(tmp_path, monkeypat
     good = [1, 0, 0, 0, 0, 0, 0]
     replies = iter(['bad JSON', json.dumps({'candidates': [['x'], good, [0] * 7, good]})])
     monkeypatch.setattr(loop, 'chat', lambda *_: next(replies))
-    args = ['pion', '--output', str(tmp_path), 'agent', '--rounds', '2', '--model', 'stub']
+    args = ['pion', '--output', str(tmp_path), 'agent', '--space', 'basis', '--rounds', '2', '--model', 'stub']
     monkeypatch.setattr(sys, 'argv', args)
     main()
     folder, = (tmp_path / 'agent').iterdir()

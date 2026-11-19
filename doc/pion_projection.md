@@ -26,6 +26,24 @@ flavor-nonsinglet pseudoscalar formed from two degenerate **valence** quarks on
 that ensemble: a quenched pion, not a physical-mass, dynamical-QCD prediction.
 The flavor choice avoids disconnected contractions.
 
+### What an agent run measures
+
+A single submission tests the quality of an initial design. A sequence of
+submissions tests how efficiently an agent searches under a declared proposal
+budget. Record the first valid development risk, the best risk after each
+attempt, the cost of the measurements and the validation risk of the frozen
+winner. Count failed proposals against the budget and retain runs without a
+valid winner. These outcomes measure different aspects of search and are
+reported separately.
+
+To study use of 2pt feedback, compare repeated sessions for the same agent with
+the same starting information, budget, configurations and scoring rule. In one
+condition the agent receives each development measurement before choosing its
+next operator. In the control condition it submits the entire sequence before
+any proposal is measured. Freeze every session's selection before inspecting
+validation results. The pilot implements both conditions in its
+[agent evaluation protocol](../tasks/pion_projection/README.md#measuring-an-agents-use-of-feedback).
+
 ## 2. Fixed problem and pilot data
 
 | Item | Initial specification |
@@ -72,6 +90,11 @@ Complex outputs use the complex-valued scoring extension below. In particular,
 the kernel is not restricted to a Gaussian or to the positive form `H†H` obtained
 by applying the same quark smearing on both legs.
 
+The executable agent accepts finite sums of weighted spatial paths and projects
+each seed into the Hermitian, even scalar channel with neutral-partner C=+. The full time-slice Python
+interface also supports link-dependent constructions. The fixed diffusion powers
+serve as comparison operators. See the [submission format and measurement commands](../tasks/pion_projection/README.md#submit-an-arbitrary-spatial-kernel).
+
 The defining gauge-covariance condition is
 
 \[
@@ -82,7 +105,16 @@ K_\theta[U^g_t](\mathbf x,\mathbf y)
 Displaced quarks therefore need parallel transport; an ordinary weighted sum of
 quark fields at different sites is not sufficient on an unfixed ensemble. The
 kernel must be covariant under spatial translations and have the even scalar
-spatial symmetry (`A1+`) so that multiplication by `gamma5` gives the pion channel.
+spatial symmetry (`A1+`). Multiplication by `gamma5` gives the rest-frame
+bilinear irrep `A1−`, which contains continuum spin zero and higher spins.
+For the charged isotriplet the neutral partner must also be C-even, giving
+`G=−`. For the spatial kernel this requires `K[U*]^T = K[U]`, with the
+transpose exchanging both positions and color indices. Charge conjugation
+acts linearly on the seed weights. Together with Hermiticity it makes the
+coefficients of each path and its adjoint equal and real in the path expansion.
+The physical target is the lowest valence pion on this ensemble. Whether the
+measured time window isolates it is tested separately in the
+[ground-state checks](../tasks/pion_projection/README.md#evidence-for-pion-ground-state-dominance).
 One may start with an arbitrary seed shape and project over cubic rotations and
 inversion. Zero momentum refers to summing the operator's center over space, not
 to placing the sink only at the spatial origin.

@@ -3,6 +3,7 @@ import hashlib
 import inspect
 import json
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -25,9 +26,9 @@ u = e_0 (the first power) is the local sink. Signed u are allowed.
 Score (lower is better), with m0 fixed by the evaluator:
   q(t) = C(t) / (A f0(t)),  f0(t) = exp(-m0 t) + exp(-m0 ({T}-t))
   risk = mean over t in {score_window} of [ Var_boot(q(t)) + (q(t)-1)^2 ]
-The departure term dominates, so a good kernel makes q(t) flat over that window.
+Compare the two loss terms and the early-time shape of each channel.
 
-Channels, as (power, amplitude A_k, risk of u=e_k):
+Development diagnostics (folded time starts at 0; channel order follows powers):
 {baselines}
 
 Previous attempts, as (u, risk):
@@ -41,13 +42,26 @@ Propose three structurally different vectors each round.
 def render_prompt(p, baselines, history):
     return PROMPT.format(alpha=p['alpha'], powers=list(p['powers']), T=p['geometry'][3],
                          score_window=list(p['score_window']), baselines=baselines,
-                         history=json.dumps(history[-6:]), n_powers=len(p['powers']),
+                         history=json.dumps(history), n_powers=len(p['powers']),
                          l1_bound=p['optimizer_l1_bound'])
 
 
-def run(output, model, rounds, allow_validation=False):
-    if rounds < 1:
-        raise ValueError('rounds must be positive')
+@dataclass
+class Development:
+    protocol: dict
+    data: np.ndarray
+    index: np.ndarray
+    mass: float
+    masses: np.ndarray
+    scales: np.ndarray
+    diagnostics: dict
+
+    def evaluate(self, u):
+        weights = np.asarray(u, dtype=float) / self.scales
+        return risk(self.data, weights, self.mass, self.masses, self.index, self.protocol)['risk']
+
+
+def prepare_development(output):
     output = Path(output)
     p = json.loads((output / 'development_provenance.json').read_text())['protocol']
     data = blocks(fold(load_data(output, 'development', p)), p['block_length'])
@@ -66,22 +80,37 @@ def run(output, model, rounds, allow_validation=False):
     index = bootstrap_indices(len(data), p['bootstrap_samples'], p['seed'])
     window = p['reference_windows'][p['reference_nominal_window']]
     ref, masses = ReferenceFit(data, p, window).bootstrap(index)
+    return describe_development(p, data, index, ref['mass'], masses)
+
+
+def describe_development(p, data, index, mass, masses):
     basis = np.eye(len(p['powers']))
-    scores = [risk(data, w, ref['mass'], masses, index, p) for w in basis]
+    scores = [risk(data, w, mass, masses, index, p) for w in basis]
     scales = np.array([s['amplitude'] for s in scores])
-    baselines = [[power, float(scale), s['risk']] for power, scale, s in zip(p['powers'], scales, scores)]
+    channels = [{'power': power, 'amplitude': score['amplitude'], 'risk': score['risk'],
+                 'variance': score['variance'], 'departure_squared': score['departure_squared'],
+                 'mean_folded': score['mean'], 'q_early': score['q']}
+                for power, score in zip(p['powers'], scores)]
+    correlations = {}
+    for t in p['score_window']:
+        samples = data[:, :, t]
+        cov = np.cov(samples, rowvar=False)
+        scale = np.sqrt(np.outer(np.diag(cov), np.diag(cov)))
+        correlations[t] = [[float(c / sd) if sd > 0 else None for c, sd in zip(row, denom)]
+                           for row, denom in zip(cov, scale)]
+    diagnostics = {'reference_mass': mass, 'channels': channels,
+                   'correlation_across_development_blocks_by_time': correlations}
+    return Development(p, data, index, mass, masses, scales, diagnostics)
 
-    def evaluate(u):
-        weights = np.asarray(u, dtype=float) / scales
-        return risk(data, weights, ref['mass'], masses, index, p)['risk']
 
-    root = output / 'agent'
-    root.mkdir(exist_ok=True)
-    destination = Path(tempfile.mkdtemp(prefix='search-', dir=root))
+def llm_search(dev, model, rounds, destination, responder, *, feedback=True, context=''):
+    p = dev.protocol
     history, trace, accepted = [], [], []
     for r in range(rounds):
-        prompt = render_prompt(p, baselines, history)
-        reply = chat(prompt, model)
+        prompt = render_prompt(p, json.dumps(dev.diagnostics), history)
+        if context:
+            prompt = f'{context} Round {r + 1} of {rounds}.\n{prompt}'
+        reply = responder(prompt, model)
         record = {'round': r, 'prompt_sha256': hashlib.sha256(prompt.encode()).hexdigest(),
                   'reply_sha256': hashlib.sha256(reply.encode()).hexdigest()}
         trace.append(record)
@@ -92,25 +121,41 @@ def run(output, model, rounds, allow_validation=False):
         proposals = payload.get('candidates') if isinstance(payload, dict) else None
         if not isinstance(proposals, list) or not proposals:
             record['error'] = 'expected a candidates list'
-            history.append(record['error'])
+            history.append(record['error'] if feedback else [])
         else:
-            found = search(((f'{r}.{i}', u) for i, u in enumerate(proposals)), evaluate,
-                           validate=lambda u: validate_weights(u, len(scales), p['optimizer_l1_bound']),
+            found = search(((f'{r}.{i}', u) for i, u in enumerate(proposals)), dev.evaluate,
+                           validate=lambda u: validate_weights(u, len(dev.scales), p['optimizer_l1_bound']),
                            budget=Budget(3))
             record['accepted'] = found.accepted
             record['rejections'] = [{'source': row['source'], 'reason': row['reason']}
                                     for row in found.rejected]
             record['over_budget'] = found.budget_exhausted
-            history.extend([*found.accepted, *record['rejections']])
+            if feedback:
+                history.extend([*found.accepted, *record['rejections']])
+            else:
+                history.append({'proposed': proposals[:3]})
             accepted.extend(found.accepted)
         write_json(destination / 'rounds.json', trace)
 
     best = min(accepted, key=lambda row: row['risk']) if accepted else None
+    return best, trace
+
+
+def run(output, model, rounds, allow_validation=False):
+    if rounds < 1:
+        raise ValueError('rounds must be positive')
+    output = Path(output)
+    dev = prepare_development(output)
+    p = dev.protocol
+    root = output / 'agent'
+    root.mkdir(exist_ok=True)
+    destination = Path(tempfile.mkdtemp(prefix='search-', dir=root))
+    best, _ = llm_search(dev, model, rounds, destination, chat)
     summary = {'model': model, 'rounds': rounds, 'protocol_hash': fingerprint(p),
                'development_sha256': digest(output / 'development.npz'), 'best': best,
                'validation_status': 'not_read'}
     if best:
-        weights = np.asarray(best['candidate'], dtype=float) / scales
+        weights = np.asarray(best['candidate'], dtype=float) / dev.scales
         best['weights'] = weights.tolist()
     write_json(destination / 'best.json', summary)
     if allow_validation and best:
@@ -119,8 +164,8 @@ def run(output, model, rounds, allow_validation=False):
         summary['validation_status'] = 'post_hoc_diagnostic'
         summary['validation_sha256'] = digest(output / 'validation.npz')
         try:
-            summary['validation_risk'] = risk(validation, weights, ref['mass'], masses, vi, p,
-                                              late_inverse=late_metric(data, weights, p))['risk']
+            summary['validation_risk'] = risk(validation, weights, dev.mass, dev.masses, vi, p,
+                                              late_inverse=late_metric(dev.data, weights, p))['risk']
         except ValueError as exc:
             summary['validation_invalid'] = str(exc)
         write_json(destination / 'best.json', summary)
