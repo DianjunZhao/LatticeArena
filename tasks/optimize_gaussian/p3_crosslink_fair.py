@@ -120,8 +120,10 @@ def run(seed, epsilon, n_train=60, n_test=40):
             gradient = float(np.linalg.norm(2 * Xs.T @ (Xs @ theta - Y_train)))
             out[f'{klass}/{method}'] = {'test_error': error, 'nfev': nfev,
                                         'success': success, 'seconds': elapsed,
-                                        'dimension': int(X_train.shape[1]), 'rank': rank,
+                                        'dimension': int(np.asarray(theta).size),
+                                        'rank': rank,
                                         'gradient_norm': gradient,
+                                        'coefficients': [float(x) for x in theta],
                                         'feasible': bool(np.all(np.abs(theta) <= 5.0 + 1e-9))}
     return out
 

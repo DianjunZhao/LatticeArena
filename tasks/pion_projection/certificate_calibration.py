@@ -197,6 +197,25 @@ def main(n_dataset=8, blocks_list=(6, 12, 24), seed=20261120):
 
 
 
+def model_gate(dev_blocks, kind):
+    """Per-model chi-square gate; each model in the family needs its own acceptance."""
+    ref = make_reference(dev_blocks, PROTOCOL,
+                         PROTOCOL['reference_windows'][PROTOCOL['reference_nominal_window']], kind)
+    mean = ref.samples.mean(axis=0)
+    if kind == 'single':
+        mass, cost = ref.fit(mean)
+        dof = ref.samples.shape[1] - len(PROTOCOL['reference_basis']) - 1
+        return {'kind': kind, 'mass': float(mass), 'chi2': float(cost), 'dof': int(dof),
+                'p': float(chi2.sf(cost, dof)), 'passed': bool(chi2.sf(cost, dof) >= 0.05)}
+    full = ref.fit_full(mean)
+    dof = ref.nchan * ref.ntime - 2 - 2 * ref.nchan
+    p_value = float(chi2.sf(full['cost'], dof))
+    return {'kind': kind, 'mass': float(full['mass']), 'mass2': float(full['mass2']),
+            'chi2': float(full['cost']), 'dof': int(dof), 'p': p_value,
+            'at_boundary': bool(full['at_boundary']),
+            'passed': bool(p_value >= 0.05 and not full['at_boundary'])}
+
+
 def run_family(rng, n_dataset=8, outer=40, inner=16, alpha=0.05):
     """J=2 candidates (one null, one better) and K=2 models (single, twostate)."""
     from .reference import make_reference
@@ -210,7 +229,8 @@ def run_family(rng, n_dataset=8, outer=40, inner=16, alpha=0.05):
         dev = blocks(world(rng, 24 * PROTOCOL['block_length'], contamination), PROTOCOL['block_length'])
         val = blocks(world(rng, 12 * PROTOCOL['block_length'], contamination), PROTOCOL['block_length'])
         ref, mass, p_value = gate(dev)
-        if p_value < 0.05:
+        gates = {kind: model_gate(dev, kind) for kind in ('single', 'twostate')}
+        if p_value < 0.05 or not all(item['passed'] for item in gates.values()):
             abstain += 1
             continue
         weights = {'base': np.eye(7)[1], 'null': np.eye(7)[2], 'better': np.eye(7)[5]}
@@ -242,6 +262,7 @@ def run_family(rng, n_dataset=8, outer=40, inner=16, alpha=0.05):
         certified_any += (null_ok or better_ok)
     return {'n_dataset': n_dataset, 'outer': outer, 'inner': inner, 'alpha': alpha,
             'abstain': abstain, 'valid': n_dataset - abstain,
+            'model_gates_last': gates if abstain < n_dataset else None,
             'certified_null': certified_null, 'certified_better': certified_better,
             'family_false_certification': certified_null / (n_dataset - abstain) if n_dataset > abstain else None,
             'power': certified_better / (n_dataset - abstain) if n_dataset > abstain else None}

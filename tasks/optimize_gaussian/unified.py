@@ -143,6 +143,8 @@ def main():
         fold_ref = make_reference(train, p, window, 'single')
         fold_m0, fold_masses = fold_ref.bootstrap(bootstrap_indices(len(train), p['bootstrap_samples'], p['seed'] + i))
         fold = {'fold': i, 'mass': float(fold_m0['mass']),
+                'failures': ([] if sub.get('calibration', {}).get('reference_passed', False)
+                             else ['upstream reference gate failed']),
                 'train_blocks': [int(x) for x in np.setdiff1d(np.arange(len(dev)), test_ids)],
                 'test_blocks': [int(x) for x in test_ids],
                 'estimand': 'training-frozen amplitude',
@@ -188,6 +190,8 @@ def main():
         tuned_risk = risk_with_fixed_amplitude(test, basis[best_power], fold_m0['mass'], fold_masses, idx_test, p, *tuned_fixed)['risk']
         slsqp_risk = risk_with_fixed_amplitude(test, weights, fold_m0['mass'], fold_masses, idx_test, p, train_amp, train_amp_se)['risk']
         search_rows.append({'fold': i, 'mass': float(fold_m0['mass']), 'best_power': int(best_power),
+                            'failures': ([] if sub.get('calibration', {}).get('reference_passed', False)
+                                         else ['upstream reference gate failed']),
                             'best_power_value': float(p['powers'][best_power]),
                             'local': local_risk, 'tuned': tuned_risk, 'slsqp': slsqp_risk,
                             'tuned_over_slsqp': tuned_risk / slsqp_risk,

@@ -9,6 +9,7 @@ def main():
     measure = commands.add_parser('measure')
     measure.add_argument('--split', choices=['development', 'validation'], required=True)
     measure.add_argument('--limit', type=int)
+    measure.add_argument('--plan', help='pre-registered measurement plan (required for new runs)')
     commands.add_parser('develop')
     commands.add_parser('evaluate')
     commands.add_parser('plot')
@@ -31,7 +32,7 @@ def main():
         run(args.output, args.model)
     elif args.command == 'measure':
         from .measure import measure
-        measure(args.output, args.split, args.limit)
+        measure(args.output, args.split, args.limit, plan=args.plan)
     elif args.command == 'candidate':
         from .candidate import run_candidate
         run_candidate(args.output, args.definition, args.split, args.verify_only)

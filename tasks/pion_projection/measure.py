@@ -11,7 +11,12 @@ from .common import digest, fingerprint, indices, protocol, write_json
 
 
 def measure(output, split, limit=None, plan=None):
-    if plan is not None:
+    plan = plan or os.environ.get('PION_MEASUREMENT_PLAN')
+    if plan is None:
+        if os.environ.get('PION_LEGACY_MEASUREMENT') != '1':
+            raise ValueError('a measurement plan is required before any GPU initialisation; '
+                             'pass --plan or PION_MEASUREMENT_PLAN (legacy: PION_LEGACY_MEASUREMENT=1)')
+    else:
         from .measurement_plan import preflight
         preflight(plan, output, split)
     import cupy as cp

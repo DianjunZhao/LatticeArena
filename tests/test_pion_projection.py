@@ -633,3 +633,11 @@ def test_measurement_plan_preflight_rejects_draft_before_gpu(tmp_path):
         preflight('tasks/pion_projection/measurement_plan.example.json', tmp_path)
     legal = load_plan('tasks/pion_projection/measurement_plan.example.json')
     assert legal['schema'] == 'pion-measurement-plan-v1'
+
+
+def test_measure_requires_plan_before_gpu(tmp_path, monkeypatch):
+    monkeypatch.delenv('PION_MEASUREMENT_PLAN', raising=False)
+    monkeypatch.delenv('PION_LEGACY_MEASUREMENT', raising=False)
+    from tasks.pion_projection.measure import measure
+    with pytest.raises(ValueError, match='measurement plan is required'):
+        measure(tmp_path, 'development')

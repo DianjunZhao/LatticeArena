@@ -238,3 +238,31 @@ def test_evidence_receipt_binds_code_and_inputs():
     with pytest.raises(ValueError, match='non-empty'):
         make_receipt(record('x.z', 'wilson_loop', 'claim', 'cmd', {}, {},
                             'PASS', 'archived_data', code={}, inputs={}), run_sha)
+
+
+def test_audit_run_recomputes_claimed_hashes(tmp_path):
+    import json
+    import shutil
+    import subprocess
+    import sys
+    from pathlib import Path
+    run = Path('results/pion_projection/s16t16_gevp200')
+    if not (run / 'submission.json').exists():
+        pytest.skip('run data not available')
+    target = tmp_path / 'run'
+    target.mkdir()
+    for name in ('development.npz', 'validation.npz', 'development_provenance.json',
+                 'validation_provenance.json', 'submission.json'):
+        shutil.copy(run / name, target / name)
+    out = tmp_path / 'evidence.json'
+    command = [sys.executable, 'scripts/audit_run.py', '--task', 'pion_projection',
+               '--run', str(target), '--out', str(out)]
+    assert subprocess.run(command, capture_output=True).returncode == 0
+    verify = [sys.executable, 'scripts/verify_evidence.py', '--task', 'pion_projection',
+              '--run', str(target), '--evidence', str(out)]
+    assert subprocess.run(verify, capture_output=True).returncode == 0
+    with np.load(target / 'validation.npz') as f:
+        ids, corr, protocol_hash = f['ids'], f['correlators'].copy(), f['protocol_hash']
+    corr[0, 0, 0] += 1.0
+    np.savez(target / 'validation.npz', ids=ids, correlators=corr, protocol_hash=protocol_hash)
+    assert subprocess.run(verify, capture_output=True).returncode != 0

@@ -64,8 +64,12 @@ def verify_run_identity(output, models=None):
     late = sub.get('late_inverse_covariances') or {}
     if set(late) != set((sub.get('submissions') or {})):
         reasons.append('late metric keys differ from the candidate set')
+    expected_dim = len(p['amplitude_window'])
     for name, matrix in late.items():
         array = np.asarray(matrix)
         if array.ndim != 2 or not np.all(np.isfinite(array)):
             reasons.append(f'late metric {name!r} is not a finite matrix')
+        elif array.shape != (expected_dim, expected_dim):
+            reasons.append(f'late metric {name!r} has shape {array.shape}, '
+                           f'expected {(expected_dim, expected_dim)}')
     return kind, reasons

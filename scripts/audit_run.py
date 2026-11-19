@@ -46,7 +46,7 @@ def wilson(run, protocol_path):
                               code={name: digest(Path(path)) for name, path in CODE.items()},
                               inputs={'loops_sha256': hashlib.sha256(np.ascontiguousarray(loops).tobytes()).hexdigest()}))
     observed = {'submission': sub.get('kernel_sha256'), 'provenance': prov.get('kernel_sha256')}
-    if observed['submission'] is None or observed['provenance'] is None:
+    if observed['submission'] is None or observed['provenance'] is None or prov.get('generation') is None:
         status = 'NOT_RUN'
     else:
         status = 'PASS' if observed['submission'] == observed['provenance'] else 'FAIL'
@@ -99,6 +99,37 @@ def pion(run):
     return entries
 
 
+def verify_entry_against_run(entry, run, task):
+    """Recompute claimed code/input hashes from the files; arbitrary strings cannot pass."""
+    known = CODE if task == 'wilson_loop' else PION_CODE
+    for name, value in entry['code'].items():
+        path = Path(known.get(name, name))
+        if not path.exists() or digest(path) != value:
+            raise ValueError(f'{entry["test_id"]}: code hash for {path} does not match the file')
+    split = 'development' if 'development' in entry['test_id'] else 'validation'
+    with np.load(run / f'{split}.npz') as f:
+        if 'loops_sha256' in entry['inputs']:
+            observed = hashlib.sha256(np.ascontiguousarray(f['loops']).tobytes()).hexdigest()
+            if observed != entry['inputs']['loops_sha256']:
+                raise ValueError(f'{entry["test_id"]}: loops hash does not match {split}.npz')
+        if 'correlators_sha256' in entry['inputs']:
+            observed = hashlib.sha256(np.ascontiguousarray(f['correlators']).tobytes()).hexdigest()
+            if observed != entry['inputs']['correlators_sha256']:
+                raise ValueError(f'{entry["test_id"]}: correlators hash does not match {split}.npz')
+        if 'ids_sha256' in entry['inputs']:
+            observed = hashlib.sha256(np.asarray(f['ids']).tobytes()).hexdigest()
+            if observed != entry['inputs']['ids_sha256']:
+                raise ValueError(f'{entry["test_id"]}: ids hash does not match {split}.npz')
+    for key in ('protocol_hash', 'provenance_generation'):
+        if key in entry['inputs']:
+            value = entry['inputs'][key]
+            if value is None and entry['status'] != 'PASS':
+                continue
+            if not isinstance(value, str) or len(value) < 8:
+                raise ValueError(f'{entry["test_id"]}: {key} is not a hash string')
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--task', choices=['wilson_loop', 'pion_projection'], required=True)
@@ -114,6 +145,7 @@ def main():
         entries = pion(run)
     run_sha = digest(run / 'validation.npz')
     for entry in entries:
+        verify_entry_against_run(entry, run, args.task)
         entry['receipt'] = make_receipt(entry, run_sha)
         verify_receipt(entry, run_sha)
     write_evidence(args.out, entries)
