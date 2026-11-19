@@ -11,8 +11,12 @@
 
 ## 第三轮结果（2026-11-19）
 
-- 三份 todo 的 CPU 必做项逐项完成（pion A/B/C+计划、wilson P0–F3、optimize A–D），
-  证据与新目录见 `doc/todo_coverage.md`；
+- 三份 todo 的 CPU 必做项均有代码与证据（pion A/B/C+计划、wilson P0–F3、optimize A–D），
+  但其中三处是**负结果/INCONCLUSIVE**，不能读作认证：
+  wilson 两态反例是 gate 盲点（spread gate 通过而 bias/SE 32.5）、
+  pion 0/8 的 CP 区间 [0,0.369] 不足以声称族错误率受控、
+  optimize 类 B 的 ε>0 零误差是目标含 G0 的构造性结果；
+  详见 `doc/todo_coverage.md` §0；
 - 关键修复：真实 pending 恢复（2→3 行、数组一致）、标准 NERSC CHECKSUM（冷场 ff400000、错误头拒绝）、
   invalid 候选不崩溃、RunState 需 execution receipts、pion 完整身份/score spec/gate artifact、
   naive/paired/independent 三种区间分离、optimize 公平 2×2（ε=0 精确、ε>0 迁移 0）；

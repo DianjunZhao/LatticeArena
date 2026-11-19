@@ -38,12 +38,9 @@ def world(rng, ncfg, contam=None, noise=0.02, cfg_sigma=0.01, time_rho=0.5):
 
 
 def gate(dev_blocks):
-    ref = make_reference(dev_blocks, PROTOCOL,
-                         PROTOCOL['reference_windows'][PROTOCOL['reference_nominal_window']], 'single')
-    mean = ref.samples.mean(axis=0)
-    mass, cost = ref.fit(mean)
-    dof = ref.samples.shape[1] - len(PROTOCOL['reference_basis']) - 1
-    return ref, mass, float(chi2.sf(cost, dof))
+    from .gate import fit_reference_gate
+    ref, mass, cost, dof, p_value = fit_reference_gate(dev_blocks, PROTOCOL, 'single')
+    return ref, mass, p_value
 
 
 def run_simulation(rng, contam, outer=60, inner=24, blocks_dev=24):

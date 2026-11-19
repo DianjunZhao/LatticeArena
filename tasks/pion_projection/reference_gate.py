@@ -41,10 +41,9 @@ def generate(rng, kind='single', ncfg=120, noise=0.02, cfg_sigma=0.01, time_rho=
 
 
 def fit_gate(data, p=PROTOCOL):
-    fit = ReferenceFit(blocks(data, p['block_length']), p, WINDOW)
-    mean = fit.samples.mean(axis=0)
-    mass, cost = fit.fit(mean)
-    dof = fit.samples.shape[1] - len(BASIS) - 1
+    from .gate import fit_reference_gate
+    fit, mass, cost, dof, p_value = fit_reference_gate(blocks(data, p['block_length']), p, 'single',
+                                                       WINDOW)
     return fit, mass, cost, dof
 
 

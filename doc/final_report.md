@@ -227,7 +227,9 @@ pion 的 §6.2/§7 执行（真实 anchor、共同目标预测、新测量先决
 - optimize：可信输入分流、fit-state 保存、公平 2×2（ε=0 精确、ε>0 嵌套类迁移）、
   实际 BCB—response—core search 闭环。
 
-未跑项仍为 GPU/新测量/真实 W 训练，逐项标 NOT_RUN。
+**负结果必须按负结果读**：wilson 两态反例是 gate 盲点（spread gate 通过而 bias/SE 32.5），
+pion 0/8 的 CP 区间 [0, 0.369] 不足以声称族错误率受控，optimize 类 B 的 ε>0 零误差是
+目标含 $G_0$ 的构造性可表示性结果。未跑项仍为 GPU/新测量/真实 W 训练，逐项标 NOT_RUN。
 
 ## 12. 2026-11-18 深夜：新工单的 CPU 闭环
 
