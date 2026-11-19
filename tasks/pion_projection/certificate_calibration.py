@@ -14,7 +14,8 @@ from scipy.stats import chi2
 
 from .reference import make_reference
 from .scoring import improvement_certificate
-from .statistics import blocks, bootstrap_indices, risk
+from .experiment import late_metric
+from .statistics import blocks, bootstrap_indices, fold, risk
 
 OUT = Path('results/pion_projection/certificate_calibration_v1')
 PROTOCOL = json.loads(Path('results/pion_projection/s16t16_v1/development_provenance.json').read_text())['protocol']
@@ -45,10 +46,10 @@ def gate(dev_blocks):
     return ref, mass, float(chi2.sf(cost, dof))
 
 
-def run_simulation(rng, contam_baseline, contam_candidate, outer=60, inner=24, blocks_dev=24):
+def run_simulation(rng, contam, outer=60, inner=24, blocks_dev=24):
     ncfg = blocks_dev * PROTOCOL['block_length']
-    dev = blocks(world(rng, ncfg, contam_baseline), PROTOCOL['block_length'])
-    val = blocks(world(rng, 12 * PROTOCOL['block_length'], contam_baseline), PROTOCOL['block_length'])
+    dev = blocks(fold(world(rng, ncfg, contam)), PROTOCOL['block_length'])
+    val = blocks(fold(world(rng, 12 * PROTOCOL['block_length'], contam)), PROTOCOL['block_length'])
     ref, mass, p_value = gate(dev)
     if p_value < 0.05:
         return {'abstain': True, 'p_value': p_value}
@@ -66,7 +67,9 @@ def run_simulation(rng, contam_baseline, contam_candidate, outer=60, inner=24, b
         val_idx = rng.integers(0, len(val), len(val))
         inner_idx = rng.integers(0, len(val), (inner, len(val)))
         for name, weights in (('base', baseline), ('cand', candidate)):
-            risks[name][b] = risk(val[val_idx], weights, fit_b['mass'], masses, inner_idx, PROTOCOL)['risk']
+            late = late_metric(dev[dev_idx], weights, PROTOCOL)
+            risks[name][b] = risk(val[val_idx], weights, fit_b['mass'], masses, inner_idx,
+                                  PROTOCOL, late_inverse=late)['risk']
     spec = {'schema': 'pion-score-v1', 'version': 'c2', 'estimand': 'conditional',
             'baseline_id': 'base', 'accepted_models': ['single'], 'candidate_ids': ['cand'],
             'analysis_version': 'c2', 'alpha': 0.05,
@@ -87,7 +90,8 @@ def world_ground_weak(rng, ncfg, ground_amp=0.0, excited_amp=1.0, noise=0.02):
     t = np.arange(T)
     profile = (ground_amp * (np.exp(-E0 * t) + np.exp(-E0 * (T - t)))
                + excited_amp * (np.exp(-E1 * t) + np.exp(-E1 * (T - t))))
-    signal = np.ones((len(AMPS), 1)) * profile[None, :]
+    channel_scale = np.linspace(1.0, 0.6, len(AMPS))
+    signal = channel_scale[:, None] * profile[None, :]
     cfg = rng.normal(size=(ncfg, len(AMPS), 1)) * 0.01
     eps = rng.normal(size=(ncfg, len(AMPS), T))
     for k in range(1, T):
@@ -99,6 +103,7 @@ def run_wrong_state(rng, n_dataset=8, outer=40, inner=16):
     """Gate passes on the excited state; check whether a null candidate certifies."""
     gate_pass = wrong_mass = certified = abstain = 0
     masses = []
+    point_ratios = []
     for _ in range(n_dataset):
         dev = blocks(world_ground_weak(rng, 24 * PROTOCOL['block_length']), PROTOCOL['block_length'])
         val = blocks(world_ground_weak(rng, 12 * PROTOCOL['block_length']), PROTOCOL['block_length'])
@@ -110,16 +115,20 @@ def run_wrong_state(rng, n_dataset=8, outer=40, inner=16):
         gate_pass += 1
         if abs(mass - E0) > 0.1:
             wrong_mass += 1
-        weights = np.eye(len(AMPS))[1]
+        baseline_weights = np.eye(len(AMPS))[1]
+        candidate_weights = np.zeros(len(AMPS))
+        candidate_weights[2] = 1.0
         draws = np.zeros(outer)
         for b in range(outer):
             dev_idx = rng.integers(0, len(dev), len(dev))
             ref_b = make_reference(dev[dev_idx], PROTOCOL,
                                    PROTOCOL['reference_windows'][PROTOCOL['reference_nominal_window']], 'single')
             fit_b, boot = ref_b.bootstrap(rng.integers(0, len(dev), (inner, len(dev))))
-            draws[b] = risk(val[rng.integers(0, len(val), len(val))], weights, fit_b['mass'], boot,
-                            rng.integers(0, len(val), (inner, len(val))), PROTOCOL)['risk']
-        # identical baseline/candidate: a certificate would be a false improvement
+            late = late_metric(dev[dev_idx], baseline_weights, PROTOCOL)
+            draws[b] = risk(val[rng.integers(0, len(val), len(val))], baseline_weights,
+                            fit_b['mass'], boot,
+                            rng.integers(0, len(val), (inner, len(val))), PROTOCOL,
+                            late_inverse=late)['risk']
         spec = {'schema': 'pion-score-v1', 'version': 'c2-wrong-state', 'estimand': 'conditional',
                 'baseline_id': 'local', 'accepted_models': ['single'], 'candidate_ids': ['cand'],
                 'analysis_version': 'c2-wrong-state', 'alpha': 0.05,
@@ -127,12 +136,23 @@ def run_wrong_state(rng, n_dataset=8, outer=40, inner=16):
                 'min_baseline_risk': 1e-9, 'invalid_tolerance': 0.05, 'min_improvement': 1.0,
                 'risk_floor': 0.0, 'require_draw_ids': True,
                 'draw_ids_hash': hashlib.sha256(np.arange(outer).astype(np.int64).tobytes()).hexdigest()}
-        certificate = improvement_certificate({'single': {'local': draws, 'cand': draws}},
+        cand_draws = np.zeros(outer)
+        for b in range(outer):
+            dev_idx = rng.integers(0, len(dev), len(dev))
+            ref_b = make_reference(dev[dev_idx], PROTOCOL,
+                                   PROTOCOL['reference_windows'][PROTOCOL['reference_nominal_window']], 'single')
+            fit_b, boot = ref_b.bootstrap(rng.integers(0, len(dev), (inner, len(dev))))
+            late = late_metric(dev[dev_idx], candidate_weights, PROTOCOL)
+            cand_draws[b] = risk(val[rng.integers(0, len(val), len(val))], candidate_weights,
+                                 fit_b['mass'], boot, rng.integers(0, len(val), (inner, len(val))),
+                                 PROTOCOL, late_inverse=late)['risk']
+        certificate = improvement_certificate({'single': {'local': draws, 'cand': cand_draws}},
                                               spec, draw_ids=np.arange(outer))
+        point_ratios.append(float(draws.mean() / cand_draws.mean()))
         certified += bool(certificate['candidates']['cand']['certified'])
     return {'n_dataset': n_dataset, 'abstain': abstain, 'gate_pass': gate_pass,
             'wrong_mass_gt_0.1': wrong_mass, 'certified': certified,
-            'masses': masses,
+            'masses': masses, 'point_ratios': point_ratios,
             'note': ('ground amplitude 0, excited 1.0: the data are a pure excited state, the '
                      'single-cosh gate passes at E1, and only an independent-mass guard can '
                      'flag the wrong state')}
@@ -145,16 +165,16 @@ def main(n_dataset=8, blocks_list=(6, 12, 24), seed=20261120):
     better = flat.copy(); better[1] = 0.7; better[2] = 0.2
     miss = flat.copy(); miss[[0, 3, 4]] = 0.5; miss[[1, 2]] = 0.5
     scenarios = {
-        'no_improvement': (same, same),
-        'known_improvement': (better, better),
-        'misspecified_reference': (miss, miss),
+        'no_improvement': same,
+        'known_improvement': better,
+        'misspecified_reference': miss,
     }
     rows = {}
-    for name, (base_c, cand_c) in scenarios.items():
+    for name, contam in scenarios.items():
         for blocks in blocks_list:
             results = []
             for _ in range(n_dataset):
-                results.append(run_simulation(rng, base_c, cand_c, blocks_dev=blocks))
+                results.append(run_simulation(rng, contam, blocks_dev=blocks))
             valid = [r for r in results if not r['abstain']]
             certified = sum(r['certified'] for r in valid)
             key = f'{name}/blocks_{blocks}'

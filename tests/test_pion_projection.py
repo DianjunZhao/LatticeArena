@@ -496,7 +496,7 @@ def test_certificate_calibration_chain():
     rng = np.random.default_rng(3)
     flat = np.zeros(7)
     same = flat.copy(); same[1] = same[2] = 0.5
-    result = run_simulation(rng, same, same, outer=4, inner=4)
+    result = run_simulation(rng, same, outer=4, inner=4)
     assert 'abstain' in result
     if not result['abstain']:
         assert 'certified' in result and 'lower_bound' in result
@@ -616,3 +616,12 @@ def test_eigvals_rank_legality():
     with pytest.raises(ValueError, match='outside'):
         _eigvals(np.eye(2), np.eye(2), rank=-1)
     assert _eigvals(np.eye(2), np.eye(2), rank=2).size == 2
+
+
+def test_wrong_state_candidates_are_distinct():
+    from tasks.pion_projection.certificate_calibration import run_wrong_state
+    rng = np.random.default_rng(11)
+    row = run_wrong_state(rng, n_dataset=2, outer=12, inner=8)
+    assert row['gate_pass'] >= 1
+    assert len(row['point_ratios']) == row['gate_pass']
+    assert any(abs(r - 1.0) > 0.05 for r in row['point_ratios'])

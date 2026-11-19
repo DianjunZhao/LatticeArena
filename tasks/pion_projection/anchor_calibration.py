@@ -76,12 +76,84 @@ def main():
             widths.append(float(delta.mean() - lower_bound(delta, 0.05)))
         scaling.append({'n_boot': n_boot, 'mean_naive_interval_width': float(np.mean(widths)),
                         'relative_to_50': float(np.mean(widths) / scaling[0]['mean_naive_interval_width']) if scaling else 1.0})
+    paired = paired_estimators(rng)
+    paired_shared = paired_estimators(rng, cfg_shared=0.5)
+    fixed = nboot_fixed_data(rng)
     result = {'rows': rows, 'nboot_scaling': scaling,
+              'paired_estimators': paired, 'paired_estimators_shared_cfg': paired_shared,
+              'nboot_fixed_data': fixed,
               'note': ('dataset_se is the independent-dataset standard error; naive uses '
                        'the bootstrap draws as if independent and shrinks with Nboot')}
     (OUT / 'anchor_calibration.json').write_text(json.dumps(result, indent=2) + '\n')
     print('scaling', scaling)
     print('wrote', OUT)
+
+
+
+
+def paired_dataset(rng, noise_b=0.02, noise_c=0.01, ncfg=120, cfg_shared=0.0):
+    """One physical dataset: common config noise, baseline/candidate differ in amplitude."""
+    t = np.arange(PROTOCOL['geometry'][3])
+    signal = np.exp(-0.5 * t) + np.exp(-0.5 * (t.size - t))
+    eps = rng.normal(size=(ncfg, 1, t.size))
+    shared = rng.normal(size=(ncfg, 1, 1)) * np.sqrt(max(cfg_shared, 0.0)) * 0.01
+    base_b = signal[None, None, :] * (1 + noise_b * eps + shared)
+    base_c = signal[None, None, :] * (1 + noise_c * eps + shared)
+    channels = len(PROTOCOL['powers'])
+    return (np.broadcast_to(base_b, (ncfg, channels, t.size)).copy(),
+            np.broadcast_to(base_c, (ncfg, channels, t.size)).copy())
+
+
+def _masses(raw, rng, n_boot):
+    data = blocks(raw, PROTOCOL['block_length'])
+    ref = ReferenceFit(data, PROTOCOL, WINDOW)
+    index = rng.integers(0, len(data), (n_boot, len(data)))
+    _, masses = ref.bootstrap(index)
+    return np.asarray(masses), index
+
+
+def paired_estimators(rng, n_boot=200, sigma_anchor=0.005, e0=0.80, n_dataset=30, cfg_shared=0.0):
+    """naive (draws as independent), paired single-ensemble, independent-repeat."""
+    naive_widths, paired_widths, deltas = [], [], []
+    for _ in range(n_dataset):
+        raw_b, raw_c = paired_dataset(rng, cfg_shared=cfg_shared)
+        e_b, index = _masses(raw_b, rng, n_boot)
+        e_c, _ = _masses(raw_c, rng, n_boot)
+        anchor = e0 + rng.normal(0, sigma_anchor, n_boot)
+        delta = ((e_b - anchor) ** 2 - (e_c - anchor) ** 2) / TAU_E ** 2
+        naive_widths.append(float(2 * 1.96 * delta.std(ddof=1) / np.sqrt(n_boot)))
+        paired_widths.append(float(np.quantile(delta, 0.975) - np.quantile(delta, 0.025)))
+        deltas.append(float(delta.mean()))
+    deltas = np.asarray(deltas)
+    repeat_se = float(deltas.std(ddof=1) / np.sqrt(len(deltas)))
+    return {'n_dataset': n_dataset, 'n_boot': n_boot,
+            'naive_width_mean': float(np.mean(naive_widths)),
+            'paired_width_mean': float(np.mean(paired_widths)),
+            'independent_mean': float(deltas.mean()),
+            'independent_se': repeat_se,
+            'independent_interval': [float(deltas.mean() - 1.96 * repeat_se),
+                                     float(deltas.mean() + 1.96 * repeat_se)]}
+
+
+def nboot_fixed_data(rng, sigma_anchor=0.005, e0=0.80, budgets=(50, 200, 800)):
+    """Same raw data and anchor input; only the bootstrap budget changes."""
+    raw_b, raw_c = paired_dataset(rng)
+    data_b = blocks(raw_b, PROTOCOL['block_length'])
+    data_c = blocks(raw_c, PROTOCOL['block_length'])
+    ref_b = ReferenceFit(data_b, PROTOCOL, WINDOW)
+    ref_c = ReferenceFit(data_c, PROTOCOL, WINDOW)
+    anchor_inputs = rng.normal(0, sigma_anchor, max(budgets))
+    rows = []
+    for n_boot in budgets:
+        index = rng.integers(0, len(data_b), (n_boot, len(data_b)))
+        _, e_b = ref_b.bootstrap(index)
+        _, e_c = ref_c.bootstrap(index)
+        anchor = e0 + anchor_inputs[:n_boot]
+        delta = ((np.asarray(e_b) - anchor) ** 2 - (np.asarray(e_c) - anchor) ** 2) / TAU_E ** 2
+        rows.append({'n_boot': n_boot,
+                     'naive_width': float(2 * 1.96 * delta.std(ddof=1) / np.sqrt(n_boot)),
+                     'paired_width': float(np.quantile(delta, 0.975) - np.quantile(delta, 0.025))})
+    return rows
 
 
 if __name__ == '__main__':
