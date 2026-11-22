@@ -1,0 +1,10 @@
+{
+  "driver_sha256": "ae01b76a3bfb79e0f6304b8aab33d555a9207cf097f24730aa87f8facd2b00bf",
+  "plan_executor_spec_sha256": "7d50ddfbb2b9be29d8c388feda78fc68c4da598f3ce350eae7618b9773659f13",
+  "planned_per_cell": 402,
+  "resume_rule": "reuse valid receipts; preserve incomplete attempt folders; retry only into a new attempt_NNN folder",
+  "run_per_cell": 402,
+  "schema": "pion-full-gate-parallel-driver-v1",
+  "source_hashes_match": true,
+  "workers": 6
+}

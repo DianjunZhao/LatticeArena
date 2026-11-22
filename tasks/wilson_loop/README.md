@@ -206,3 +206,19 @@ v2 的 6 个留出 block 太窄，配对区间跨 1。按 todo 的建议“扩�
 
 **这也解释了 v2 的“未证明”**：不是 APE 无效，而是 6 个留出 block 的功效不够。v2 与 v3 的
 点估计（约 3 倍改善）一致，v3 只是把区间收窄到了 1 以上。
+
+## 2026-11-20：D 链 stout/APE 新测量准备
+
+新增的 [D 链 RunSpec](protocol_d_20261120.json) 固定 beta=6、16⁴、loop sizes 与拟合窗口，绑定 HMC input manifest 和测量源码 hash。D IDs 0–99 是 development、100–119 是 gap、120–139 是仅20配置的 internal validation；140–199 仍为 Pion/Optimize/Wilson 共用的 sealed holdout，规格明确拒绝测量该段。
+
+stout 更新现在按输入 NumPy/CuPy backend 执行；`rho=alpha/4` 只匹配弱场线性化系数，需由物理数据比较 risk 与实际 walltime，不能称为精确等平滑半径。测量入口在 CuPy 初始化前检查 split、manifest 与 source hashes，并在 HMC manifest 对照通过后才传输配置；成功记录分开保存 host read、device transfer、逐候选 kernel/loop walltime与trajectory ID。配置级 `total_seconds`不含压缩写盘、receipt与绘图时间，完整 job walltime需单独报告。测量遇到错误时仍会 fail-closed 中断，生产 agent 必须另外保留运行日志并整理显式失败表。定向 CPU 回归为 **56 passed, 1 skipped**；CuPy parity 因本机没有 CUDA runtime 未运行。因此本节是可审计的测量准备，不是新 Wilson-loop 结果，`physical_status=NOT_RUN`。
+
+## 2026-11-21：D-chain development 已测，参考门提案仍未冻结
+
+Slurm job 128540026 已以 `COMPLETED 0:0` 结束，elapsed 12:15:58。IDs 0–99 的 loop transaction 经 `check_resume(..., verify_gauge=False)` 完整性检查，NPZ shape 为 `(100,7,4,5)`；IDs连续、loops有限、逐行 hash、generation、manifest gauge SHA 与 trajectory join 均通过。最终三件套与 stdout/stderr 已复制到 [development 归档](../../results/wilson_loop/s16t16d_development_20261120/)，没有复制 raw gauge 或读取其他 split。
+
+真实development-only reference diagnostics 在 [报告](../../results/wilson_loop/reference_gate_d_development_20261121/REFERENCE_REPORT.md)及三张图中。候选A/B point-max统计量为2.0965，低于未冻结提案阈值2.5；候选C centered/uncentered joint q95分别为2.7408/4.0844，超过同一候选阈值。门定义依赖提案选择，且没有family-wise calibration，也看不到所有窗口共有的偏差，因此这些数值没有认证 reference 的效力。
+
+[APE/stout paired risk-cost 报告](../../results/wilson_loop/development_paired_diagnostic_20261121/PAIRED_REPORT.md)与[图](../../results/wilson_loop/development_paired_diagnostic_20261121/paired_risk_vs_cost.png)在同一D0–99样本、20个长度5 blocks上给出500×500 paired bootstrap。三个nominal窗口下候选 `risk(identity)/risk(candidate)`约4.84–12.11，但identity reference未认证，且development样本已用于诊断。Stout每配置 `kernel+loop` 实测均值约87–175 s，APE约0.75–1.27 s；该测量是同一GPU任务顺序运行，不是matched-walltime benchmark。所有结果为`development_diagnostic_only`，`production_score=null`。
+
+下一步先提出识别common-mode reference bias并校准多窗口比较的gate规则，附公式、反例模拟、阈值、无效分母/弃权和样本量图文，再由研究者审阅冻结。D100–119仍是gap；D120–139只可在规则冻结、通过且另获授权后考虑；D140–199继续共同封存。较早61行aggregate loops hash不一致仍作为未解释历史审计异常保留。

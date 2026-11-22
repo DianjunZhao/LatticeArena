@@ -49,18 +49,22 @@ def _nersc_payload(path, expected_geometry=None):
     rescued by a valid MD5, and an absent check is reported by name.
     """
     import hashlib
+    file_hasher = hashlib.sha256()
     with open(path, 'rb') as f:
-        f.readline()
+        first_line = f.readline()
+        file_hasher.update(first_line)
         header = {}
         while True:
             line = f.readline()
             if not line:
                 raise ValueError(f'{path}: missing END_HEADER')
+            file_hasher.update(line)
             if line.strip() == b'END_HEADER':
                 break
             key, value = line.decode().split('=', 1)
             header[key.strip()] = value.strip()
         payload = f.read()
+        file_hasher.update(payload)
     try:
         nx, ny, nz, nt = (int(header[f'DIMENSION_{i}']) for i in (1, 2, 3, 4))
     except (KeyError, ValueError) as exc:
@@ -78,7 +82,8 @@ def _nersc_payload(path, expected_geometry=None):
     if expected_geometry is not None and [nx, ny, nz, nt] != list(expected_geometry):
         raise ValueError(f'{path}: header geometry {[nx, ny, nz, nt]} != run geometry {list(expected_geometry)}')
     expected = nt * nz * ny * nx * 4 * 3 * 3 * 16
-    status = {'standard': 'absent', 'md5': 'absent', 'verified': False}
+    status = {'standard': 'absent', 'md5': 'absent', 'verified': False,
+              'raw_sha256': file_hasher.hexdigest()}
     if len(payload) == expected:
         raw = payload
     elif len(payload) == expected + 16:
@@ -125,7 +130,7 @@ def read_nersc_with_status(path, expected_geometry=None):
 def nersc_checksum_status(path, expected_geometry=None):
     """Checksum status dict; a mismatch raises."""
     _, status, _ = _nersc_payload(path, expected_geometry)
-    return status
+    return {key: status[key] for key in ('standard', 'md5', 'verified')}
 
 
 def indices_for(p, split):

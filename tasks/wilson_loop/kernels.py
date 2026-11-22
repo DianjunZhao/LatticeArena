@@ -100,4 +100,15 @@ def ape(links, alpha, steps):
 
 
 def build_kernel(spatial_links, parameters):
+    kind = parameters.get('kind', 'ape')
+    if kind == 'stout':
+        from .stout import stout
+        allowed = {'kind', 'rho', 'steps', 'name'}
+        if not {'rho', 'steps'} <= set(parameters):
+            raise ValueError('stout requires rho and steps')
+        if set(parameters) - allowed:
+            raise ValueError('unknown stout parameters')
+        return stout(spatial_links, parameters['rho'], parameters['steps'])
+    if kind != 'ape':
+        raise ValueError(f'unknown spatial kernel {kind!r}')
     return ape(spatial_links, parameters['alpha'], parameters['steps'])

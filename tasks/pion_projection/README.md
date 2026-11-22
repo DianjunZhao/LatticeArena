@@ -27,6 +27,14 @@ Raw losses and uncertainty intervals are still useful diagnostics.
 > the archived T=32 reflection z of 274.27 was a hard-coded-T artefact
 > (corrected 2.40), while the T=32 fit and window-shift failures remain.
 
+> **Archived GPU receipt audit (2026-11-20).** The older Kunshan `s16t16-pilot-v1`
+> run has 60 development and 30 validation configuration records. All 90 match
+> the repository's saved pion provenance fields, and the logged residual maxima
+> are below the declared $10^{-10}$ target. The common reference still fails, so
+> these measurements carry no official score or physical-anchor certification.
+> Optimize-gaussian v9 reused validation IDs 70–99; they are not a new blind set.
+> See the [cross-file tables and diagnostic plot](../../results/kunshan_logs/archive_audit_v1/README.md).
+
 ## Reproduce the run
 
 From the repository root, after setting up [the environment](../../doc/environment.md):
@@ -252,6 +260,7 @@ out = improvement_certificate({model: {candidate: risk_draws}}, spec)
 
 - `spec` 走 `pion-score-v1` schema（示例：`score_spec.example.json`），必须显式给出
   `estimand`、`baseline_id`、`alpha`、`comparison_family`、`risk_floor`；
+- 这里的 `score_spec.alpha` 是统计证书的单侧尾概率（默认 0.05）；测量协议中的 `protocol.alpha` 则是 Gaussian/Wuppertal smear 系数。两者必须分开，不能把 kernel 参数当作置信水平。
 - 每个模型 $m$、候选 $c$ 用同一组 bootstrap draw 计算
   $D_{cm}=\log R_{b,m}-\log R_{c,m}$；
 - 同时下界用 Bonferroni 水平 $\alpha/(J\cdot K)$ 的分位数，再对所有模型取最小：
@@ -267,3 +276,11 @@ $$
 **当前真实数据仍不能认证**：单 cosh / 两态两个参考都失配（见上面的模型平均与 profile），
 这个模块只保证“给定可信参考 draws 时，证书的定义是可执行的”。合成测试覆盖：真实改善被认证、
 变差被拒绝、NaN draw 触发 abstain、schema 校验。
+
+## 2026-11-19：score alpha 与 smear alpha 分离
+
+审计发现旧 `experiment.develop` 将测量协议的 `alpha=0.2`（空间 smear 系数）复用为 `score_spec.alpha`，导致证书实际使用 `level=0.2`。amendment01 的主 MC 因此在 595/2814 停止；其 null cell 92/402 candidate certificates 是错误参数下的负诊断，不是目标 0.05 统计门的校准。
+
+当前代码将统计 `score_alpha` 与 kernel `smear_alpha` 分开，默认 score alpha 为 0.05。修正版通过 **158 项 CPU/GPU-free 全套测试**，包含 1 条已知 Wilson projection rejection `RuntimeWarning`；amendment02 full-budget dry-run 的五个完整路径都记录 `score_spec.alpha=level=0.05`，两类预期拒绝保留原始输入与原因。新的 402/cell MC 在 [`full_gate_amendment02_execution_01/`](../../results/pion_projection/full_gate_amendment02_execution_01/) 运行；动态进度图见下方。此结果仍全为 synthetic，`physical_score=null`，不替代真实 anchor。
+
+![Amendment02 主 MC candidate-rate 进度图](../../results/pion_projection/full_gate_amendment02_execution_01/candidate_rates_progress.png)

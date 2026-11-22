@@ -16,6 +16,7 @@ from core.io import digest_text
 from .common import digest, fingerprint, load_data, write_json
 from .reference import make_reference
 from .scoring import improvement_certificate
+from .robust_score_diagnostic import summarize_paired_branches
 from .statistics import blocks, fold, risk
 
 
@@ -29,7 +30,7 @@ def run(output, models=None, outer=200, inner=64, seed=20261119, dest=None):
     sub = json.loads((output / 'submission.json').read_text())
     report = json.loads((output / 'validation_results.json').read_text())
     from .identity import verify_run_identity
-    frozen_kind, reasons = verify_run_identity(output, models)
+    frozen_kind, reasons = verify_run_identity(output, models, require_report=True)
     if frozen_kind is None:
         raise ValueError('; '.join(reasons))
     models = (frozen_kind,)
@@ -137,6 +138,39 @@ def run(output, models=None, outer=200, inner=64, seed=20261119, dest=None):
         certificate['bootstrap_mean_risks'] = {m: {n: float(risks[m][n].mean()) for n in names} for m in models}
         certificate['point_risks'] = {m: {n: gate.get('results', {}).get(n, {}).get('risk') for n in names}
                                       for m in models}
+        if score_spec is None:
+            certificate['robust_score_diagnostic'] = {
+                'status': 'abstain', 'physical_score': None,
+                'reasons': ['score_spec_missing'],
+            }
+        else:
+            robust_rows = {}
+            candidates = [n for n in names if n != 'local']
+            for candidate in candidates:
+                branches = {
+                    f'{model}/{window}': {'baseline': risks[model]['local'],
+                                          'candidate': risks[model][candidate]}
+                    for model in models
+                }
+                robust = summarize_paired_branches(
+                    branches, draw_ids,
+                    alpha=float(score_spec['alpha']) / max(len(candidates), 1),
+                    risk_floor=float(score_spec['risk_floor']),
+                    min_baseline_risk=float(score_spec['min_baseline_risk']),
+                    min_improvement=float(score_spec['min_improvement']),
+                    invalid_tolerance=float(score_spec.get('invalid_tolerance', 0.0)))
+                robust_rows[candidate] = robust
+            certificate['robust_score_diagnostic'] = {
+                'schema': 'pion-robust-score-diagnostic-v1',
+                'status': 'diagnostic_only', 'physical_score': None,
+                'reference_kind': frozen_kind,
+                'reference_windows': [list(window)],
+                'reference_window_scope': 'frozen nominal window only; no window sensitivity claim',
+                'score_spec_sha256': digest_text(json.dumps(score_spec, sort_keys=True)),
+                'draw_ids_hash': hashlib.sha256(np.asarray(draw_ids, dtype=np.int64).tobytes()).hexdigest(),
+                'draw_count': int(len(draw_ids)),
+                'candidates': robust_rows,
+            }
         write_json(dest / 'metric_results.json', certificate)
         write_json(dest / 'joint_manifest.json',
                    {'schema': 'pion-joint-manifest-v1',

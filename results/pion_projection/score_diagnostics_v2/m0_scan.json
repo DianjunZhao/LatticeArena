@@ -1,0 +1,300 @@
+{
+  "grid": [
+    1.0,
+    1.005,
+    1.0099999999999998,
+    1.0149999999999997,
+    1.0199999999999996,
+    1.0249999999999995,
+    1.0299999999999994,
+    1.0349999999999993,
+    1.0399999999999991,
+    1.044999999999999,
+    1.049999999999999,
+    1.0549999999999988,
+    1.0599999999999987,
+    1.0649999999999986,
+    1.0699999999999985,
+    1.0749999999999984,
+    1.0799999999999983,
+    1.0849999999999982,
+    1.089999999999998,
+    1.094999999999998,
+    1.0999999999999979
+  ],
+  "rows": [
+    {
+      "m0": 1.0,
+      "risks": {
+        "local": 1.5429647416502534,
+        "tuned_gaussian": 0.07975864353045603,
+        "agent_signed_mixture": 0.1000951358225874
+      },
+      "scores": {
+        "local": 99.99999999999999,
+        "tuned_gaussian": 1934.5423559780934,
+        "agent_signed_mixture": 1541.4982246340774
+      }
+    },
+    {
+      "m0": 1.005,
+      "risks": {
+        "local": 1.4157727827824051,
+        "tuned_gaussian": 0.06527857252437694,
+        "agent_signed_mixture": 0.08292275404355472
+      },
+      "scores": {
+        "local": 100.00000000000001,
+        "tuned_gaussian": 2168.8170069186394,
+        "agent_signed_mixture": 1707.3393173106365
+      }
+    },
+    {
+      "m0": 1.0099999999999998,
+      "risks": {
+        "local": 1.2982287315759866,
+        "tuned_gaussian": 0.05267615683625787,
+        "agent_signed_mixture": 0.06785259388026507
+      },
+      "scores": {
+        "local": 99.99999999999999,
+        "tuned_gaussian": 2464.547168107743,
+        "agent_signed_mixture": 1913.307446826401
+      }
+    },
+    {
+      "m0": 1.0149999999999997,
+      "risks": {
+        "local": 1.189641680894388,
+        "tuned_gaussian": 0.04180972909498862,
+        "agent_signed_mixture": 0.05472454993022046
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 2845.3704595684176,
+        "agent_signed_mixture": 2173.8720234543835
+      }
+    },
+    {
+      "m0": 1.0199999999999996,
+      "risks": {
+        "local": 1.0893689925249153,
+        "tuned_gaussian": 0.03254701411994957,
+        "agent_signed_mixture": 0.04338926760937932
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 3347.062770520601,
+        "agent_signed_mixture": 2510.6876712743356
+      }
+    },
+    {
+      "m0": 1.0249999999999995,
+      "risks": {
+        "local": 0.9968129829315966,
+        "tuned_gaussian": 0.02476453662917151,
+        "agent_signed_mixture": 0.03370745758167689
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 4025.163070313198,
+        "agent_signed_mixture": 2957.2476076435273
+      }
+    },
+    {
+      "m0": 1.0299999999999994,
+      "risks": {
+        "local": 0.9114178333241624,
+        "tuned_gaussian": 0.018347065515171238,
+        "agent_signed_mixture": 0.025549252906573942
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 4967.6490911884985,
+        "agent_signed_mixture": 3567.297394788598
+      }
+    },
+    {
+      "m0": 1.0349999999999993,
+      "risks": {
+        "local": 0.832666709088028,
+        "tuned_gaussian": 0.013187092455310526,
+        "agent_signed_mixture": 0.01879360627658946
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 6314.25548815886,
+        "agent_signed_mixture": 4430.585044900359
+      }
+    },
+    {
+      "m0": 1.0399999999999991,
+      "risks": {
+        "local": 0.7600790745998536,
+        "tuned_gaussian": 0.00918434275875148,
+        "agent_signed_mixture": 0.013327724876815336
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 8275.81346390407,
+        "agent_signed_mixture": 5702.9919331698775
+      }
+    },
+    {
+      "m0": 1.044999999999999,
+      "risks": {
+        "local": 0.6932081903700836,
+        "tuned_gaussian": 0.006245316479186568,
+        "agent_signed_mixture": 0.009046540548800648
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 11099.64871564638,
+        "agent_signed_mixture": 7662.6881472607365
+      }
+    },
+    {
+      "m0": 1.049999999999999,
+      "risks": {
+        "local": 0.6316387803117499,
+        "tuned_gaussian": 0.004282857942003226,
+        "agent_signed_mixture": 0.005852213082527901
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 14748.06750224157,
+        "agent_signed_mixture": 10793.161004296675
+      }
+    },
+    {
+      "m0": 1.0549999999999988,
+      "risks": {
+        "local": 0.5749848577374739,
+        "tuned_gaussian": 0.0032157519468413768,
+        "agent_signed_mixture": 0.0036536645930005194
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 17880.26151402144,
+        "agent_signed_mixture": 15737.209672694009
+      }
+    },
+    {
+      "m0": 1.0599999999999987,
+      "risks": {
+        "local": 0.5228876994374526,
+        "tuned_gaussian": 0.002968345012051258,
+        "agent_signed_mixture": 0.0023661430627449033
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 17615.4623978873,
+        "agent_signed_mixture": 22098.735603538007
+      }
+    },
+    {
+      "m0": 1.0649999999999986,
+      "risks": {
+        "local": 0.47501395789363654,
+        "tuned_gaussian": 0.0034701901267580543,
+        "agent_signed_mixture": 0.0019108132487739471
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 13688.413042008378,
+        "agent_signed_mixture": 24859.2560365815
+      }
+    },
+    {
+      "m0": 1.0699999999999985,
+      "risks": {
+        "local": 0.43105390234220126,
+        "tuned_gaussian": 0.004655713569466631,
+        "agent_signed_mixture": 0.0022143732627068315
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 9258.60012456874,
+        "agent_signed_mixture": 19466.180774567543
+      }
+    },
+    {
+      "m0": 1.0749999999999984,
+      "risks": {
+        "local": 0.3907197800108176,
+        "tuned_gaussian": 0.006463902439749597,
+        "agent_signed_mixture": 0.003208695236226042
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 6044.642283090423,
+        "agent_signed_mixture": 12176.905291584155
+      }
+    },
+    {
+      "m0": 1.0799999999999983,
+      "risks": {
+        "local": 0.3537442894317517,
+        "tuned_gaussian": 0.008838011631890364,
+        "agent_signed_mixture": 0.004830488581267339
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 4002.5325171029363,
+        "agent_signed_mixture": 7323.157553949593
+      }
+    },
+    {
+      "m0": 1.0849999999999982,
+      "risks": {
+        "local": 0.3198791582689697,
+        "tuned_gaussian": 0.011725289056717202,
+        "agent_signed_mixture": 0.007020984445662012
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 2728.1131980769105,
+        "agent_signed_mixture": 4556.044251979654
+      }
+    },
+    {
+      "m0": 1.089999999999998,
+      "risks": {
+        "local": 0.2888938185996782,
+        "tuned_gaussian": 0.015076717990553334,
+        "agent_signed_mixture": 0.009725640050732735
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 1916.1585351711913,
+        "agent_signed_mixture": 2970.4350263087604
+      }
+    },
+    {
+      "m0": 1.094999999999998,
+      "risks": {
+        "local": 0.2605741730601969,
+        "tuned_gaussian": 0.018846775498513765,
+        "agent_signed_mixture": 0.01289386167792055
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 1382.5928635948655,
+        "agent_signed_mixture": 2020.9164606318382
+      }
+    },
+    {
+      "m0": 1.0999999999999979,
+      "risks": {
+        "local": 0.2347214457049113,
+        "tuned_gaussian": 0.02299320594355163,
+        "agent_signed_mixture": 0.01647874514720058
+      },
+      "scores": {
+        "local": 100.0,
+        "tuned_gaussian": 1020.8295714879994,
+        "agent_signed_mixture": 1424.389075795531
+      }
+    }
+  ]
+}

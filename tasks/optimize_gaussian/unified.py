@@ -6,6 +6,7 @@ learned BCB kernel needs the collected response data and is reported as
 archived/PARTIAL, not re-evaluated here.
 """
 import hashlib
+import argparse
 import json
 from pathlib import Path
 
@@ -18,9 +19,9 @@ from scipy.optimize import minimize
 
 from tasks.pion_projection.reference import make_reference
 from tasks.pion_projection.statistics import blocks, bootstrap_indices, fold, inverse_covariance, risk, shape
+from .artifacts import prepare_output_directory
 
 RUN = Path('results/pion_projection/s16t16_v1')
-OUT = Path('results/optimize_gaussian/cpu_next_package_b')
 
 
 def load():
@@ -117,8 +118,10 @@ def select_on_train(train, p, mass, masses, index):
     return fit.x / scales, best, info
 
 
-def main():
-    OUT.mkdir(parents=True, exist_ok=True)
+def main(output=None):
+    if output is None:
+        raise ValueError('pass a new run-specific output directory; existing result folders are immutable')
+    out = prepare_output_directory(output)
     p, sub, dev, val = load()
     window = p['reference_windows'][p['reference_nominal_window']]
     ref = make_reference(dev, p, window, 'single')
@@ -226,7 +229,7 @@ def main():
               'fold_local_search_note': 'hyperparameters re-selected inside each outer training fold; '
                                         'the learned BCB kernel needs the collected responses and is NOT_RUN',
               'gate': 'reference not certified -> diagnostic_only'}
-    (OUT / 'unified.json').write_text(json.dumps(result, indent=2) + '\n')
+    (out / 'unified.json').write_text(json.dumps(result, indent=2) + '\n')
     fig, ax = plt.subplots(figsize=(7, 4))
     width = 0.35
     for j, name in enumerate(('local', 'agent_signed_mixture')):
@@ -239,7 +242,7 @@ def main():
     ax.set(ylabel='risk', title='fold-local risk decomposition (outer-training amplitude)')
     ax.legend(fontsize=7)
     fig.tight_layout()
-    fig.savefig(OUT / 'fig_risk_decomposition.png', dpi=150)
+    fig.savefig(out / 'fig_risk_decomposition.png', dpi=150)
     for tag, rows_ in (('frozen', fold_rows), ('reselected', search_rows)):
         fig2, ax2 = plt.subplots(figsize=(7, 4))
         labels = [f'fold {row["fold"]}' for row in rows_]
@@ -254,13 +257,20 @@ def main():
         ax2.axhline(1.0, color='k', ls='--', lw=0.8)
         ax2.set_xticks(range(len(values)), labels)
         fig2.tight_layout()
-        fig2.savefig(OUT / f'fig_folds_{tag}.png', dpi=150)
+        fig2.savefig(out / f'fig_folds_{tag}.png', dpi=150)
     print(json.dumps({'point': {n: round(v['risk'], 6) for n, v in rows.items()},
                       'archived_check': {n: (round(c['delta'], 8) if c['delta'] is not None else None)
                                          for n, c in checks.items()},
                       'fold_ratio': (round(ratios.mean(), 2), round(result['fold_local_se_ratio'], 2))}, indent=2))
-    print('wrote', OUT)
+    print('wrote', out)
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='Generate the unified package-B diagnostic')
+    parser.add_argument('--out', required=True,
+                        help='new run-specific output directory; it must not already exist')
+    args = parser.parse_args()
+    try:
+        main(args.out)
+    except FileExistsError as exc:
+        parser.error(str(exc))

@@ -1,21 +1,24 @@
 {
   "schema": "pion-measurement-plan-v1",
   "status": "NOT_RUN",
-  "ensemble": "S16T16C or a new S16T16D",
+  "ensemble": "data/S16T16D",
+  "split_ensembles": {},
   "geometry": [16, 16, 16, 16],
-  "sources": ["point", "H4", "H16"],
-  "sink_powers": [0, 2, 4, 8, 16, 24, 32, 64],
+  "sources": ["point"],
+  "sink_powers": [0, 2, 4, 8, 16, 32, 64],
   "splits": {"development": [0, 119], "validation": [140, 199]},
   "identity": {
-    "gauge_sha256": "per-config file digest",
-    "propagator_sha256": "per-config propagator digest",
-    "quda": "version string and build hash",
-    "device": "dcu model / driver",
+    "gauge_sha256": "record raw NERSC file SHA-256 per configuration",
+    "propagator_sha256": "record cached propagator byte SHA-256 per configuration",
+    "quda": "record version string and libquda build hash",
+    "device": "record DCU model, driver and runtime",
     "precision": "complex128",
-    "trajectory_ids": "trajectory index per saved config",
-    "generation": "sha256(ids + protocol hash + kernel hash)"
+    "trajectory_ids": "join each configuration ID to the HMC manifest trajectory",
+    "require_trajectory_manifest": true
   },
+  "protocol_sha256": "fill with SHA-256 fingerprint of the frozen measurement protocol",
   "checks": {
+    "source": "point at the origin; 12 spin-color right-hand sides",
     "gamma5_self_contraction": "small-volume fast vs generic comparison",
     "fast_generic_consistency": "same sink channel via both paths",
     "source_averaging": "average over sources inside a configuration, then block across configurations",
@@ -30,6 +33,7 @@
     "sources_are_not_configurations": true
   },
   "freeze": {
+    "frozen_at_utc": "",
     "candidates": "frozen before validation",
     "reference": "kind + statistics/implementation hashes",
     "score_spec": "pion-score-v1 fields",
@@ -40,7 +44,8 @@
   "budget": {
     "inversions_per_source": 1,
     "sink_applies_per_config": 8,
-    "estimated_hours": "to be measured on a pilot",
+    "available_configurations": 200,
+    "estimated_hours": "measure and report pilot setup, solve, sink, I/O and total time",
     "setup_solve_kernel_io_analysis": "recorded via core.ledger"
   },
   "stop_rules": [

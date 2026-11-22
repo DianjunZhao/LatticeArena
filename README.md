@@ -2,10 +2,12 @@
 
 LatticeArena 把格点规范理论里的研究问题，改造成**有固定测量流程、固定打分规则**的任务：AI（或人）只优化一个很窄的对象，其余全部由评测器控制。目标不是刷榜，而是看"能不能提出一个真正更好的方案"，并且诚实地报告"没做到"。
 
-当前有两个任务：**`pion_projection`**（π 介子 sink 的设计）和 **`wilson_loop`**（静态夸克势的空间 Wilson 线核）。仓库里包含可执行的 pilot：测量、缓存、参考拟合、基线选择、冻结提交、留出打分、LLM 作答入口。
+当前包含三个研究工作包：**`pion_projection`**（π 介子 sink 设计）、**`wilson_loop`**（静态势 Wilson 圈）和 **`optimize_gaussian`**（学习型 smear 与优化基线比较）。仓库包含相应的测量、参考拟合、优化、打分和诊断流程。
 
-> **状态（2026-11-18）**：`wilson_loop` 的 v3 参考通过、分数有效（APE 263/233/222，配对区间不含 1）；
-> `pion_projection` 的参考仍不可识别，`score` 按设计为 `null`；`optimize_gaussian` 的学习核与 SLSQP 打平。
+> `wilson_loop` 的 APE 分数 263/233/222 仍是条件诊断，未生成 physical score。Kunshan live archive audit 与D/E HMC链质量诊断图文已完成。D IDs 0–99 development job 128540026 已 `COMPLETED 0:0`，elapsed 12:15:58；终态100/100 loops/provenance与manifest gauge hash/trajectory join核验通过，未重读raw gauge。本地副本和development-only参考窗口诊断已保存：A/B point-max proposal显示2.0965通过未冻结阈值2.5，C joint-max centered/uncentered分别2.7408/4.0844而拒绝，故参考门尚未稳健；APE/stout配对risk比约4.84–12.11，但仅是未认证reference上的同样本开发诊断。新增的 D0–99 offset-insensitive force 分析见[图文报告](results/wilson_loop/development_force_diagnostic_20261121_v1/README.md)：20 blocks、5000/5000 shared draws有效，但identity force对T窗口在大R仍敏感，不认证finite-T或ground-state。Stout每配置kernel+loop约87–175s，APE约0.75–1.27s；不构成matched-walltime或物理改善证明。较早61行hash差异未解释；D100–119 gap、D120–139未授权validation、D140–199封存，physical_score仍为null。图文与后续方案见 [Wilson TODO](tasks/wilson_loop/todo.md)。
+> `pion_projection` 的参考仍不可认证，物理分数为 `null`；amendment01 因 smear alpha 与统计 score alpha 混用在 595/2814 停止并保留为负诊断。修正版 amendment02 的 402/cell CPU MC 已完成（2814/2814）：null 28/402 的 CP95 上界约 9.9%，wrong-state 在 ground overlap=0 时仍有 343/402 认证。高层 prereg 与执行 adapter hash 不一致，严格 provenance 标记为 `PARTIAL`。D0–99 correlator development 已完成，但 frozen single-cosh reference gate **FAIL**；两态和有效质量只作同数据开发诊断，不能据此继续 E anchor 或打开 validation。当前计划为D0–99 development、E0–59 anchor、D100–139 gap、D140–199 shared holdout；Pion/Optimize/Wilson须共同冻结后才打开holdout。
+> `optimize_gaussian` 的 v9 GPU 系数重训与 test IDs 70–99 held-out 评估已经存在，比值 0.998、95% 区间 [0.78, 1.18]，未检出相对 SLSQP 的差异；该 run 的 $W$ 是固定随机特征基而非训练参数，test 已公开，不是独立新 blind set。新增 CPU learned-initializer 诊断只显示有限预算条件性，不是 learned-smear 物理优势。D0–99 point propagator cache 的 Optimize adapter 身份/residual 集成已核验100/100；schema v2 Optimize RunSpec builder 的 no-launch preflight 和 supervisor 合成 fixture 已通过（builder 11 tests，builder+worker 26 tests）。此前也在合成 fixture 中跑通了 `train.main` 的 CPU worker integration；真实 production `train.main`、生产数据训练及 GPU/QUDA 执行均未运行。真实 production RunSpec、生产 solver policy 冻结、P3 生产2×2和trainable-$W$ 对 Gaussian、同预算 SLSQP与强谱基的 blind comparison仍未完成。
+> 新增 CPU 研究诊断：Optimize 的完整算符热核目标比较没有显示稳定 trainable-W 优势，四阶 Chebyshev 在该谱目标上更低（[图文报告](tasks/optimize_gaussian/trainable_w_operator_cpu_20261121_final/README.md)）；Pion 补充了有界 block-risk + 独立 anchor 的条件性分数理论稿（[设计稿](tasks/pion_projection/bounded_score_design_review_20261121.md)）；Wilson 补充了逐draw配对窗口漂移 contrast（[报告与图](tasks/wilson_loop/force_window_contrast_20261121_v1/README.md)）。三项均是 CPU/理论诊断，没有改变物理分数、未测数据或未解封 shared holdout；三个 task TODO 仍保留。
 > 总览见 [doc/final_report.md](doc/final_report.md)，todo 覆盖情况见 [doc/todo_coverage.md](doc/todo_coverage.md)。
 
 ---
@@ -13,7 +15,7 @@ LatticeArena 把格点规范理论里的研究问题，改造成**有固定测�
 ## 快速开始（CPU 就能跑）
 
 ```bash
-python -m pytest -q                       # 51 个不需要 GPU 的单元测试
+PYTHONDONTWRITEBYTECODE=1 python3 -B -m pytest -q -p no:cacheprovider -rs  # 最近记录：274 passed, 1 skipped, 1 warning
 python -m tasks.pion_projection --help    # measure / develop / evaluate / plot / candidate / agent / report
 ```
 
@@ -59,10 +61,10 @@ score = 100 · (risk_baseline + 1e-12) / (risk_candidate + 1e-12)
 | --- | --- |
 | `tasks/pion_projection/` | 任务一（π 介子 sink）：`measure.py`（可信测量）、`statistics.py`（参考/风险）、`experiment.py`（develop/evaluate）、`candidate.py`（交卷）、`kernels.py`（参考核）、`protocol.json`（唯一数值真源） |
 | `tasks/wilson_loop/` | 任务二（静态势）：Wilson 圈测量、APE 核、平台稳定性打分 |
-| `tasks/optimize_gaussian/` | 学习型 smear 的骨架（smoke）：规范不变逐点系数、厄米条件、线性响应训练；结果仅用于验证流程 |
+| `tasks/optimize_gaussian/` | 学习型 smear 的方法与执行框架：规范不变特征、Hermitian hopping kernel、SLSQP/Powell 和 trainable-W 原型；当前 CPU 合成诊断齐全，但 production physics comparison 尚未运行 |
 | `core/io.py` | 通用哈希与 JSON 工具，供所有任务复用 |
 | `agents/` | LLM 作答入口：`loop.py`（`agent` 子命令）、`report.py`（`report` 子命令）、`llm.py`（API 客户端） |
-| `tests/` | 14 个 GPU-free 测试（两个任务：协变、线性、折叠、Wilson 圈暴力对照、bootstrap、gate） |
+| `tests/` | 三项工作包与共享框架的 CPU / GPU-free 回归测试；最近完整记录为274 passed、1 skipped、1 warning（CuPy parity环境缺失，Wilson projection路径有已知warning） |
 | `doc/` | 任务科学定义、环境搭建、第一次实验结果、kunshan DCU 试跑报告 |
 | `results/` | 真实运行产物（默认被 git 忽略，只提交小件），见 [results/README.md](results/README.md) |
 | `Note.md` | 一份很详细的中文使用说明：架构、每个文件、远端部署、LLM 接入 |

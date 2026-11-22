@@ -16,6 +16,8 @@ from .identity import verify_run_identity
 from .reference import make_reference, reference_kind, reference_spec, verify_reference
 from .statistics import blocks, bootstrap_indices, fold, inverse_covariance, risk
 
+DEFAULT_SCORE_ALPHA = 0.05
+
 
 def reflection_odd(raw):
     """C(t) - C(T-t) for t=1..T/2-1, valid for any even temporal extent."""
@@ -31,10 +33,26 @@ def late_metric(data, weights, p):
                               p['covariance_shrinkage'])
 
 
+def make_score_spec(p, candidate_count):
+    """Freeze statistical confidence separately from the smear-kernel alpha."""
+    score_alpha = float(p.get('score_alpha', DEFAULT_SCORE_ALPHA))
+    if not 0 < score_alpha < 1:
+        raise ValueError('score_alpha must be in (0, 1)')
+    return {
+        'alpha': score_alpha,
+        'comparison_family': {'candidates': candidate_count, 'models': 1},
+        'min_baseline_risk': 1e-6,
+        'min_improvement': 1.0,
+        'risk_floor': 0.0,
+    }
+
+
 def develop(output):
     output = Path(output)
-    if (output / 'submission.json').exists() or (output / 'validation.npz').exists():
-        raise ValueError('Development is closed for this run; use a new run and disclose prior validation access')
+    if any((output / f'{split}.npz').exists() for split in ('anchor', 'validation')):
+        raise ValueError('Development is closed after a holdout measurement; use a new run and disclose prior access')
+    if (output / 'submission.json').exists():
+        raise ValueError('Development is already frozen for this run; use the existing submission')
     p = protocol()
     spec = reference_spec()
     raw = load_data(output, 'development')
@@ -85,31 +103,42 @@ def develop(output):
     baseline_results = [risk(data, w, m, mb, index, p) for w in basis]
     best = min(range(len(basis)), key=lambda j: baseline_results[j]['risk'])
     scales = np.array([r['amplitude'] for r in baseline_results])
-    normalized = data/scales[None, :, None]
+    fixed = p.get('synthetic_fixed_candidates')
+    if fixed is not None:
+        if fixed != {'baseline_channel': 1, 'candidate_channel': 2} or not p.get('synthetic'):
+            raise ValueError('fixed candidate mode requires explicit synthetic channel1/channel2 spec')
+        from types import SimpleNamespace
+        weights = basis[2]
+        fit = SimpleNamespace(x=basis[2]*scales, fun=0., nit=0)
+        outcomes = []
+        candidate_result = risk(data, weights, m, mb, index, p)
+        submissions = {'local': basis[1].tolist(), 'fixed_candidate': weights.tolist()}
+    else:
+        normalized = data/scales[None, :, None]
 
-    def objective(u):
-        try:
-            return risk(normalized, u, m, mb, index, p)['risk'] + p['optimizer_ridge']*float(u @ u)
-        except (ValueError, np.linalg.LinAlgError, FloatingPointError):
-            return 1e10
+        def objective(u):
+            try:
+                return risk(normalized, u, m, mb, index, p)['risk'] + p['optimizer_ridge']*float(u @ u)
+            except (ValueError, np.linalg.LinAlgError, FloatingPointError):
+                return 1e10
 
-    starts = [*basis, np.ones(len(basis))/len(basis)]
-    outcomes = []
-    for start in starts[:p['optimizer_starts']]:
-        fit = minimize(objective, start, method='SLSQP', bounds=[(-p['optimizer_l1_bound'], p['optimizer_l1_bound'])]*len(basis),
-                       constraints=[{'type': 'eq', 'fun': lambda u: u.sum()-1},
-                                    {'type': 'ineq', 'fun': lambda u: p['optimizer_l1_bound']-abs(u).sum()}],
-                       options={'maxiter': p['optimizer_max_iterations'], 'ftol': 1e-11})
-        feasible = abs(fit.x.sum()-1) < 1e-6 and abs(fit.x).sum() <= p['optimizer_l1_bound']+1e-6
-        if fit.success and feasible and fit.fun < 1e9:
-            outcomes.append(fit)
-    if not outcomes:
-        raise ValueError('No optimizer start converged to a valid candidate')
-    fit = min(outcomes, key=lambda f: f.fun)
-    weights = fit.x/scales
-    candidate_result = risk(data, weights, m, mb, index, p)
-    submissions = {'local': basis[0].tolist(), 'tuned_gaussian': basis[best].tolist(),
-                   'agent_signed_mixture': weights.tolist()}
+        starts = [*basis, np.ones(len(basis))/len(basis)]
+        outcomes = []
+        for start in starts[:p['optimizer_starts']]:
+            fit = minimize(objective, start, method='SLSQP', bounds=[(-p['optimizer_l1_bound'], p['optimizer_l1_bound'])]*len(basis),
+                           constraints=[{'type': 'eq', 'fun': lambda u: u.sum()-1},
+                                        {'type': 'ineq', 'fun': lambda u: p['optimizer_l1_bound']-abs(u).sum()}],
+                           options={'maxiter': p['optimizer_max_iterations'], 'ftol': 1e-11})
+            feasible = abs(fit.x.sum()-1) < 1e-6 and abs(fit.x).sum() <= p['optimizer_l1_bound']+1e-6
+            if fit.success and feasible and fit.fun < 1e9:
+                outcomes.append(fit)
+        if not outcomes:
+            raise ValueError('No optimizer start converged to a valid candidate')
+        fit = min(outcomes, key=lambda f: f.fun)
+        weights = fit.x/scales
+        candidate_result = risk(data, weights, m, mb, index, p)
+        submissions = {'local': basis[0].tolist(), 'tuned_gaussian': basis[best].tolist(),
+                       'agent_signed_mixture': weights.tolist()}
     metrics = {name: late_metric(data, w, p).tolist() for name, w in submissions.items()}
     state = RunState()
     code = {'kernels.py': digest(Path(__file__).with_name('kernels.py')),
@@ -151,17 +180,15 @@ def develop(output):
     frozen = {'protocol_hash': fingerprint(p), 'development_sha256': digest(output/'development.npz'),
               'statistics_sha256': digest(Path(__file__).with_name('statistics.py')),
               'kernel_sha256': digest(Path(__file__).with_name('kernels.py')),
-              'powers': p['powers'], 'alpha': p['alpha'], 'submissions': submissions,
+              'powers': p['powers'], 'smear_alpha': p['alpha'], 'submissions': submissions,
+              'synthetic_fixed_candidates': fixed, 'synthetic': bool(p.get('synthetic')),
               'normalized_mixture_weights': fit.x.tolist(), 'basis_amplitude_scales': scales.tolist(),
               'late_inverse_covariances': metrics, 'selected_gaussian_power': p['powers'][best],
               'optimizer': {'converged_starts': len(outcomes), 'objective': float(fit.fun),
                             'iterations': int(fit.nit), 'l1': float(abs(fit.x).sum())},
               'calibration': calibration, 'reference': spec, 'run_state': state.summary(),
               'receipts': receipts,
-              'score_spec': {'alpha': p['alpha'],
-                             'comparison_family': {'candidates': len(submissions) - 1, 'models': 1},
-                             'min_baseline_risk': 1e-6, 'min_improvement': 1.0,
-                             'risk_floor': 0.0},
+              'score_spec': make_score_spec(p, len(submissions) - 1),
               'gate_artifact': {
                   'model': spec['kind'],
                   'window': p['reference_windows'][p['reference_nominal_window']],
@@ -185,14 +212,14 @@ def develop(output):
     print('FROZEN_SUBMISSION', json.dumps(frozen), flush=True)
 
 
-def nested_intervals(development, validation, frozen, p, kind=None):
+def nested_intervals(development, validation, frozen, p, kind=None, seed_offset=0):
     """Resample the entire conditional risk statistic, including its variance.
 
     Fit metrics are frozen at development, not re-estimated on validation or
     inside resamples. Shared reference and paired validation draws preserve
     correlations between all candidates. No replicate is silently discarded.
     """
-    rng = np.random.default_rng(p['seed']+2)
+    rng = np.random.default_rng(p['seed']+2+seed_offset)
     model = make_reference(development, p, p['reference_windows'][p['reference_nominal_window']], kind)
     names = list(frozen['submissions'])
     draws = []
@@ -230,6 +257,10 @@ def evaluate(output):
         kind = reference_kind()
     else:
         kind = verify_reference(spec)
+        from .identity import verify_run_identity
+        identity_kind, identity_reasons = verify_run_identity(output)
+        if identity_kind != kind or identity_reasons:
+            raise ValueError('Run identity check failed: ' + '; '.join(identity_reasons))
     dev = blocks(fold(load_data(output, 'development')), p['block_length'])
     raw = load_data(output, 'validation')
     val = blocks(fold(raw), p['block_length'])
@@ -287,6 +318,8 @@ def evaluate(output):
     report = {'protocol': p, 'submission_sha256': digest(output/'submission.json'),
               'run_state': state.summary(), 'physical_score': state.score_or_null(),
               'certification': certification, 'certification_source': certification_source,
+              'robust_score_diagnostic': certification.get('robust_score_diagnostic',
+                                                           {'status': 'unavailable', 'physical_score': None}),
               'validation_sha256': digest(output/'validation.npz'), 'reference': reference,
               'reference_passed': frozen['calibration']['reference_passed'],
               'reference_failure_reasons': frozen['calibration']['failure_reasons'],
@@ -312,10 +345,11 @@ def evaluate(output):
             ratios = (draws[:, 0]+eps)/(draws[:, j]+eps)
             report['results'][name]['diagnostic_loss_ratio_95_interval'] = np.quantile(ratios, [.025, .975]).tolist()
             report['results'][name]['risk_95_interval'] = np.quantile(draws[:, j], [.025, .975]).tolist()
-        j, k = names.index('agent_signed_mixture'), names.index('tuned_gaussian')
-        report['agent_vs_tuned_gaussian'] = {
-            'risk_ratio': report['results']['tuned_gaussian']['risk']/report['results']['agent_signed_mixture']['risk'],
-            'risk_ratio_95_interval': np.quantile((draws[:, k]+eps)/(draws[:, j]+eps), [.025, .975]).tolist()}
+        if 'agent_signed_mixture' in names and 'tuned_gaussian' in names:
+            j, k = names.index('agent_signed_mixture'), names.index('tuned_gaussian')
+            report['agent_vs_tuned_gaussian'] = {
+                'risk_ratio': report['results']['tuned_gaussian']['risk']/report['results']['agent_signed_mixture']['risk'],
+                'risk_ratio_95_interval': np.quantile((draws[:, k]+eps)/(draws[:, j]+eps), [.025, .975]).tolist()}
     report['conditional_scores'] = {name: value.get('score') for name, value in report['results'].items()}
     write_json(output/'validation_results.json', report)
     print('VALIDATION', json.dumps(report), flush=True)

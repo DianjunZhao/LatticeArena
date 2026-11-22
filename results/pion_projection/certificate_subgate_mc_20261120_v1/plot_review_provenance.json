@@ -1,0 +1,12 @@
+{
+  "cells": 9,
+  "classification": "post-run presentation-only review; no statistics recomputed",
+  "datasets_per_cell": 1000,
+  "input_sha256": {
+    "raw_outcomes.json": "225bc09cdf43f4fd89e50666f389dea464d66ad5efb7654f5d05735486039996",
+    "summary.json": "cd733b1cd5a2e5e976eab13a2692bcf393079c8bd4db5d948c9af0df60b191d2"
+  },
+  "note": "The original frozen diagnostic figure is preserved; this supplemental version shortens labels and separates type-I rejection, alternative sensitivity, and pure-E1 acceptance.",
+  "output_sha256": "7f699cdd7cf0e56d4c0793a55e8f752c34a4dd6f4942889fd65e6901b7f65560",
+  "source_sha256": "85f7c9ecd80e2cb7a9f3207ab122fd5193c77bdb0a5978e50ea2d6363cd35864"
+}

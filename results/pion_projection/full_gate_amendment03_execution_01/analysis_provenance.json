@@ -1,0 +1,43 @@
+{
+  "analysis_script_path": "tasks/pion_projection/source_aligned_replay_summary.py",
+  "analysis_script_sha256": "599c9e461e2a8ec09666ed8f39eaa4580cecf877eb930e8ca4a237d079102fc9",
+  "analysis_sha256": "53dd39e9023b04d22b6c3c78acdc9b7e130e230b5a13429d8cdfa58073e47263",
+  "deterministic_field_disagreements": 0,
+  "execution_amendment_sha256": "39a12f646d359d1dd3f8860332d54fc00e6a013573fca585b54ba04e46b63eac",
+  "executor_spec_sha256": "71d1aaad5fdef117305e51ed55be5b43e3281f85d6b981b7c2392af0a88d4ed2",
+  "independent_mc_sample": false,
+  "n_same_seed_worlds": 2814,
+  "parent_aggregate_sha256": "a2cf2f249f22ec92689f5742d52a56b4e884b990c4036afda436d8e40ea2c543",
+  "parent_dataset_results_sha256": "c360b6fa3b2ffece6f07a2cc36dfa084d17bd19de1bd9b1759527de48096f220",
+  "physical_score": null,
+  "plot_sha256": "cf7fc7d7a1322e85e62159c3e242883563561cf9f43fad6817c255eba66bc89b",
+  "preregistration_sha256": "e2499b32e8ecbb3f841ed0714d337790e6cfa63feb400779b3f6856d5a5a8096",
+  "primary_outcome_disagreements": 0,
+  "raw_input_comparison": {
+    "identical_raw_input_datasets": 2814,
+    "mismatch_examples": [],
+    "mismatches_by_scenario": {
+      "known_lower_excited_overlap": 0,
+      "nonfinite": 0,
+      "null_equal_candidate": 0,
+      "reflection": 0,
+      "relative_error": 0,
+      "window_mismatch": 0,
+      "wrong_state": 0
+    },
+    "mismatching_raw_input_datasets": 0,
+    "n_paired_datasets": 2814
+  },
+  "receipt_audit": {
+    "receipt_count": 2814,
+    "status_counts": {
+      "EXPECTED_REJECTION": 744,
+      "PASS": 2070
+    }
+  },
+  "replay_aggregate_sha256": "e02851313897d0d9a87c53d1840460436580464dd632926dc5794c8f2316b22c",
+  "replay_dataset_results_sha256": "5ddd0347d85d00c241fff399cb734815d9a7d966e52e648c0bb98abd4559a733",
+  "run_review_sha256": "c14dfd4ec44d65f35166da9660d99c2347969ac94fb42e8081e0de180c6336bd",
+  "schema": "pion-source-aligned-replay-analysis-provenance-v1",
+  "source_manifest_sha256": "cd20915db78f07f315eb3d62ff892fe7824ebc98cad199cb9292e9dc791f156d"
+}

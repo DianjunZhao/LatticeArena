@@ -1,0 +1,24 @@
+{
+  "classification": "diagnostic_only",
+  "physical_score": null,
+  "scope": "noiseless synthetic coefficient fit, not gauge-ensemble physics risk; no SLSQP comparison",
+  "shape_zyx": [
+    3,
+    3,
+    3
+  ],
+  "hidden": 2,
+  "fit_links": 4,
+  "heldout_links": 3,
+  "teacher_seed": 2026112101,
+  "fit_seed": 2026112102,
+  "heldout_seed": 2026112103,
+  "initial_seed": 2026112104,
+  "maxiter": 400,
+  "source_hashes": {
+    "trainable_w.py": "07c07cd928214e4950bc97e3c649444d5e71e78c5e79bc4094b1ff9d25c64a42",
+    "trainable_w_diagnostic.py": "9d772bff2af5aaa8f7bfbf4736b419a57b9d1fe90dd834c3a27c13f07404298e",
+    "features.py": "2c2f7d37fedbd101ed67377545f737580c88c61be84a7498cc8cfa464af33cf0",
+    "kernels.py": "9b95f4d1207041f15cdddfaf18ad341c43a4c80f4e9c6071cfeac4d20fd4fc77"
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "schema": "latticearena-wilson-production-runspec-v1",
+  "version": "s16t16-wilson-d-stout-v1",
+  "status": "FROZEN_PREFLIGHT_ONLY_NOT_RUN",
+  "created_utc": "2026-11-20T02:41:06Z",
+  "frozen_utc": "2026-11-20T03:11:06Z",
+  "ensemble": "data/S16T16D",
+  "ensemble_name": "S16T16D",
+  "geometry": [16, 16, 16, 16],
+  "beta": 6.0,
+  "boundary_conditions": "periodic_all_directions",
+  "input_manifest": {
+    "path": "results/wilson_loop/hmc_production_20261120/frozen_inputs/manifest.json",
+    "sha256": "1ab67540cafe1ee12cafb3df653c47f30480e75b41b6b633dd7334c69cdd7f4d",
+    "schema": "latticearena-hmc-ensemble-manifest-v1",
+    "ensemble": "S16T16D",
+    "beta": 6.0,
+    "hmc_seed": 20261120,
+    "config_id_semantics": "zero-based saved-configuration ordinal; trajectory is read from the bound manifest"
+  },
+  "development": [0, 99],
+  "gap": [100, 119],
+  "validation": [120, 139],
+  "shared_blind_holdout": [140, 199],
+  "measurement_splits": ["development", "validation"],
+  "holdout_policy": "IDs 140-199 are reserved jointly for Pion/Optimize and possible Wilson analysis. This Wilson protocol does not authorize measuring or reading them.",
+  "r_values": [1, 2, 3, 4],
+  "t_values": [4, 5, 6, 7, 8],
+  "fit_window": [4, 5, 6, 7],
+  "reference_windows": [[4, 5, 6], [4, 5, 6, 7], [5, 6, 7, 8]],
+  "reference_nominal_window": 1,
+  "kernels": [
+    {"name": "identity", "kind": "ape", "alpha": 0.0, "steps": 0},
+    {"name": "ape_a0.4_n5", "kind": "ape", "alpha": 0.4, "steps": 5},
+    {"name": "stout_rho0.1_n5", "kind": "stout", "rho": 0.1, "steps": 5},
+    {"name": "ape_a0.4_n10", "kind": "ape", "alpha": 0.4, "steps": 10},
+    {"name": "stout_rho0.1_n10", "kind": "stout", "rho": 0.1, "steps": 10},
+    {"name": "ape_a0.6086956522_n10", "kind": "ape", "alpha": 0.6086956521739131, "steps": 10},
+    {"name": "stout_rho0.1521739130_n10", "kind": "stout", "rho": 0.15217391304347827, "steps": 10}
+  ],
+  "matched_parameter_pairs": [
+    {"ape_alpha": 0.4, "stout_rho": 0.1, "steps": 5},
+    {"ape_alpha": 0.4, "stout_rho": 0.1, "steps": 10},
+    {"ape_alpha": 0.6086956521739131, "stout_rho": 0.15217391304347827, "steps": 10}
+  ],
+  "match_assumption": "rho=alpha/4 matches the leading weak-field linearized update only; it does not certify equal nonperturbative smoothing radius.",
+  "reference_kernel": 0,
+  "block_length": 5,
+  "bootstrap_samples": 5000,
+  "seed": 2026112021,
+  "reference_max_relative_se": 0.05,
+  "reference_max_window_z": 2.5,
+  "score_epsilon": 1e-12,
+  "normalization": "APE uses alpha/4 over four spatial staples and bidirectional polar projection. Stout uses rho per staple and exp(iQ)U. Temporal links are unchanged.",
+  "cost_diagnostics": {
+    "record_per_configuration": ["host_read_seconds", "device_transfer_seconds", "kernel_seconds", "loop_seconds", "total_seconds"],
+    "primary_comparison": "same configurations, same Wilson-loop observables, paired block-bootstrap risk differences; plot risk versus measured per-kernel and total wall time",
+    "claim_limit": "Per-configuration total_seconds includes host read/hash, device transfer, all candidate kernel calls, and all loop contractions, but excludes compressed prefix writes and receipt/plot generation. Report full job walltime separately. Do not label a winner as matched-cost unless the same wall-time budget and resulting configuration counts are explicitly compared. Include block-length sensitivity at 1, 2, 5, 10, and 20 saved configurations."
+  },
+  "validation_limit": "D IDs 120-139 provide only 20 configurations (four nominal length-5 blocks). Treat this as an internal confirmation pilot; if the paired interval is too wide, report INCONCLUSIVE and do not consume shared IDs 140-199 without a joint unlock.",
+  "input_integrity": "Before each NERSC file is transferred to the GPU, verify its raw-file SHA-256 against the HMC manifest and record the manifest trajectory. The production receipt must preserve per-configuration checksum, residual/validity, loop hash, and failure reason; the current preflight specification alone is not a measurement receipt.",
+  "source_hashes": {
+    "measure.py": "5fdee931db8a0b9bc74debb6f8c53e659ec6ccef7a42b0443788db4593e84ef6",
+    "kernels.py": "a6b54eb606f1b7c790de596185d8c0190601fde4495d9f26eba89ba16abdd7dc",
+    "stout.py": "7d9f5f8ea0c0e006b09f58abc087e5825fd74c5efecf085db176c7c23ed69f35",
+    "statistics.py": "27c691dad427deb5e46447e8a9d6de6eea9027b65d5c99f0290f8ec2590f1c86",
+    "common.py": "74de1e8cfaafbae2744855e85992561681057832f52bf537255f9d35230dd29e",
+    "identity.py": "d15841a933c22502a616a9e3d56d12dff13dc11227d26343a3da325f03b65fbe"
+  },
+  "preflight": [
+    "Copy the bound HMC manifest and raw files into the isolated Kunshan run tree, retaining the manifest hash.",
+    "Run measurement preflight and confirm the selected ID ranges, exact raw-file hashes, geometry, beta, periodic boundary, NERSC checksum status, and code hashes.",
+    "Run CPU kernel diagnostics and a tiny GPU smoke on the run host before measuring D development IDs 0-99.",
+    "Do not start validation IDs 120-139 unless the development reference gate passes; the measurement CLI rejects IDs outside the authorized split list."
+  ],
+  "supersedes": "No historical result is rewritten. protocol_v4 remains the archived S16T16B design; this is a new D-chain confirmation plan.",
+  "physical_status": "NOT_RUN"
+}

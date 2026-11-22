@@ -1,0 +1,40 @@
+{
+  "bootstrap_multiplier_seed": 2654760877,
+  "context_hashes": {
+    "core/comparator.py": "d0dc714c158c8d8a53dc48a4f49a7198c009411ad8827014d9e3da73f646afff",
+    "tasks/pion_projection/experiment.py": "e663ccc85eb566f09e91c47acdda28c8d40d474b24f05afdfb63fdf71e2dbb5a",
+    "tasks/pion_projection/robust_score_diagnostic.py": "de0069b686599bdf405fe944141eabcea5c22cff5ef514c9375e85dea44cfea3"
+  },
+  "numpy": "2.5.1",
+  "output_sha256": {
+    "README.md": "121a253bfa8b9c539e92a47ccdab3532584ed39b3d52519a04d2e970a3c70e38",
+    "abstention_bias_diagnostics.png": "58ccd567cf42aa79700d9b8d6ed66ea7f3e0607884f4e8b48d63a8c8103e8996",
+    "dataset_risks_common_bias_null.npz": "a4df9b01e12f935bdc239ae11ac91a291bb0f1c86976ef94524435dc0519e029",
+    "dataset_risks_gaussian_boundary_null.npz": "f5fc70cbb013cab2941d7b89a72749cfddfc59696b00a2e1f11a21c9ae9ed976",
+    "dataset_risks_heavy_tail_boundary_null.npz": "f7a78c1d59fcc28b8990ca9eded1d6b66b8224e683c0d04744bf603af1c772a5",
+    "dataset_risks_near_zero_baseline.npz": "20b41f36d8a5371472d3fb9fd92c7fcc24cdba90605dbbef5ad270a9bea37c42",
+    "dataset_risks_one_candidate_improved.npz": "4ee21d14430c29e9f9734730ec79b866c5e927220a04228e4f13bb13bdcdc323",
+    "dataset_risks_one_dataset_outlier_boundary_null.npz": "1ac1340fa3ecde894f9014bb680a5f1483419de74a5ffaeb35d833f271fed176",
+    "dataset_risks_reference_window_conflict.npz": "abadc0cb2c387621260ed11f3a39a62335f23637fe9e982cde94b0771fbe0648",
+    "familywise_calibration.png": "ad940fb4bbf83ba9ca80860844791acd4b521f76b89dae3776755c71b80b00f4",
+    "familywise_score_summary.json": "8123b582cd7a4fea0f1cd65ef6976f0b8a3c5ac532f0c77cf62cf6d1ab0cee0b",
+    "preregistration.json": "7ee876c72b3f4346bdd5fc6f6289a9cc16ee200362492479197324335518f1ee",
+    "protocol.json": "2de30484f2cdaa745cca2b29d535e4bac9b5eba539880982037cc95243023233",
+    "trial_outcomes.csv.gz": "39df1af5902cd2f6fc2e6d38f3bfdf65b4413829e1e5bcb665d3ed82a04e5e25"
+  },
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "preregistration_sha256": "7ee876c72b3f4346bdd5fc6f6289a9cc16ee200362492479197324335518f1ee",
+  "protocol_sha256": "7243dde7a157e8ab04ab5c5994b10359336f5d05c32678c727552850b84bd009",
+  "python": "3.13.12 (main, Feb  3 2026, 17:53:27) [Clang 17.0.0 (clang-1700.6.3.2)]",
+  "scenario_seeds": {
+    "common_bias_null": 878663596,
+    "gaussian_boundary_null": 2655330901,
+    "heavy_tail_boundary_null": 1740428133,
+    "near_zero_baseline": 1989372569,
+    "one_candidate_improved": 449665084,
+    "one_dataset_outlier_boundary_null": 4017832868,
+    "reference_window_conflict": 3842661773
+  },
+  "scipy": "1.18.0",
+  "source_sha256": "9580dcf6dc1607972bffa080774a631dc870fed559cb3dbb760c18e7d53b2a63"
+}

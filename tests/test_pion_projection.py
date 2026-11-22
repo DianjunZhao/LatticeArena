@@ -208,6 +208,38 @@ def test_improvement_certificate_accepts_only_real_improvements():
     assert out['candidates']['good']['improvement_lower_bound'] > 1.4
 
 
+def test_robust_score_diagnostic_pairs_draws_and_takes_worst_branch():
+    from tasks.pion_projection.robust_score_diagnostic import summarize_paired_branches
+    ids = np.arange(100)
+    baseline = np.exp(np.linspace(-0.2, 0.2, ids.size))
+    good = baseline / 1.4
+    bad = baseline / 0.8
+    good_summary = summarize_paired_branches(
+        {'wide': {'baseline': baseline, 'candidate': good}}, ids,
+        min_improvement=1.05)
+    one = good_summary['branches']['wide']
+    assert good_summary['status'] == 'diagnostic_only'
+    assert good_summary['worst_case_lower_bound_would_pass']
+    assert one['log_ratio_quantile_identity_residual'] < 1e-14
+
+    conflict = summarize_paired_branches(
+        {'wide': {'baseline': baseline, 'candidate': good},
+         'short': {'baseline': baseline, 'candidate': bad}}, ids,
+        min_improvement=1.05)
+    assert not conflict['worst_case_lower_bound_would_pass']
+    assert conflict['branches']['wide']['paired_log_lower_bound'] > 0
+    assert conflict['branches']['short']['paired_log_lower_bound'] < 0
+
+    shifted = summarize_paired_branches(
+        {'wide': {'baseline': baseline * 1e3, 'candidate': good * 1e3}}, ids,
+        min_improvement=1.05)
+    assert shifted['branches']['wide']['paired_log_lower_bound'] == pytest.approx(
+        one['paired_log_lower_bound'])
+    with pytest.raises(ValueError, match='draw ids differ'):
+        summarize_paired_branches({'wide': {'baseline': baseline, 'candidate': good}}, ids,
+                                  draw_ids_by_branch={'wide': ids[::-1]})
+
+
 def test_scoring_contract_rejects_bad_inputs():
     from tasks.pion_projection.scoring import improvement_certificate, validate_spec
     base = np.ones(50)
@@ -557,6 +589,16 @@ def test_evaluate_reuses_a_compatible_joint_certificate(tmp_path):
     for name in ('development.npz', 'validation.npz', 'development_provenance.json',
                  'validation_provenance.json', 'submission.json'):
         shutil.copy(run_dir / name, tmp_path / name)
+    submission_path = tmp_path / 'submission.json'
+    submission = json.loads(submission_path.read_text())
+    submission['score_spec'] = {
+        'alpha': 0.05,
+        'comparison_family': {'candidates': len(submission['submissions']) - 1, 'models': 1},
+        'min_baseline_risk': 1e-6,
+        'min_improvement': 1.0,
+        'risk_floor': 0.0,
+    }
+    submission_path.write_text(json.dumps(submission))
     protocol = json.loads((run_dir / 'development_provenance.json').read_text())['protocol']
     common.protocol = lambda: protocol
     experiment.protocol = lambda: protocol
@@ -566,6 +608,11 @@ def test_evaluate_reuses_a_compatible_joint_certificate(tmp_path):
     report = json.loads((tmp_path / 'validation_results.json').read_text())
     assert report['certification_source'] == 'joint'
     assert report['certification']['status'] == 'abstain'
+    diagnostic = report['robust_score_diagnostic']
+    assert diagnostic['status'] == 'diagnostic_only'
+    assert diagnostic['physical_score'] is None
+    assert diagnostic['draw_count'] == 4
+    assert diagnostic['reference_window_scope'].endswith('no window sensitivity claim')
 
 
 def test_certificate_family_j2_k2():
@@ -608,7 +655,8 @@ def test_llm_loop_rejects_malformed_proposals_and_caps_budget(tmp_path):
 
 
 def test_eigvals_rank_legality():
-    from tasks.pion_projection.gevp_stats import _eigvals
+    from tasks.pion_projection.gevp_stats import (_eigvals, _eigvals_with_reason,
+                                                 bootstrap_gevp)
     assert _eigvals(np.eye(2), np.diag([-1.0, 1.0]), rank=2).size == 0
     assert _eigvals(np.eye(2), np.eye(2), rank=0).size == 0
     with pytest.raises(ValueError, match='outside'):
@@ -616,6 +664,23 @@ def test_eigvals_rank_legality():
     with pytest.raises(ValueError, match='outside'):
         _eigvals(np.eye(2), np.eye(2), rank=-1)
     assert _eigvals(np.eye(2), np.eye(2), rank=2).size == 2
+
+    # Invalid metric eigenvalues are classified before a square root is taken.
+    for metric in (np.diag([-1.0, 1.0]), np.diag([0.0, 1.0])):
+        values, reason = _eigvals_with_reason(np.eye(2), metric, rank=2)
+        assert values.size == 0
+        assert reason == 'metric_rank_contains_nonpositive_eigenvalue'
+    values, reason = _eigvals_with_reason(np.eye(2), np.diag([1e-12, 1.0]),
+                                          rank=2, rtol=1e-10)
+    assert values.size == 0
+    assert reason == 'metric_rank_unresolved_by_cutoff'
+
+    matrix = np.zeros((1, 2, 2, 2), dtype=complex)
+    matrix[0, :, :, 0] = np.diag([-1.0, 1.0])
+    matrix[0, :, :, 1] = np.eye(2)
+    _, failures = bootstrap_gevp(matrix, np.array([[0]]), t0=0, times=(1,), rank=2)
+    assert failures == [{'replica': 0, 'time': 1,
+                         'reason': 'metric_rank_contains_nonpositive_eigenvalue'}]
 
 
 def test_wrong_state_candidates_are_distinct():
@@ -633,6 +698,175 @@ def test_measurement_plan_preflight_rejects_draft_before_gpu(tmp_path):
         preflight('tasks/pion_projection/measurement_plan.example.json', tmp_path)
     legal = load_plan('tasks/pion_projection/measurement_plan.example.json')
     assert legal['schema'] == 'pion-measurement-plan-v1'
+
+
+def test_measurement_plan_ready_resume_and_validation_with_existing_artifacts(tmp_path, monkeypatch):
+    import hashlib
+    import json
+    from pathlib import Path
+    from tasks.pion_projection import common, measurement_plan
+    from tasks.pion_projection.common import fingerprint
+    from tasks.pion_projection.measurement_plan import generation_id, preflight
+
+    plan = json.loads(Path('tasks/pion_projection/measurement_plan.example.json').read_text())
+    ensemble = tmp_path / 'ensemble'
+    ensemble.mkdir()
+    test_protocol = json.loads(Path('tasks/pion_projection/protocol.json').read_text())
+    test_protocol['ensemble'] = str(ensemble)
+    protocol_path = tmp_path / 'measurement_protocol.json'
+    protocol_path.write_text(json.dumps(test_protocol))
+    monkeypatch.setattr(common, 'PROTOCOL_PATH', protocol_path)
+    monkeypatch.setattr(common, 'protocol', lambda: test_protocol)
+    monkeypatch.setattr(measurement_plan, 'protocol', lambda: test_protocol)
+    plan['ensemble'] = str(ensemble)
+    plan['split_ensembles'] = {}
+    plan['status'] = 'READY'
+    plan['protocol_sha256'] = fingerprint(test_protocol)
+    plan['splits'] = {'development': [0, 1], 'anchor': [2, 2], 'validation': [3, 4]}
+    plan['budget']['available_configurations'] = 5
+    plan['identity']['require_trajectory_manifest'] = True
+    plan['freeze']['frozen_at_utc'] = '2026-11-20T00:00:00Z'
+    rows = [{'id': cfg_id, 'trajectory': 10 + cfg_id, 'sha256': str(cfg_id + 1) * 64}
+            for cfg_id in range(5)]
+    def measurement_record(cfg_id):
+        return {'id': cfg_id, 'ensemble': str(ensemble), 'trajectory_id': 10 + cfg_id,
+                'gauge_sha256': str(cfg_id + 1) * 64,
+                'propagator_sha256': 'f' * 64, 'residual_max': 1e-12}
+    (ensemble / 'manifest.json').write_text(json.dumps({'configs': rows}))
+    plan_path = tmp_path / 'plan.json'
+    plan_path.write_text(json.dumps(plan))
+    output = tmp_path / 'run'
+    output.mkdir()
+    (output / 'development.log').write_text('unrelated prior output is allowed')
+
+    generation = generation_id(plan_path, 'development')
+    corr = np.ones((1, len(test_protocol['powers']), test_protocol['geometry'][3]))
+    np.savez_compressed(output / 'development.npz', ids=np.array([0]), correlators=corr,
+                        protocol_hash=fingerprint(test_protocol), generation=generation)
+    (output / 'development_provenance.json').write_text(json.dumps({
+        'generation': generation, 'protocol_hash': fingerprint(test_protocol),
+        'records': [measurement_record(0)],
+    }))
+    assert preflight(plan_path, output, 'development') == plan
+
+    # A matching, frozen development receipt and unrelated run files must not
+    # prevent the later validation split from passing preflight.
+    full_corr = np.ones((2, len(test_protocol['powers']), test_protocol['geometry'][3]))
+    generation = generation_id(plan_path, 'development')
+    np.savez_compressed(output / 'development.npz', ids=np.array([0, 1]),
+                        correlators=full_corr, protocol_hash=fingerprint(test_protocol),
+                        generation=generation)
+    (output / 'development_provenance.json').write_text(json.dumps({
+        'generation': generation, 'protocol_hash': fingerprint(test_protocol),
+        'records': [measurement_record(0), measurement_record(1)],
+    }))
+    import builtins
+    original_import = builtins.__import__
+    def reject_accelerator_import(name, *args, **kwargs):
+        if name.split('.')[0] in {'cupy', 'mpi4py', 'pyquda', 'pyquda_utils'}:
+            raise AssertionError(f'accelerator import occurred for completed split: {name}')
+        return original_import(name, *args, **kwargs)
+    monkeypatch.setattr(builtins, '__import__', reject_accelerator_import)
+    from tasks.pion_projection.measure import measure
+    assert len(measure(output, 'development', plan=plan_path)) == 2
+
+    development_hash = hashlib.sha256((output / 'development.npz').read_bytes()).hexdigest()
+    (output / 'submission.json').write_text(json.dumps({
+        'protocol_hash': fingerprint(test_protocol), 'development_sha256': development_hash,
+    }))
+    anchor_generation = generation_id(plan_path, 'anchor')
+    anchor_corr = np.ones((1, len(test_protocol['powers']), test_protocol['geometry'][3]))
+    np.savez_compressed(output / 'anchor.npz', ids=np.array([2]), correlators=anchor_corr,
+                        protocol_hash=fingerprint(test_protocol), generation=anchor_generation)
+    (output / 'anchor_provenance.json').write_text(json.dumps({
+        'generation': anchor_generation, 'protocol_hash': fingerprint(test_protocol),
+        'records': [measurement_record(2)],
+    }))
+    anchor_hash = hashlib.sha256((output / 'anchor.npz').read_bytes()).hexdigest()
+    submission_hash = hashlib.sha256((output / 'submission.json').read_bytes()).hexdigest()
+    plan_hash = hashlib.sha256(plan_path.read_bytes()).hexdigest()
+    anchor_report = {
+        'schema': 'pion-independent-anchor-review-v1',
+        'anchor_sha256': anchor_hash, 'development_sha256': development_hash,
+        'submission_sha256': submission_hash, 'plan_sha256': plan_hash,
+        'protocol_sha256': fingerprint(test_protocol),
+        'measurement_generation': anchor_generation, 'physical_score': None,
+        'anchor_reference_passed': True,
+    }
+    anchor_report_path = output / 'anchor_results.json'
+    anchor_report_path.write_text(json.dumps(anchor_report))
+    assert preflight(plan_path, output, 'validation') == plan
+    anchor_report['protocol_sha256'] = '0' * 64
+    anchor_report_path.write_text(json.dumps(anchor_report))
+    with pytest.raises(ValueError, match='frozen protocol'):
+        preflight(plan_path, output, 'validation')
+
+
+def test_failed_anchor_reference_writes_diagnostic_and_keeps_score_null(tmp_path, monkeypatch):
+    import json
+    from tasks.pion_projection import anchor_review
+    from tasks.pion_projection.common import digest, fingerprint, protocol
+    from tasks.pion_projection.statistics import blocks, fold
+
+    p = protocol()
+    output = tmp_path / 'run'
+    output.mkdir()
+    plan_path = tmp_path / 'plan.json'
+    plan_path.write_text('{}')
+    development_path = output / 'development.npz'
+    anchor_path = output / 'anchor.npz'
+    development_path.write_bytes(b'development-measurement')
+    anchor_path.write_bytes(b'anchor-measurement')
+    submission_path = output / 'submission.json'
+    submission_path.write_text(json.dumps({
+        'protocol_hash': fingerprint(p),
+        'development_sha256': digest(development_path),
+        'reference': {'kind': 'mock'},
+        'calibration': {
+            'reference_passed': True,
+            'reference': {'mass': 0.5},
+            'windows': [{'mass': 0.5, 'se': 0.01} for _ in p['reference_windows']],
+        },
+        'submissions': {'local': [1.0]},
+        'late_inverse_covariances': {},
+    }))
+    np.savez_compressed(output / 'reference_bootstrap.npz', masses=np.full(100, 0.5))
+    raw = np.ones((60, len(p['powers']), p['geometry'][3]))
+    monkeypatch.setattr(anchor_review, 'load_plan', lambda _: {'splits': {'anchor': [0, 59]}})
+    monkeypatch.setattr(anchor_review, 'load_data', lambda *_: raw)
+    monkeypatch.setattr(anchor_review, 'verify_reference', lambda _: 'mock')
+    monkeypatch.setattr(anchor_review, 'generation_id', lambda *_: 'a' * 64)
+
+    failed_windows = [
+        {'window': window, 'status': 'failed', 'reason': 'synthetic fit failure'}
+        for window in p['reference_windows']
+    ]
+    anchor_blocks = blocks(fold(raw), p['block_length'])
+    monkeypatch.setattr(anchor_review, 'reference_review', lambda *_: (
+        anchor_blocks,
+        {
+            'passed': False,
+            'failures': ['Anchor nominal reference fit is unavailable'],
+            'windows': failed_windows,
+            'nominal': {'status': 'failed'},
+            'mass_samples': None,
+            'reflection_max_z': None,
+            'n_blocks': len(anchor_blocks),
+        },
+    ))
+
+    result = anchor_review.run(output, plan_path)
+    assert result['anchor_reference_passed'] is False
+    assert result['physical_score'] is None
+    assert result['development_anchor_mass']['difference_combined_se'] is None
+    assert (output / 'anchor_reference_windows.png').is_file()
+    assert (output / 'anchor_candidate_risks.png').is_file()
+    report = (output / 'anchor_review.md').read_text()
+    assert 'failed / inconclusive' in report
+    assert 'combined standard errors; the frozen limit' in report
+    stored = json.loads((output / 'anchor_results.json').read_text())
+    assert stored['anchor_reference_passed'] is False
+    assert stored['physical_score'] is None
 
 
 def test_measure_requires_plan_before_gpu(tmp_path, monkeypatch):
@@ -659,3 +893,51 @@ def test_identity_rejects_report_submission_verdict_mismatch(tmp_path):
     (tmp_path / 'validation_results.json').write_text(json.dumps(report))
     kind, reasons = verify_run_identity(tmp_path)
     assert any('reference verdict' in reason for reason in reasons)
+
+
+def test_identity_requires_kernel_hash_and_report_spec(tmp_path):
+    import json
+    import shutil
+    from pathlib import Path
+    from tasks.pion_projection.identity import verify_run_identity
+    run = Path('results/pion_projection/s16t16_gevp200')
+    for name in ('development.npz', 'validation.npz', 'development_provenance.json',
+                 'submission.json', 'validation_results.json'):
+        shutil.copy(run / name, tmp_path / name)
+    sub = json.loads((tmp_path / 'submission.json').read_text())
+    sub.pop('kernel_sha256', None)
+    (tmp_path / 'submission.json').write_text(json.dumps(sub))
+    _, reasons = verify_run_identity(tmp_path, require_report=True)
+    assert any('missing the measurement kernel hash' in reason for reason in reasons)
+
+    shutil.copy(run / 'submission.json', tmp_path / 'submission.json')
+    report_path = tmp_path / 'validation_results.json'
+    report = json.loads(report_path.read_text())
+    report.pop('reference_spec', None)
+    report_path.write_text(json.dumps(report))
+    _, reasons = verify_run_identity(tmp_path, require_report=True)
+    assert any('reference spec differs' in reason for reason in reasons)
+
+    report_path.unlink()
+    _, reasons = verify_run_identity(tmp_path, require_report=True)
+    assert 'validation report is missing' in reasons
+
+
+def test_candidate_checks_identity_before_importing_gpu_runtime(tmp_path, monkeypatch):
+    import json
+    import shutil
+    from pathlib import Path
+    from tasks.pion_projection import candidate
+    run = Path('results/pion_projection/s16t16_gevp200')
+    names = ('development.npz', 'validation.npz', 'development_provenance.json',
+             'submission.json', 'validation_results.json')
+    for name in names:
+        shutil.copy(run / name, tmp_path / name)
+    provenance = json.loads((tmp_path / 'development_provenance.json').read_text())
+    monkeypatch.setattr(candidate, 'protocol', lambda: provenance['protocol'])
+    sub_path = tmp_path / 'submission.json'
+    sub = json.loads(sub_path.read_text())
+    sub['kernel_sha256'] = '0' * 64
+    sub_path.write_text(json.dumps(sub))
+    with pytest.raises(ValueError, match='Run identity check failed'):
+        candidate.run_candidate(tmp_path, tmp_path / 'not-read.json', 'validation')

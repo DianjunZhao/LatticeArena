@@ -1,0 +1,72 @@
+{
+  "protocol_version": "s16t16-pilot-v1",
+  "n_blocks": 12,
+  "windows": {
+    "[4, 5, 6, 7, 8]": {
+      "cost": 299.49178882291505,
+      "nsim": 300,
+      "invalid": 0,
+      "p_fixed": 0.0033222591362126247,
+      "p_rebuilt": 0.0033222591362126247,
+      "p_fixed_ci": [
+        0.0,
+        0.012643429997735661
+      ],
+      "p_rebuilt_ci": [
+        0.0,
+        0.012643429997735661
+      ],
+      "p_asymptotic": 1.1209454525948377e-57,
+      "null_median_cost": 0.8007165272091672,
+      "null_q95_cost": 3.2063160296748836,
+      "dof": 11
+    },
+    "[5, 6, 7, 8]": {
+      "cost": 52.000962914488404,
+      "nsim": 300,
+      "invalid": 0,
+      "p_fixed": 0.0033222591362126247,
+      "p_rebuilt": 0.0033222591362126247,
+      "p_fixed_ci": [
+        0.0,
+        0.012643429997735661
+      ],
+      "p_rebuilt_ci": [
+        0.0,
+        0.012643429997735661
+      ],
+      "p_asymptotic": 1.682383822500325e-08,
+      "null_median_cost": 0.39420499800335734,
+      "null_q95_cost": 1.7856986672418946,
+      "dof": 8
+    },
+    "[6, 7, 8]": {
+      "cost": 6.26449351308068,
+      "nsim": 300,
+      "invalid": 0,
+      "p_fixed": 0.0033222591362126247,
+      "p_rebuilt": 0.0033222591362126247,
+      "p_fixed_ci": [
+        0.0,
+        0.012643429997735661
+      ],
+      "p_rebuilt_ci": [
+        0.0,
+        0.012643429997735661
+      ],
+      "p_asymptotic": 0.28132662862902663,
+      "null_median_cost": 0.10838045302238636,
+      "null_q95_cost": 0.5648325728048245,
+      "dof": 5
+    }
+  },
+  "coverage": {
+    "simulated_datasets": 100,
+    "false_fail_at_1pct": 0.0,
+    "false_fail_ci": [
+      0.0,
+      0.03699480747600191
+    ]
+  },
+  "caveat": "Plug-in block bootstrap: the simulated covariance is the sample covariance of the same 12 blocks, so the null is circular and too narrow; with 15 dimensions and 12 blocks a proper inverse-Wishart posterior does not exist. These p-values are NOT usable."
+}

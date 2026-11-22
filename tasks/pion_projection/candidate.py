@@ -49,10 +49,6 @@ def apply_kernel(gauge, prop, builder, parameters):
 
 
 def run_candidate(output, definition_path, split, verify_only=False):
-    import cupy as cp
-    from mpi4py import MPI
-    from pyquda_utils import core, io
-
     p, output = protocol(), Path(output)
     reference_frozen = json.loads((output/'submission.json').read_text())
     if reference_frozen['protocol_hash'] != fingerprint(p) or reference_frozen['development_sha256'] != digest(output/'development.npz'):
@@ -60,9 +56,9 @@ def run_candidate(output, definition_path, split, verify_only=False):
     if reference_frozen['statistics_sha256'] != digest(Path(__file__).with_name('statistics.py')):
         raise ValueError('Frozen scoring implementation changed')
     from .identity import verify_run_identity
-    kind_checked, identity_reasons = verify_run_identity(output)
-    if kind_checked is None or any('protocol hash' in r or 'development data hash' in r
-                                   for r in identity_reasons):
+    kind_checked, identity_reasons = verify_run_identity(
+        output, require_report=(split == 'validation'))
+    if kind_checked is None or identity_reasons:
         raise ValueError('Run identity check failed: ' + '; '.join(identity_reasons))
     spec = json.loads(Path(definition_path).read_text())
     module, function = spec['builder'].split(':')
@@ -86,6 +82,13 @@ def run_candidate(output, definition_path, split, verify_only=False):
     expected_ids = indices(split).tolist()
     if [r['id'] for r in source['records']] != expected_ids:
         raise ValueError('Incomplete propagator cache manifest')
+
+    # Do not import a GPU runtime until the frozen run, report, candidate, and
+    # propagator receipt have passed their static identity checks.
+    import cupy as cp
+    from mpi4py import MPI
+    from pyquda_utils import core, io
+
     Path('.cache/quda').mkdir(parents=True, exist_ok=True)
     core.init([1, 1, 1, 1], p['geometry'], resource_path='.cache/quda')
     if MPI.COMM_WORLD.Get_size() != 1:

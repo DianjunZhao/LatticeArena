@@ -1,0 +1,12 @@
+{
+  "executor_spec_sha256": "71d1aaad5fdef117305e51ed55be5b43e3281f85d6b981b7c2392af0a88d4ed2",
+  "independent_mc_sample": false,
+  "plan_consistency": true,
+  "preregistration_sha256": "e2499b32e8ecbb3f841ed0714d337790e6cfa63feb400779b3f6856d5a5a8096",
+  "same_seed_as_amendment02": true,
+  "schema": "source-aligned-replay-launch-validation-v1",
+  "source_count": 13,
+  "source_hashes_match": true,
+  "source_manifest_sha256": "cd20915db78f07f315eb3d62ff892fe7824ebc98cad199cb9292e9dc791f156d",
+  "validated_utc": "2026-11-19T14:10:56.956406+00:00"
+}

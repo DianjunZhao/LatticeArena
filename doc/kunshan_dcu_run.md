@@ -14,6 +14,10 @@
 2. **pion sink 优化流水线完整跑通**：`measure(dev 60) → develop → measure(val 30) → evaluate → plot`，本地代码在远端只改了 3 处可移植性问题，约 9 分钟跑完全部物理测量。
 3. **结果：`score: null`（`unscored_reference_failed`）**，与仓库文档里那次的结论一致——参考质量随拟合窗口漂移（1.112 / 1.086 / 1.072，配对偏移 21.6σ 和 7.8σ）。但在**冻结的诊断口径**下，agent 的带符号混合核在留出组态上优于调好的 Gaussian 基线：loss 比 **1.63**，配对 95% 区间 **[1.40, 2.19]**（不含 1）。**这不是官方分数，也不是 SOTA 声明**——参考态没通过，分数按设计被置空。
 
+**2026-11-20 归档复核补充**：[跨文件 audit](../results/kunshan_logs/archive_audit_v1/README.md)确认开发60条、验证30条 `pipe_*` 记录与仓库中的 pion provenance 逐字段一致；90条 `gauge_sha256` 也与100项 `results/kunshan_logs/manifest.json` 同ID一致。另一份200项 HMC quality snapshot 与该 manifest 的前100项虽在ID/trajectory/plaquette上一致，但SHA-256匹配0/100；HMC `SAVED` 行没有 hash，且本地没有 gauge bytes。后续[GEVP200/snapshot crosswalk](../results/kunshan_logs/pion_gevp200_snapshot_crosswalk_v1/README.md)发现，Pion `s16t16_gevp200` 的180条已测记录与snapshot在hash字段和plaquette上匹配180/180，但该GEVP200记录与主Kunshan manifest的ID 0–99 hash字段匹配0/100；旧 `s16t16_v1` pilot与主manifest仍匹配90/90。逐ID图表明数字ID是run-local标签。GEVP200 provenance中记录的旧 `measure.py` 字节可在Git历史恢复，kernel hash也与当前源码一致；这部分佐证测量来源，但没有重算raw gauge bytes，也不能证明HMC `SAVED`文件身份或解释主manifest与snapshot差异。审计图和逐例矩阵见[identity crosswalk](../results/kunshan_logs/pion_gevp200_snapshot_crosswalk_v1/identity_crosswalk.png)。Optimize v9 manifest又引用相同 validation provenance 和 IDs 70–99，这批 test 已经被观察，不能作为新的 blind set。该补充不改变历史 pilot 的 `score: null` 结论。
+
+**2026-11-20 原始字节核验更正（取代上述“无法重算raw gauge bytes”限制）**：[只读 live archive audit](../results/kunshan_logs/live_archive_audit_v1/README.md)已从 Kunshan 读取三个目录共500个文件、约18 GB，仅带回摘要与小型日志/manifest，没有复制 gauge 数据或提交GPU作业。S16T16、S16T16B、S16T16C 的 raw-file SHA 分别100/100、200/200、200/200匹配各自 manifest；与本地 Kunshan主manifest、Wilson snapshot 的文本副本也逐字节一致。跨目录 raw SHA 均不相同，但 `END_HEADER` 后 payload 的相同率为100/100、100/100、200/200，说明旧 hash conflict 是 NERSC header 字节差异，同一 ID 的 gauge-link payload 实际重复。Pion pilot 90/90记录 raw hash 对应 S16T16 文件，GEVP200 180/180记录 raw hash 对应 S16T16C 文件；两者的重叠 payload 与旧 pilot 相同，不能视为独立 ensemble。S16T16B/C 的70个共享HMC checkpoint中 accept、plaquette、ΔH与累计率70/70一致；这支持同seed replay，但不是所有 trajectory 逐条相同的证明。详细逐配置 CSV、身份矩阵图、稀疏HMC图和校验命令见 live audit README。历史 pilot `score: null` 与 GEVP200 reference gate failure 均不改变；新的真实独立 anchor 仍未完成。
+
 ---
 
 ## 1. 环境
@@ -334,3 +338,16 @@ results/kunshan_logs/
 ```
 
 远端（`~dianjun/LatticeArena`）另有 100 个 NERSC 组态和 13 GB 传播子缓存，可随时重跑 `develop`/`evaluate` 而不必再反演。
+
+## 10. 2026-11-20 新的 receipt-preserving HMC 链补充
+
+本节记录后续新建的隔离 run tree `~/dianjun/LatticeArena/runs/task_closure_20261120`，不改写上文 2026-11-13 pilot 的数据、运行结论或 `score: null`。所有新 HMC raw NERSC files 留在 Kunshan；本地只保存 receipt、trajectory log、manifest、protocol/source快照和诊断图文。
+
+| 链 | Slurm job | 轨迹 / 热化 / 生产 | 保存配置 | 生产接受率（exact CP95） | plaquette τint | 原始 payload hash |
+|---|---:|---:|---:|---:|---:|---:|
+| `S16T16D` | 128526595 | 1396 / 400 / 996 | 200 | 0.98594 [0.97653, 0.99229] | 3.76 | 200/200 |
+| `S16T16E` | 128528670 | 896 / 400 / 496 | 100 | 0.97379 [0.95560, 0.98597] | 4.03 | 100/100 |
+
+两条链使用独立 seed 与独立随机 SU(3) 初始场，receipt、逐轨迹 ΔH/accept、运行环境、manifest、raw-file payload 身份均有冻结记录。主链和 anchor 链的 [诊断报告](../results/wilson_loop/hmc_production_20261120/diagnostic/README.md)、[独立链报告](../results/wilson_loop/hmc_anchor_20261121/diagnostic/README.md)均提供 ΔH histogram、接受率轨迹、plaquette thermalization/production trace、自相关图和 block-length 表；[跨链比较](../results/wilson_loop/hmc_chain_comparison_20261120/README.md)显示 plaquette 均值差为 $9.68\times10^{-5}$，其相对 combined block-SE 随 block length 1/2/5/10/20/50 变为 3.29/2.59/1.97/1.60/1.30/1.01。该敏感性是描述性结果，不证明平衡或物理量正确性。
+
+Pion 的当前 measurement-plan amendment 使用 D IDs 0–99 作 development、E IDs 0–59 作独立 correlator anchor、D IDs 100–139 作 gap、D IDs 140–199 作未读 holdout。原 HMC receipt 曾提议 D IDs 100–119 作为 anchor，该字段只保留为提交时的历史，不应修改或误用。D IDs 140–199 同时供 Pion validation、Optimize blind test 与可能的 Wilson 对照；应在任何任务读取之前冻结所有相关 protocol/candidates/analysis。两条 HMC 链尚未生成 Pion propagators 或 Wilson loops，三项 production measurement 均仍需后续解锁和测量。

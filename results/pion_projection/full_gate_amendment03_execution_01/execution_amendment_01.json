@@ -1,0 +1,15 @@
+{
+  "checkpoint_completed_at_resume": 666,
+  "incomplete_attempt_directories_preserved": 6,
+  "prior_parallel_driver_spec": "parallel_driver_spec_workers06.json",
+  "prior_parallel_driver_spec_sha256": "785ba0162d15d76d4ae4b9eec9156cdfb56d9f3998da9d4e8a3cab7d3845ada4",
+  "prior_workers": 6,
+  "reason": "Increase worker concurrency to reduce walltime on a 10-logical-CPU host; frozen statistical design, code hashes, seeds, and per-world inputs are unchanged.",
+  "resume_rule": "reuse every valid receipt after scenario/dataset/seed/status validation; leave incomplete attempt folders intact and create a new attempt directory if deterministic inputs need replay; no results pooled across different seeds because the seed set is unchanged.",
+  "resumed_workers": 10,
+  "schema": "pion-source-aligned-replay-execution-amendment-v1",
+  "source_code_changed": false,
+  "statistical_plan_changed": false,
+  "status_at_resume": "RUNNING",
+  "valid_receipts_at_resume": 666
+}

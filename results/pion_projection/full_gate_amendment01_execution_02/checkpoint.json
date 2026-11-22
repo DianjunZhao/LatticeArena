@@ -1,0 +1,100 @@
+{
+  "completed": 595,
+  "driver_spec": "parallel_driver_spec.json",
+  "full_plan_planned": 2814,
+  "last_completed": {
+    "dataset": 192,
+    "scenario": "known_lower_excited_overlap"
+  },
+  "physical_score": null,
+  "planned": 2814,
+  "rates": {
+    "known_lower_excited_overlap": {
+      "abstain": {
+        "cp95": [
+          0.12071690938907967,
+          0.23165956062677018
+        ],
+        "half_width": 0.055471325618845255,
+        "k": 33,
+        "n": 193,
+        "precision_status": "INCONCLUSIVE"
+      },
+      "candidate_certification": {
+        "cp95": [
+          0.7683404393732298,
+          0.8792830906109204
+        ],
+        "half_width": 0.05547132561884527,
+        "k": 160,
+        "n": 193,
+        "precision_status": "INCONCLUSIVE"
+      },
+      "completed_datasets": 193,
+      "failure": {
+        "cp95": [
+          0.0,
+          0.018931862897287606
+        ],
+        "half_width": 0.009465931448643803,
+        "k": 0,
+        "n": 193,
+        "precision_status": "PASS"
+      },
+      "reference_acceptance": {
+        "cp95": [
+          0.7683404393732298,
+          0.8792830906109204
+        ],
+        "half_width": 0.05547132561884527,
+        "k": 160,
+        "n": 193,
+        "precision_status": "INCONCLUSIVE"
+      }
+    },
+    "null_equal_candidate": {
+      "abstain": {
+        "cp95": [
+          0.11586867288540266,
+          0.18790433166654721
+        ],
+        "half_width": 0.03601782939057228,
+        "k": 60,
+        "n": 402,
+        "precision_status": "PASS"
+      },
+      "candidate_certification": {
+        "cp95": [
+          0.1886725976067937,
+          0.2730826498549892
+        ],
+        "half_width": 0.04220502612409775,
+        "k": 92,
+        "n": 402,
+        "precision_status": "PASS"
+      },
+      "completed_datasets": 402,
+      "failure": {
+        "cp95": [
+          0.0,
+          0.009134343139488086
+        ],
+        "half_width": 0.004567171569744043,
+        "k": 0,
+        "n": 402,
+        "precision_status": "PASS"
+      },
+      "reference_acceptance": {
+        "cp95": [
+          0.8120956683334528,
+          0.8841313271145973
+        ],
+        "half_width": 0.03601782939057224,
+        "k": 342,
+        "n": 402,
+        "precision_status": "PASS"
+      }
+    }
+  },
+  "status": "RUNNING"
+}

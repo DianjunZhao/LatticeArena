@@ -21,12 +21,18 @@ def task_spec_for(protocol):
     )
 
 
-def operator_contract_for():
+def operator_contract_for(kind="ape"):
+    if kind not in ("ape", "stout"):
+        raise ValueError(f"unknown spatial kernel {kind!r}")
+    dependencies = {"kernels": digest(Path(__file__).with_name("kernels.py"))}
+    if kind == "stout":
+        dependencies["stout"] = digest(Path(__file__).with_name("stout.py"))
     return operator_contract(
         name='wilson-kernel-v1', axes='(mu,t,z,y,x,3,3)', dtype='complex128',
         transformation='gauge_covariant', support='spacetime_local',
-        parameters={'alpha': 'float', 'steps': 'int'},
-        dependencies={'kernels': digest(Path(__file__).with_name('kernels.py'))},
+        parameters=({'kind': 'stout', 'rho': 'nonnegative finite float per staple', 'steps': 'int'}
+                    if kind == 'stout' else {'alpha': 'float', 'steps': 'int'}),
+        dependencies=dependencies,
         constraints={'temporal_links_unsmeared': True, 'left_right_covariant': True},
     )
 

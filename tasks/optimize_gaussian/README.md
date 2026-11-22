@@ -368,7 +368,7 @@ python -m tasks.optimize_gaussian.compare_plot
 | $\lambda_2$ | L2 正则系数 |
 | $G^m$ | $m=8$ 步高斯基座 |
 
-## 2026-11-18 审计状态
+## 2026-11-18 审计状态（历史快照；最新 CPU 复核见下方 2026-11-19 行）
 
 | 项 | 状态 |
 | --- | --- |
@@ -376,20 +376,23 @@ python -m tasks.optimize_gaussian.compare_plot
 | 规范不变 / 厄米 / 协变 / 立方对称 | 已测（`tests/test_optimize_gaussian.py`） |
 | A1+ 横向交换 | 已改为对称输入 $(s_1+s_2,\,s_1s_2)$ 并测试；全群通过 |
 | 训练线性响应 vs 直接关联函数 | 已测（误差 < 1e-11） |
-| P3 CPU teacher（跨样本） | 新增 `p3_teacher.py` + `results/optimize_gaussian/p3_teacher_v1/`：ε=0 谱类误差 $8.5\times10^{-16}$；ε=0.1 谱类 0.0127、增广类 $6.7\times10^{-16}$ → 新类在独立 probe 上确实有效；GPU 第二步见 [`doc/optimize_p3_design.md`](../../doc/optimize_p3_design.md)（NOT_RUN） |
+| P3 CPU teacher（跨样本） | `p3_teacher_v1/` 是较早的构造性 toy；目标/特征共享设计成分，不能解释为“学习到的新类有效”或物理学习优势。公平的算子类对照以 2026-11-19 `cpu_close_20261119_C_matched/` 为准；真实 GPU 学习仍 NOT_RUN。 |
 | P2 teacher 表示检查 | 新增 `teacher_check.py` + `results/optimize_gaussian/teacher_v1/`：真实 kernel 的 $H$ 与非对易 $Q$ 的 teacher，七幂误差 0.01268 > 谱外分量 0.01239，增广基 $1.8\times10^{-16}$ → 七幂基有覆盖盲区；训练实验 ⛔（需 GPU） |
 | P1 整链 fold-local | `unified.py` 新增 fold 内 SLSQP/幂次重选：三折都选 H^32，fold-SLSQP 在 2/3 折优于 tuned；全样本冻结结果不矛盾（fold 仅 4 blocks，比率方差大）；学习核 NOT_RUN |
-| P1 统一统计/fold-local | `unified.py` + `results/optimize_gaussian/cpu_next_package_b/`（原 `unified_v1/` 在包 B 开发中被同名输出覆盖，已改为新目录）：point/replica 同算法；3 折 tuned/SLSQP=1.719/2.014/0.810；fold 间方差大；synthetic regression 偏差≈0、覆盖 0.983–1.0 |
+| P1 统一统计/fold-local | `unified.py` + `cpu_next_package_b/`（原 `unified_v1/` 曾被同名输出覆盖，见该目录 README）：point/replica 同算法；3 折 tuned/SLSQP=1.719/2.014/0.810；fold 间方差大。最新 fit-state regression 是新路径 60×200，见下方；历史 smoke 不混用。 |
 | P0.2 basis/输入身份闭包 | basis_key 现在包含依赖 hash（features/kernels/submission/train/statistics）与输入内容摘要（gauge 文件 + propagator 文件 sha256）；mutation 测试覆盖依赖/输入/ID 顺序变更 → 拒绝复用 |
 | 包A 协议复用/可信分流 | 缺字段→archived_diagnostic；超残差在 trusted 入口拒绝（诊断入口降级）；reference identity 绑定实际消费的 bootstrap 文件 |
 | 包B fit-state | 每折保存 weights/scales、block IDs、reference/gate 来源；回归 JSON 与 README 同步（60×200） |
-| 包C 公平 2×2 | `cpu_close_20261119_C/`：空间扩散 H、共享实系数、同一参数域；ε=0 A 精确、ε>0 B 迁移为 0、优化器=oracle |
+| 包C 公平 operator-class | `cpu_close_20261119_C_matched/`：全空间协变 $H$、clover $B$、匹配 point/color probes、共享实系数和同一参数域；B oracle 零误差是目标含 $BHB$ 的构造性结果，有限预算优化器未普遍达到 oracle。 |
 | 包D 真实闭环 | `cpu_close_20261119_D/`：实际 BCB response 作为 search 评价器；算子残差 ~1e−16；bundle 能力拒绝 |
 | 包D 框架适配 | `adapt.py` + `results/optimize_gaussian/cpu_next_package_d/`：OperatorContract（线性/Hermitian/θ=0 恒等）、MeasurementBundle（能力声明）、SearchAdapter（NaN 拒绝、预算）真实跑通；能力拒绝抛错不静默回退 |
 | 包B fold 身份/图 | 每折 reference（kind/mass/masses sha256/passed）与 failures 计数；frozen/reselected 两张独立图；本 run 3 折 reference 均未认证 |
-| 包B synthetic regression | `estimator_regression.py`：已知模型 60 数据集；point/replica 偏差 train −1.9e-6±5.9e-5、test −1.0e-5±2.1e-5（均与 0 相容）；q=1 覆盖 1.000/0.983 |
+| 包B synthetic regression | `cpu_close_20261119_B_regression_fitted/`：60 datasets × 200 draws；train-frozen / validation-refit point−replica 分别 $4.06\times10^{-6}\pm6.87\times10^{-5}$、$-1.99\times10^{-5}\pm2.22\times10^{-5}$；平均逐时间 coverage 1.000/0.971，all-window coverage 与 CP 区间见图/README。训练幅度误差不传播。 |
+| 包B stress regression | `cpu_close_20261119_B_stress_v2/`：200 datasets/cell 扫描 AR(1) configuration noise、block length、错误 reference 和 paired train-amplitude propagation；两张图分别展示相关/block coverage 与错误 reference 下 $q=1$ shape 检查。仅是单通道、单质量 synthetic 方法检验，不是物理校准。 |
 | 包B 估计量同算法 | `risk_with_fixed_amplitude` 增加 `amplitude_source`（train/test），point 与 replica 同算法并记录 `late_covariance_source`/`estimand`；fold search 保存 train/test IDs、weights hash、nfev/feasible；新产物 `cpu_next_package_b/` |
-| 包C 跨 links teacher | `p3_crosslink.py` + `results/optimize_gaussian/cpu_next_p3_crosslink/`：train/test 独立 links、同一 $Q[U]$ 规则、属性检查；oracle 显示 ε>0 时嵌套类误差 0、谱类 0.06→0.5；SLSQP/Powell 不收敛（nfev 1.3e4–9.4e4），不能读成学习收益 |
+| 包C 公平 operator-class | `p3_crosslink_fair.py` + `results/optimize_gaussian/cpu_close_20261119_C_matched/`：全空间协变 Laplacian、clover $B$、匹配 point/color probes、实系数与同一有界参数域；oracle 在 ε>0 对 B 为 0、A 为 $3.3\times10^{-5}$–$3.3\times10^{-4}$；这是目标显式含 BHB 的构造性表达能力诊断，不是 learned advantage。SLSQP/Powell 的有限预算误差另报 |
+| 包C 收敛审计 | `cpu_convergence_diagnostic.py` + `cpu_close_20261119_C_convergence/`：A/B design 满列秩但列缩放条件数 $5.52\times10^5$–$6.45\times10^5$；固定每起点调用预算的五起点图显示本 synthetic case 中 SLSQP 达到 $\sim10^{-9}$ KKT 残差，Powell 截断于预算上限；仅是求解器诊断，不是 learned/物理比较 |
+| 包B fit-state regression | `estimator_regression.py` + `results/optimize_gaussian/cpu_close_20261119_B_regression_fitted/`：60 datasets × 200 draws；训练幅度 frozen 与验证幅度 refit 分列；覆盖率不确定度按独立 dataset 计算，见图与限制 |
 | P0.3 audit 修正 | `audit.py` 按 manifest 分类（v9 = current_operator_diagnostic，v7 及更早 = historical）；显式 `--out` 且拒绝覆盖；`dev_val` 不再回退到 `best_lam2`；产物 `results/optimize_gaussian/audit_v2/audit.json` |
 | P0.1 完整 BCB 闭环 | 已测：`submission.build_kernel` 与线性响应在非立方格点、多 theta 下一致 <1e-10；证据 `results/optimize_gaussian/audit_20261118_bcb/` |
 | 训练缓存 identity | 已加（protocol hash、seed、W、steps、alpha、hidden、IDs、特征版本） |
@@ -435,3 +438,24 @@ v9 的配置与身份写在 `results/optimize_gaussian/v9/manifest.json`（完�
 > 运行注意：v1 冻结目录里的 `protocol.json` 是 60/10/30 快照，仓库默认协议是 30/5/15；
 > 跑 `candidate` 时需要 `LATTICEARENA_PROTOCOL=results/pion_projection/s16t16_v1/protocol.json
 > LATTICEARENA_LEGACY_REFERENCE=1`（后者因为该冻结 submission 早于 reference spec）。
+
+## 输出目录保护（2026-11-20）
+
+- 统一 fold 诊断必须显式指定新目录：`python -m tasks.optimize_gaussian.unified --out results/optimize_gaussian/<new-run-id>`。
+- 训练入口可传新目录：`python -m tasks.optimize_gaussian.train results/optimize_gaussian/<new-run-id>`；默认的历史 v9 路径已存在，因此会安全拒绝。
+- `train.py --resume <existing-run-dir>` 仅接受当前 protocol seeds 对应的 `basis_s*.npz` 文件；加载时继续核验 basis identity。若目录已有 `results.json`、`manifest.json`、`data.npz` 或其他文件，恢复也会拒绝。
+- 完成的结果目录不可覆盖；需要新 run 时使用新的唯一目录名。
+
+## D-chain propagator receipt reuse
+
+A new Optimize protocol can set `propagator_measurement_receipt` to a hash-bound Pion development receipt when reusing point propagators. Required fields are `measurement_path`, `measurement_sha256`, `provenance_path`, `provenance_sha256`, `generation`, and `protocol_hash`. `train.validate_inputs` checks both artifact hashes, the NPZ/provenance identity, ordered IDs, cache key, gauge and propagator bytes, source/solver metadata, and the per-configuration residual before marking an input `verified`.
+
+The S16T16D Pion development cache audit verified IDs 0–99 for reuse; details are in [`d_chain_propagator_reuse_audit_20261120`](../../results/optimize_gaussian/d_chain_propagator_reuse_audit_20261120/README.md). This only certifies point-propagator inputs. Pion's frozen single-cosh reference gate failed on the same development sample, so risk scores using it remain diagnostic and no blind test is authorized by this receipt.
+
+## Frozen worker RunSpec preflight
+
+`worker_runspec.py` validates an `optgauss-worker-runspec-v2` JSON before it launches a child command: the protocol/source/input files must match their frozen SHA-256 values, declared split ID lists must not overlap, receipt/log/checkpoint outputs must be new paths, and the child environment must be explicit. It then runs the argv directly in a process group under `hard_timeout.py` and binds the RunSpec hash, verified file identities, and environment hash into the execution receipt.
+
+The latest synthetic worker receipt checks are documented in [`worker_runspec_cpu_v4`](../../results/optimize_gaussian/worker_runspec_cpu_v4/README.md). RunSpec schema v2 requires an explicit child environment; the worker does not inherit unbound parent variables, and its receipt records only the environment hash and variable names. The focused worker/timeout suite covers source and input drift, split overlap, no-clobber outputs, process-group cleanup, and artifact-hash acceptance. A task-specific, no-launch builder prepares a RunSpec from a protocol and hashes each planned gauge, propagator, metadata sidecar, reference input, and source; the original CPU preflight report is [`task_runspec_preflight_cpu_v1`](../../results/optimize_gaussian/task_runspec_preflight_cpu_v1/README.md). Its builder-to-supervisor fixture replaces the training child with a fake worker, so it does not run `train.main`. A CPU-only solver-contract integration now connects explicit policies to `train.optimize`, `train.main`, and RunSpec preflight. Rejection JSON is declared separately as an optional diagnostic output; after a stable child exit, the parent records its hash without treating it as a successful training artifact. Six current solver/train/worker/hard-timeout modules pass **113 tests**; the detailed execution flow and test boundaries are documented in [`solver_contract_train_integration_cpu_v1`](../../results/optimize_gaussian/solver_contract_train_integration_cpu_v1/README.md). There is still no reviewed production RunSpec for `train.main`; physical thresholds are unfrozen, the current reference gate fails, and GPU/QUDA interruption or device recovery has not been verified. Earlier reports remain historical snapshots.
+
+`train.main` accepts `--protocol PATH --protocol-sha256 SHA256` together and rechecks the exact file bytes in the child before creating an output directory or reading inputs. Supplying only one option or a mismatched hash exits before GPU initialization. Six CPU tests cover correct binding, hash drift, required option pairing, and invalid JSON root types; together with the Optimize main test file, 59 tests passed on 2026-11-21. The builder now prepares a matching task-specific spec and declares `results.json`, `manifest.json`, `data.npz`, and each planned `basis_s*.npz` as receipt artifacts. No real Optimize RunSpec has been generated, and training results have not yet been linked to an actual production receipt.

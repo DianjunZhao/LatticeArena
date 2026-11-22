@@ -1,0 +1,5 @@
+{
+  "malformed_receipts_preserved": [],
+  "note": "No incomplete folder was overwritten. Deterministically matching raw-only inputs are replayed into a new attempt folder.",
+  "replay_checked": []
+}

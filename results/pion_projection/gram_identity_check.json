@@ -1,0 +1,36 @@
+{
+  "schema": "pion-gram-identity-v1",
+  "operators": [
+    "H0",
+    "H4",
+    "H16"
+  ],
+  "temporal": 16,
+  "rows": [
+    {
+      "t": 3,
+      "max_abs_gram_minus_standard_over_max": 0.2937794556281726,
+      "gram_symmetry": 0.0,
+      "standard_antihermitian": 0.2937794556285159
+    },
+    {
+      "t": 4,
+      "max_abs_gram_minus_standard_over_max": 0.3014986401019857,
+      "gram_symmetry": 0.0,
+      "standard_antihermitian": 0.301498640101733
+    },
+    {
+      "t": 5,
+      "max_abs_gram_minus_standard_over_max": 0.3030181109195733,
+      "gram_symmetry": 0.0,
+      "standard_antihermitian": 0.30301811091920805
+    },
+    {
+      "t": 6,
+      "max_abs_gram_minus_standard_over_max": 0.3035838758833711,
+      "gram_symmetry": 0.0,
+      "standard_antihermitian": 0.3035838758814764
+    }
+  ],
+  "note": "M_ij = <K_i S, K_j S> (both kernels on the sink) versus the standard source-sink C_ij = <O_i O_j^dagger>; they coincide only for a translation-invariant commuting family up to boundary effects"
+}

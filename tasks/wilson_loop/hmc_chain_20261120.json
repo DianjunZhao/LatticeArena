@@ -1,0 +1,85 @@
+{
+  "schema": "latticearena-hmc-production-protocol-v1",
+  "ensemble": "S16T16D",
+  "lattice": [
+    16,
+    16,
+    16,
+    16
+  ],
+  "beta": 6.0,
+  "boundary_conditions": "periodic_all_directions",
+  "seed": 20261120,
+  "start": "independent random SU(3) links from complex-Gaussian QR; no archived field loaded",
+  "thermal_trajectories": 400,
+  "planned_trajectories": 1400,
+  "save_every": 5,
+  "max_saved_configurations": 200,
+  "start_id": 0,
+  "integrator": "BAB leapfrog",
+  "integrator_steps": 120,
+  "trajectory_length": 0.5,
+  "output_directory": "data/S16T16D",
+  "receipt_path": "results/production_hmc_20261120/receipt.json",
+  "trajectory_log_path": "results/production_hmc_20261120/trajectories.jsonl",
+  "launcher_path": "tasks/wilson_loop/hmc_production_20261120.sbatch",
+  "quality_review": {
+    "thermalization_cut_is_frozen_before_run": true,
+    "acceptance_and_delta_h_are_descriptive_with_finite_sample_intervals": true,
+    "autocorrelation_rule": "initial-positive adjacent-pair truncation of production plaquette ACF; report block lengths 1,2,5,10,20,50",
+    "physical_score": null,
+    "note": "one chain and one observable do not certify equilibrium or physical score"
+  },
+  "cross_task_splits": {
+    "pion_projection": {
+      "development": [
+        0,
+        99
+      ],
+      "anchor": [
+        100,
+        119
+      ],
+      "gap": [
+        120,
+        139
+      ],
+      "validation": [
+        140,
+        199
+      ]
+    },
+    "wilson_loop": {
+      "development": [
+        0,
+        99
+      ],
+      "gap": [
+        100,
+        119
+      ],
+      "validation": [
+        120,
+        199
+      ]
+    },
+    "optimize_gaussian": {
+      "train": [
+        0,
+        59
+      ],
+      "development": [
+        60,
+        99
+      ],
+      "gap": [
+        100,
+        139
+      ],
+      "blind_test": [
+        140,
+        199
+      ]
+    }
+  }
+}

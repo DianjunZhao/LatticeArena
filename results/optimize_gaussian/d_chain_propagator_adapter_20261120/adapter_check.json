@@ -1,0 +1,26 @@
+{
+  "failure_count": 0,
+  "failures": {},
+  "ids": [
+    0,
+    99
+  ],
+  "max_residual": 9.997510675285575e-11,
+  "mean_residual": 9.382930338945109e-11,
+  "n_ids": 100,
+  "pion_inputs": {
+    "generation": "ab8a41d27e0488ca3646ac83475e680f677b17a913d05913f7731ec87a4448ce",
+    "measurement_sha256": "8a78947c8b4d1bec3b672ed57cd1406ed0bcccf6ec874747ece4d64078da7fe3",
+    "protocol_hash": "18ed89c914be7d11522256e1b159e2037cd26e89dbd6f46521a442110088f442",
+    "provenance_sha256": "c58a016943e211ab32d613dfa677bb20261c694e048cde9ae700c45f350bc785"
+  },
+  "schema": "optgauss-pion-receipt-adapter-integration-v1",
+  "scope": "validator integration only for D IDs 0-99; no optimizer fit, E anchor, D gap/validation, or shared holdout read",
+  "source_hashes": {
+    "adapter_check.py": "29426ac041eddb736e2ddb6727f71b1d8d6ade5aa851d2c7bcb0d61abf4004f9",
+    "train.py": "5df92857dd473f438f35c431df2dedacabfe83942cf9df4d3dac6151ba954e8a"
+  },
+  "status": "PASS",
+  "trajectory_join_count": 100,
+  "verified_count": 100
+}

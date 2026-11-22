@@ -1,0 +1,97 @@
+{
+  "schema": "pion-measurement-plan-v1",
+  "status": "READY",
+  "ensemble": "data/S16T16D",
+  "geometry": [
+    16,
+    16,
+    16,
+    16
+  ],
+  "sources": [
+    "point"
+  ],
+  "sink_powers": [
+    0,
+    2,
+    4,
+    8,
+    16,
+    32,
+    64
+  ],
+  "splits": {
+    "development": [
+      0,
+      99
+    ],
+    "anchor": [
+      0,
+      59
+    ],
+    "gap": [
+      100,
+      139
+    ],
+    "validation": [
+      140,
+      199
+    ]
+  },
+  "identity": {
+    "gauge_sha256": "record raw NERSC file SHA-256 per configuration",
+    "propagator_sha256": "record cached propagator byte SHA-256 per configuration",
+    "quda": "record version string and libquda build hash",
+    "device": "record DCU model, driver and runtime",
+    "precision": "complex128",
+    "trajectory_ids": "join each configuration ID to the HMC manifest trajectory",
+    "require_trajectory_manifest": true
+  },
+  "protocol_sha256": "18ed89c914be7d11522256e1b159e2037cd26e89dbd6f46521a442110088f442",
+  "checks": {
+    "source": "point at the origin; 12 spin-color right-hand sides",
+    "gamma5_self_contraction": "small-volume fast vs generic comparison",
+    "fast_generic_consistency": "same sink channel via both paths",
+    "source_averaging": "average over sources inside a configuration, then block across configurations",
+    "residual_12_rhs": "per-source max relative residual",
+    "gauge_header_geometry": "read_nersc geometry check"
+  },
+  "statistics": {
+    "unit": "configuration block",
+    "block_length": 5,
+    "bootstrap_samples": 1000,
+    "power_simulation": "target effect vs block variance, pre-registered seed",
+    "sources_are_not_configurations": true
+  },
+  "freeze": {
+    "frozen_at_utc": "2026-11-20T02:07:21Z",
+    "candidates": "frozen before validation",
+    "reference": "kind + statistics/implementation hashes",
+    "score_spec": "Diagnostic-only paired risk difference; physical certification withheld unless reference and anchor checks pass.",
+    "primary_endpoint": "Paired configuration-block risk difference, reported with block-bootstrap interval and explicit abstention count; anchor chain is a separate HMC initialization.",
+    "validation_ids": "S16T16D IDs 140-199; do not read before candidate/score freeze.",
+    "access_log": "S16T16D validation IDs 140-199 have not been read as of 2026-11-20T02:07:21Z.",
+    "cross_task_holdout_access": "Freeze each participating task protocol, candidate set, score or endpoint, source hashes, and analysis before the first read. Access the shared holdout once; cross-task reuse is correlated evidence and must not be counted as independent samples.",
+    "holdout_amendment": "The original HMC chain protocol proposed D IDs 100-119 as a Pion anchor. This measurement-plan amendment supersedes that proposal: the independent anchor is S16T16E IDs 0-59; S16T16D IDs 100-139 are a gap. Do not rewrite the historical HMC receipt."
+  },
+  "budget": {
+    "inversions_per_source": 1,
+    "sink_applies_per_config": 8,
+    "available_configurations": 200,
+    "estimated_hours": "Measured from the submitted run receipt; no estimate is asserted in advance.",
+    "setup_solve_kernel_io_analysis": "recorded via core.ledger",
+    "split_available_configurations": {
+      "anchor": 100
+    }
+  },
+  "stop_rules": [
+    "Gauge hash, trajectory manifest, ensemble, or geometry mismatch -> stop before inversion.",
+    "Any of the 12 spin-color residuals exceeds 1e-10 or is non-finite -> stop and retain the failing row.",
+    "Development reference gate fails -> retain measurements as diagnostic only and do not issue a physical candidate score.",
+    "The independently seeded S16T16E anchor fails the frozen reference-consistency gate -> do not open S16T16D validation.",
+    "Validation is opened only after development artifacts and candidate/score specification are frozen."
+  ],
+  "split_ensembles": {
+    "anchor": "data/S16T16E"
+  }
+}

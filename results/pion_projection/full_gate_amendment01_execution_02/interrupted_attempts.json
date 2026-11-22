@@ -1,0 +1,12 @@
+{
+  "malformed_receipts_preserved": [],
+  "note": "No incomplete folder was overwritten. Deterministically matching raw-only inputs are replayed into a new attempt folder.",
+  "replay_checked": [
+    {
+      "dataset": 61,
+      "deterministic_replay_matches": true,
+      "raw_inputs": "null_equal_candidate/dataset_0061/raw_inputs.npz",
+      "scenario": "null_equal_candidate"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema": "mc-executor-v1",
+  "n_per_cell": 402,
+  "seed": 20261122,
+  "budgets": [
+    128,
+    200,
+    64
+  ],
+  "scenarios": [
+    "null_equal_candidate",
+    "known_lower_excited_overlap",
+    "window_mismatch",
+    "reflection",
+    "relative_error",
+    "wrong_state",
+    "nonfinite"
+  ],
+  "code_hashes": {
+    "synthetic_adapter.py": "26e76a5ecad5a56b7c2bf867715d4b68a237437953e0820981ca76b5ac6b3a41",
+    "synthetic_worlds.py": "bb44b034646f4b6da22eaa685ed2ca6a4151837d5003012f1a1c31573d37a56e",
+    "experiment.py": "a1a8f597c9b79d1fb700d769d58d9106be03cff3cbd4f83fc29974d3bd474ea3",
+    "joint.py": "bad510d05437c74ae3612ae923cbb8e616cc409c2a61c8d1f8c19a33f56216bb",
+    "identity.py": "0de741940b935b1e56f457618e13ce543ec3edca6ac358716c2f17c535078eab",
+    "full_gate_executor.py": "7c0a83f965447f2948b458bd524d9e3d386c648cb9893d5f78d6b31d3f2d2519"
+  },
+  "physical_score": null,
+  "rate_rule": "CP95 marginal per rate, halfwidth<=.05 else INCONCLUSIVE",
+  "rejection_rule": "ValueError amplitude not identified or nonfinite => failure and abstain, retain raw inputs/seed/stage/reason; other exceptions BLOCKED",
+  "parent_plan": "full_gate_mc_20261119_v2_amendment_01/preregistration.json"
+}

@@ -1,0 +1,4027 @@
+{
+  "protocol": {
+    "schema": "latticearena-wilson-production-runspec-v1",
+    "version": "s16t16-wilson-d-stout-v1",
+    "status": "FROZEN_PREFLIGHT_ONLY_NOT_RUN",
+    "created_utc": "2026-11-20T02:41:06Z",
+    "frozen_utc": "2026-11-20T03:11:06Z",
+    "ensemble": "data/S16T16D",
+    "ensemble_name": "S16T16D",
+    "geometry": [
+      16,
+      16,
+      16,
+      16
+    ],
+    "beta": 6.0,
+    "boundary_conditions": "periodic_all_directions",
+    "input_manifest": {
+      "path": "results/wilson_loop/hmc_production_20261120/frozen_inputs/manifest.json",
+      "sha256": "1ab67540cafe1ee12cafb3df653c47f30480e75b41b6b633dd7334c69cdd7f4d",
+      "schema": "latticearena-hmc-ensemble-manifest-v1",
+      "ensemble": "S16T16D",
+      "beta": 6.0,
+      "hmc_seed": 20261120,
+      "config_id_semantics": "zero-based saved-configuration ordinal; trajectory is read from the bound manifest"
+    },
+    "development": [
+      0,
+      99
+    ],
+    "gap": [
+      100,
+      119
+    ],
+    "validation": [
+      120,
+      139
+    ],
+    "shared_blind_holdout": [
+      140,
+      199
+    ],
+    "measurement_splits": [
+      "development",
+      "validation"
+    ],
+    "holdout_policy": "IDs 140-199 are reserved jointly for Pion/Optimize and possible Wilson analysis. This Wilson protocol does not authorize measuring or reading them.",
+    "r_values": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "t_values": [
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "fit_window": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "reference_windows": [
+      [
+        4,
+        5,
+        6
+      ],
+      [
+        4,
+        5,
+        6,
+        7
+      ],
+      [
+        5,
+        6,
+        7,
+        8
+      ]
+    ],
+    "reference_nominal_window": 1,
+    "kernels": [
+      {
+        "name": "identity",
+        "kind": "ape",
+        "alpha": 0.0,
+        "steps": 0
+      },
+      {
+        "name": "ape_a0.4_n5",
+        "kind": "ape",
+        "alpha": 0.4,
+        "steps": 5
+      },
+      {
+        "name": "stout_rho0.1_n5",
+        "kind": "stout",
+        "rho": 0.1,
+        "steps": 5
+      },
+      {
+        "name": "ape_a0.4_n10",
+        "kind": "ape",
+        "alpha": 0.4,
+        "steps": 10
+      },
+      {
+        "name": "stout_rho0.1_n10",
+        "kind": "stout",
+        "rho": 0.1,
+        "steps": 10
+      },
+      {
+        "name": "ape_a0.6086956522_n10",
+        "kind": "ape",
+        "alpha": 0.6086956521739131,
+        "steps": 10
+      },
+      {
+        "name": "stout_rho0.1521739130_n10",
+        "kind": "stout",
+        "rho": 0.15217391304347827,
+        "steps": 10
+      }
+    ],
+    "matched_parameter_pairs": [
+      {
+        "ape_alpha": 0.4,
+        "stout_rho": 0.1,
+        "steps": 5
+      },
+      {
+        "ape_alpha": 0.4,
+        "stout_rho": 0.1,
+        "steps": 10
+      },
+      {
+        "ape_alpha": 0.6086956521739131,
+        "stout_rho": 0.15217391304347827,
+        "steps": 10
+      }
+    ],
+    "match_assumption": "rho=alpha/4 matches the leading weak-field linearized update only; it does not certify equal nonperturbative smoothing radius.",
+    "reference_kernel": 0,
+    "block_length": 5,
+    "bootstrap_samples": 5000,
+    "seed": 2026112021,
+    "reference_max_relative_se": 0.05,
+    "reference_max_window_z": 2.5,
+    "score_epsilon": 1e-12,
+    "normalization": "APE uses alpha/4 over four spatial staples and bidirectional polar projection. Stout uses rho per staple and exp(iQ)U. Temporal links are unchanged.",
+    "cost_diagnostics": {
+      "record_per_configuration": [
+        "host_read_seconds",
+        "device_transfer_seconds",
+        "kernel_seconds",
+        "loop_seconds",
+        "total_seconds"
+      ],
+      "primary_comparison": "same configurations, same Wilson-loop observables, paired block-bootstrap risk differences; plot risk versus measured per-kernel and total wall time",
+      "claim_limit": "Per-configuration total_seconds includes host read/hash, device transfer, all candidate kernel calls, and all loop contractions, but excludes compressed prefix writes and receipt/plot generation. Report full job walltime separately. Do not label a winner as matched-cost unless the same wall-time budget and resulting configuration counts are explicitly compared. Include block-length sensitivity at 1, 2, 5, 10, and 20 saved configurations."
+    },
+    "validation_limit": "D IDs 120-139 provide only 20 configurations (four nominal length-5 blocks). Treat this as an internal confirmation pilot; if the paired interval is too wide, report INCONCLUSIVE and do not consume shared IDs 140-199 without a joint unlock.",
+    "input_integrity": "Before each NERSC file is transferred to the GPU, verify its raw-file SHA-256 against the HMC manifest and record the manifest trajectory. The production receipt must preserve per-configuration checksum, residual/validity, loop hash, and failure reason; the current preflight specification alone is not a measurement receipt.",
+    "source_hashes": {
+      "measure.py": "5fdee931db8a0b9bc74debb6f8c53e659ec6ccef7a42b0443788db4593e84ef6",
+      "kernels.py": "a6b54eb606f1b7c790de596185d8c0190601fde4495d9f26eba89ba16abdd7dc",
+      "stout.py": "7d9f5f8ea0c0e006b09f58abc087e5825fd74c5efecf085db176c7c23ed69f35",
+      "statistics.py": "27c691dad427deb5e46447e8a9d6de6eea9027b65d5c99f0290f8ec2590f1c86",
+      "common.py": "74de1e8cfaafbae2744855e85992561681057832f52bf537255f9d35230dd29e",
+      "identity.py": "d15841a933c22502a616a9e3d56d12dff13dc11227d26343a3da325f03b65fbe"
+    },
+    "preflight": [
+      "Copy the bound HMC manifest and raw files into the isolated Kunshan run tree, retaining the manifest hash.",
+      "Run measurement preflight and confirm the selected ID ranges, exact raw-file hashes, geometry, beta, periodic boundary, NERSC checksum status, and code hashes.",
+      "Run CPU kernel diagnostics and a tiny GPU smoke on the run host before measuring D development IDs 0-99.",
+      "Do not start validation IDs 120-139 unless the development reference gate passes; the measurement CLI rejects IDs outside the authorized split list."
+    ],
+    "supersedes": "No historical result is rewritten. protocol_v4 remains the archived S16T16B design; this is a new D-chain confirmation plan.",
+    "physical_status": "NOT_RUN"
+  },
+  "kernel_sha256": "a6b54eb606f1b7c790de596185d8c0190601fde4495d9f26eba89ba16abdd7dc",
+  "ensemble": "data/S16T16D",
+  "input_manifest_sha256": "1ab67540cafe1ee12cafb3df653c47f30480e75b41b6b633dd7334c69cdd7f4d",
+  "git": {
+    "commit": "unavailable",
+    "dirty": null
+  },
+  "generation": "dd38c39f21982307c5abc2d5093b93c2aa12ef8848d6f9136519b1f8054b619e",
+  "dependencies": {
+    "kernels.py": "a6b54eb606f1b7c790de596185d8c0190601fde4495d9f26eba89ba16abdd7dc",
+    "statistics.py": "27c691dad427deb5e46447e8a9d6de6eea9027b65d5c99f0290f8ec2590f1c86",
+    "measure.py": "5fdee931db8a0b9bc74debb6f8c53e659ec6ccef7a42b0443788db4593e84ef6",
+    "common.py": "74de1e8cfaafbae2744855e85992561681057832f52bf537255f9d35230dd29e",
+    "identity.py": "d15841a933c22502a616a9e3d56d12dff13dc11227d26343a3da325f03b65fbe"
+  },
+  "records": [
+    {
+      "id": 0,
+      "gauge_path": "data/S16T16D/wilson_b6.0",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "955b9a6bc2dd7ceb65236dd8954a873d66f17416fd9fd8503d06f77ffd97fd06"
+      },
+      "gauge_sha256": "955b9a6bc2dd7ceb65236dd8954a873d66f17416fd9fd8503d06f77ffd97fd06",
+      "hmc_trajectory": 401,
+      "loops_sha256": "eecb5439046591a0a04687fdca34c66a03df80c8cd4affe5d975cc15bbf56232",
+      "setup_seconds": 6.926098976051435,
+      "host_read_seconds": 0.4148174360161647,
+      "device_transfer_seconds": 6.51128154003527,
+      "kernel_seconds": 449.4883816720685,
+      "loop_seconds": 8.486782304011285,
+      "kernel_seconds_by_candidate": {
+        "identity": 1.9567834259942174,
+        "ape_a0.4_n5": 1.7956252319272608,
+        "stout_rho0.1_n5": 91.84605283103883,
+        "ape_a0.4_n10": 1.3286651580128819,
+        "stout_rho0.1_n10": 176.08683093904983,
+        "ape_a0.6086956522_n10": 1.1256400629645213,
+        "stout_rho0.1521739130_n10": 175.34878402308095
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 7.300036291941069,
+        "ape_a0.4_n5": 0.1905786320567131,
+        "stout_rho0.1_n5": 0.21449702396057546,
+        "ape_a0.4_n10": 0.20982326997909695,
+        "stout_rho0.1_n10": 0.1908672220306471,
+        "ape_a0.6086956522_n10": 0.1905029519693926,
+        "stout_rho0.1521739130_n10": 0.19047691207379103
+      },
+      "measure_seconds": 457.9751639760798,
+      "total_seconds": 464.94780551595613
+    },
+    {
+      "id": 1,
+      "gauge_path": "data/S16T16D/wilson_b6.1",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "2768e46848a38b3247e14b48aa949e8c2f1d5f409a70c817e0cce3168ca2a457"
+      },
+      "gauge_sha256": "2768e46848a38b3247e14b48aa949e8c2f1d5f409a70c817e0cce3168ca2a457",
+      "hmc_trajectory": 406,
+      "loops_sha256": "824efb1d683e11a05c6a53aef1d81e1b2ae7c11e2e8df378531b2a20d43756bf",
+      "setup_seconds": 0.6159753571264446,
+      "host_read_seconds": 0.38759610906708986,
+      "device_transfer_seconds": 0.22837924805935472,
+      "kernel_seconds": 445.6975312822033,
+      "loop_seconds": 1.7399491402320564,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.25974289793521166,
+        "ape_a0.4_n5": 0.574781398056075,
+        "stout_rho0.1_n5": 88.73773437505588,
+        "ape_a0.4_n10": 1.0656121160136536,
+        "stout_rho0.1_n10": 177.05594512203243,
+        "ape_a0.6086956522_n10": 1.0769085270585492,
+        "stout_rho0.1521739130_n10": 176.92680684605148
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.5969467390095815,
+        "ape_a0.4_n5": 0.19044013204984367,
+        "stout_rho0.1_n5": 0.1905261620413512,
+        "ape_a0.4_n10": 0.19047474209219217,
+        "stout_rho0.1_n10": 0.19057274202350527,
+        "ape_a0.6086956522_n10": 0.19050834199879318,
+        "stout_rho0.1521739130_n10": 0.19048028101678938
+      },
+      "measure_seconds": 447.4374804224353,
+      "total_seconds": 448.053592509008
+    },
+    {
+      "id": 2,
+      "gauge_path": "data/S16T16D/wilson_b6.2",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "98c3d7fa841c8441c7919b55dc79128ce3b0286cf75a7c52e8e88bd1fd4e16b2"
+      },
+      "gauge_sha256": "98c3d7fa841c8441c7919b55dc79128ce3b0286cf75a7c52e8e88bd1fd4e16b2",
+      "hmc_trajectory": 411,
+      "loops_sha256": "227f71d3c6ff389c2af65186c439aeeea4dd4167c8d801df7c049cc0ecdd3aa3",
+      "setup_seconds": 0.48279422998894006,
+      "host_read_seconds": 0.4555989740183577,
+      "device_transfer_seconds": 0.027195255970582366,
+      "kernel_seconds": 440.93061013892293,
+      "loop_seconds": 1.334042680915445,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005378309870138764,
+        "ape_a0.4_n5": 0.5325589479180053,
+        "stout_rho0.1_n5": 88.08209239202552,
+        "ape_a0.4_n10": 1.0655516360420734,
+        "stout_rho0.1_n10": 175.13779585901648,
+        "ape_a0.6086956522_n10": 1.0735135739669204,
+        "stout_rho0.1521739130_n10": 175.03855989896692
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1909966019447893,
+        "ape_a0.4_n5": 0.1904273710679263,
+        "stout_rho0.1_n5": 0.19051802204921842,
+        "ape_a0.4_n10": 0.19047578098252416,
+        "stout_rho0.1_n10": 0.19053586095105857,
+        "ape_a0.6086956522_n10": 0.1905312619637698,
+        "stout_rho0.1521739130_n10": 0.19055778195615858
+      },
+      "measure_seconds": 442.2646528198384,
+      "total_seconds": 442.74758762994315
+    },
+    {
+      "id": 3,
+      "gauge_path": "data/S16T16D/wilson_b6.3",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "4f836c3b7158ef332409024af361e3879d2778a8e43d6f537dd73930e0fbf304"
+      },
+      "gauge_sha256": "4f836c3b7158ef332409024af361e3879d2778a8e43d6f537dd73930e0fbf304",
+      "hmc_trajectory": 416,
+      "loops_sha256": "6cb91c8efe90ec4af560a025a29ba5b5fc40d74e5535c893887e8229869a1a58",
+      "setup_seconds": 0.4341824250295758,
+      "host_read_seconds": 0.4072970589622855,
+      "device_transfer_seconds": 0.026885366067290306,
+      "kernel_seconds": 440.2391113692429,
+      "loop_seconds": 1.3337712067877874,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005244800122454762,
+        "ape_a0.4_n5": 0.532941768062301,
+        "stout_rho0.1_n5": 87.55467181501444,
+        "ape_a0.4_n10": 1.0659264869755134,
+        "stout_rho0.1_n10": 175.1448167450726,
+        "ape_a0.6086956522_n10": 1.0752261150628328,
+        "stout_rho0.1521739130_n10": 174.86500395904295
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1906955820741132,
+        "ape_a0.4_n5": 0.1904497219948098,
+        "stout_rho0.1_n5": 0.19052974693477154,
+        "ape_a0.4_n10": 0.1904226599726826,
+        "stout_rho0.1_n10": 0.1905990419909358,
+        "ape_a0.6086956522_n10": 0.1904804619261995,
+        "stout_rho0.1521739130_n10": 0.19059399189427495
+      },
+      "measure_seconds": 441.5728825760307,
+      "total_seconds": 442.0072154960362
+    },
+    {
+      "id": 4,
+      "gauge_path": "data/S16T16D/wilson_b6.4",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "9e9b74d97e43db123ae6555e62dec10f7f2de2eb06d54c7c25e5954cd62905cf"
+      },
+      "gauge_sha256": "9e9b74d97e43db123ae6555e62dec10f7f2de2eb06d54c7c25e5954cd62905cf",
+      "hmc_trajectory": 421,
+      "loops_sha256": "279c5679715c96ca85939824e5519883a162caa3ed693c18fa4c799a145925ba",
+      "setup_seconds": 0.27526818204205483,
+      "host_read_seconds": 0.2476839260198176,
+      "device_transfer_seconds": 0.02758425602223724,
+      "kernel_seconds": 440.6037193398224,
+      "loop_seconds": 1.3339709289139137,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.000302101019769907,
+        "ape_a0.4_n5": 0.5338543389225379,
+        "stout_rho0.1_n5": 87.52709593693726,
+        "ape_a0.4_n10": 1.0672080479562283,
+        "stout_rho0.1_n10": 175.24579488195013,
+        "ape_a0.6086956522_n10": 1.0685965589946136,
+        "stout_rho0.1521739130_n10": 175.16086747404188
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19080022198613733,
+        "ape_a0.4_n5": 0.1905156410066411,
+        "stout_rho0.1_n5": 0.19058560102712363,
+        "ape_a0.4_n10": 0.19052264199126512,
+        "stout_rho0.1_n10": 0.19048017193563282,
+        "ape_a0.6086956522_n10": 0.1905158719746396,
+        "stout_rho0.1521739130_n10": 0.19055077899247408
+      },
+      "measure_seconds": 441.93769026873633,
+      "total_seconds": 442.21339098201133
+    },
+    {
+      "id": 5,
+      "gauge_path": "data/S16T16D/wilson_b6.5",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "33a5e1dcaeab3f140360bb133c8e6853acf177bbb7d7496e65ccdd2ac08aa688"
+      },
+      "gauge_sha256": "33a5e1dcaeab3f140360bb133c8e6853acf177bbb7d7496e65ccdd2ac08aa688",
+      "hmc_trajectory": 426,
+      "loops_sha256": "c906010780999ac4296efb1c27e47106453f382a9da3a2f8d0f0873586afb9ed",
+      "setup_seconds": 0.3120107538998127,
+      "host_read_seconds": 0.2847837619483471,
+      "device_transfer_seconds": 0.027226991951465607,
+      "kernel_seconds": 440.3290859529516,
+      "loop_seconds": 1.3921661898493767,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005178790306672454,
+        "ape_a0.4_n5": 0.6218526229495183,
+        "stout_rho0.1_n5": 87.31569334899541,
+        "ape_a0.4_n10": 1.0676255979342386,
+        "stout_rho0.1_n10": 175.0777909499593,
+        "ape_a0.6086956522_n10": 1.094646884012036,
+        "stout_rho0.1521739130_n10": 175.1509586700704
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.2488364139571786,
+        "ape_a0.4_n5": 0.19064319599419832,
+        "stout_rho0.1_n5": 0.19048503192607313,
+        "ape_a0.4_n10": 0.19051644206047058,
+        "stout_rho0.1_n10": 0.19062777201179415,
+        "ape_a0.6086956522_n10": 0.19048543192911893,
+        "stout_rho0.1521739130_n10": 0.19057190197054297
+      },
+      "measure_seconds": 441.72125214280095,
+      "total_seconds": 442.03340517298784
+    },
+    {
+      "id": 6,
+      "gauge_path": "data/S16T16D/wilson_b6.6",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "4c553b6c337d5942f2675b3d8e36ab3b43c2951715011da8a3a4e1773f6ac83c"
+      },
+      "gauge_sha256": "4c553b6c337d5942f2675b3d8e36ab3b43c2951715011da8a3a4e1773f6ac83c",
+      "hmc_trajectory": 431,
+      "loops_sha256": "64fd8bd4d72ef7c1b974f8a76b820fad5d4266c8304cdd8715567c46248c75df",
+      "setup_seconds": 0.48975193698424846,
+      "host_read_seconds": 0.4623354410286993,
+      "device_transfer_seconds": 0.02741649595554918,
+      "kernel_seconds": 439.46266813902184,
+      "loop_seconds": 1.3342282680096105,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00030407996382564306,
+        "ape_a0.4_n5": 0.5332261979347095,
+        "stout_rho0.1_n5": 87.37719522998668,
+        "ape_a0.4_n10": 1.0670687860110775,
+        "stout_rho0.1_n10": 174.73012141301297,
+        "ape_a0.6086956522_n10": 1.0826763120712712,
+        "stout_rho0.1521739130_n10": 174.6720761200413
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19072812201920897,
+        "ape_a0.4_n5": 0.19052089203614742,
+        "stout_rho0.1_n5": 0.19067731499671936,
+        "ape_a0.4_n10": 0.19067157292738557,
+        "stout_rho0.1_n10": 0.1906412719981745,
+        "ape_a0.6086956522_n10": 0.19051907199900597,
+        "stout_rho0.1521739130_n10": 0.1904700220329687
+      },
+      "measure_seconds": 440.79689640703145,
+      "total_seconds": 441.28702859801706
+    },
+    {
+      "id": 7,
+      "gauge_path": "data/S16T16D/wilson_b6.7",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "67b1c4e7776c81ad391dca9974118f586684df39b989318243cead43383c5c70"
+      },
+      "gauge_sha256": "67b1c4e7776c81ad391dca9974118f586684df39b989318243cead43383c5c70",
+      "hmc_trajectory": 436,
+      "loops_sha256": "4a550b0964c1dd6c8445649c0e854c10fa8344973bf51cc6abd7e99c09e99dcb",
+      "setup_seconds": 0.3735447869403288,
+      "host_read_seconds": 0.34609460993669927,
+      "device_transfer_seconds": 0.027450177003629506,
+      "kernel_seconds": 439.2691563848639,
+      "loop_seconds": 1.3339179928880185,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002885599387809634,
+        "ape_a0.4_n5": 0.5329577680677176,
+        "stout_rho0.1_n5": 87.27165370597504,
+        "ape_a0.4_n10": 1.0665345269953832,
+        "stout_rho0.1_n10": 174.71016074193176,
+        "ape_a0.6086956522_n10": 1.0773053369484842,
+        "stout_rho0.1521739130_n10": 174.61025574500673
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1906637119827792,
+        "ape_a0.4_n5": 0.19045603193808347,
+        "stout_rho0.1_n5": 0.19049315201118588,
+        "ape_a0.4_n10": 0.19051077193580568,
+        "stout_rho0.1_n10": 0.1907100420212373,
+        "ape_a0.6086956522_n10": 0.19049304199870676,
+        "stout_rho0.1521739130_n10": 0.19059124100022018
+      },
+      "measure_seconds": 440.6030743777519,
+      "total_seconds": 440.9769779249327
+    },
+    {
+      "id": 8,
+      "gauge_path": "data/S16T16D/wilson_b6.8",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "bbda7116f701ba011e1bae1bee81f34054d48f75987a3c9cb576c8796c43d1d2"
+      },
+      "gauge_sha256": "bbda7116f701ba011e1bae1bee81f34054d48f75987a3c9cb576c8796c43d1d2",
+      "hmc_trajectory": 441,
+      "loops_sha256": "8c33df242a1fa3cdcfd85f31fe21b165f33acd8fd5cbc3104458c1fc2f9e3138",
+      "setup_seconds": 0.32746880291961133,
+      "host_read_seconds": 0.30005265690851957,
+      "device_transfer_seconds": 0.02741614601109177,
+      "kernel_seconds": 439.1708238539286,
+      "loop_seconds": 1.3343421939061955,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00051834003534168,
+        "ape_a0.4_n5": 0.5336909190518782,
+        "stout_rho0.1_n5": 87.30157244694419,
+        "ape_a0.4_n10": 1.0677962680347264,
+        "stout_rho0.1_n10": 174.6286648149835,
+        "ape_a0.6086956522_n10": 1.074028673931025,
+        "stout_rho0.1521739130_n10": 174.56455239094794
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19078649207949638,
+        "ape_a0.4_n5": 0.19059340201783925,
+        "stout_rho0.1_n5": 0.19058047200087458,
+        "ape_a0.4_n10": 0.1905126420315355,
+        "stout_rho0.1_n10": 0.1906470819376409,
+        "ape_a0.6086956522_n10": 0.19060902192723006,
+        "stout_rho0.1521739130_n10": 0.19061308191157877
+      },
+      "measure_seconds": 440.5051660478348,
+      "total_seconds": 440.83279258105904
+    },
+    {
+      "id": 9,
+      "gauge_path": "data/S16T16D/wilson_b6.9",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "9767030c2068cf5044f35468c73ab03b0920cad16bfc4f5db86726e0d6ca6bad"
+      },
+      "gauge_sha256": "9767030c2068cf5044f35468c73ab03b0920cad16bfc4f5db86726e0d6ca6bad",
+      "hmc_trajectory": 446,
+      "loops_sha256": "a898ab545f70d2a0035f595af36cb43ae07afb0c33ef267dc40af427d097d636",
+      "setup_seconds": 0.28495914209634066,
+      "host_read_seconds": 0.25728675606660545,
+      "device_transfer_seconds": 0.027672386029735208,
+      "kernel_seconds": 439.2188911992125,
+      "loop_seconds": 1.3345015591476113,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002910209586843848,
+        "ape_a0.4_n5": 0.5336202990729362,
+        "stout_rho0.1_n5": 87.36312584904954,
+        "ape_a0.4_n10": 1.0654649320058525,
+        "stout_rho0.1_n10": 174.6518955900101,
+        "ape_a0.6086956522_n10": 1.0731156941037625,
+        "stout_rho0.1521739130_n10": 174.53137781401165
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19066573097370565,
+        "ape_a0.4_n5": 0.19051839201711118,
+        "stout_rho0.1_n5": 0.19074827909935266,
+        "ape_a0.4_n10": 0.19088103401008993,
+        "stout_rho0.1_n10": 0.19057404098566622,
+        "ape_a0.6086956522_n10": 0.19053824106231332,
+        "stout_rho0.1521739130_n10": 0.1905758409993723
+      },
+      "measure_seconds": 440.55339275836013,
+      "total_seconds": 440.8387152040377
+    },
+    {
+      "id": 10,
+      "gauge_path": "data/S16T16D/wilson_b6.10",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "4688536b60536645a8763975334b9204efd7edbcd95bf4d3f4eb52dee6c2a743"
+      },
+      "gauge_sha256": "4688536b60536645a8763975334b9204efd7edbcd95bf4d3f4eb52dee6c2a743",
+      "hmc_trajectory": 451,
+      "loops_sha256": "204d48880f00eacbaeb983e46651e67a24176861e5be023441f96b3f846682ae",
+      "setup_seconds": 0.32469701999798417,
+      "host_read_seconds": 0.29703212401364,
+      "device_transfer_seconds": 0.027664895984344184,
+      "kernel_seconds": 439.220673450036,
+      "loop_seconds": 1.3337279099505395,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002831900492310524,
+        "ape_a0.4_n5": 0.5331996789900586,
+        "stout_rho0.1_n5": 87.28156138805207,
+        "ape_a0.4_n10": 1.0668430080404505,
+        "stout_rho0.1_n10": 174.6517876489088,
+        "ape_a0.6086956522_n10": 1.0767893670126796,
+        "stout_rho0.1521739130_n10": 174.6102091689827
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1907317420700565,
+        "ape_a0.4_n5": 0.190540061914362,
+        "stout_rho0.1_n5": 0.19048036099411547,
+        "ape_a0.4_n10": 0.1905208210228011,
+        "stout_rho0.1_n10": 0.19049607194028795,
+        "ape_a0.6086956522_n10": 0.1904124909779057,
+        "stout_rho0.1521739130_n10": 0.19054636103101075
+      },
+      "measure_seconds": 440.5544013599865,
+      "total_seconds": 440.87947434093803
+    },
+    {
+      "id": 11,
+      "gauge_path": "data/S16T16D/wilson_b6.11",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "74a7be120a255ea080a9e1ab17a3a36124a86b7f4cfede80628e1434edc024a5"
+      },
+      "gauge_sha256": "74a7be120a255ea080a9e1ab17a3a36124a86b7f4cfede80628e1434edc024a5",
+      "hmc_trajectory": 456,
+      "loops_sha256": "6cc96ced522722a2d758b5cdc3825703b3c5cfa054e722b146347035741a75f5",
+      "setup_seconds": 0.46057737001683563,
+      "host_read_seconds": 0.3887325410032645,
+      "device_transfer_seconds": 0.07184482901357114,
+      "kernel_seconds": 439.08260199800134,
+      "loop_seconds": 1.3339502920862287,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0003678700886666775,
+        "ape_a0.4_n5": 0.5339332189178094,
+        "stout_rho0.1_n5": 87.26144484907854,
+        "ape_a0.4_n10": 1.0682141979923472,
+        "stout_rho0.1_n10": 174.5725792188896,
+        "ape_a0.6086956522_n10": 1.0785753390518948,
+        "stout_rho0.1521739130_n10": 174.5674873039825
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19076650205533952,
+        "ape_a0.4_n5": 0.1904756419826299,
+        "stout_rho0.1_n5": 0.19063930201809853,
+        "ape_a0.4_n10": 0.19053674198221415,
+        "stout_rho0.1_n10": 0.19049887196160853,
+        "ape_a0.6086956522_n10": 0.19046626100316644,
+        "stout_rho0.1521739130_n10": 0.19056697108317167
+      },
+      "measure_seconds": 440.41655229008757,
+      "total_seconds": 440.87750172102824
+    },
+    {
+      "id": 12,
+      "gauge_path": "data/S16T16D/wilson_b6.12",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "0284dab1e097369ac294bbf6238f09cc63f1b92b515a588c726f2c01aa0a66cd"
+      },
+      "gauge_sha256": "0284dab1e097369ac294bbf6238f09cc63f1b92b515a588c726f2c01aa0a66cd",
+      "hmc_trajectory": 461,
+      "loops_sha256": "a83025793bc34d50b79a97057c2fcb7642f85fbc2b9643905fd494d0d3ca3a3a",
+      "setup_seconds": 0.37353300699032843,
+      "host_read_seconds": 0.34614996996242553,
+      "device_transfer_seconds": 0.0273830370279029,
+      "kernel_seconds": 438.7962608599337,
+      "loop_seconds": 1.3345061857253313,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00028967997059226036,
+        "ape_a0.4_n5": 0.5338839789619669,
+        "stout_rho0.1_n5": 87.18440836400259,
+        "ape_a0.4_n10": 1.0650689960457385,
+        "stout_rho0.1_n10": 174.56000028701965,
+        "ape_a0.6086956522_n10": 1.0694603759329766,
+        "stout_rho0.1521739130_n10": 174.38314917800017
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19071244192309678,
+        "ape_a0.4_n5": 0.19054288207553327,
+        "stout_rho0.1_n5": 0.19055803189985454,
+        "ape_a0.4_n10": 0.19079196196980774,
+        "stout_rho0.1_n10": 0.1907575388904661,
+        "ape_a0.6086956522_n10": 0.1905645770020783,
+        "stout_rho0.1521739130_n10": 0.19057875196449459
+      },
+      "measure_seconds": 440.130767045659,
+      "total_seconds": 440.5046624650713
+    },
+    {
+      "id": 13,
+      "gauge_path": "data/S16T16D/wilson_b6.13",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "afd952d96856164c2e47f925dbe141c8be4113b1daf18641b727d4699b5a77cd"
+      },
+      "gauge_sha256": "afd952d96856164c2e47f925dbe141c8be4113b1daf18641b727d4699b5a77cd",
+      "hmc_trajectory": 466,
+      "loops_sha256": "577574201348f2be29ac95d65b8607ff62a50f132f9b87a5795aee47f27db468",
+      "setup_seconds": 0.771470405976288,
+      "host_read_seconds": 0.7101201469777152,
+      "device_transfer_seconds": 0.061350258998572826,
+      "kernel_seconds": 438.64053268998396,
+      "loop_seconds": 1.3340086011448875,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0003118501044809818,
+        "ape_a0.4_n5": 0.5332417589379475,
+        "stout_rho0.1_n5": 87.20903238898609,
+        "ape_a0.4_n10": 1.0673613379476592,
+        "stout_rho0.1_n10": 174.46399014105555,
+        "ape_a0.6086956522_n10": 1.0743208948988467,
+        "stout_rho0.1521739130_n10": 174.2922743180534
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19082431204151362,
+        "ape_a0.4_n5": 0.19052578101400286,
+        "stout_rho0.1_n5": 0.19054579199291766,
+        "ape_a0.4_n10": 0.19055528205353767,
+        "stout_rho0.1_n10": 0.19046757102478296,
+        "ape_a0.6086956522_n10": 0.1904812710126862,
+        "stout_rho0.1521739130_n10": 0.19060859200544655
+      },
+      "measure_seconds": 439.97454129112884,
+      "total_seconds": 440.74615010700654
+    },
+    {
+      "id": 14,
+      "gauge_path": "data/S16T16D/wilson_b6.14",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "ac3bf0dd84618906a79fdb73c3f36ca2ec5f2d8856857ea684a36f2af0974f3c"
+      },
+      "gauge_sha256": "ac3bf0dd84618906a79fdb73c3f36ca2ec5f2d8856857ea684a36f2af0974f3c",
+      "hmc_trajectory": 471,
+      "loops_sha256": "d74fe475514dc75c6f9f752782027bb28bf828c6a9630f56fcd79d1d3e26fa67",
+      "setup_seconds": 0.3362749610096216,
+      "host_read_seconds": 0.2890991159947589,
+      "device_transfer_seconds": 0.047175845014862716,
+      "kernel_seconds": 438.7241959918756,
+      "loop_seconds": 1.3341423911042511,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005175899714231491,
+        "ape_a0.4_n5": 0.5331475388957188,
+        "stout_rho0.1_n5": 87.23237003199756,
+        "ape_a0.4_n10": 1.0681594089837745,
+        "stout_rho0.1_n10": 174.41955252503976,
+        "ape_a0.6086956522_n10": 1.0749719250015914,
+        "stout_rho0.1521739130_n10": 174.39547697198577
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1908320520306006,
+        "ape_a0.4_n5": 0.19055377109907568,
+        "stout_rho0.1_n5": 0.19054273096844554,
+        "ape_a0.4_n10": 0.19056350202299654,
+        "stout_rho0.1_n10": 0.1906285519944504,
+        "ape_a0.6086956522_n10": 0.19047734199557453,
+        "stout_rho0.1521739130_n10": 0.19054444099310786
+      },
+      "measure_seconds": 440.05833838297985,
+      "total_seconds": 440.39475057506934
+    },
+    {
+      "id": 15,
+      "gauge_path": "data/S16T16D/wilson_b6.15",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "38fe2b0c30c0d46643aea635ea0760ab1718ece03ce576cad7ccce1fe4aa5a4a"
+      },
+      "gauge_sha256": "38fe2b0c30c0d46643aea635ea0760ab1718ece03ce576cad7ccce1fe4aa5a4a",
+      "hmc_trajectory": 476,
+      "loops_sha256": "c38df705bf164b243c376e5afbd4773cced0a388005f1af69581b9dfe71102e2",
+      "setup_seconds": 0.5851402680855244,
+      "host_read_seconds": 0.557791272061877,
+      "device_transfer_seconds": 0.027348996023647487,
+      "kernel_seconds": 438.719644738012,
+      "loop_seconds": 1.3341537019005045,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005292500136420131,
+        "ape_a0.4_n5": 0.5347409400856122,
+        "stout_rho0.1_n5": 87.20826564205345,
+        "ape_a0.4_n10": 1.0656653459882364,
+        "stout_rho0.1_n10": 174.4953285739757,
+        "ape_a0.6086956522_n10": 1.0723881829762831,
+        "stout_rho0.1521739130_n10": 174.34272680291906
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1907108819577843,
+        "ape_a0.4_n5": 0.19056437199469656,
+        "stout_rho0.1_n5": 0.19053857203107327,
+        "ape_a0.4_n10": 0.19058007199782878,
+        "stout_rho0.1_n10": 0.19055106199812144,
+        "ape_a0.6086956522_n10": 0.19049519102554768,
+        "stout_rho0.1521739130_n10": 0.1907135508954525
+      },
+      "measure_seconds": 440.0537984399125,
+      "total_seconds": 440.63907888601534
+    },
+    {
+      "id": 16,
+      "gauge_path": "data/S16T16D/wilson_b6.16",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "b7300e6d765a0dade103bab7a30307fcc008956d33f33b738093eacee2899ff5"
+      },
+      "gauge_sha256": "b7300e6d765a0dade103bab7a30307fcc008956d33f33b738093eacee2899ff5",
+      "hmc_trajectory": 481,
+      "loops_sha256": "f4e607d0ce508e2b6f1e8b3394a1522d5365395dee7f8335161f5ac761991962",
+      "setup_seconds": 0.5922489219810814,
+      "host_read_seconds": 0.564712674007751,
+      "device_transfer_seconds": 0.02753624797333032,
+      "kernel_seconds": 438.68761948205065,
+      "loop_seconds": 1.334151562070474,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00029466801788657904,
+        "ape_a0.4_n5": 0.5326245269970968,
+        "stout_rho0.1_n5": 87.14807147195097,
+        "ape_a0.4_n10": 1.0665085070068017,
+        "stout_rho0.1_n10": 174.45092216401827,
+        "ape_a0.6086956522_n10": 1.0754119959892705,
+        "stout_rho0.1521739130_n10": 174.41378614807036
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.190823465003632,
+        "ape_a0.4_n5": 0.19060901808552444,
+        "stout_rho0.1_n5": 0.19062740192748606,
+        "ape_a0.4_n10": 0.19051318196579814,
+        "stout_rho0.1_n10": 0.19052846205886453,
+        "ape_a0.6086956522_n10": 0.19045936106704175,
+        "stout_rho0.1521739130_n10": 0.1905906719621271
+      },
+      "measure_seconds": 440.0217710441211,
+      "total_seconds": 440.61439350701403
+    },
+    {
+      "id": 17,
+      "gauge_path": "data/S16T16D/wilson_b6.17",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "73ff3823f24bf9013462f608e435d201622f67b701b3b8efb6ff217eaf01da7c"
+      },
+      "gauge_sha256": "73ff3823f24bf9013462f608e435d201622f67b701b3b8efb6ff217eaf01da7c",
+      "hmc_trajectory": 486,
+      "loops_sha256": "4fd6cb7446d54e9db4608bd0af5f45e980cb23d1aa08eae841a97ede32bb2a32",
+      "setup_seconds": 0.5370576919522136,
+      "host_read_seconds": 0.5098800959531218,
+      "device_transfer_seconds": 0.027177595999091864,
+      "kernel_seconds": 438.6825043418212,
+      "loop_seconds": 1.3342633689753711,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005175198893994093,
+        "ape_a0.4_n5": 0.5342119700508192,
+        "stout_rho0.1_n5": 87.24209984205663,
+        "ape_a0.4_n10": 1.0698397039668635,
+        "stout_rho0.1_n10": 174.4381821419811,
+        "ape_a0.6086956522_n10": 1.0713696009479463,
+        "stout_rho0.1521739130_n10": 174.32628356292844
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19073110190220177,
+        "ape_a0.4_n5": 0.1905439110705629,
+        "stout_rho0.1_n5": 0.19059534498956054,
+        "ape_a0.4_n10": 0.19061751605477184,
+        "stout_rho0.1_n10": 0.19060516206081957,
+        "ape_a0.6086956522_n10": 0.19055074197240174,
+        "stout_rho0.1521739130_n10": 0.19061959092505276
+      },
+      "measure_seconds": 440.01676771079656,
+      "total_seconds": 440.5539680949878
+    },
+    {
+      "id": 18,
+      "gauge_path": "data/S16T16D/wilson_b6.18",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "bfa23225d913a4971f360283749b686ad096718431ee1e084b2fcbd045efac21"
+      },
+      "gauge_sha256": "bfa23225d913a4971f360283749b686ad096718431ee1e084b2fcbd045efac21",
+      "hmc_trajectory": 491,
+      "loops_sha256": "b9f798023ab5b636710f278ca503c821cb3854a5879596b60c2e8880c6876700",
+      "setup_seconds": 0.8966339849866927,
+      "host_read_seconds": 0.8687006579712033,
+      "device_transfer_seconds": 0.02793332701548934,
+      "kernel_seconds": 438.70347836916335,
+      "loop_seconds": 1.3334940819768235,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00029039999935775995,
+        "ape_a0.4_n5": 0.534006698988378,
+        "stout_rho0.1_n5": 87.19434788508806,
+        "ape_a0.4_n10": 1.064135174965486,
+        "stout_rho0.1_n10": 174.43902030808385,
+        "ape_a0.6086956522_n10": 1.0718321120366454,
+        "stout_rho0.1521739130_n10": 174.39984579000156
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1907011220464483,
+        "ape_a0.4_n5": 0.19047836202662438,
+        "stout_rho0.1_n5": 0.19045544206164777,
+        "ape_a0.4_n10": 0.19044048094656318,
+        "stout_rho0.1_n10": 0.19045240199193358,
+        "ape_a0.6086956522_n10": 0.19045101094525307,
+        "stout_rho0.1521739130_n10": 0.19051526195835322
+      },
+      "measure_seconds": 440.0369724511402,
+      "total_seconds": 440.93398195598274
+    },
+    {
+      "id": 19,
+      "gauge_path": "data/S16T16D/wilson_b6.19",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "8e4ae4c10109258d28f946b1bf018b6700e3d5dba13c744bc66997b002c3e398"
+      },
+      "gauge_sha256": "8e4ae4c10109258d28f946b1bf018b6700e3d5dba13c744bc66997b002c3e398",
+      "hmc_trajectory": 496,
+      "loops_sha256": "f05c3b62ea5e05a8ba37ab044e70c2227a0af7f08c657c0b3f08462402b7fd9b",
+      "setup_seconds": 0.30897782498504966,
+      "host_read_seconds": 0.2817224789177999,
+      "device_transfer_seconds": 0.027255346067249775,
+      "kernel_seconds": 438.65244022011757,
+      "loop_seconds": 1.333984029944986,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005182609893381596,
+        "ape_a0.4_n5": 0.532260888023302,
+        "stout_rho0.1_n5": 87.14117270498537,
+        "ape_a0.4_n10": 1.0662514570867643,
+        "stout_rho0.1_n10": 174.43418834800832,
+        "ape_a0.6086956522_n10": 1.0710042510181665,
+        "stout_rho0.1521739130_n10": 174.4070443100063
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19059011107310653,
+        "ape_a0.4_n5": 0.19041276106145233,
+        "stout_rho0.1_n5": 0.19054214097559452,
+        "ape_a0.4_n10": 0.1905175920110196,
+        "stout_rho0.1_n10": 0.19059181190095842,
+        "ape_a0.6086956522_n10": 0.19070764200296253,
+        "stout_rho0.1521739130_n10": 0.1906219709198922
+      },
+      "measure_seconds": 439.98642425006256,
+      "total_seconds": 440.2955486460123
+    },
+    {
+      "id": 20,
+      "gauge_path": "data/S16T16D/wilson_b6.20",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "6ed694be84e26750bebdff2153aad076e341f86abca96c98319c1c1c06a7dea0"
+      },
+      "gauge_sha256": "6ed694be84e26750bebdff2153aad076e341f86abca96c98319c1c1c06a7dea0",
+      "hmc_trajectory": 501,
+      "loops_sha256": "2735b480340cdef57342cd57c687510bb77eecbff4b716c5c398dd9e144d0855",
+      "setup_seconds": 0.5140064900042489,
+      "host_read_seconds": 0.48645621398463845,
+      "device_transfer_seconds": 0.027550276019610465,
+      "kernel_seconds": 438.93412642006297,
+      "loop_seconds": 1.3346991209546104,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005265400977805257,
+        "ape_a0.4_n5": 0.5331091289408505,
+        "stout_rho0.1_n5": 87.2900412438903,
+        "ape_a0.4_n10": 1.0670955290552229,
+        "stout_rho0.1_n10": 174.52920524706133,
+        "ape_a0.6086956522_n10": 1.0767641100101173,
+        "stout_rho0.1521739130_n10": 174.43738462100737
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19077516195829958,
+        "ape_a0.4_n5": 0.1905869209440425,
+        "stout_rho0.1_n5": 0.19061987404711545,
+        "ape_a0.4_n10": 0.1906805350445211,
+        "stout_rho0.1_n10": 0.19074439897667617,
+        "ape_a0.6086956522_n10": 0.19066220801323652,
+        "stout_rho0.1521739130_n10": 0.1906300219707191
+      },
+      "measure_seconds": 440.2688255410176,
+      "total_seconds": 440.78298397595063
+    },
+    {
+      "id": 21,
+      "gauge_path": "data/S16T16D/wilson_b6.21",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "c93b2d5d7d0e30aa42de3d150513a28d40f82894f8abe440bf29761a96895840"
+      },
+      "gauge_sha256": "c93b2d5d7d0e30aa42de3d150513a28d40f82894f8abe440bf29761a96895840",
+      "hmc_trajectory": 506,
+      "loops_sha256": "a60dc4aa8a8f13777ba8722ae86cfe94526dabf4232c8d50bf1e4f00c332b14b",
+      "setup_seconds": 0.47832030605059117,
+      "host_read_seconds": 0.4509806700516492,
+      "device_transfer_seconds": 0.027339635998941958,
+      "kernel_seconds": 438.71376842202153,
+      "loop_seconds": 1.334237621864304,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002952510258182883,
+        "ape_a0.4_n5": 0.5346280590165406,
+        "stout_rho0.1_n5": 87.15583280206192,
+        "ape_a0.4_n10": 1.0669457879848778,
+        "stout_rho0.1_n10": 174.51206861902028,
+        "ape_a0.6086956522_n10": 1.0759590859524906,
+        "stout_rho0.1521739130_n10": 174.3680388169596
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19076928193680942,
+        "ape_a0.4_n5": 0.19056461192667484,
+        "stout_rho0.1_n5": 0.1906731609487906,
+        "ape_a0.4_n10": 0.1906020020833239,
+        "stout_rho0.1_n10": 0.19057670200709254,
+        "ape_a0.6086956522_n10": 0.19055758195463568,
+        "stout_rho0.1521739130_n10": 0.19049428100697696
+      },
+      "measure_seconds": 440.04800604388583,
+      "total_seconds": 440.5266957109561
+    },
+    {
+      "id": 22,
+      "gauge_path": "data/S16T16D/wilson_b6.22",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "3034c021a6633dede30866cfe5c65acb0d30eefed3ab33904d64900e90291e25"
+      },
+      "gauge_sha256": "3034c021a6633dede30866cfe5c65acb0d30eefed3ab33904d64900e90291e25",
+      "hmc_trajectory": 511,
+      "loops_sha256": "32e4d5d97f347f050bac0ef5151b451e4a275b176c7dc150c61e588815373822",
+      "setup_seconds": 0.37651860900223255,
+      "host_read_seconds": 0.3491670429939404,
+      "device_transfer_seconds": 0.02735156600829214,
+      "kernel_seconds": 439.1211473889416,
+      "loop_seconds": 1.3340698910178617,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002919400576502085,
+        "ape_a0.4_n5": 0.533569908933714,
+        "stout_rho0.1_n5": 87.16942271194421,
+        "ape_a0.4_n10": 1.0669628779869527,
+        "stout_rho0.1_n10": 174.90561088290997,
+        "ape_a0.6086956522_n10": 1.0777268580859527,
+        "stout_rho0.1521739130_n10": 174.36756220902316
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19069073197897524,
+        "ape_a0.4_n5": 0.19054212095215917,
+        "stout_rho0.1_n5": 0.19056704104878008,
+        "ape_a0.4_n10": 0.1905386419966817,
+        "stout_rho0.1_n10": 0.1905987620120868,
+        "ape_a0.6086956522_n10": 0.190572801977396,
+        "stout_rho0.1521739130_n10": 0.19055979105178267
+      },
+      "measure_seconds": 440.45521727995947,
+      "total_seconds": 440.83210781100206
+    },
+    {
+      "id": 23,
+      "gauge_path": "data/S16T16D/wilson_b6.23",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "330944a6d3a27634592c935a26cc69388cc96771c02456f0978601943f94694d"
+      },
+      "gauge_sha256": "330944a6d3a27634592c935a26cc69388cc96771c02456f0978601943f94694d",
+      "hmc_trajectory": 516,
+      "loops_sha256": "7af46f1736d454f68e58874aca6bc794b0880a4bea13e8ce662515c0f69e4dc0",
+      "setup_seconds": 0.6591643790015951,
+      "host_read_seconds": 0.6314896719995886,
+      "device_transfer_seconds": 0.02767470700200647,
+      "kernel_seconds": 438.4606831698911,
+      "loop_seconds": 1.3344826399115846,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00029478000942617655,
+        "ape_a0.4_n5": 0.5334328489843756,
+        "stout_rho0.1_n5": 87.19792296295054,
+        "ape_a0.4_n10": 1.0677156579913571,
+        "stout_rho0.1_n10": 174.35125149297528,
+        "ape_a0.6086956522_n10": 1.0780641080345958,
+        "stout_rho0.1521739130_n10": 174.23200131894555
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19084075198043138,
+        "ape_a0.4_n5": 0.19054925197269768,
+        "stout_rho0.1_n5": 0.19069309101905674,
+        "ape_a0.4_n10": 0.19064339599572122,
+        "stout_rho0.1_n10": 0.19053171202540398,
+        "ape_a0.6086956522_n10": 0.1905870819464326,
+        "stout_rho0.1521739130_n10": 0.19063735497184098
+      },
+      "measure_seconds": 439.7951658098027,
+      "total_seconds": 440.45470723696053
+    },
+    {
+      "id": 24,
+      "gauge_path": "data/S16T16D/wilson_b6.24",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "930e7ab5071274259581a0a4c60fb8056bf6dd54527461d2a2c5e5b84c4efc00"
+      },
+      "gauge_sha256": "930e7ab5071274259581a0a4c60fb8056bf6dd54527461d2a2c5e5b84c4efc00",
+      "hmc_trajectory": 521,
+      "loops_sha256": "bf560ef62758dfe6f5edb58971dec85cbec14bd39e471b4e67ed319ca385296d",
+      "setup_seconds": 1.0759101819712669,
+      "host_read_seconds": 0.9682375139091164,
+      "device_transfer_seconds": 0.10767266806215048,
+      "kernel_seconds": 438.5729324920103,
+      "loop_seconds": 1.3346209808951244,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005214209668338299,
+        "ape_a0.4_n5": 0.5390816710423678,
+        "stout_rho0.1_n5": 87.12774588901084,
+        "ape_a0.4_n10": 1.0678906780667603,
+        "stout_rho0.1_n10": 174.34643352101557,
+        "ape_a0.6086956522_n10": 1.0733159329975024,
+        "stout_rho0.1521739130_n10": 174.41794337891042
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19098714995197952,
+        "ape_a0.4_n5": 0.19060689094476402,
+        "stout_rho0.1_n5": 0.19060392200481147,
+        "ape_a0.4_n10": 0.19056381203699857,
+        "stout_rho0.1_n10": 0.1907068520085886,
+        "ape_a0.6086956522_n10": 0.19052389194257557,
+        "stout_rho0.1521739130_n10": 0.19062846200540662
+      },
+      "measure_seconds": 439.9075534729054,
+      "total_seconds": 440.9837993819965
+    },
+    {
+      "id": 25,
+      "gauge_path": "data/S16T16D/wilson_b6.25",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "cb8e2ebdf59ad5c2d5372d1a9c579a781c2ebc2e9747b08438ef387b338a08a7"
+      },
+      "gauge_sha256": "cb8e2ebdf59ad5c2d5372d1a9c579a781c2ebc2e9747b08438ef387b338a08a7",
+      "hmc_trajectory": 526,
+      "loops_sha256": "add79fac83cf359513b137c2eec9dc4eead07b60bde8ce625ba7c323928fd33c",
+      "setup_seconds": 0.9049875729251653,
+      "host_read_seconds": 0.7601493949769065,
+      "device_transfer_seconds": 0.14483817794825882,
+      "kernel_seconds": 438.82572507078294,
+      "loop_seconds": 1.3340950609417632,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.000516459927894175,
+        "ape_a0.4_n5": 0.5331956489244476,
+        "stout_rho0.1_n5": 87.1218316659797,
+        "ape_a0.4_n10": 1.06624064699281,
+        "stout_rho0.1_n10": 174.6765546760289,
+        "ape_a0.6086956522_n10": 1.0777443679980934,
+        "stout_rho0.1521739130_n10": 174.3496416049311
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19077969202771783,
+        "ape_a0.4_n5": 0.19052271102555096,
+        "stout_rho0.1_n5": 0.19052387191914022,
+        "ape_a0.4_n10": 0.19053619098849595,
+        "stout_rho0.1_n10": 0.19053199200425297,
+        "ape_a0.6086956522_n10": 0.19054591096937656,
+        "stout_rho0.1521739130_n10": 0.19065469200722873
+      },
+      "measure_seconds": 440.1598201317247,
+      "total_seconds": 441.0649625649676
+    },
+    {
+      "id": 26,
+      "gauge_path": "data/S16T16D/wilson_b6.26",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "01ff55ea9de58a1eb3b4e2e6dd35aeffe3b498390c4412a655fb6dcb733853eb"
+      },
+      "gauge_sha256": "01ff55ea9de58a1eb3b4e2e6dd35aeffe3b498390c4412a655fb6dcb733853eb",
+      "hmc_trajectory": 531,
+      "loops_sha256": "2bb61478b97d6740a7fa744d11398355c83d02699814d84247c69a554cdca10a",
+      "setup_seconds": 0.5013038779143244,
+      "host_read_seconds": 0.44233107194304466,
+      "device_transfer_seconds": 0.05897280597127974,
+      "kernel_seconds": 438.0780382028315,
+      "loop_seconds": 1.3342942422023043,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005482309497892857,
+        "ape_a0.4_n5": 0.5334294480271637,
+        "stout_rho0.1_n5": 87.09806060604751,
+        "ape_a0.4_n10": 1.065027625998482,
+        "stout_rho0.1_n10": 174.29141561395954,
+        "ape_a0.6086956522_n10": 1.070872008916922,
+        "stout_rho0.1521739130_n10": 174.0186846689321
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19076509203296155,
+        "ape_a0.4_n5": 0.19042972207535058,
+        "stout_rho0.1_n5": 0.19060970202554017,
+        "ape_a0.4_n10": 0.19050620100460947,
+        "stout_rho0.1_n10": 0.19077318103518337,
+        "ape_a0.6086956522_n10": 0.19063705299049616,
+        "stout_rho0.1521739130_n10": 0.190573291038163
+      },
+      "measure_seconds": 439.4123324450338,
+      "total_seconds": 439.91379948693793
+    },
+    {
+      "id": 27,
+      "gauge_path": "data/S16T16D/wilson_b6.27",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "7148d10c3123dbf1b7ecda10edee85e56d9b8afa3c6c686b00c34102dfa4e35d"
+      },
+      "gauge_sha256": "7148d10c3123dbf1b7ecda10edee85e56d9b8afa3c6c686b00c34102dfa4e35d",
+      "hmc_trajectory": 536,
+      "loops_sha256": "e5e2495e9bca101d21ee39b0bc5b1f5c13601dbe81e1adc0f8efd0ecb949daeb",
+      "setup_seconds": 0.2689056770177558,
+      "host_read_seconds": 0.24154129100497812,
+      "device_transfer_seconds": 0.027364386012777686,
+      "kernel_seconds": 438.75945654395036,
+      "loop_seconds": 1.3713632479775697,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.11950474395416677,
+        "ape_a0.4_n5": 0.5344025989761576,
+        "stout_rho0.1_n5": 87.17426388605963,
+        "ape_a0.4_n10": 1.0662368269404396,
+        "stout_rho0.1_n10": 174.46139232104179,
+        "ape_a0.6086956522_n10": 1.0724070320138708,
+        "stout_rho0.1521739130_n10": 174.3312491349643
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.22842164803296328,
+        "ape_a0.4_n5": 0.19051445194054395,
+        "stout_rho0.1_n5": 0.19043580105062574,
+        "ape_a0.4_n10": 0.19049560197163373,
+        "stout_rho0.1_n10": 0.19053610193077475,
+        "ape_a0.6086956522_n10": 0.1904926321003586,
+        "stout_rho0.1521739130_n10": 0.19046701095066965
+      },
+      "measure_seconds": 440.13081979192793,
+      "total_seconds": 440.39987306890544
+    },
+    {
+      "id": 28,
+      "gauge_path": "data/S16T16D/wilson_b6.28",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "a28161e386f217c7e48752a41a95255c16e720ceea3861e4e50a696a1bffed55"
+      },
+      "gauge_sha256": "a28161e386f217c7e48752a41a95255c16e720ceea3861e4e50a696a1bffed55",
+      "hmc_trajectory": 541,
+      "loops_sha256": "fa5bb4566a1a863aeae52833dad5c954f1307f0a54cc00c04f9aeaf89cdbb790",
+      "setup_seconds": 0.3680733310757205,
+      "host_read_seconds": 0.33917706401553005,
+      "device_transfer_seconds": 0.02889626706019044,
+      "kernel_seconds": 438.70330158190336,
+      "loop_seconds": 1.3338422629749402,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00028825097251683474,
+        "ape_a0.4_n5": 0.5329232580261305,
+        "stout_rho0.1_n5": 87.21695009700488,
+        "ape_a0.4_n10": 1.0681403779890388,
+        "stout_rho0.1_n10": 174.39562885696068,
+        "ape_a0.6086956522_n10": 1.0785666080191731,
+        "stout_rho0.1521739130_n10": 174.41080413293093
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19065788201987743,
+        "ape_a0.4_n5": 0.1904843410011381,
+        "stout_rho0.1_n5": 0.1905964119359851,
+        "ape_a0.4_n10": 0.19055340194609016,
+        "stout_rho0.1_n10": 0.19058188202325255,
+        "ape_a0.6086956522_n10": 0.190489802043885,
+        "stout_rho0.1521739130_n10": 0.19047854200471193
+      },
+      "measure_seconds": 440.0371438448783,
+      "total_seconds": 440.4056071859086
+    },
+    {
+      "id": 29,
+      "gauge_path": "data/S16T16D/wilson_b6.29",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "8d788811a8cf0213beee11d3d11c53b03ae85d1f9410abff96f3c8a0d6f982a4"
+      },
+      "gauge_sha256": "8d788811a8cf0213beee11d3d11c53b03ae85d1f9410abff96f3c8a0d6f982a4",
+      "hmc_trajectory": 546,
+      "loops_sha256": "2959fdbdb1fdc7e7f037d35aea00e1742dea96fc4f26987ba0d23037e0b6c26c",
+      "setup_seconds": 0.38245628506410867,
+      "host_read_seconds": 0.3552522090030834,
+      "device_transfer_seconds": 0.027204076061025262,
+      "kernel_seconds": 438.64186609187163,
+      "loop_seconds": 1.333941061166115,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005314709851518273,
+        "ape_a0.4_n5": 0.5325799669371918,
+        "stout_rho0.1_n5": 87.20630738895852,
+        "ape_a0.4_n10": 1.064500526059419,
+        "stout_rho0.1_n10": 174.42115081392694,
+        "ape_a0.6086956522_n10": 1.073263872996904,
+        "stout_rho0.1521739130_n10": 174.3435320520075
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19070864201057702,
+        "ape_a0.4_n5": 0.19048104202374816,
+        "stout_rho0.1_n5": 0.19044324103742838,
+        "ape_a0.4_n10": 0.19046076107770205,
+        "stout_rho0.1_n10": 0.19062213192228228,
+        "ape_a0.6086956522_n10": 0.19052598206326365,
+        "stout_rho0.1521739130_n10": 0.19069926103111356
+      },
+      "measure_seconds": 439.97580715303775,
+      "total_seconds": 440.3584128289949
+    },
+    {
+      "id": 30,
+      "gauge_path": "data/S16T16D/wilson_b6.30",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "424041db51f8f31e52f92a9c6fa663fac26190431dc96f0f8cb122349e20071e"
+      },
+      "gauge_sha256": "424041db51f8f31e52f92a9c6fa663fac26190431dc96f0f8cb122349e20071e",
+      "hmc_trajectory": 551,
+      "loops_sha256": "21503be686bddd11778330bd24936952e9c7eb4bf437909961276413c4e7517e",
+      "setup_seconds": 0.4295356898801401,
+      "host_read_seconds": 0.40217079396825284,
+      "device_transfer_seconds": 0.027364895911887288,
+      "kernel_seconds": 438.4982014292618,
+      "loop_seconds": 1.3344381510978565,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005163110326975584,
+        "ape_a0.4_n5": 0.5338046590331942,
+        "stout_rho0.1_n5": 87.10876938409638,
+        "ape_a0.4_n10": 1.0667426079744473,
+        "stout_rho0.1_n10": 174.43905342801008,
+        "ape_a0.6086956522_n10": 1.0726998130558059,
+        "stout_rho0.1521739130_n10": 174.27661522605922
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19085756200365722,
+        "ape_a0.4_n5": 0.19062278093770146,
+        "stout_rho0.1_n5": 0.19053961103782058,
+        "ape_a0.4_n10": 0.1906268720049411,
+        "stout_rho0.1_n10": 0.19063480105251074,
+        "ape_a0.6086956522_n10": 0.19055581209249794,
+        "stout_rho0.1521739130_n10": 0.1906007119687274
+      },
+      "measure_seconds": 439.8326395803597,
+      "total_seconds": 440.26231835002545
+    },
+    {
+      "id": 31,
+      "gauge_path": "data/S16T16D/wilson_b6.31",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "17d775a231c697faaca40d2b785693bed82e349cebd0bbe819dfac14e52d7217"
+      },
+      "gauge_sha256": "17d775a231c697faaca40d2b785693bed82e349cebd0bbe819dfac14e52d7217",
+      "hmc_trajectory": 556,
+      "loops_sha256": "79ba7468113fa85077f91e25742485ac5c29f2a3adb5ed3862d2a90a9bb917f5",
+      "setup_seconds": 0.6066031489754096,
+      "host_read_seconds": 0.49986331700347364,
+      "device_transfer_seconds": 0.10673983197193593,
+      "kernel_seconds": 438.60759476711974,
+      "loop_seconds": 1.390191813930869,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005304700462147593,
+        "ape_a0.4_n5": 0.559423163998872,
+        "stout_rho0.1_n5": 87.10816806799266,
+        "ape_a0.4_n10": 1.0669383510248736,
+        "stout_rho0.1_n10": 174.40803541103378,
+        "ape_a0.6086956522_n10": 1.073356413980946,
+        "stout_rho0.1521739130_n10": 174.39114288904238
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.24700577603653073,
+        "ape_a0.4_n5": 0.1905101309530437,
+        "stout_rho0.1_n5": 0.19052747695241123,
+        "ape_a0.4_n10": 0.1905300460057333,
+        "stout_rho0.1_n10": 0.19056813197676092,
+        "ape_a0.6086956522_n10": 0.19052111101336777,
+        "stout_rho0.1521739130_n10": 0.19052914099302143
+      },
+      "measure_seconds": 439.9977865810506,
+      "total_seconds": 440.6045468590455
+    },
+    {
+      "id": 32,
+      "gauge_path": "data/S16T16D/wilson_b6.32",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "c6784fea33c79e037ca4d000fda38af14bedfb40a820542b687a0e41d048868a"
+      },
+      "gauge_sha256": "c6784fea33c79e037ca4d000fda38af14bedfb40a820542b687a0e41d048868a",
+      "hmc_trajectory": 561,
+      "loops_sha256": "eb4fd6af2beff34aaef2fee3ce50bff72b090965aa0585ccf69d4216e1d2c43c",
+      "setup_seconds": 0.41722080798354,
+      "host_read_seconds": 0.38967165199574083,
+      "device_transfer_seconds": 0.027549155987799168,
+      "kernel_seconds": 438.84497423819266,
+      "loop_seconds": 1.333979860180989,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00028431008104234934,
+        "ape_a0.4_n5": 0.5333933390211314,
+        "stout_rho0.1_n5": 87.2561790420441,
+        "ape_a0.4_n10": 1.0902964399429038,
+        "stout_rho0.1_n10": 174.47860804607626,
+        "ape_a0.6086956522_n10": 1.0774629180086777,
+        "stout_rho0.1521739130_n10": 174.40875014301855
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1907481220550835,
+        "ape_a0.4_n5": 0.19058092194609344,
+        "stout_rho0.1_n5": 0.1904450609581545,
+        "ape_a0.4_n10": 0.1904109320603311,
+        "stout_rho0.1_n10": 0.1905426710145548,
+        "ape_a0.6086956522_n10": 0.1906003321055323,
+        "stout_rho0.1521739130_n10": 0.19065182004123926
+      },
+      "measure_seconds": 440.17895409837365,
+      "total_seconds": 440.596550827031
+    },
+    {
+      "id": 33,
+      "gauge_path": "data/S16T16D/wilson_b6.33",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "ce283d2ddaf39345cc59d8e8c610643de16d338cecd2aa14cac8db30b3af1b24"
+      },
+      "gauge_sha256": "ce283d2ddaf39345cc59d8e8c610643de16d338cecd2aa14cac8db30b3af1b24",
+      "hmc_trajectory": 566,
+      "loops_sha256": "7ac5057c268d1af85796e97a914768b2b8c00cb9528ef346690d494692cbd7fe",
+      "setup_seconds": 0.46471217297948897,
+      "host_read_seconds": 0.3948682820191607,
+      "device_transfer_seconds": 0.06984389096032828,
+      "kernel_seconds": 438.67552786215674,
+      "loop_seconds": 1.3573625289136544,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.033393930993042886,
+        "ape_a0.4_n5": 0.6257682840805501,
+        "stout_rho0.1_n5": 87.20143196696881,
+        "ape_a0.4_n10": 1.0652019659755751,
+        "stout_rho0.1_n10": 174.46270013100002,
+        "ape_a0.6086956522_n10": 1.0723318030359223,
+        "stout_rho0.1521739130_n10": 174.21469978010282
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.21439280698541552,
+        "ape_a0.4_n5": 0.19057817396242172,
+        "stout_rho0.1_n5": 0.1905519609572366,
+        "ape_a0.4_n10": 0.19044264196418226,
+        "stout_rho0.1_n10": 0.1904276009881869,
+        "ape_a0.6086956522_n10": 0.1904741720063612,
+        "stout_rho0.1521739130_n10": 0.19049517204985023
+      },
+      "measure_seconds": 440.0328903910704,
+      "total_seconds": 440.49912709300406
+    },
+    {
+      "id": 34,
+      "gauge_path": "data/S16T16D/wilson_b6.34",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "2926f0c2f8601aff62f1631fc063372261e21846b0f5fd02c3ae5a128042c71e"
+      },
+      "gauge_sha256": "2926f0c2f8601aff62f1631fc063372261e21846b0f5fd02c3ae5a128042c71e",
+      "hmc_trajectory": 571,
+      "loops_sha256": "7ba1afb748851af53edc98125952dba693c09002ca02de2a40e63a25f6b14740",
+      "setup_seconds": 0.508209444116801,
+      "host_read_seconds": 0.48074727808125317,
+      "device_transfer_seconds": 0.027462166035547853,
+      "kernel_seconds": 438.68885186722036,
+      "loop_seconds": 1.333962316159159,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005096109816804528,
+        "ape_a0.4_n5": 0.5631951970281079,
+        "stout_rho0.1_n5": 87.1953652080847,
+        "ape_a0.4_n10": 1.0673844440607354,
+        "stout_rho0.1_n10": 174.42958510003518,
+        "ape_a0.6086956522_n10": 1.0815283929696307,
+        "stout_rho0.1521739130_n10": 174.35128391406033
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1906501620542258,
+        "ape_a0.4_n5": 0.19048571097664535,
+        "stout_rho0.1_n5": 0.1905287109548226,
+        "ape_a0.4_n10": 0.19058766099624336,
+        "stout_rho0.1_n10": 0.19067284709308296,
+        "ape_a0.6086956522_n10": 0.19055943202693015,
+        "stout_rho0.1521739130_n10": 0.19047779205720872
+      },
+      "measure_seconds": 440.0228141833795,
+      "total_seconds": 440.5311782229692
+    },
+    {
+      "id": 35,
+      "gauge_path": "data/S16T16D/wilson_b6.35",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "4e23539294602516cfe132ea662c01e23fd229c22fb745377c1e8566350d8d52"
+      },
+      "gauge_sha256": "4e23539294602516cfe132ea662c01e23fd229c22fb745377c1e8566350d8d52",
+      "hmc_trajectory": 576,
+      "loops_sha256": "492f01e423e041b85884f82ed49181f84c64d76625741411bd02d4e3ded74b4b",
+      "setup_seconds": 0.2740658309776336,
+      "host_read_seconds": 0.24473421298898757,
+      "device_transfer_seconds": 0.02933161798864603,
+      "kernel_seconds": 438.6630675869528,
+      "loop_seconds": 1.3337585008703172,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005085710436105728,
+        "ape_a0.4_n5": 0.5336445190478116,
+        "stout_rho0.1_n5": 87.20091665990185,
+        "ape_a0.4_n10": 1.0643801250262186,
+        "stout_rho0.1_n10": 174.4520315459231,
+        "ape_a0.6086956522_n10": 1.07271081302315,
+        "stout_rho0.1521739130_n10": 174.3388753529871
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19074730202555656,
+        "ape_a0.4_n5": 0.19053869100753218,
+        "stout_rho0.1_n5": 0.19055870093870908,
+        "ape_a0.4_n10": 0.19047546200454235,
+        "stout_rho0.1_n10": 0.19051941204816103,
+        "ape_a0.6086956522_n10": 0.19038460089359432,
+        "stout_rho0.1521739130_n10": 0.1905343319522217
+      },
+      "measure_seconds": 439.99682608782314,
+      "total_seconds": 440.27103815891314
+    },
+    {
+      "id": 36,
+      "gauge_path": "data/S16T16D/wilson_b6.36",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "65984793cd2e9b0dc85941f1d3a8ed7f98b109b9f4571bd8d9fefc443fc05b2c"
+      },
+      "gauge_sha256": "65984793cd2e9b0dc85941f1d3a8ed7f98b109b9f4571bd8d9fefc443fc05b2c",
+      "hmc_trajectory": 581,
+      "loops_sha256": "ffc144701e8aaff97322a1f2120a57c1f32b708906d3a8c105a293f321d0aaa9",
+      "setup_seconds": 0.2971384539268911,
+      "host_read_seconds": 0.2695055869407952,
+      "device_transfer_seconds": 0.027632866986095905,
+      "kernel_seconds": 439.0201666400535,
+      "loop_seconds": 1.3539021501783282,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00029231002554297447,
+        "ape_a0.4_n5": 0.5336002690019086,
+        "stout_rho0.1_n5": 87.16225101402961,
+        "ape_a0.4_n10": 1.0663394670700654,
+        "stout_rho0.1_n10": 174.41998106695246,
+        "ape_a0.6086956522_n10": 1.0730975639307871,
+        "stout_rho0.1521739130_n10": 174.76460494904313
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.21078153105918318,
+        "ape_a0.4_n5": 0.19045872206334025,
+        "stout_rho0.1_n5": 0.19065209198743105,
+        "ape_a0.4_n10": 0.1904722210019827,
+        "stout_rho0.1_n10": 0.19054802099708468,
+        "ape_a0.6086956522_n10": 0.1904827810358256,
+        "stout_rho0.1521739130_n10": 0.1905067820334807
+      },
+      "measure_seconds": 440.37406879023183,
+      "total_seconds": 440.6716084140353
+    },
+    {
+      "id": 37,
+      "gauge_path": "data/S16T16D/wilson_b6.37",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "571422d7abea1af7666575106d8de8ae5502214fd9d6ddda547f55270fe70123"
+      },
+      "gauge_sha256": "571422d7abea1af7666575106d8de8ae5502214fd9d6ddda547f55270fe70123",
+      "hmc_trajectory": 586,
+      "loops_sha256": "34deedf07d79f52e3396d98a9bb526e76de1bda91b5bc3f67d6b674fb2bb9d13",
+      "setup_seconds": 0.6532273929333314,
+      "host_read_seconds": 0.6257327370112762,
+      "device_transfer_seconds": 0.027494655922055244,
+      "kernel_seconds": 438.43709747993853,
+      "loop_seconds": 1.334085079957731,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005155699327588081,
+        "ape_a0.4_n5": 0.5334694690536708,
+        "stout_rho0.1_n5": 87.15513408300467,
+        "ape_a0.4_n10": 1.0689422829309478,
+        "stout_rho0.1_n10": 174.3734552009264,
+        "ape_a0.6086956522_n10": 1.0712349410168827,
+        "stout_rho0.1521739130_n10": 174.2343459330732
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1906838919967413,
+        "ape_a0.4_n5": 0.19051569199655205,
+        "stout_rho0.1_n5": 0.19059993396513164,
+        "ape_a0.4_n10": 0.1906765119638294,
+        "stout_rho0.1_n10": 0.19051994197070599,
+        "ape_a0.6086956522_n10": 0.19055895204655826,
+        "stout_rho0.1521739130_n10": 0.19053015601821244
+      },
+      "measure_seconds": 439.77118255989626,
+      "total_seconds": 440.4245685019996
+    },
+    {
+      "id": 38,
+      "gauge_path": "data/S16T16D/wilson_b6.38",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "baeb70e58295ec7b177a189861919601785c85d85b3c0549cd538ede7e7d7bca"
+      },
+      "gauge_sha256": "baeb70e58295ec7b177a189861919601785c85d85b3c0549cd538ede7e7d7bca",
+      "hmc_trajectory": 591,
+      "loops_sha256": "715ad3d9d6c010650450f2772d4b4ab2409d3073409bbbffae21d217c2c9523c",
+      "setup_seconds": 0.3567201850237325,
+      "host_read_seconds": 0.3289374419255182,
+      "device_transfer_seconds": 0.02778274309821427,
+      "kernel_seconds": 438.6774567429675,
+      "loop_seconds": 1.3337783662136644,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0003057109424844384,
+        "ape_a0.4_n5": 0.5334276219364256,
+        "stout_rho0.1_n5": 87.1613540040562,
+        "ape_a0.4_n10": 1.0647909760009497,
+        "stout_rho0.1_n10": 174.4400644840207,
+        "ape_a0.6086956522_n10": 1.0649054059758782,
+        "stout_rho0.1521739130_n10": 174.41260854003485
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19067227700725198,
+        "ape_a0.4_n5": 0.19047492102254182,
+        "stout_rho0.1_n5": 0.19051360106095672,
+        "ape_a0.4_n10": 0.19052049203310162,
+        "stout_rho0.1_n10": 0.19056514103431255,
+        "ape_a0.6086956522_n10": 0.19052188203204423,
+        "stout_rho0.1521739130_n10": 0.1905100520234555
+      },
+      "measure_seconds": 440.01123510918114,
+      "total_seconds": 440.3683273140341
+    },
+    {
+      "id": 39,
+      "gauge_path": "data/S16T16D/wilson_b6.39",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "97ed5ee4f66f7cbe3f5692e975af58396c358e0c518e24c395fd847c7ec4ef0b"
+      },
+      "gauge_sha256": "97ed5ee4f66f7cbe3f5692e975af58396c358e0c518e24c395fd847c7ec4ef0b",
+      "hmc_trajectory": 596,
+      "loops_sha256": "dbf0e6691021e47ad629c8eef720a64999fe34bea1b0191e27bfc356f93afc4d",
+      "setup_seconds": 0.4559388840571046,
+      "host_read_seconds": 0.42885512905195355,
+      "device_transfer_seconds": 0.027083755005151033,
+      "kernel_seconds": 438.70212083589286,
+      "loop_seconds": 1.3339385830331594,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005138410488143563,
+        "ape_a0.4_n5": 0.5329240079736337,
+        "stout_rho0.1_n5": 87.1767698979238,
+        "ape_a0.4_n10": 1.0660969170276076,
+        "stout_rho0.1_n10": 174.47205819096416,
+        "ape_a0.6086956522_n10": 1.0732040029251948,
+        "stout_rho0.1521739130_n10": 174.38055397802964
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1906742020510137,
+        "ape_a0.4_n5": 0.19049787207040936,
+        "stout_rho0.1_n5": 0.19051201094407588,
+        "ape_a0.4_n10": 0.19053364195860922,
+        "stout_rho0.1_n10": 0.19060700200498104,
+        "ape_a0.6086956522_n10": 0.19049569207709283,
+        "stout_rho0.1521739130_n10": 0.19061816192697734
+      },
+      "measure_seconds": 440.036059418926,
+      "total_seconds": 440.4921453829156
+    },
+    {
+      "id": 40,
+      "gauge_path": "data/S16T16D/wilson_b6.40",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "7e413d570283fb5a17e193c2b80a78b68c47842dbc20bbb8d690051cf66397bd"
+      },
+      "gauge_sha256": "7e413d570283fb5a17e193c2b80a78b68c47842dbc20bbb8d690051cf66397bd",
+      "hmc_trajectory": 601,
+      "loops_sha256": "5675d1a4d3c08055e6907bef031034998490b35f1763bfcf2706d8977ff86e56",
+      "setup_seconds": 0.511156267952174,
+      "host_read_seconds": 0.4840791719034314,
+      "device_transfer_seconds": 0.027077096048742533,
+      "kernel_seconds": 438.6371468717698,
+      "loop_seconds": 1.3344782588537782,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005129799246788025,
+        "ape_a0.4_n5": 0.5341340500162914,
+        "stout_rho0.1_n5": 87.152943569934,
+        "ape_a0.4_n10": 1.06842358794529,
+        "stout_rho0.1_n10": 174.43495343392715,
+        "ape_a0.6086956522_n10": 1.0719515800010413,
+        "stout_rho0.1521739130_n10": 174.37422767002136
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19071876199450344,
+        "ape_a0.4_n5": 0.19059891102369875,
+        "stout_rho0.1_n5": 0.19056835200171918,
+        "ape_a0.4_n10": 0.19054698199033737,
+        "stout_rho0.1_n10": 0.1905803739791736,
+        "ape_a0.6086956522_n10": 0.19088448595721275,
+        "stout_rho0.1521739130_n10": 0.19058039190713316
+      },
+      "measure_seconds": 439.9716251306236,
+      "total_seconds": 440.48293569509406
+    },
+    {
+      "id": 41,
+      "gauge_path": "data/S16T16D/wilson_b6.41",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "8f4f8c7b78fcf8ac9dfe9e756d3b7ce662963935d6b1a5c5fa9e74f10f7fdb37"
+      },
+      "gauge_sha256": "8f4f8c7b78fcf8ac9dfe9e756d3b7ce662963935d6b1a5c5fa9e74f10f7fdb37",
+      "hmc_trajectory": 606,
+      "loops_sha256": "5b31c0ab7d2eddf82b273671908212842be21716d7862c2859ea9373b4af74d4",
+      "setup_seconds": 0.38177408394403756,
+      "host_read_seconds": 0.35437426797579974,
+      "device_transfer_seconds": 0.027399815968237817,
+      "kernel_seconds": 438.59535617381334,
+      "loop_seconds": 1.3338153921067715,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005238610319793224,
+        "ape_a0.4_n5": 0.5334147879621014,
+        "stout_rho0.1_n5": 87.16384502593428,
+        "ape_a0.4_n10": 1.0651230359217152,
+        "stout_rho0.1_n10": 174.3741656129714,
+        "ape_a0.6086956522_n10": 1.076305766007863,
+        "stout_rho0.1521739130_n10": 174.381978083984
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19063912192359567,
+        "ape_a0.4_n5": 0.19041920208837837,
+        "stout_rho0.1_n5": 0.19055741105694324,
+        "ape_a0.4_n10": 0.19058388203848153,
+        "stout_rho0.1_n10": 0.19052257190924138,
+        "ape_a0.6086956522_n10": 0.1905367620056495,
+        "stout_rho0.1521739130_n10": 0.19055644108448178
+      },
+      "measure_seconds": 439.9291715659201,
+      "total_seconds": 440.3110989610432
+    },
+    {
+      "id": 42,
+      "gauge_path": "data/S16T16D/wilson_b6.42",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "5c65b254b700f23c1db1349d626f6a3f66f0e68af3bd26a51d9ae53d7c99746c"
+      },
+      "gauge_sha256": "5c65b254b700f23c1db1349d626f6a3f66f0e68af3bd26a51d9ae53d7c99746c",
+      "hmc_trajectory": 611,
+      "loops_sha256": "a86058d6ee7e1cd3f3b66fbb21a81a8654b1b46542bf56cfec80e5b6f67bdc63",
+      "setup_seconds": 0.30587784200906754,
+      "host_read_seconds": 0.27822698501404375,
+      "device_transfer_seconds": 0.027650856995023787,
+      "kernel_seconds": 438.65758202201687,
+      "loop_seconds": 1.333651439868845,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005150199867784977,
+        "ape_a0.4_n5": 0.5330928780604154,
+        "stout_rho0.1_n5": 87.11233922699466,
+        "ape_a0.4_n10": 1.0664926579920575,
+        "stout_rho0.1_n10": 174.51422292995267,
+        "ape_a0.6086956522_n10": 1.0722161929588765,
+        "stout_rho0.1521739130_n10": 174.3587031160714
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19071146205533296,
+        "ape_a0.4_n5": 0.19049575191456825,
+        "stout_rho0.1_n5": 0.19056209095288068,
+        "ape_a0.4_n10": 0.19048548105638474,
+        "stout_rho0.1_n10": 0.19045389094389975,
+        "ape_a0.6086956522_n10": 0.1904034309554845,
+        "stout_rho0.1521739130_n10": 0.19053933199029416
+      },
+      "measure_seconds": 439.9912334618857,
+      "total_seconds": 440.2973680139985
+    },
+    {
+      "id": 43,
+      "gauge_path": "data/S16T16D/wilson_b6.43",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "25b59330b6e160c549f9c7f1e3c017330395130140336ea33ab52fc77be0abfe"
+      },
+      "gauge_sha256": "25b59330b6e160c549f9c7f1e3c017330395130140336ea33ab52fc77be0abfe",
+      "hmc_trajectory": 616,
+      "loops_sha256": "7a6a433ca9f425aa821512ee658f0dc721948ddda67714ea7316127179250e0a",
+      "setup_seconds": 0.3444360790308565,
+      "host_read_seconds": 0.31668244197499007,
+      "device_transfer_seconds": 0.02775363705586642,
+      "kernel_seconds": 438.65416704607196,
+      "loop_seconds": 1.3343458828749135,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0003318199887871742,
+        "ape_a0.4_n5": 0.5332691089715809,
+        "stout_rho0.1_n5": 87.20191622700077,
+        "ape_a0.4_n10": 1.0667952570365742,
+        "stout_rho0.1_n10": 174.3990949409781,
+        "ape_a0.6086956522_n10": 1.0708065710496157,
+        "stout_rho0.1521739130_n10": 174.38195312104654
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19078796193934977,
+        "ape_a0.4_n5": 0.19048072095029056,
+        "stout_rho0.1_n5": 0.19058690196834505,
+        "ape_a0.4_n10": 0.19055903202388436,
+        "stout_rho0.1_n10": 0.19061672198586166,
+        "ape_a0.6086956522_n10": 0.19061915203928947,
+        "stout_rho0.1521739130_n10": 0.19069539196789265
+      },
+      "measure_seconds": 439.9885129289469,
+      "total_seconds": 440.33340909995604
+    },
+    {
+      "id": 44,
+      "gauge_path": "data/S16T16D/wilson_b6.44",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "78b845295bf9fef0a070cc870338aecae36c4ef8889b73e8278b845ce02cd03b"
+      },
+      "gauge_sha256": "78b845295bf9fef0a070cc870338aecae36c4ef8889b73e8278b845ce02cd03b",
+      "hmc_trajectory": 621,
+      "loops_sha256": "8d1b245154bb7ca2dc186c8bf2c75a1724e5bfa8be624ab28465147e54b0c246",
+      "setup_seconds": 0.24265318701509386,
+      "host_read_seconds": 0.21524435398168862,
+      "device_transfer_seconds": 0.027408833033405244,
+      "kernel_seconds": 438.97554794023745,
+      "loop_seconds": 1.3338245808845386,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002857340732589364,
+        "ape_a0.4_n5": 0.5341811859980226,
+        "stout_rho0.1_n5": 87.3063106139889,
+        "ape_a0.4_n10": 1.064975926070474,
+        "stout_rho0.1_n10": 174.48994891706388,
+        "ape_a0.6086956522_n10": 1.0756844750139862,
+        "stout_rho0.1521739130_n10": 174.50416108802892
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.190722074941732,
+        "ape_a0.4_n5": 0.19054696697276086,
+        "stout_rho0.1_n5": 0.1905208519892767,
+        "ape_a0.4_n10": 0.19048910099081695,
+        "stout_rho0.1_n10": 0.19058196200057864,
+        "ape_a0.6086956522_n10": 0.1904895519837737,
+        "stout_rho0.1521739130_n10": 0.19047407200559974
+      },
+      "measure_seconds": 440.309372521122,
+      "total_seconds": 440.5524019780569
+    },
+    {
+      "id": 45,
+      "gauge_path": "data/S16T16D/wilson_b6.45",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "bb8f25be6a3b15c3208541562093c53d8f0cf2deb904635abf8fe7086fc75462"
+      },
+      "gauge_sha256": "bb8f25be6a3b15c3208541562093c53d8f0cf2deb904635abf8fe7086fc75462",
+      "hmc_trajectory": 626,
+      "loops_sha256": "49119050427384038efc5ea4ce3f5f63d71b214080360bc9d5fbddad3dc058c5",
+      "setup_seconds": 0.2546436230186373,
+      "host_read_seconds": 0.22717212594579905,
+      "device_transfer_seconds": 0.027471497072838247,
+      "kernel_seconds": 439.02849342417903,
+      "loop_seconds": 1.3338478000368923,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00029640004504472017,
+        "ape_a0.4_n5": 0.5323793380521238,
+        "stout_rho0.1_n5": 87.21471393899992,
+        "ape_a0.4_n10": 1.0672266950132325,
+        "stout_rho0.1_n10": 174.62306471902411,
+        "ape_a0.6086956522_n10": 1.0687309190398082,
+        "stout_rho0.1521739130_n10": 174.5220814140048
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19065414206124842,
+        "ape_a0.4_n5": 0.19047511101234704,
+        "stout_rho0.1_n5": 0.1906607870478183,
+        "ape_a0.4_n10": 0.19049446505960077,
+        "stout_rho0.1_n10": 0.19059324194677174,
+        "ape_a0.6086956522_n10": 0.1904695020057261,
+        "stout_rho0.1521739130_n10": 0.19050055090337992
+      },
+      "measure_seconds": 440.3623412242159,
+      "total_seconds": 440.6173606700031
+    },
+    {
+      "id": 46,
+      "gauge_path": "data/S16T16D/wilson_b6.46",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "2b417e0f231985067478210cb31f8b51b29ba975ff1a91992945b8bc17ec5fc6"
+      },
+      "gauge_sha256": "2b417e0f231985067478210cb31f8b51b29ba975ff1a91992945b8bc17ec5fc6",
+      "hmc_trajectory": 631,
+      "loops_sha256": "a10d5c28d38e01a5bc64e6b795694d760a014357a05686470b143baa16025069",
+      "setup_seconds": 0.25958785705734044,
+      "host_read_seconds": 0.23211140104103833,
+      "device_transfer_seconds": 0.02747645601630211,
+      "kernel_seconds": 438.79414567898493,
+      "loop_seconds": 1.33434469695203,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005088109755888581,
+        "ape_a0.4_n5": 0.5331034279661253,
+        "stout_rho0.1_n5": 87.26619568699971,
+        "ape_a0.4_n10": 1.0686085789930075,
+        "stout_rho0.1_n10": 174.43597637594212,
+        "ape_a0.6086956522_n10": 1.0716288920957595,
+        "stout_rho0.1521739130_n10": 174.41812390601262
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19070652197115123,
+        "ape_a0.4_n5": 0.1905634020222351,
+        "stout_rho0.1_n5": 0.19066757196560502,
+        "ape_a0.4_n10": 0.19052454200573266,
+        "stout_rho0.1_n10": 0.19061500194948167,
+        "ape_a0.6086956522_n10": 0.19060603203251958,
+        "stout_rho0.1521739130_n10": 0.1906616250053048
+      },
+      "measure_seconds": 440.12849037593696,
+      "total_seconds": 440.38823844806757
+    },
+    {
+      "id": 47,
+      "gauge_path": "data/S16T16D/wilson_b6.47",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "74d6274cf8611b31078cc7523dca35f019fbb23ea723b4008d10db52234d3acf"
+      },
+      "gauge_sha256": "74d6274cf8611b31078cc7523dca35f019fbb23ea723b4008d10db52234d3acf",
+      "hmc_trajectory": 636,
+      "loops_sha256": "81ec45ffd4bade9487610dce5916e165ce95d627cbc214e6da1648247605ecda",
+      "setup_seconds": 0.2978136360179633,
+      "host_read_seconds": 0.27053852903191,
+      "device_transfer_seconds": 0.027275106986053288,
+      "kernel_seconds": 439.39986765000504,
+      "loop_seconds": 1.3343125160317868,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.000292415963485837,
+        "ape_a0.4_n5": 0.5352160340407863,
+        "stout_rho0.1_n5": 87.30069131799974,
+        "ape_a0.4_n10": 1.0655819959938526,
+        "stout_rho0.1_n10": 174.71647762600332,
+        "ape_a0.6086956522_n10": 1.0789502590196207,
+        "stout_rho0.1521739130_n10": 174.70265800098423
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19087450101505965,
+        "ape_a0.4_n5": 0.19072605692781508,
+        "stout_rho0.1_n5": 0.19050348200835288,
+        "ape_a0.4_n10": 0.1905378010123968,
+        "stout_rho0.1_n10": 0.19053120107855648,
+        "ape_a0.6086956522_n10": 0.19049269205424935,
+        "stout_rho0.1521739130_n10": 0.19064678193535656
+      },
+      "measure_seconds": 440.7341801660368,
+      "total_seconds": 441.0323796730954
+    },
+    {
+      "id": 48,
+      "gauge_path": "data/S16T16D/wilson_b6.48",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "229c82c85b8dc99046baffca95114a1a549830be94fb1e3d8c6d0ccf363a9c58"
+      },
+      "gauge_sha256": "229c82c85b8dc99046baffca95114a1a549830be94fb1e3d8c6d0ccf363a9c58",
+      "hmc_trajectory": 641,
+      "loops_sha256": "599bc1aca00dda5bdb2742f090ff8a18c966362f098ea9a45f50d7c57dd8e66b",
+      "setup_seconds": 0.3994655009591952,
+      "host_read_seconds": 0.37198180495761335,
+      "device_transfer_seconds": 0.027483696001581848,
+      "kernel_seconds": 438.8996861979831,
+      "loop_seconds": 1.334164512809366,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005184300243854523,
+        "ape_a0.4_n5": 0.5333835890050977,
+        "stout_rho0.1_n5": 87.21817542996723,
+        "ape_a0.4_n10": 1.0659146760590374,
+        "stout_rho0.1_n10": 174.59936584997922,
+        "ape_a0.6086956522_n10": 1.0778383680153638,
+        "stout_rho0.1521739130_n10": 174.40448985493276
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19073358189780265,
+        "ape_a0.4_n5": 0.19055644201580435,
+        "stout_rho0.1_n5": 0.19060507195536047,
+        "ape_a0.4_n10": 0.19052015198394656,
+        "stout_rho0.1_n10": 0.1906665110727772,
+        "ape_a0.6086956522_n10": 0.1905930929351598,
+        "stout_rho0.1521739130_n10": 0.19048966094851494
+      },
+      "measure_seconds": 440.23385071079247,
+      "total_seconds": 440.63347675604746
+    },
+    {
+      "id": 49,
+      "gauge_path": "data/S16T16D/wilson_b6.49",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "befe6b28d6960585883c988250f92adcaa94534e133f4a0a972db8dff3c14e7a"
+      },
+      "gauge_sha256": "befe6b28d6960585883c988250f92adcaa94534e133f4a0a972db8dff3c14e7a",
+      "hmc_trajectory": 646,
+      "loops_sha256": "19078a0a06c534ec67bb4d0b110ee1ebcacaf641c8b35459e6bb2aa70718fb4b",
+      "setup_seconds": 0.26585499406792223,
+      "host_read_seconds": 0.23834937799256295,
+      "device_transfer_seconds": 0.027505616075359285,
+      "kernel_seconds": 439.2448146099923,
+      "loop_seconds": 1.3340512809809297,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002928499598056078,
+        "ape_a0.4_n5": 0.5329253090312704,
+        "stout_rho0.1_n5": 87.27502987999469,
+        "ape_a0.4_n10": 1.067511567962356,
+        "stout_rho0.1_n10": 174.69587276305538,
+        "ape_a0.6086956522_n10": 1.071244011982344,
+        "stout_rho0.1521739130_n10": 174.60193822800647
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19066199206281453,
+        "ape_a0.4_n5": 0.1905186310177669,
+        "stout_rho0.1_n5": 0.19064077199436724,
+        "ape_a0.4_n10": 0.190571932005696,
+        "stout_rho0.1_n10": 0.19055985193699598,
+        "ape_a0.6086956522_n10": 0.19057286099996418,
+        "stout_rho0.1521739130_n10": 0.1905252409633249
+      },
+      "measure_seconds": 440.57886589097325,
+      "total_seconds": 440.8451049049618
+    },
+    {
+      "id": 50,
+      "gauge_path": "data/S16T16D/wilson_b6.50",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "18ff8a089899cf72d6222ea45ba8cc41fc066cb66b2e47f05b0addd0709e1f5d"
+      },
+      "gauge_sha256": "18ff8a089899cf72d6222ea45ba8cc41fc066cb66b2e47f05b0addd0709e1f5d",
+      "hmc_trajectory": 651,
+      "loops_sha256": "1851aeb7085ea0b1664ed4fad497095f67d240d6ce3a3f1a8ac723b1bbcbda1b",
+      "setup_seconds": 0.31507406011223793,
+      "host_read_seconds": 0.2874357340624556,
+      "device_transfer_seconds": 0.027638326049782336,
+      "kernel_seconds": 439.4161183719989,
+      "loop_seconds": 1.3338591788196936,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005188009236007929,
+        "ape_a0.4_n5": 0.5339737500762567,
+        "stout_rho0.1_n5": 87.32990659493953,
+        "ape_a0.4_n10": 1.065414826036431,
+        "stout_rho0.1_n10": 174.78434449399356,
+        "ape_a0.6086956522_n10": 1.0718646630411968,
+        "stout_rho0.1521739130_n10": 174.63009524298832
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19070533092599362,
+        "ape_a0.4_n5": 0.19051741098519415,
+        "stout_rho0.1_n5": 0.1905496109975502,
+        "ape_a0.4_n10": 0.1905286619439721,
+        "stout_rho0.1_n10": 0.19058316096197814,
+        "ape_a0.6086956522_n10": 0.1904860909562558,
+        "stout_rho0.1521739130_n10": 0.19048891204874963
+      },
+      "measure_seconds": 440.7499775508186,
+      "total_seconds": 441.06519628106616
+    },
+    {
+      "id": 51,
+      "gauge_path": "data/S16T16D/wilson_b6.51",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "8a2e6302eeac7c221c2e27951af939044a128654798a70c89e63e0c3f186f316"
+      },
+      "gauge_sha256": "8a2e6302eeac7c221c2e27951af939044a128654798a70c89e63e0c3f186f316",
+      "hmc_trajectory": 656,
+      "loops_sha256": "ba11c1fd0f6d20a8509b923dfb7e6e892d704ad76182055b9350fb2aee3b80f1",
+      "setup_seconds": 0.25401096197310835,
+      "host_read_seconds": 0.22714590595569462,
+      "device_transfer_seconds": 0.026865056017413735,
+      "kernel_seconds": 439.61852557910606,
+      "loop_seconds": 1.3344176890095696,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005085800075903535,
+        "ape_a0.4_n5": 0.5332049690186977,
+        "stout_rho0.1_n5": 87.30757073301356,
+        "ape_a0.4_n10": 1.0665154620073736,
+        "stout_rho0.1_n10": 174.9384799139807,
+        "ape_a0.6086956522_n10": 1.0697879100916907,
+        "stout_rho0.1521739130_n10": 174.70245801098645
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19072864204645157,
+        "ape_a0.4_n5": 0.1904563409043476,
+        "stout_rho0.1_n5": 0.19060218799859285,
+        "ape_a0.4_n10": 0.1906454369891435,
+        "stout_rho0.1_n10": 0.19067222205922008,
+        "ape_a0.6086956522_n10": 0.19055298203602433,
+        "stout_rho0.1521739130_n10": 0.19075987697578967
+      },
+      "measure_seconds": 440.95294326811563,
+      "total_seconds": 441.20710170303937
+    },
+    {
+      "id": 52,
+      "gauge_path": "data/S16T16D/wilson_b6.52",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "90f770f98d826507ffb64b0d8f727b5e8cdc37c42b5b4d9e435817d30180a8a4"
+      },
+      "gauge_sha256": "90f770f98d826507ffb64b0d8f727b5e8cdc37c42b5b4d9e435817d30180a8a4",
+      "hmc_trajectory": 661,
+      "loops_sha256": "9f6d909c54058fddc9fd801f8f4db8a3399fd4884cfc700ebd8aed502dd7f15b",
+      "setup_seconds": 0.2916327400598675,
+      "host_read_seconds": 0.26422020606696606,
+      "device_transfer_seconds": 0.027412533992901444,
+      "kernel_seconds": 438.9633192748297,
+      "loop_seconds": 1.334525094833225,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005155079998075962,
+        "ape_a0.4_n5": 0.5341014969162643,
+        "stout_rho0.1_n5": 87.30532285792287,
+        "ape_a0.4_n10": 1.0658141769235954,
+        "stout_rho0.1_n10": 174.53414024505764,
+        "ape_a0.6086956522_n10": 1.070819930988364,
+        "stout_rho0.1521739130_n10": 174.45260505902115
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1909487919183448,
+        "ape_a0.4_n5": 0.19067333394195884,
+        "stout_rho0.1_n5": 0.19054105202667415,
+        "ape_a0.4_n10": 0.19055402104277164,
+        "stout_rho0.1_n10": 0.19061731197871268,
+        "ape_a0.6086956522_n10": 0.1906405419576913,
+        "stout_rho0.1521739130_n10": 0.1905500419670716
+      },
+      "measure_seconds": 440.2978443696629,
+      "total_seconds": 440.5896245869808
+    },
+    {
+      "id": 53,
+      "gauge_path": "data/S16T16D/wilson_b6.53",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "5f5d7e32311460693849e2060f6cd05e3bad4fdcf1e7121cf0a553247d3b41d9"
+      },
+      "gauge_sha256": "5f5d7e32311460693849e2060f6cd05e3bad4fdcf1e7121cf0a553247d3b41d9",
+      "hmc_trajectory": 666,
+      "loops_sha256": "bbb079f69394e03edb35c24c93bb6225c53250b632ec7ecb08b4ac0119ab5580",
+      "setup_seconds": 0.2930193889187649,
+      "host_read_seconds": 0.26590395299717784,
+      "device_transfer_seconds": 0.02711543592158705,
+      "kernel_seconds": 439.3280999781564,
+      "loop_seconds": 1.3339762119576335,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005104199517518282,
+        "ape_a0.4_n5": 0.533910010010004,
+        "stout_rho0.1_n5": 87.28445355105214,
+        "ape_a0.4_n10": 1.0664330869913101,
+        "stout_rho0.1_n10": 174.73961211601272,
+        "ape_a0.6086956522_n10": 1.0728852930478752,
+        "stout_rho0.1521739130_n10": 174.6302955010906
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19074895209632814,
+        "ape_a0.4_n5": 0.19061451102606952,
+        "stout_rho0.1_n5": 0.19046049192547798,
+        "ape_a0.4_n10": 0.19040721096098423,
+        "stout_rho0.1_n10": 0.19065774197224528,
+        "ape_a0.6086956522_n10": 0.19053466198965907,
+        "stout_rho0.1521739130_n10": 0.19055264198686928
+      },
+      "measure_seconds": 440.662076190114,
+      "total_seconds": 440.9552541889716
+    },
+    {
+      "id": 54,
+      "gauge_path": "data/S16T16D/wilson_b6.54",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "10a8834b9956d9cae36b6d2a7e2d950a4ade39175f49c77bdcfac22aae208afb"
+      },
+      "gauge_sha256": "10a8834b9956d9cae36b6d2a7e2d950a4ade39175f49c77bdcfac22aae208afb",
+      "hmc_trajectory": 671,
+      "loops_sha256": "1ca36146f15e4b930e01c5c3783ddb001fba081d764d3ddb803d0452a8baf36f",
+      "setup_seconds": 0.3671699999831617,
+      "host_read_seconds": 0.3398940940387547,
+      "device_transfer_seconds": 0.027275905944406986,
+      "kernel_seconds": 439.49926318391226,
+      "loop_seconds": 1.3343357390258461,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00029105006251484156,
+        "ape_a0.4_n5": 0.5328496480360627,
+        "stout_rho0.1_n5": 87.26425671600737,
+        "ape_a0.4_n10": 1.066758886910975,
+        "stout_rho0.1_n10": 174.7826598159736,
+        "ape_a0.6086956522_n10": 1.0665325559675694,
+        "stout_rho0.1521739130_n10": 174.78591451095417
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19074841204565018,
+        "ape_a0.4_n5": 0.19053064205218107,
+        "stout_rho0.1_n5": 0.1906240819953382,
+        "ape_a0.4_n10": 0.19055596191901714,
+        "stout_rho0.1_n10": 0.19063277007080615,
+        "ape_a0.6086956522_n10": 0.19060947897378355,
+        "stout_rho0.1521739130_n10": 0.19063439196906984
+      },
+      "measure_seconds": 440.8335989229381,
+      "total_seconds": 441.20115063199773
+    },
+    {
+      "id": 55,
+      "gauge_path": "data/S16T16D/wilson_b6.55",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "8e230ea06fabab55dad938d478f4615b336eced78f03968f27a44fb2867d8301"
+      },
+      "gauge_sha256": "8e230ea06fabab55dad938d478f4615b336eced78f03968f27a44fb2867d8301",
+      "hmc_trajectory": 676,
+      "loops_sha256": "d7f783a1d86dc6dd77785a70fd23a4baf8ee347d947470b712f6d00006f48541",
+      "setup_seconds": 0.2683371460298076,
+      "host_read_seconds": 0.24124321003910154,
+      "device_transfer_seconds": 0.027093935990706086,
+      "kernel_seconds": 439.45789167587645,
+      "loop_seconds": 1.3338128320174292,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002873600460588932,
+        "ape_a0.4_n5": 0.5329451779834926,
+        "stout_rho0.1_n5": 87.43417355394922,
+        "ape_a0.4_n10": 1.065252274973318,
+        "stout_rho0.1_n10": 174.7530749789439,
+        "ape_a0.6086956522_n10": 1.0730368429794908,
+        "stout_rho0.1521739130_n10": 174.59912148700096
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19070814200676978,
+        "ape_a0.4_n5": 0.1905323819955811,
+        "stout_rho0.1_n5": 0.1905781920067966,
+        "ape_a0.4_n10": 0.1904653119854629,
+        "stout_rho0.1_n10": 0.19056912197265774,
+        "ape_a0.6086956522_n10": 0.19045217102393508,
+        "stout_rho0.1521739130_n10": 0.19050751102622598
+      },
+      "measure_seconds": 440.7917045078939,
+      "total_seconds": 441.06041343405377
+    },
+    {
+      "id": 56,
+      "gauge_path": "data/S16T16D/wilson_b6.56",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "34e2e69dcfb4109c44eb75a3dcf18717f3583397e5d2d479c48a6f5eb5ff0036"
+      },
+      "gauge_sha256": "34e2e69dcfb4109c44eb75a3dcf18717f3583397e5d2d479c48a6f5eb5ff0036",
+      "hmc_trajectory": 681,
+      "loops_sha256": "8875e08c0e669af70bd75452496d64439627e6f39034237ff1cb52eb793740be",
+      "setup_seconds": 0.3331995179178193,
+      "host_read_seconds": 0.305561680928804,
+      "device_transfer_seconds": 0.02763783698901534,
+      "kernel_seconds": 439.5739045010414,
+      "loop_seconds": 1.3335686028003693,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005155400140210986,
+        "ape_a0.4_n5": 0.5346586699597538,
+        "stout_rho0.1_n5": 87.28967048600316,
+        "ape_a0.4_n10": 1.065547646023333,
+        "stout_rho0.1_n10": 174.8461427889997,
+        "ape_a0.6086956522_n10": 1.0780278580496088,
+        "stout_rho0.1521739130_n10": 174.7593415119918
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19070320192258805,
+        "ape_a0.4_n5": 0.19047413195949048,
+        "stout_rho0.1_n5": 0.1905123710166663,
+        "ape_a0.4_n10": 0.19042254204396158,
+        "stout_rho0.1_n10": 0.1904650719370693,
+        "ape_a0.6086956522_n10": 0.1905407119775191,
+        "stout_rho0.1521739130_n10": 0.19045057194307446
+      },
+      "measure_seconds": 440.90747310384177,
+      "total_seconds": 441.24082126189023
+    },
+    {
+      "id": 57,
+      "gauge_path": "data/S16T16D/wilson_b6.57",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "55bad98990bbdbf5ddd19508131e65cc58b7a66e5592d7b3f1329538c1aadeab"
+      },
+      "gauge_sha256": "55bad98990bbdbf5ddd19508131e65cc58b7a66e5592d7b3f1329538c1aadeab",
+      "hmc_trajectory": 686,
+      "loops_sha256": "e275cf76dc854aa059a34ce99309eeb49b1cebda4dc94560cf9866c7895e89d1",
+      "setup_seconds": 0.3686752310022712,
+      "host_read_seconds": 0.24942961800843477,
+      "device_transfer_seconds": 0.1192456129938364,
+      "kernel_seconds": 438.8177006908227,
+      "loop_seconds": 1.3337238009553403,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.07678503391798586,
+        "ape_a0.4_n5": 0.700574517948553,
+        "stout_rho0.1_n5": 87.15226138697471,
+        "ape_a0.4_n10": 1.0682451790198684,
+        "stout_rho0.1_n10": 174.3869833679637,
+        "ape_a0.6086956522_n10": 1.07107876194641,
+        "stout_rho0.1521739130_n10": 174.36177244305145
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19079891208093613,
+        "ape_a0.4_n5": 0.19047604105435312,
+        "stout_rho0.1_n5": 0.19052760198246688,
+        "ape_a0.4_n10": 0.19036335090640932,
+        "stout_rho0.1_n10": 0.19054180197417736,
+        "ape_a0.6086956522_n10": 0.1905040310230106,
+        "stout_rho0.1521739130_n10": 0.19051206193398684
+      },
+      "measure_seconds": 440.151424491778,
+      "total_seconds": 440.5202555729775
+    },
+    {
+      "id": 58,
+      "gauge_path": "data/S16T16D/wilson_b6.58",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "e29681db68c54a1f5a3548ddca20960fde4b63e5c3fe962073dcd793ba210357"
+      },
+      "gauge_sha256": "e29681db68c54a1f5a3548ddca20960fde4b63e5c3fe962073dcd793ba210357",
+      "hmc_trajectory": 691,
+      "loops_sha256": "69390dec31927846da77fc78692c3d5cba091ab8600b0bac70be93bbb3cc2fcc",
+      "setup_seconds": 0.4421953409910202,
+      "host_read_seconds": 0.4149693150538951,
+      "device_transfer_seconds": 0.027226025937125087,
+      "kernel_seconds": 439.42961452680174,
+      "loop_seconds": 1.3845364800654352,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.000534730963408947,
+        "ape_a0.4_n5": 0.5334365289891139,
+        "stout_rho0.1_n5": 87.396693687886,
+        "ape_a0.4_n10": 1.0653656660579145,
+        "stout_rho0.1_n10": 174.7359712329926,
+        "ape_a0.6086956522_n10": 1.0733442939817905,
+        "stout_rho0.1521739130_n10": 174.62426838593092
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.24134178995154798,
+        "ape_a0.4_n5": 0.19051964103709906,
+        "stout_rho0.1_n5": 0.1905050720088184,
+        "ape_a0.4_n10": 0.1904383220244199,
+        "stout_rho0.1_n10": 0.1906349309720099,
+        "ape_a0.6086956522_n10": 0.19049376202747226,
+        "stout_rho0.1521739130_n10": 0.19060296204406768
+      },
+      "measure_seconds": 440.8141510068672,
+      "total_seconds": 441.25651091791224
+    },
+    {
+      "id": 59,
+      "gauge_path": "data/S16T16D/wilson_b6.59",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "df1f7d97e79bfdeb5dbd0d30826339f91596dbbeb972da44b04862cefc8442e4"
+      },
+      "gauge_sha256": "df1f7d97e79bfdeb5dbd0d30826339f91596dbbeb972da44b04862cefc8442e4",
+      "hmc_trajectory": 696,
+      "loops_sha256": "6cad2343af3e43732950f1a82f9b3116fd110dae1508505aad28e5f9bbf2c13c",
+      "setup_seconds": 0.2515019099228084,
+      "host_read_seconds": 0.22381235391367227,
+      "device_transfer_seconds": 0.02768955600913614,
+      "kernel_seconds": 439.2457352500642,
+      "loop_seconds": 1.4954219699138775,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002933110808953643,
+        "ape_a0.4_n5": 0.5339123189914972,
+        "stout_rho0.1_n5": 87.27103202801663,
+        "ape_a0.4_n10": 1.0656453169649467,
+        "stout_rho0.1_n10": 174.65685752604622,
+        "ape_a0.6086956522_n10": 1.0699639610247687,
+        "stout_rho0.1521739130_n10": 174.6480307879392
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.3522227860521525,
+        "ape_a0.4_n5": 0.19060178194195032,
+        "stout_rho0.1_n5": 0.19050821696873754,
+        "ape_a0.4_n10": 0.19048057997133583,
+        "stout_rho0.1_n10": 0.19057890097610652,
+        "ape_a0.6086956522_n10": 0.1905688219703734,
+        "stout_rho0.1521739130_n10": 0.19046088203322142
+      },
+      "measure_seconds": 440.74115721997805,
+      "total_seconds": 440.9930397970602
+    },
+    {
+      "id": 60,
+      "gauge_path": "data/S16T16D/wilson_b6.60",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "121bc14574a6c39b9b5889e8838e7266d9182b6a9699377ca4a0346bb38dbc7b"
+      },
+      "gauge_sha256": "121bc14574a6c39b9b5889e8838e7266d9182b6a9699377ca4a0346bb38dbc7b",
+      "hmc_trajectory": 701,
+      "loops_sha256": "0b9832048076768ac4b33c94b8e54083623c2b3daae4fdd8c82829904cc7f390",
+      "setup_seconds": 0.30394634895492345,
+      "host_read_seconds": 0.25889261602424085,
+      "device_transfer_seconds": 0.0450537329306826,
+      "kernel_seconds": 439.27859514101874,
+      "loop_seconds": 1.772192038828507,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005201010499149561,
+        "ape_a0.4_n5": 0.5344427899690345,
+        "stout_rho0.1_n5": 87.32432756200433,
+        "ape_a0.4_n10": 1.0673323170049116,
+        "stout_rho0.1_n10": 174.69157268898562,
+        "ape_a0.6086956522_n10": 1.0741603249916807,
+        "stout_rho0.1521739130_n10": 174.58623935701326
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.6286262290086597,
+        "ape_a0.4_n5": 0.1904735219432041,
+        "stout_rho0.1_n5": 0.19055011193268,
+        "ape_a0.4_n10": 0.19071987201459706,
+        "stout_rho0.1_n10": 0.1906151910079643,
+        "ape_a0.6086956522_n10": 0.1906072919955477,
+        "stout_rho0.1521739130_n10": 0.19059982092585415
+      },
+      "measure_seconds": 441.05078717984725,
+      "total_seconds": 441.35489932994824
+    },
+    {
+      "id": 61,
+      "gauge_path": "data/S16T16D/wilson_b6.61",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "644de49cbbf031b8dfcdfe75bd4114afd15b8d49b09ec87026b2287de12421c7"
+      },
+      "gauge_sha256": "644de49cbbf031b8dfcdfe75bd4114afd15b8d49b09ec87026b2287de12421c7",
+      "hmc_trajectory": 706,
+      "loops_sha256": "bf090852a2723cc8ec0cb0b066e779ddd2cddc9622906ae82f2d2f0634b78732",
+      "setup_seconds": 0.34697291092015803,
+      "host_read_seconds": 0.3192593839485198,
+      "device_transfer_seconds": 0.027713526971638203,
+      "kernel_seconds": 439.15012896806,
+      "loop_seconds": 1.3340620821109042,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002987600164487958,
+        "ape_a0.4_n5": 0.5335517789935693,
+        "stout_rho0.1_n5": 87.30559679097496,
+        "ape_a0.4_n10": 1.0659312070347369,
+        "stout_rho0.1_n10": 174.61384996410925,
+        "ape_a0.6086956522_n10": 1.0723103629425168,
+        "stout_rho0.1521739130_n10": 174.55859010398854
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1906764020677656,
+        "ape_a0.4_n5": 0.19052739208564162,
+        "stout_rho0.1_n5": 0.19049895100761205,
+        "ape_a0.4_n10": 0.19079211191274226,
+        "stout_rho0.1_n10": 0.19051804102491587,
+        "ape_a0.6086956522_n10": 0.1904466520063579,
+        "stout_rho0.1521739130_n10": 0.19060253200586885
+      },
+      "measure_seconds": 440.4841910501709,
+      "total_seconds": 440.83153812098317
+    },
+    {
+      "id": 62,
+      "gauge_path": "data/S16T16D/wilson_b6.62",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "54ffc273fb57b90456c2120c4bace9b6f51b74ed2b351469ff6ea975c52712bb"
+      },
+      "gauge_sha256": "54ffc273fb57b90456c2120c4bace9b6f51b74ed2b351469ff6ea975c52712bb",
+      "hmc_trajectory": 711,
+      "loops_sha256": "4edeec3c6841ada6a846fede2cb6d82c25d206126e5153873523909853696972",
+      "setup_seconds": 0.3975197890540585,
+      "host_read_seconds": 0.2980276240268722,
+      "device_transfer_seconds": 0.09949216502718627,
+      "kernel_seconds": 439.2402400181163,
+      "loop_seconds": 1.3341269810916856,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002859099768102169,
+        "ape_a0.4_n5": 0.5332130490569398,
+        "stout_rho0.1_n5": 87.24961884191725,
+        "ape_a0.4_n10": 1.0667128980858251,
+        "stout_rho0.1_n10": 174.69544230599422,
+        "ape_a0.6086956522_n10": 1.0688692170660943,
+        "stout_rho0.1521739130_n10": 174.62609779601917
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1907832119613886,
+        "ape_a0.4_n5": 0.1905438220128417,
+        "stout_rho0.1_n5": 0.19069494400173426,
+        "ape_a0.4_n10": 0.19063756603281945,
+        "stout_rho0.1_n10": 0.19048860704060644,
+        "ape_a0.6086956522_n10": 0.19040594808757305,
+        "stout_rho0.1521739130_n10": 0.1905728819547221
+      },
+      "measure_seconds": 440.574366999208,
+      "total_seconds": 440.9720382069936
+    },
+    {
+      "id": 63,
+      "gauge_path": "data/S16T16D/wilson_b6.63",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "b742b5bc0ab0fc67f9dfd81748a24c82060aa5973248fc79bceb09851a69db11"
+      },
+      "gauge_sha256": "b742b5bc0ab0fc67f9dfd81748a24c82060aa5973248fc79bceb09851a69db11",
+      "hmc_trajectory": 716,
+      "loops_sha256": "e182992168ff3546a22afe4b2af1ca1bd597fb3fbcb5d2a6c3299abb97de395e",
+      "setup_seconds": 0.5563043599249795,
+      "host_read_seconds": 0.5293039039243013,
+      "device_transfer_seconds": 0.02700045600067824,
+      "kernel_seconds": 438.50171753112227,
+      "loop_seconds": 1.3340225010178983,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00029052095487713814,
+        "ape_a0.4_n5": 0.5331043190089986,
+        "stout_rho0.1_n5": 87.14508350205142,
+        "ape_a0.4_n10": 1.0691747500095516,
+        "stout_rho0.1_n10": 174.38730657601263,
+        "ape_a0.6086956522_n10": 1.0748350350186229,
+        "stout_rho0.1521739130_n10": 174.29192282806616
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19072219100780785,
+        "ape_a0.4_n5": 0.19060876197181642,
+        "stout_rho0.1_n5": 0.1905101720476523,
+        "ape_a0.4_n10": 0.19057231093756855,
+        "stout_rho0.1_n10": 0.1904894820181653,
+        "ape_a0.6086956522_n10": 0.19048006099183112,
+        "stout_rho0.1521739130_n10": 0.19063952204305679
+      },
+      "measure_seconds": 439.83574003214017,
+      "total_seconds": 440.39242753200233
+    },
+    {
+      "id": 64,
+      "gauge_path": "data/S16T16D/wilson_b6.64",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "d8d5fcfc3463f28aa43945c3ef184f57c90479ecf3da522c865b631e92cf004d"
+      },
+      "gauge_sha256": "d8d5fcfc3463f28aa43945c3ef184f57c90479ecf3da522c865b631e92cf004d",
+      "hmc_trajectory": 721,
+      "loops_sha256": "4c81bd28478529fc6c3b49cb527290434d4826758ca21a8eba86873e8f2268e7",
+      "setup_seconds": 0.360888954019174,
+      "host_read_seconds": 0.33357329794671386,
+      "device_transfer_seconds": 0.027315656072460115,
+      "kernel_seconds": 438.6093821551185,
+      "loop_seconds": 1.3336107020732015,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002915309742093086,
+        "ape_a0.4_n5": 0.5334723280975595,
+        "stout_rho0.1_n5": 87.16889583098236,
+        "ape_a0.4_n10": 1.0643005650490522,
+        "stout_rho0.1_n10": 174.45305355498567,
+        "ape_a0.6086956522_n10": 1.0696257300442085,
+        "stout_rho0.1521739130_n10": 174.31974261498544
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19073480204679072,
+        "ape_a0.4_n5": 0.19050317199435085,
+        "stout_rho0.1_n5": 0.1904854610329494,
+        "ape_a0.4_n10": 0.1904147119494155,
+        "stout_rho0.1_n10": 0.19055995205417275,
+        "ape_a0.6086956522_n10": 0.19044824107550085,
+        "stout_rho0.1521739130_n10": 0.19046436192002147
+      },
+      "measure_seconds": 439.9429928571917,
+      "total_seconds": 440.30426031094976
+    },
+    {
+      "id": 65,
+      "gauge_path": "data/S16T16D/wilson_b6.65",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "8dedb4226f00924ed67e4ad4302520b57939874fa67b20975064964e2f85fd9a"
+      },
+      "gauge_sha256": "8dedb4226f00924ed67e4ad4302520b57939874fa67b20975064964e2f85fd9a",
+      "hmc_trajectory": 726,
+      "loops_sha256": "b46976c66857d877406e057de5f0b07f4dcfbd737a5a975beb9f00585be0321b",
+      "setup_seconds": 0.3991585010662675,
+      "host_read_seconds": 0.37177316506858915,
+      "device_transfer_seconds": 0.02738533599767834,
+      "kernel_seconds": 438.7095510737272,
+      "loop_seconds": 1.3342330758459866,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.000524599920026958,
+        "ape_a0.4_n5": 0.5327510079368949,
+        "stout_rho0.1_n5": 87.13449819199741,
+        "ape_a0.4_n10": 1.0667414269410074,
+        "stout_rho0.1_n10": 174.42205560498405,
+        "ape_a0.6086956522_n10": 1.0782304039457813,
+        "stout_rho0.1521739130_n10": 174.47474983800203
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19066569197457284,
+        "ape_a0.4_n5": 0.19048096193000674,
+        "stout_rho0.1_n5": 0.19053374195937067,
+        "ape_a0.4_n10": 0.19044441194273531,
+        "stout_rho0.1_n10": 0.19074175599962473,
+        "ape_a0.6086956522_n10": 0.1908699490595609,
+        "stout_rho0.1521739130_n10": 0.1904965629801154
+      },
+      "measure_seconds": 440.0437841495732,
+      "total_seconds": 440.44309268298093
+    },
+    {
+      "id": 66,
+      "gauge_path": "data/S16T16D/wilson_b6.66",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "d525d13462f91788eb471546aaae66330f09c0d1103c2cd6ddf067598de829eb"
+      },
+      "gauge_sha256": "d525d13462f91788eb471546aaae66330f09c0d1103c2cd6ddf067598de829eb",
+      "hmc_trajectory": 731,
+      "loops_sha256": "424ca75b618f3a2fc8eebfc864401c55a567e8bbc9aa1e7ad8770ecc9a74dd30",
+      "setup_seconds": 0.3362831479171291,
+      "host_read_seconds": 0.3087261059554294,
+      "device_transfer_seconds": 0.027557041961699724,
+      "kernel_seconds": 438.681807682151,
+      "loop_seconds": 1.334077135892585,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002972210058942437,
+        "ape_a0.4_n5": 0.5329379260074347,
+        "stout_rho0.1_n5": 87.20332745998167,
+        "ape_a0.4_n10": 1.0694426900008693,
+        "stout_rho0.1_n10": 174.44590365502518,
+        "ape_a0.6086956522_n10": 1.078678418067284,
+        "stout_rho0.1521739130_n10": 174.35122031206265
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19061999104451388,
+        "ape_a0.4_n5": 0.19038990593980998,
+        "stout_rho0.1_n5": 0.19059748109430075,
+        "ape_a0.4_n10": 0.19062852195929736,
+        "stout_rho0.1_n10": 0.19052451197057962,
+        "ape_a0.6086956522_n10": 0.19067508191801608,
+        "stout_rho0.1521739130_n10": 0.19064164196606725
+      },
+      "measure_seconds": 440.01588481804356,
+      "total_seconds": 440.3525491580367
+    },
+    {
+      "id": 67,
+      "gauge_path": "data/S16T16D/wilson_b6.67",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "1f4d2393fdf0355e81fe1af3a91ef3336a17f8de127c0eca510d9befd8173e7f"
+      },
+      "gauge_sha256": "1f4d2393fdf0355e81fe1af3a91ef3336a17f8de127c0eca510d9befd8173e7f",
+      "hmc_trajectory": 736,
+      "loops_sha256": "71b678b477e0e67377516437fa28d1f129162b0b646190a7ea570481d0a1b704",
+      "setup_seconds": 0.7190563559997827,
+      "host_read_seconds": 0.6877958260010928,
+      "device_transfer_seconds": 0.03126052999868989,
+      "kernel_seconds": 438.6101847559912,
+      "loop_seconds": 1.3343143140664324,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005283600185066462,
+        "ape_a0.4_n5": 0.5343517599394545,
+        "stout_rho0.1_n5": 87.16052543197293,
+        "ape_a0.4_n10": 1.065423856023699,
+        "stout_rho0.1_n10": 174.41823396203108,
+        "ape_a0.6086956522_n10": 1.0730578730581328,
+        "stout_rho0.1521739130_n10": 174.3580635129474
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19075805193278939,
+        "ape_a0.4_n5": 0.19051732204388827,
+        "stout_rho0.1_n5": 0.19069145200774074,
+        "ape_a0.4_n10": 0.19056702207308263,
+        "stout_rho0.1_n10": 0.1906453820411116,
+        "ape_a0.6086956522_n10": 0.19058449193835258,
+        "stout_rho0.1521739130_n10": 0.19055059202946723
+      },
+      "measure_seconds": 439.94449907005765,
+      "total_seconds": 440.6637009360129
+    },
+    {
+      "id": 68,
+      "gauge_path": "data/S16T16D/wilson_b6.68",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "295f6c30f87584fa4afe44596265e7fdaa03ced62935ce4833de60e0e582b6a2"
+      },
+      "gauge_sha256": "295f6c30f87584fa4afe44596265e7fdaa03ced62935ce4833de60e0e582b6a2",
+      "hmc_trajectory": 741,
+      "loops_sha256": "ab43c829d030c8eefca77964c40dcc4f5d07f9624b59e563229101c25f14c4db",
+      "setup_seconds": 0.4647316229529679,
+      "host_read_seconds": 0.4373715970432386,
+      "device_transfer_seconds": 0.027360025909729302,
+      "kernel_seconds": 438.6673278900562,
+      "loop_seconds": 1.3343675800133497,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005225100321695209,
+        "ape_a0.4_n5": 0.5326800480252132,
+        "stout_rho0.1_n5": 87.16016389906872,
+        "ape_a0.4_n10": 1.0668786669848487,
+        "stout_rho0.1_n10": 174.4631005859701,
+        "ape_a0.6086956522_n10": 1.0733845239738002,
+        "stout_rho0.1521739130_n10": 174.37059765600134
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19075858197174966,
+        "ape_a0.4_n5": 0.19053851207718253,
+        "stout_rho0.1_n5": 0.19060993194580078,
+        "ape_a0.4_n10": 0.19052405201364309,
+        "stout_rho0.1_n10": 0.1906434710836038,
+        "ape_a0.6086956522_n10": 0.19059009198099375,
+        "stout_rho0.1521739130_n10": 0.19070293894037604
+      },
+      "measure_seconds": 440.00169547006954,
+      "total_seconds": 440.4666167109972
+    },
+    {
+      "id": 69,
+      "gauge_path": "data/S16T16D/wilson_b6.69",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "e1bfc26e650e09d8823e8a7d73d1a3354c65874db3a6adb5da8f16d8703451e1"
+      },
+      "gauge_sha256": "e1bfc26e650e09d8823e8a7d73d1a3354c65874db3a6adb5da8f16d8703451e1",
+      "hmc_trajectory": 746,
+      "loops_sha256": "6f8cae6162b49ceca0147c7bc757ace7ca3a6f58784f80a68c695ef1cd59c80e",
+      "setup_seconds": 0.25654133211355656,
+      "host_read_seconds": 0.2295670370804146,
+      "device_transfer_seconds": 0.02697429503314197,
+      "kernel_seconds": 438.5654485436389,
+      "loop_seconds": 1.3938391021220013,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00029056600760668516,
+        "ape_a0.4_n5": 0.5574859549524263,
+        "stout_rho0.1_n5": 87.17655292095151,
+        "ape_a0.4_n10": 1.069030458922498,
+        "stout_rho0.1_n10": 174.4070613879012,
+        "ape_a0.6086956522_n10": 1.071827552979812,
+        "stout_rho0.1521739130_n10": 174.28319970192388
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.250293752993457,
+        "ape_a0.4_n5": 0.19056955201085657,
+        "stout_rho0.1_n5": 0.19070507201831788,
+        "ape_a0.4_n10": 0.1906540320487693,
+        "stout_rho0.1_n10": 0.190512120956555,
+        "ape_a0.6086956522_n10": 0.1904663210734725,
+        "stout_rho0.1521739130_n10": 0.19063825102057308
+      },
+      "measure_seconds": 439.9592876457609,
+      "total_seconds": 440.2162188970251
+    },
+    {
+      "id": 70,
+      "gauge_path": "data/S16T16D/wilson_b6.70",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "3a16890c635b4b99d5e01cf90cc5510a418ab5342df7b78d467e4a4aa93f8808"
+      },
+      "gauge_sha256": "3a16890c635b4b99d5e01cf90cc5510a418ab5342df7b78d467e4a4aa93f8808",
+      "hmc_trajectory": 751,
+      "loops_sha256": "b3d58a9f28a32192f80264a002a9be5bd081f3d923921ff80c6c38982203f1cd",
+      "setup_seconds": 0.3025074480101466,
+      "host_read_seconds": 0.2750577520346269,
+      "device_transfer_seconds": 0.027449695975519717,
+      "kernel_seconds": 438.38568592618685,
+      "loop_seconds": 1.3343305218731984,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00029117101803421974,
+        "ape_a0.4_n5": 0.5351265900535509,
+        "stout_rho0.1_n5": 87.08908235409763,
+        "ape_a0.4_n10": 1.0660043769748881,
+        "stout_rho0.1_n10": 174.3721160609275,
+        "ape_a0.6086956522_n10": 1.0689739900408313,
+        "stout_rho0.1521739130_n10": 174.2540913830744
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19081291207112372,
+        "ape_a0.4_n5": 0.190654061967507,
+        "stout_rho0.1_n5": 0.19057578197680414,
+        "ape_a0.4_n10": 0.19055500091053545,
+        "stout_rho0.1_n10": 0.19065834197681397,
+        "ape_a0.6086956522_n10": 0.19056661101058125,
+        "stout_rho0.1521739130_n10": 0.1905078119598329
+      },
+      "measure_seconds": 439.72001644806005,
+      "total_seconds": 440.0228998059174
+    },
+    {
+      "id": 71,
+      "gauge_path": "data/S16T16D/wilson_b6.71",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "8326b8c64b354c4981ec09f9d1090191006c62425e84ef717b4d020c01c7c6d7"
+      },
+      "gauge_sha256": "8326b8c64b354c4981ec09f9d1090191006c62425e84ef717b4d020c01c7c6d7",
+      "hmc_trajectory": 756,
+      "loops_sha256": "2576c57c4404607b67a189b300ab8799c69bc8f3920169685f3d8b7ce3e73e42",
+      "setup_seconds": 0.32190187694504857,
+      "host_read_seconds": 0.29449328093323857,
+      "device_transfer_seconds": 0.027408596011810005,
+      "kernel_seconds": 438.4995554507477,
+      "loop_seconds": 1.3341407751431689,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002939599798992276,
+        "ape_a0.4_n5": 0.5337420690339059,
+        "stout_rho0.1_n5": 87.0831759419525,
+        "ape_a0.4_n10": 1.0658101659500971,
+        "stout_rho0.1_n10": 174.35691033990588,
+        "ape_a0.6086956522_n10": 1.0773680820129812,
+        "stout_rho0.1521739130_n10": 174.38225489191245
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19072059204336256,
+        "ape_a0.4_n5": 0.19049407204147428,
+        "stout_rho0.1_n5": 0.19056457199621946,
+        "ape_a0.4_n10": 0.19052760198246688,
+        "stout_rho0.1_n10": 0.190644646063447,
+        "ape_a0.6086956522_n10": 0.19057141907978803,
+        "stout_rho0.1521739130_n10": 0.19061787193641067
+      },
+      "measure_seconds": 439.8336962258909,
+      "total_seconds": 440.1559725580737
+    },
+    {
+      "id": 72,
+      "gauge_path": "data/S16T16D/wilson_b6.72",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "b6cbc82ec9790f3d1a0099886a9810ef3ca37d576208f81ae1ee7b9a0800d6c8"
+      },
+      "gauge_sha256": "b6cbc82ec9790f3d1a0099886a9810ef3ca37d576208f81ae1ee7b9a0800d6c8",
+      "hmc_trajectory": 761,
+      "loops_sha256": "d7f49bb183918a2384fb066a598b9b6ee15562586372b95c7c08f12d0a578162",
+      "setup_seconds": 0.40475035598501563,
+      "host_read_seconds": 0.35438904794864357,
+      "device_transfer_seconds": 0.050361308036372066,
+      "kernel_seconds": 438.56837841589004,
+      "loop_seconds": 1.3341243219329044,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005298609612509608,
+        "ape_a0.4_n5": 0.5340140099870041,
+        "stout_rho0.1_n5": 87.15340162604116,
+        "ape_a0.4_n10": 1.0671337679959834,
+        "stout_rho0.1_n10": 174.39954732405022,
+        "ape_a0.6086956522_n10": 1.0752718849107623,
+        "stout_rho0.1521739130_n10": 174.33847994194366
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19078251102473587,
+        "ape_a0.4_n5": 0.19053985096979886,
+        "stout_rho0.1_n5": 0.1906294620130211,
+        "ape_a0.4_n10": 0.19046845193952322,
+        "stout_rho0.1_n10": 0.1905921819852665,
+        "ape_a0.6086956522_n10": 0.19059766200371087,
+        "stout_rho0.1521739130_n10": 0.190514201996848
+      },
+      "measure_seconds": 439.90250273782294,
+      "total_seconds": 440.3074051840231
+    },
+    {
+      "id": 73,
+      "gauge_path": "data/S16T16D/wilson_b6.73",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "d2153ee2e43e8505e24712c126ba763f85b0d5003c3cf798d306268f9367bb7c"
+      },
+      "gauge_sha256": "d2153ee2e43e8505e24712c126ba763f85b0d5003c3cf798d306268f9367bb7c",
+      "hmc_trajectory": 766,
+      "loops_sha256": "ef26898b669c40a9a84a0990f25f6a08ba9b0df087c3e2ab72317fb405ab6c99",
+      "setup_seconds": 0.338549192994833,
+      "host_read_seconds": 0.3110325470333919,
+      "device_transfer_seconds": 0.0275166459614411,
+      "kernel_seconds": 438.657807217096,
+      "loop_seconds": 1.3340845421189442,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002877510851249099,
+        "ape_a0.4_n5": 0.5337010489311069,
+        "stout_rho0.1_n5": 87.18664719804656,
+        "ape_a0.4_n10": 1.0653831060044467,
+        "stout_rho0.1_n10": 174.40951400005724,
+        "ape_a0.6086956522_n10": 1.0734209830407053,
+        "stout_rho0.1521739130_n10": 174.3888531299308
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19076934200711548,
+        "ape_a0.4_n5": 0.19054164097178727,
+        "stout_rho0.1_n5": 0.19060755206737667,
+        "ape_a0.4_n10": 0.19062206102535129,
+        "stout_rho0.1_n10": 0.19051716197282076,
+        "ape_a0.6086956522_n10": 0.19049649208318442,
+        "stout_rho0.1521739130_n10": 0.19053029199130833
+      },
+      "measure_seconds": 439.9918917592149,
+      "total_seconds": 440.3308149219956
+    },
+    {
+      "id": 74,
+      "gauge_path": "data/S16T16D/wilson_b6.74",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "fe15adbe1a10a60ab3622cc8901f6e5cbd5253b0b853007d0eb7e655cd869453"
+      },
+      "gauge_sha256": "fe15adbe1a10a60ab3622cc8901f6e5cbd5253b0b853007d0eb7e655cd869453",
+      "hmc_trajectory": 771,
+      "loops_sha256": "4bf04872ae7aabaa2d537d7f9d76773bf810a6f3b66d39f09641d20c00819ef0",
+      "setup_seconds": 0.3626873360481113,
+      "host_read_seconds": 0.3360196000430733,
+      "device_transfer_seconds": 0.026667736005038023,
+      "kernel_seconds": 440.6230622389121,
+      "loop_seconds": 1.3343520130729303,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005187200149521232,
+        "ape_a0.4_n5": 0.5327639479655772,
+        "stout_rho0.1_n5": 87.13101172901224,
+        "ape_a0.4_n10": 1.0659403959289193,
+        "stout_rho0.1_n10": 174.4555775700137,
+        "ape_a0.6086956522_n10": 1.0699208800215274,
+        "stout_rho0.1521739130_n10": 176.36732899595518
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1907671120716259,
+        "ape_a0.4_n5": 0.1905742819653824,
+        "stout_rho0.1_n5": 0.1906705420697108,
+        "ape_a0.4_n10": 0.19056717201601714,
+        "stout_rho0.1_n10": 0.19062314194161445,
+        "ape_a0.6086956522_n10": 0.19054025202058256,
+        "stout_rho0.1521739130_n10": 0.19060951098799706
+      },
+      "measure_seconds": 441.957414251985,
+      "total_seconds": 442.3202511999989
+    },
+    {
+      "id": 75,
+      "gauge_path": "data/S16T16D/wilson_b6.75",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "b770e5763b8d1f577290d8738ddd6ebab00caa61066d6a4bd30d61b6a197485a"
+      },
+      "gauge_sha256": "b770e5763b8d1f577290d8738ddd6ebab00caa61066d6a4bd30d61b6a197485a",
+      "hmc_trajectory": 776,
+      "loops_sha256": "6e842312917f7e3e6a90669f564a855337bc54f0fb16967aabeebb4342accd42",
+      "setup_seconds": 0.3445877229096368,
+      "host_read_seconds": 0.3170414719497785,
+      "device_transfer_seconds": 0.0275462509598583,
+      "kernel_seconds": 439.4763509911718,
+      "loop_seconds": 1.3348025251179934,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005429809680208564,
+        "ape_a0.4_n5": 0.5353653489146382,
+        "stout_rho0.1_n5": 87.23418374406174,
+        "ape_a0.4_n10": 1.0661607360234484,
+        "stout_rho0.1_n10": 174.5920310660731,
+        "ape_a0.6086956522_n10": 1.080845361109823,
+        "stout_rho0.1521739130_n10": 174.967221754021
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19083253399003297,
+        "ape_a0.4_n5": 0.19058899104129523,
+        "stout_rho0.1_n5": 0.1906539819901809,
+        "ape_a0.4_n10": 0.19064718205481768,
+        "stout_rho0.1_n10": 0.19083871191833168,
+        "ape_a0.6086956522_n10": 0.19059237209148705,
+        "stout_rho0.1521739130_n10": 0.19064875203184783
+      },
+      "measure_seconds": 440.8111535162898,
+      "total_seconds": 441.16457463998813
+    },
+    {
+      "id": 76,
+      "gauge_path": "data/S16T16D/wilson_b6.76",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "fb417170af40c19b668bf96164ff6a84859d31c11871e8346ae0c3360948f5e0"
+      },
+      "gauge_sha256": "fb417170af40c19b668bf96164ff6a84859d31c11871e8346ae0c3360948f5e0",
+      "hmc_trajectory": 781,
+      "loops_sha256": "5241c5d8dcac2e8d53f36b787a4b926251fc6b03aa6bd9fedaee8c78700bc9cb",
+      "setup_seconds": 0.3202104560332373,
+      "host_read_seconds": 0.29313620005268604,
+      "device_transfer_seconds": 0.027074255980551243,
+      "kernel_seconds": 439.4152297769906,
+      "loop_seconds": 1.3341038029175252,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00029193994123488665,
+        "ape_a0.4_n5": 0.6033079450717196,
+        "stout_rho0.1_n5": 87.16647386795375,
+        "ape_a0.4_n10": 1.0660616270033643,
+        "stout_rho0.1_n10": 174.50696565699764,
+        "ape_a0.6086956522_n10": 1.0735190639970824,
+        "stout_rho0.1521739130_n10": 174.9986096760258
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19079451204743236,
+        "ape_a0.4_n5": 0.1905406719306484,
+        "stout_rho0.1_n5": 0.1905557820573449,
+        "ape_a0.4_n10": 0.19046835193876177,
+        "stout_rho0.1_n10": 0.1906480009201914,
+        "ape_a0.6086956522_n10": 0.1905448220204562,
+        "stout_rho0.1521739130_n10": 0.19055166200269014
+      },
+      "measure_seconds": 440.7493335799081,
+      "total_seconds": 441.06994890607893
+    },
+    {
+      "id": 77,
+      "gauge_path": "data/S16T16D/wilson_b6.77",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "ec30c0a074092c760a9f93bd7523b74de0a90e108781bf5f2b84eac650f522c8"
+      },
+      "gauge_sha256": "ec30c0a074092c760a9f93bd7523b74de0a90e108781bf5f2b84eac650f522c8",
+      "hmc_trajectory": 786,
+      "loops_sha256": "497e9bd8d0f1c24a426000c7eae221acd0946b5efe42cd6c722cb9fd3e2b4767",
+      "setup_seconds": 0.47748137603048235,
+      "host_read_seconds": 0.3425890270154923,
+      "device_transfer_seconds": 0.13489234901499003,
+      "kernel_seconds": 439.04412228788715,
+      "loop_seconds": 1.4549444968579337,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.14516271895263344,
+        "ape_a0.4_n5": 0.5332993579795584,
+        "stout_rho0.1_n5": 87.23579227295704,
+        "ape_a0.4_n10": 1.0667711979476735,
+        "stout_rho0.1_n10": 174.52051327202935,
+        "ape_a0.6086956522_n10": 1.0745696750236675,
+        "stout_rho0.1521739130_n10": 174.46801379299723
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.3115178869338706,
+        "ape_a0.4_n5": 0.19056107196956873,
+        "stout_rho0.1_n5": 0.19057937106117606,
+        "ape_a0.4_n10": 0.19053534092381597,
+        "stout_rho0.1_n10": 0.19055959209799767,
+        "ape_a0.6086956522_n10": 0.19066443189512938,
+        "stout_rho0.1521739130_n10": 0.19052680197637528
+      },
+      "measure_seconds": 440.4990667847451,
+      "total_seconds": 440.9769370110007
+    },
+    {
+      "id": 78,
+      "gauge_path": "data/S16T16D/wilson_b6.78",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "82ba972515a6fc9d1d74d42e2f5af7cfe7a01b8eb8c65531d63c01669854a55c"
+      },
+      "gauge_sha256": "82ba972515a6fc9d1d74d42e2f5af7cfe7a01b8eb8c65531d63c01669854a55c",
+      "hmc_trajectory": 791,
+      "loops_sha256": "fb1fdf95174f5a07ad4670fffdf3bd15ae1231bd7899465105aec7e230ce9aaf",
+      "setup_seconds": 0.6381333089666441,
+      "host_read_seconds": 0.5793923130258918,
+      "device_transfer_seconds": 0.05874099594075233,
+      "kernel_seconds": 439.05947782984003,
+      "loop_seconds": 1.5531372610712424,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.000518549932166934,
+        "ape_a0.4_n5": 0.5346966299694031,
+        "stout_rho0.1_n5": 87.29004235600587,
+        "ape_a0.4_n10": 1.0660165259614587,
+        "stout_rho0.1_n10": 174.60950991499703,
+        "ape_a0.6086956522_n10": 1.0732654340099543,
+        "stout_rho0.1521739130_n10": 174.48542841896415
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.4097708410117775,
+        "ape_a0.4_n5": 0.19055316201411188,
+        "stout_rho0.1_n5": 0.19053503207396716,
+        "ape_a0.4_n10": 0.19051115203183144,
+        "stout_rho0.1_n10": 0.19056927098426968,
+        "ape_a0.6086956522_n10": 0.1905181809561327,
+        "stout_rho0.1521739130_n10": 0.190679621999152
+      },
+      "measure_seconds": 440.6126150909113,
+      "total_seconds": 441.2509282199899
+    },
+    {
+      "id": 79,
+      "gauge_path": "data/S16T16D/wilson_b6.79",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "f7637ba910f39343386cad56c4a6a9957cd80d45bfc856771ed7a067c47bee44"
+      },
+      "gauge_sha256": "f7637ba910f39343386cad56c4a6a9957cd80d45bfc856771ed7a067c47bee44",
+      "hmc_trajectory": 796,
+      "loops_sha256": "5fcf880fc21f4ecb125c5f5abcf69ce5953635db298f6156e8d584195bc6b276",
+      "setup_seconds": 0.457250305917114,
+      "host_read_seconds": 0.4304193810094148,
+      "device_transfer_seconds": 0.026830924907699227,
+      "kernel_seconds": 439.06882513605524,
+      "loop_seconds": 1.334262421936728,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005232010735198855,
+        "ape_a0.4_n5": 0.5337996989255771,
+        "stout_rho0.1_n5": 87.20799140795134,
+        "ape_a0.4_n10": 1.0661039190599695,
+        "stout_rho0.1_n10": 174.60475118702743,
+        "ape_a0.6086956522_n10": 1.0821862519951537,
+        "stout_rho0.1521739130_n10": 174.57346947002225
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1908019119873643,
+        "ape_a0.4_n5": 0.19060033094137907,
+        "stout_rho0.1_n5": 0.19068440201226622,
+        "ape_a0.4_n10": 0.19058985193260014,
+        "stout_rho0.1_n10": 0.1905651210108772,
+        "ape_a0.6086956522_n10": 0.19052825204562396,
+        "stout_rho0.1521739130_n10": 0.1904925520066172
+      },
+      "measure_seconds": 440.40308755799197,
+      "total_seconds": 440.8604832260171
+    },
+    {
+      "id": 80,
+      "gauge_path": "data/S16T16D/wilson_b6.80",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "fc4a11cfeea6d8da2f21327c5277ce1d789504d90ee26c67456568415b18c75b"
+      },
+      "gauge_sha256": "fc4a11cfeea6d8da2f21327c5277ce1d789504d90ee26c67456568415b18c75b",
+      "hmc_trajectory": 801,
+      "loops_sha256": "0c774321bcc105f911fe478e946973c6b7686538ba61618cabbc2c41148a6b6a",
+      "setup_seconds": 0.4117518520215526,
+      "host_read_seconds": 0.38529225706588477,
+      "device_transfer_seconds": 0.026459594955667853,
+      "kernel_seconds": 439.04318416991737,
+      "loop_seconds": 1.3345181330805644,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00028591102454811335,
+        "ape_a0.4_n5": 0.5341121989767998,
+        "stout_rho0.1_n5": 87.24698990501929,
+        "ape_a0.4_n10": 1.0674038379220292,
+        "stout_rho0.1_n10": 174.56246129598003,
+        "ape_a0.6086956522_n10": 1.0788422200130299,
+        "stout_rho0.1521739130_n10": 174.55308880098164
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19076752208638936,
+        "ape_a0.4_n5": 0.19052982202265412,
+        "stout_rho0.1_n5": 0.19059294101316482,
+        "ape_a0.4_n10": 0.19055958196986467,
+        "stout_rho0.1_n10": 0.19091505196411163,
+        "ape_a0.6086956522_n10": 0.19065746304113418,
+        "stout_rho0.1521739130_n10": 0.19049575098324567
+      },
+      "measure_seconds": 440.37770230299793,
+      "total_seconds": 440.7898302329704
+    },
+    {
+      "id": 81,
+      "gauge_path": "data/S16T16D/wilson_b6.81",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "f16e0c208b6e8684474eabc5256c5fc2297eac15f2a8c2c8da1d89239bad7cdd"
+      },
+      "gauge_sha256": "f16e0c208b6e8684474eabc5256c5fc2297eac15f2a8c2c8da1d89239bad7cdd",
+      "hmc_trajectory": 806,
+      "loops_sha256": "bf5d9ddfe88971b3c7344e93e61ec363dc2e92ecfd34aad0d9363aba81e17418",
+      "setup_seconds": 0.4152577160857618,
+      "host_read_seconds": 0.38927704107481986,
+      "device_transfer_seconds": 0.025980675010941923,
+      "kernel_seconds": 439.27038061921485,
+      "loop_seconds": 1.3568079632241279,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.000530401011928916,
+        "ape_a0.4_n5": 0.5334764990257099,
+        "stout_rho0.1_n5": 87.40431778505445,
+        "ape_a0.4_n10": 1.0663257170235738,
+        "stout_rho0.1_n10": 174.61306552705355,
+        "ape_a0.6086956522_n10": 1.0806508710375056,
+        "stout_rho0.1521739130_n10": 174.57201381900813
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.21346457302570343,
+        "ape_a0.4_n5": 0.19055410206783563,
+        "stout_rho0.1_n5": 0.19054046203382313,
+        "ape_a0.4_n10": 0.1905193809652701,
+        "stout_rho0.1_n10": 0.19058607099577785,
+        "ape_a0.6086956522_n10": 0.19052559207193553,
+        "stout_rho0.1521739130_n10": 0.19061778206378222
+      },
+      "measure_seconds": 440.627188582439,
+      "total_seconds": 441.04260438808706
+    },
+    {
+      "id": 82,
+      "gauge_path": "data/S16T16D/wilson_b6.82",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "7bb2fdc5d5c640e11028a59496f1d5828bc92e58a9da6f728309d7eb0305dae1"
+      },
+      "gauge_sha256": "7bb2fdc5d5c640e11028a59496f1d5828bc92e58a9da6f728309d7eb0305dae1",
+      "hmc_trajectory": 811,
+      "loops_sha256": "52ac5e2226ae7f8169072e044c60fd6d017cd13b6895a35cefc1756801b9f530",
+      "setup_seconds": 0.4349223249591887,
+      "host_read_seconds": 0.4085801299661398,
+      "device_transfer_seconds": 0.026342194993048906,
+      "kernel_seconds": 438.6568320990773,
+      "loop_seconds": 1.3338945468422025,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.031911269994452596,
+        "ape_a0.4_n5": 0.5335014190059155,
+        "stout_rho0.1_n5": 87.13448068406433,
+        "ape_a0.4_n10": 1.0656181810190901,
+        "stout_rho0.1_n10": 174.42755071993452,
+        "ape_a0.6086956522_n10": 1.0698792800540105,
+        "stout_rho0.1521739130_n10": 174.39389054500498
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1907860719365999,
+        "ape_a0.4_n5": 0.1905166320502758,
+        "stout_rho0.1_n5": 0.1904613400110975,
+        "ape_a0.4_n10": 0.19040758698247373,
+        "stout_rho0.1_n10": 0.19064543198328465,
+        "ape_a0.6086956522_n10": 0.19053797191008925,
+        "stout_rho0.1521739130_n10": 0.1905395119683817
+      },
+      "measure_seconds": 439.9907266459195,
+      "total_seconds": 440.4258024469018
+    },
+    {
+      "id": 83,
+      "gauge_path": "data/S16T16D/wilson_b6.83",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "f954b7a733d149fbf5ea16d7bae7ca0c84745b2f60e921f5782a26252199f0c9"
+      },
+      "gauge_sha256": "f954b7a733d149fbf5ea16d7bae7ca0c84745b2f60e921f5782a26252199f0c9",
+      "hmc_trajectory": 816,
+      "loops_sha256": "109aaee5d8e2b0f1477cd0021477046fc6c367900d98a0f6e39305780cafc3a8",
+      "setup_seconds": 0.4116810431005433,
+      "host_read_seconds": 0.385013027000241,
+      "device_transfer_seconds": 0.02666801610030234,
+      "kernel_seconds": 439.0785221508704,
+      "loop_seconds": 1.3340678819222376,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005138099659234285,
+        "ape_a0.4_n5": 0.5333211589604616,
+        "stout_rho0.1_n5": 87.27955498197116,
+        "ape_a0.4_n10": 1.0675843679346144,
+        "stout_rho0.1_n10": 174.61387219501194,
+        "ape_a0.6086956522_n10": 1.0736336240079254,
+        "stout_rho0.1521739130_n10": 174.5100420130184
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1907090819440782,
+        "ape_a0.4_n5": 0.19046856102067977,
+        "stout_rho0.1_n5": 0.19054251199122518,
+        "ape_a0.4_n10": 0.19057407195214182,
+        "stout_rho0.1_n10": 0.1905689110280946,
+        "ape_a0.6086956522_n10": 0.19048610201571137,
+        "stout_rho0.1521739130_n10": 0.19071864197030663
+      },
+      "measure_seconds": 440.41259003279265,
+      "total_seconds": 440.82440975599457
+    },
+    {
+      "id": 84,
+      "gauge_path": "data/S16T16D/wilson_b6.84",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "3d6c5a60cb115ec8509b57c390e9d5805a5d1f93639777cb33f6575dac875829"
+      },
+      "gauge_sha256": "3d6c5a60cb115ec8509b57c390e9d5805a5d1f93639777cb33f6575dac875829",
+      "hmc_trajectory": 821,
+      "loops_sha256": "4f731155a094064b1260aed5045db5a66a39f967ffc0b21531dba0e3f8f4ad4f",
+      "setup_seconds": 0.30819008394610137,
+      "host_read_seconds": 0.2813884479692206,
+      "device_transfer_seconds": 0.02680163597688079,
+      "kernel_seconds": 439.20480729208793,
+      "loop_seconds": 1.3343146130209789,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005208300426602364,
+        "ape_a0.4_n5": 0.5341388590168208,
+        "stout_rho0.1_n5": 87.2852836920647,
+        "ape_a0.4_n10": 1.0660903659882024,
+        "stout_rho0.1_n10": 174.63633836095687,
+        "ape_a0.6086956522_n10": 1.0775166780222207,
+        "stout_rho0.1521739130_n10": 174.60491850599647
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1908310620347038,
+        "ape_a0.4_n5": 0.1906258020317182,
+        "stout_rho0.1_n5": 0.19055664201732725,
+        "ape_a0.4_n10": 0.19053371204063296,
+        "stout_rho0.1_n10": 0.19060180196538568,
+        "ape_a0.6086956522_n10": 0.19047184090595692,
+        "stout_rho0.1521739130_n10": 0.19069375202525407
+      },
+      "measure_seconds": 440.5391219051089,
+      "total_seconds": 440.8474617189495
+    },
+    {
+      "id": 85,
+      "gauge_path": "data/S16T16D/wilson_b6.85",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "0bd9824a74c1185b830334e3d9d5baae726c4458555f39ef67c2e9debf6ba773"
+      },
+      "gauge_sha256": "0bd9824a74c1185b830334e3d9d5baae726c4458555f39ef67c2e9debf6ba773",
+      "hmc_trajectory": 826,
+      "loops_sha256": "55de2e0824bbeec2e9a497c8457d53d9a929d47e0677f487e888171642dd3797",
+      "setup_seconds": 0.4890887960791588,
+      "host_read_seconds": 0.4626119510503486,
+      "device_transfer_seconds": 0.026476845028810203,
+      "kernel_seconds": 438.97646101599094,
+      "loop_seconds": 1.3340449067763984,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005115109961479902,
+        "ape_a0.4_n5": 0.5330708380788565,
+        "stout_rho0.1_n5": 87.19230417499784,
+        "ape_a0.4_n10": 1.0675254740053788,
+        "stout_rho0.1_n10": 174.559260202921,
+        "ape_a0.6086956522_n10": 1.0696166940033436,
+        "stout_rho0.1521739130_n10": 174.55417212098837
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19076174194924533,
+        "ape_a0.4_n5": 0.19053921196609735,
+        "stout_rho0.1_n5": 0.1906264170538634,
+        "ape_a0.4_n10": 0.19064871792215854,
+        "stout_rho0.1_n10": 0.1904762729536742,
+        "ape_a0.6086956522_n10": 0.19043341395445168,
+        "stout_rho0.1521739130_n10": 0.1905591309769079
+      },
+      "measure_seconds": 440.31050592276733,
+      "total_seconds": 440.7997479279293
+    },
+    {
+      "id": 86,
+      "gauge_path": "data/S16T16D/wilson_b6.86",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "f10aed4b3b21ae96f2224315854f9c81818b57dee9bfda61c620fa5385e12e39"
+      },
+      "gauge_sha256": "f10aed4b3b21ae96f2224315854f9c81818b57dee9bfda61c620fa5385e12e39",
+      "hmc_trajectory": 831,
+      "loops_sha256": "01448e827f39557ced7486a6a00cea3e373307a78d4a63ea684dbc5f24c65036",
+      "setup_seconds": 0.3728861251147464,
+      "host_read_seconds": 0.34605695004574955,
+      "device_transfer_seconds": 0.026829175068996847,
+      "kernel_seconds": 439.3871833051089,
+      "loop_seconds": 1.358051058021374,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005196710117161274,
+        "ape_a0.4_n5": 0.8274610301014036,
+        "stout_rho0.1_n5": 87.49876767303795,
+        "ape_a0.4_n10": 1.0674880080623552,
+        "stout_rho0.1_n10": 174.3699641089188,
+        "ape_a0.6086956522_n10": 1.0742437050212175,
+        "stout_rho0.1521739130_n10": 174.5487391089555
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.2145045439247042,
+        "ape_a0.4_n5": 0.19042645092122257,
+        "stout_rho0.1_n5": 0.19067502103280276,
+        "ape_a0.4_n10": 0.19046407204587013,
+        "stout_rho0.1_n10": 0.19056972209364176,
+        "ape_a0.6086956522_n10": 0.19044536096043885,
+        "stout_rho0.1521739130_n10": 0.1909658870426938
+      },
+      "measure_seconds": 440.7452343631303,
+      "total_seconds": 441.1182883679867
+    },
+    {
+      "id": 87,
+      "gauge_path": "data/S16T16D/wilson_b6.87",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "e645885de2950c1534d37e64825225438e53c4899fb720cccf47bc80d67c3d12"
+      },
+      "gauge_sha256": "e645885de2950c1534d37e64825225438e53c4899fb720cccf47bc80d67c3d12",
+      "hmc_trajectory": 836,
+      "loops_sha256": "6442cf5c7af31a07ec14fdd135db02cfed18df9f46974843d819ec8aa7d5427a",
+      "setup_seconds": 0.3289197530830279,
+      "host_read_seconds": 0.30191925808321685,
+      "device_transfer_seconds": 0.027000494999811053,
+      "kernel_seconds": 439.0787411512574,
+      "loop_seconds": 1.3338438828941435,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005072311032563448,
+        "ape_a0.4_n5": 0.5339841990498826,
+        "stout_rho0.1_n5": 87.25815060606692,
+        "ape_a0.4_n10": 1.0640822950517759,
+        "stout_rho0.1_n10": 174.56735763896722,
+        "ape_a0.6086956522_n10": 1.072807942982763,
+        "stout_rho0.1521739130_n10": 174.5818512380356
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19082780194003135,
+        "ape_a0.4_n5": 0.19055337202735245,
+        "stout_rho0.1_n5": 0.19042455102317035,
+        "ape_a0.4_n10": 0.1904025620315224,
+        "stout_rho0.1_n10": 0.19063785194884986,
+        "ape_a0.6086956522_n10": 0.19046720198821276,
+        "stout_rho0.1521739130_n10": 0.1905305419350043
+      },
+      "measure_seconds": 440.41258503415156,
+      "total_seconds": 440.7416487670271
+    },
+    {
+      "id": 88,
+      "gauge_path": "data/S16T16D/wilson_b6.88",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "30f00853505105b795c2e351d2bbdcc35a7f6bab284c1df81d178e92f22ef238"
+      },
+      "gauge_sha256": "30f00853505105b795c2e351d2bbdcc35a7f6bab284c1df81d178e92f22ef238",
+      "hmc_trajectory": 841,
+      "loops_sha256": "9c098fc22cac1acb1361bc22c679ccfdbce030c88b03547dbfdb82cc4d4746d6",
+      "setup_seconds": 0.4476187970722094,
+      "host_read_seconds": 0.42001090105623007,
+      "device_transfer_seconds": 0.02760789601597935,
+      "kernel_seconds": 439.1006608097814,
+      "loop_seconds": 1.334037509164773,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002891499316319823,
+        "ape_a0.4_n5": 0.5334426379995421,
+        "stout_rho0.1_n5": 87.25155365397222,
+        "ape_a0.4_n10": 1.0650776979746297,
+        "stout_rho0.1_n10": 174.62433328002226,
+        "ape_a0.6086956522_n10": 1.0742592269089073,
+        "stout_rho0.1521739130_n10": 174.5517051629722
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.190730731934309,
+        "ape_a0.4_n5": 0.190505312057212,
+        "stout_rho0.1_n5": 0.19062797795049846,
+        "ape_a0.4_n10": 0.19058676809072495,
+        "stout_rho0.1_n10": 0.19061453407630324,
+        "ape_a0.6086956522_n10": 0.19054649700410664,
+        "stout_rho0.1521739130_n10": 0.19042568805161864
+      },
+      "measure_seconds": 440.4346983189462,
+      "total_seconds": 440.88269360898994
+    },
+    {
+      "id": 89,
+      "gauge_path": "data/S16T16D/wilson_b6.89",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "45078d521243bc67108ccdfe834a96a34d47a5dbdeffaeb39174b7b23c66b831"
+      },
+      "gauge_sha256": "45078d521243bc67108ccdfe834a96a34d47a5dbdeffaeb39174b7b23c66b831",
+      "hmc_trajectory": 846,
+      "loops_sha256": "de7ea950e5e1f3a4a3e9a9a83adfd1945f4c604bac41cdccc2db78d89213f4f7",
+      "setup_seconds": 0.5781302929390222,
+      "host_read_seconds": 0.5508118119323626,
+      "device_transfer_seconds": 0.027318481006659567,
+      "kernel_seconds": 439.0902857609326,
+      "loop_seconds": 1.334183256025426,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00028658693190664053,
+        "ape_a0.4_n5": 0.5330578259890899,
+        "stout_rho0.1_n5": 87.27458816498984,
+        "ape_a0.4_n10": 1.0688152690418065,
+        "stout_rho0.1_n10": 174.57755824294873,
+        "ape_a0.6086956522_n10": 1.0749143150169402,
+        "stout_rho0.1521739130_n10": 174.5610653560143
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1906256079673767,
+        "ape_a0.4_n5": 0.19044628797564656,
+        "stout_rho0.1_n5": 0.19066379207652062,
+        "ape_a0.4_n10": 0.19053914200048894,
+        "stout_rho0.1_n10": 0.19063956197351217,
+        "ape_a0.6086956522_n10": 0.19062883197329938,
+        "stout_rho0.1521739130_n10": 0.1906400320585817
+      },
+      "measure_seconds": 440.424469016958,
+      "total_seconds": 441.00298290106
+    },
+    {
+      "id": 90,
+      "gauge_path": "data/S16T16D/wilson_b6.90",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "50236ba46b700e2bb5f0b6da4411069d9bc0fb893ddcdfae2bb8c8712fb41339"
+      },
+      "gauge_sha256": "50236ba46b700e2bb5f0b6da4411069d9bc0fb893ddcdfae2bb8c8712fb41339",
+      "hmc_trajectory": 851,
+      "loops_sha256": "f6ed53886f5a22b482dae83767d4a88c1af2290f2ef811455102f64a59e9df48",
+      "setup_seconds": 0.4256180460797623,
+      "host_read_seconds": 0.3983298600651324,
+      "device_transfer_seconds": 0.0272881860146299,
+      "kernel_seconds": 439.1909140062053,
+      "loop_seconds": 1.3340092720463872,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005066409939900041,
+        "ape_a0.4_n5": 0.5334638489875942,
+        "stout_rho0.1_n5": 87.22768314706627,
+        "ape_a0.4_n10": 1.0648052950855345,
+        "stout_rho0.1_n10": 174.6575983039802,
+        "ape_a0.6086956522_n10": 1.0800967200193554,
+        "stout_rho0.1521739130_n10": 174.62676005007233
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19074092200025916,
+        "ape_a0.4_n5": 0.19060281105339527,
+        "stout_rho0.1_n5": 0.1904539419338107,
+        "ape_a0.4_n10": 0.1904780020704493,
+        "stout_rho0.1_n10": 0.19054513203445822,
+        "ape_a0.6086956522_n10": 0.19055970199406147,
+        "stout_rho0.1521739130_n10": 0.19062876095995307
+      },
+      "measure_seconds": 440.52492327825166,
+      "total_seconds": 440.9506873439532
+    },
+    {
+      "id": 91,
+      "gauge_path": "data/S16T16D/wilson_b6.91",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "09c42f9b2bcdfe62ac72a215d4f678c0b188d77bb91b86c4cf65ebfe52e4ab00"
+      },
+      "gauge_sha256": "09c42f9b2bcdfe62ac72a215d4f678c0b188d77bb91b86c4cf65ebfe52e4ab00",
+      "hmc_trajectory": 856,
+      "loops_sha256": "38a0d22792c32aad45512989ea97eff0fd3c3e383948c1013bc6493983da7517",
+      "setup_seconds": 0.33153202605899423,
+      "host_read_seconds": 0.30461750098038465,
+      "device_transfer_seconds": 0.026914525078609586,
+      "kernel_seconds": 439.2312964842422,
+      "loop_seconds": 1.3343828789656982,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.000509181059896946,
+        "ape_a0.4_n5": 0.5325961780035868,
+        "stout_rho0.1_n5": 87.2311756410636,
+        "ape_a0.4_n10": 1.0654690560186282,
+        "stout_rho0.1_n10": 174.78193578508217,
+        "ape_a0.6086956522_n10": 1.0696403320180252,
+        "stout_rho0.1521739130_n10": 174.5499703109963
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1907265520421788,
+        "ape_a0.4_n5": 0.19048038101755083,
+        "stout_rho0.1_n5": 0.19065842195414007,
+        "ape_a0.4_n10": 0.19064985192380846,
+        "stout_rho0.1_n10": 0.19079205999150872,
+        "ape_a0.6086956522_n10": 0.19061438099015504,
+        "stout_rho0.1521739130_n10": 0.19046123104635626
+      },
+      "measure_seconds": 440.5656793632079,
+      "total_seconds": 440.8974536890164
+    },
+    {
+      "id": 92,
+      "gauge_path": "data/S16T16D/wilson_b6.92",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "98da598ab6aa492c4e20e6f5450404ae7f074efc19a11ce27fe771d40dc2c1c0"
+      },
+      "gauge_sha256": "98da598ab6aa492c4e20e6f5450404ae7f074efc19a11ce27fe771d40dc2c1c0",
+      "hmc_trajectory": 861,
+      "loops_sha256": "65ace096bcc5625d73f7b90957294e60a87c19e7fdf741b358b80f859ca546aa",
+      "setup_seconds": 0.30984260502737015,
+      "host_read_seconds": 0.2825919990427792,
+      "device_transfer_seconds": 0.027250605984590948,
+      "kernel_seconds": 438.0898050261894,
+      "loop_seconds": 1.3337804530747235,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005169310607016087,
+        "ape_a0.4_n5": 0.533235848066397,
+        "stout_rho0.1_n5": 87.08553767099511,
+        "ape_a0.4_n10": 1.0671521370531991,
+        "stout_rho0.1_n10": 174.2227983319899,
+        "ape_a0.6086956522_n10": 1.075343984994106,
+        "stout_rho0.1521739130_n10": 174.10522012203
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19067616190295666,
+        "ape_a0.4_n5": 0.19043352198787034,
+        "stout_rho0.1_n5": 0.19057084200903773,
+        "ape_a0.4_n10": 0.1905660320771858,
+        "stout_rho0.1_n10": 0.19049816206097603,
+        "ape_a0.6086956522_n10": 0.190530302003026,
+        "stout_rho0.1521739130_n10": 0.1905054310336709
+      },
+      "measure_seconds": 439.42358547926415,
+      "total_seconds": 439.73358177405316
+    },
+    {
+      "id": 93,
+      "gauge_path": "data/S16T16D/wilson_b6.93",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "9c687302d09e466f699cf90c8fee6a8f50269012f8a0fd6d3e3668c341f3bf6d"
+      },
+      "gauge_sha256": "9c687302d09e466f699cf90c8fee6a8f50269012f8a0fd6d3e3668c341f3bf6d",
+      "hmc_trajectory": 866,
+      "loops_sha256": "5fecfd49681da8a1cf2b651450a4562bbc528d4f1036f6d953af190666f44b22",
+      "setup_seconds": 0.3194855049951002,
+      "host_read_seconds": 0.2923507889499888,
+      "device_transfer_seconds": 0.027134716045111418,
+      "kernel_seconds": 439.0957457819022,
+      "loop_seconds": 1.3334186020074412,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002875810023397207,
+        "ape_a0.4_n5": 0.5347577299689874,
+        "stout_rho0.1_n5": 87.23699366592336,
+        "ape_a0.4_n10": 1.0643125250935555,
+        "stout_rho0.1_n10": 174.62456828693394,
+        "ape_a0.6086956522_n10": 1.0721325119957328,
+        "stout_rho0.1521739130_n10": 174.5626934809843
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19075153197627515,
+        "ape_a0.4_n5": 0.1904784410726279,
+        "stout_rho0.1_n5": 0.19043905101716518,
+        "ape_a0.4_n10": 0.1903444220079109,
+        "stout_rho0.1_n10": 0.1904376819729805,
+        "ape_a0.6086956522_n10": 0.1905006819870323,
+        "stout_rho0.1521739130_n10": 0.1904667919734493
+      },
+      "measure_seconds": 440.42916438390967,
+      "total_seconds": 440.749017189024
+    },
+    {
+      "id": 94,
+      "gauge_path": "data/S16T16D/wilson_b6.94",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "391eeb0617b190d77588ef9ed8f141595d6ed926a7cbe22fd8979f9a9f2b8231"
+      },
+      "gauge_sha256": "391eeb0617b190d77588ef9ed8f141595d6ed926a7cbe22fd8979f9a9f2b8231",
+      "hmc_trajectory": 871,
+      "loops_sha256": "7889fb6a80d4b7409d23caa3c4d9455365dd165d2e102d945b52ecedbf976079",
+      "setup_seconds": 0.6317851120838895,
+      "host_read_seconds": 0.6042477760929614,
+      "device_transfer_seconds": 0.027537335990928113,
+      "kernel_seconds": 439.0960191601189,
+      "loop_seconds": 1.33363916084636,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005055810324847698,
+        "ape_a0.4_n5": 0.5339572590310127,
+        "stout_rho0.1_n5": 87.22007350099739,
+        "ape_a0.4_n10": 1.0659762360155582,
+        "stout_rho0.1_n10": 174.60143583908211,
+        "ape_a0.6086956522_n10": 1.0734247940126806,
+        "stout_rho0.1521739130_n10": 174.60064594994765
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1905925020109862,
+        "ape_a0.4_n5": 0.19037115096580237,
+        "stout_rho0.1_n5": 0.19050567201338708,
+        "ape_a0.4_n10": 0.19048984197434038,
+        "stout_rho0.1_n10": 0.1906884709605947,
+        "ape_a0.6086956522_n10": 0.19050245196558535,
+        "stout_rho0.1521739130_n10": 0.19048907095566392
+      },
+      "measure_seconds": 440.42965832096525,
+      "total_seconds": 441.0615850130562
+    },
+    {
+      "id": 95,
+      "gauge_path": "data/S16T16D/wilson_b6.95",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "4001f88912c7eec791df4d30cbc3fea14a61df91186d1ca1738119656703a1a0"
+      },
+      "gauge_sha256": "4001f88912c7eec791df4d30cbc3fea14a61df91186d1ca1738119656703a1a0",
+      "hmc_trajectory": 876,
+      "loops_sha256": "24bf30f8a475abfa7592975856e0122b14c48efc11573c2e9f82e9ae2d0ac503",
+      "setup_seconds": 0.4052054960047826,
+      "host_read_seconds": 0.377924139960669,
+      "device_transfer_seconds": 0.027281356044113636,
+      "kernel_seconds": 439.05098314106,
+      "loop_seconds": 1.334220221848227,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.000280320062302053,
+        "ape_a0.4_n5": 0.5333269080147147,
+        "stout_rho0.1_n5": 87.25697865500115,
+        "ape_a0.4_n10": 1.0670386779820547,
+        "stout_rho0.1_n10": 174.58386526303366,
+        "ape_a0.6086956522_n10": 1.0756172059336677,
+        "stout_rho0.1521739130_n10": 174.53387611103244
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19066640199162066,
+        "ape_a0.4_n5": 0.19049337203614414,
+        "stout_rho0.1_n5": 0.19068708107806742,
+        "ape_a0.4_n10": 0.1905433419160545,
+        "stout_rho0.1_n10": 0.1905838109087199,
+        "ape_a0.6086956522_n10": 0.19060959201306105,
+        "stout_rho0.1521739130_n10": 0.19063662190455943
+      },
+      "measure_seconds": 440.3852033629082,
+      "total_seconds": 440.79078989999834
+    },
+    {
+      "id": 96,
+      "gauge_path": "data/S16T16D/wilson_b6.96",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "de545380ef956d007d076bfd758900e8376f46746fc41bdba8f5f81e9e117207"
+      },
+      "gauge_sha256": "de545380ef956d007d076bfd758900e8376f46746fc41bdba8f5f81e9e117207",
+      "hmc_trajectory": 881,
+      "loops_sha256": "13cf8d24ad2151a28c209128e143d60f34aef1f23b01dd7f11303c286e755683",
+      "setup_seconds": 1.0306489230133593,
+      "host_read_seconds": 1.0027897260151803,
+      "device_transfer_seconds": 0.02785919699817896,
+      "kernel_seconds": 439.1348388129845,
+      "loop_seconds": 1.3342935878317803,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005179300205782056,
+        "ape_a0.4_n5": 0.5343293199548498,
+        "stout_rho0.1_n5": 87.2561157119926,
+        "ape_a0.4_n10": 1.0671053240075707,
+        "stout_rho0.1_n10": 174.63424210401718,
+        "ape_a0.6086956522_n10": 1.0690442189807072,
+        "stout_rho0.1521739130_n10": 174.57348420401104
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.190668411902152,
+        "ape_a0.4_n5": 0.190560651011765,
+        "stout_rho0.1_n5": 0.19062057707924396,
+        "ape_a0.4_n10": 0.19062887190375477,
+        "stout_rho0.1_n10": 0.19065276195760816,
+        "ape_a0.6086956522_n10": 0.19054080196656287,
+        "stout_rho0.1521739130_n10": 0.19062151201069355
+      },
+      "measure_seconds": 440.4691324008163,
+      "total_seconds": 441.49993121705484
+    },
+    {
+      "id": 97,
+      "gauge_path": "data/S16T16D/wilson_b6.97",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "64d59ba0a605f82cafa1ba5028f3a116a1bfc56017464e827549496446bfbbab"
+      },
+      "gauge_sha256": "64d59ba0a605f82cafa1ba5028f3a116a1bfc56017464e827549496446bfbbab",
+      "hmc_trajectory": 886,
+      "loops_sha256": "3264ad1f291ac856a6ac6b6bbe07933043458d172b02f7053ec9d09de8e683e5",
+      "setup_seconds": 0.6595461788820103,
+      "host_read_seconds": 0.6323918129783124,
+      "device_transfer_seconds": 0.027154365903697908,
+      "kernel_seconds": 439.10496471298393,
+      "loop_seconds": 1.3340995920589194,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.00028621102683246136,
+        "ape_a0.4_n5": 0.5324420979013667,
+        "stout_rho0.1_n5": 87.26362559502013,
+        "ape_a0.4_n10": 1.0680450480431318,
+        "stout_rho0.1_n10": 174.59586597199086,
+        "ape_a0.6086956522_n10": 1.0744895850075409,
+        "stout_rho0.1521739130_n10": 174.57021020399407
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19074060092680156,
+        "ape_a0.4_n5": 0.19049052195623517,
+        "stout_rho0.1_n5": 0.1906038320157677,
+        "ape_a0.4_n10": 0.1905797520885244,
+        "stout_rho0.1_n10": 0.19058594200760126,
+        "ape_a0.6086956522_n10": 0.19049330102279782,
+        "stout_rho0.1521739130_n10": 0.19060564204119146
+      },
+      "measure_seconds": 440.43906430504285,
+      "total_seconds": 441.09897621395066
+    },
+    {
+      "id": 98,
+      "gauge_path": "data/S16T16D/wilson_b6.98",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "61e963039ae7d9d9c2956ea897678ec2d99c1af62c4ca7e4eb379bcad0e7f559"
+      },
+      "gauge_sha256": "61e963039ae7d9d9c2956ea897678ec2d99c1af62c4ca7e4eb379bcad0e7f559",
+      "hmc_trajectory": 891,
+      "loops_sha256": "243d1e358b96ceaadd742f43289421c5f9102d237484d7a01ef3c594c15ec6eb",
+      "setup_seconds": 0.3806829530512914,
+      "host_read_seconds": 0.3531233270186931,
+      "device_transfer_seconds": 0.027559626032598317,
+      "kernel_seconds": 438.8494810538832,
+      "loop_seconds": 1.3343496317975223,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0002850100863724947,
+        "ape_a0.4_n5": 0.533469678950496,
+        "stout_rho0.1_n5": 87.2456942939898,
+        "ape_a0.4_n10": 1.066833597025834,
+        "stout_rho0.1_n10": 174.51272903289646,
+        "ape_a0.6086956522_n10": 1.0702355899848044,
+        "stout_rho0.1521739130_n10": 174.42023385094944
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.1907785820076242,
+        "ape_a0.4_n5": 0.19046083092689514,
+        "stout_rho0.1_n5": 0.19065848202444613,
+        "ape_a0.4_n10": 0.19054909201804549,
+        "stout_rho0.1_n10": 0.19065759191289544,
+        "ape_a0.6086956522_n10": 0.19063977198675275,
+        "stout_rho0.1521739130_n10": 0.19060528092086315
+      },
+      "measure_seconds": 440.18383068568073,
+      "total_seconds": 440.5648795500165
+    },
+    {
+      "id": 99,
+      "gauge_path": "data/S16T16D/wilson_b6.99",
+      "checksum_status": {
+        "standard": "verified",
+        "md5": "absent",
+        "verified": true,
+        "raw_sha256": "af52cbbc9a671991a1d304178833da70f6b2b49b1ccec8eed76f3ec0964d4470"
+      },
+      "gauge_sha256": "af52cbbc9a671991a1d304178833da70f6b2b49b1ccec8eed76f3ec0964d4470",
+      "hmc_trajectory": 896,
+      "loops_sha256": "b1cdf96d3178cd137ab10823ecf65c6b53bd2f4d00b3addb90cd7ac7c21a13be",
+      "setup_seconds": 0.6669318160274997,
+      "host_read_seconds": 0.6394773999927565,
+      "device_transfer_seconds": 0.02745441603474319,
+      "kernel_seconds": 438.7583022149047,
+      "loop_seconds": 1.3345058013219386,
+      "kernel_seconds_by_candidate": {
+        "identity": 0.0005183009197935462,
+        "ape_a0.4_n5": 0.5340601189527661,
+        "stout_rho0.1_n5": 87.16852309100796,
+        "ape_a0.4_n10": 1.0662088969256729,
+        "stout_rho0.1_n10": 174.48978625703603,
+        "ape_a0.6086956522_n10": 1.074221565038897,
+        "stout_rho0.1521739130_n10": 174.42498398502357
+      },
+      "loop_seconds_by_candidate": {
+        "identity": 0.19083487207535654,
+        "ape_a0.4_n5": 0.19060189207084477,
+        "stout_rho0.1_n5": 0.1905880409758538,
+        "ape_a0.4_n10": 0.19061040203087032,
+        "stout_rho0.1_n10": 0.19075001205783337,
+        "ape_a0.6086956522_n10": 0.19061997102107853,
+        "stout_rho0.1521739130_n10": 0.1905006110901013
+      },
+      "measure_seconds": 440.0928080162266,
+      "total_seconds": 440.7598882729653
+    }
+  ],
+  "ledger": {
+    "incremental": false,
+    "current": {
+      "device": "cupy",
+      "precision": "complex128",
+      "parallel": 1,
+      "phases": {
+        "setup": 49.61895228631329,
+        "solve": 0.0,
+        "residual": 0.0,
+        "kernel": 44059.74500793207,
+        "io": 0.0,
+        "analysis": 0.0
+      },
+      "total_seconds": 44109.36396021838,
+      "cache_seconds": {
+        "cold": 44109.36396021838,
+        "warm": 0.0
+      },
+      "unaccounted_seconds": 0.0
+    },
+    "previous": null
+  }
+}

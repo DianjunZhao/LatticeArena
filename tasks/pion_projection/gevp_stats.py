@@ -27,13 +27,19 @@ def replica_matrices(matrix, index):
     return matrix[index].mean(axis=1)
 
 
-def _eigvals(a, b, rtol=1e-10, rank=None):
-    """Generalized eigenvalues of (a, b), restricted to the resolved subspace of b.
+def _eigvals_with_reason(a, b, rtol=1e-10, rank=None):
+    """Return generalized eigenvalues and a typed metric/eigenvalue failure.
 
-    rank must be a non-negative integer within the matrix dimension; the
-    selected metric eigenvalues must be positive. Invalid input returns an empty
-    array instead of taking the square root of a negative number.
+    The status is diagnostic metadata for callers; it does not change the
+    estimator or treat an invalid metric as a physical result.
     """
+    a, b = np.asarray(a), np.asarray(b)
+    if a.ndim != 2 or b.ndim != 2 or a.shape != b.shape or a.shape[0] != a.shape[1]:
+        raise ValueError('GEVP matrices must be square and have the same shape')
+    if not np.isfinite(rtol) or rtol < 0:
+        raise ValueError(f'cutoff must be finite and non-negative, got {rtol!r}')
+    if not np.all(np.isfinite(a)) or not np.all(np.isfinite(b)):
+        return np.array([]), 'nonfinite_gevp_matrix'
     values, vectors = np.linalg.eigh(0.5 * (b + b.conj().T))
     resolved = values > rtol * max(values[-1], 1e-300)
     if rank is not None:
@@ -42,20 +48,35 @@ def _eigvals(a, b, rtol=1e-10, rank=None):
         if rank < 0 or rank > len(values):
             raise ValueError(f'rank {rank} is outside [0, {len(values)}]')
         if rank == 0:
-            return np.array([])
+            return np.array([]), 'rank_zero'
         order = np.argsort(values)[::-1]
         chosen = [i for i in order if resolved[i]][:int(rank)]
         if len(chosen) < rank:
-            return np.array([])
+            if np.any(values <= 0):
+                return np.array([]), 'metric_rank_contains_nonpositive_eigenvalue'
+            return np.array([]), 'metric_rank_unresolved_by_cutoff'
         keep = np.zeros_like(resolved)
         keep[chosen] = True
     else:
         keep = resolved
-    if keep.sum() < 2 or np.any(values[keep] <= 0):
-        return np.array([])
+    if keep.sum() < 2:
+        if np.any(values <= 0):
+            return np.array([]), 'metric_has_fewer_than_two_resolved_positive_eigenvalues'
+        return np.array([]), 'metric_rank_unresolved_by_cutoff'
+    if np.any(values[keep] <= 0):
+        return np.array([]), 'selected_metric_eigenvalue_nonpositive'
     basis = vectors[:, keep] / np.sqrt(values[keep])
     reduced = basis.conj().T @ a @ basis
-    return np.sort(np.linalg.eigvalsh(0.5 * (reduced + reduced.conj().T)))[::-1]
+    lam = np.linalg.eigvalsh(0.5 * (reduced + reduced.conj().T))
+    if not np.all(np.isfinite(lam)):
+        return np.array([]), 'nonfinite_generalized_eigenvalue'
+    return np.sort(lam)[::-1], None
+
+
+def _eigvals(a, b, rtol=1e-10, rank=None):
+    """Generalized eigenvalues of (a,b), retaining the historical empty-on-failure API."""
+    values, _ = _eigvals_with_reason(a, b, rtol=rtol, rank=rank)
+    return values
 
 
 def effective_energy(lam, t, t0, T, model='forward'):
@@ -79,9 +100,14 @@ def bootstrap_gevp(matrix, index, t0=2, times=(3, 4, 5, 6), model='forward', ran
     failures = []
     for b in range(B):
         for k, t in enumerate(times):
-            lam = _eigvals(replicas[b, :, :, t], replicas[b, :, :, t0], rtol=cutoff, rank=rank)
-            if len(lam) == 0 or np.any(lam <= 0) or not np.all(np.isfinite(lam)):
-                failures.append({'replica': b, 'time': int(t), 'reason': 'nonpositive eigenvalue'})
+            lam, reason = _eigvals_with_reason(replicas[b, :, :, t], replicas[b, :, :, t0],
+                                                rtol=cutoff, rank=rank)
+            if reason is not None:
+                failures.append({'replica': b, 'time': int(t), 'reason': reason})
+                continue
+            if len(lam) == 0 or np.any(lam <= 0):
+                failures.append({'replica': b, 'time': int(t),
+                                 'reason': 'nonpositive_generalized_eigenvalue'})
                 continue
             for m in range(len(lam)):
                 value = effective_energy(lam[m], t, t0, T, model)

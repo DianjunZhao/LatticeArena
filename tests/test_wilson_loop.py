@@ -475,6 +475,9 @@ def test_measure_entry_end_to_end(tmp_path, monkeypatch):
         assert f['ids'].tolist() == [0, 1] and f['loops'].shape[0] == 2
     records = json.loads((out / 'development_provenance.json').read_text())['records']
     assert [r['id'] for r in records] == [0, 1]
+    assert set(records[0]['kernel_seconds_by_candidate']) == {p['kernels'][0]['name'], p['kernels'][1]['name']}
+    assert set(records[0]['loop_seconds_by_candidate']) == {p['kernels'][0]['name'], p['kernels'][1]['name']}
+    assert records[0]['measure_seconds'] == pytest.approx(records[0]['kernel_seconds'] + records[0]['loop_seconds'])
     measure_mod.measure(out, 'development', limit=2)   # resume: no new rows
     with np.load(out / 'development.npz') as f:
         assert f['ids'].tolist() == [0, 1] and f['loops'].shape[0] == 2
@@ -529,6 +532,9 @@ def test_nersc_checksum_trailer(tmp_path):
     absent.write_bytes(header + payload)
     assert nersc_checksum_status(absent) == {'standard': 'absent', 'md5': 'absent',
                                             'verified': False}
+    from tasks.wilson_loop.common import read_nersc_with_status
+    _, read_status = read_nersc_with_status(absent)
+    assert read_status['raw_sha256'] == hashlib.sha256(header + payload).hexdigest()
     bad = tmp_path / 'bad'
     bad.write_bytes(header + payload + b'0' * 16)
     with pytest.raises(ValueError, match='MD5 mismatch'):
@@ -604,6 +610,33 @@ def test_projection_domain_support_and_rejection():
     assert residual(x[0]) <= TOL
     with pytest.raises(ValueError):
         project(cell(rng, (1.0, 1.0, 0.0), 1.0, 0.0)[None])
+
+
+def test_projection_domain_controls_determinant_phase_on_both_branch_sides():
+    from tasks.wilson_loop.kernels import project
+    from tasks.wilson_loop.projection_domain import PHASE_EPS, cell, polar_factor
+    rng = np.random.default_rng(701)
+    phases = (-np.pi, -np.pi + PHASE_EPS, np.pi - PHASE_EPS, np.pi)
+    correction_phases = {}
+    for phase in phases:
+        matrix = cell(rng, (1.0, 1.0, 1e-2), 1.0, phase)
+        actual = np.angle(np.linalg.det(matrix))
+        assert abs(np.angle(np.exp(1j * (actual - phase)))) < 1e-10
+        projected = project(matrix[None])[0]
+        assert abs(np.linalg.det(projected) - 1) < 1e-10
+        polar = polar_factor(matrix)
+        factor = np.trace(polar.conj().T @ projected) / 3
+        expected = np.exp(-1j * np.angle(np.linalg.det(polar)) / 3)
+        phase_error = abs(np.angle(factor / expected))
+        if abs(abs(phase) - np.pi) < 1e-12:
+            phase_error = min(abs(np.angle(factor / (expected * np.exp(2j * np.pi * k / 3))))
+                              for k in (-1, 0, 1))
+        assert phase_error < 1e-10
+        if phase in (-np.pi + PHASE_EPS, np.pi - PHASE_EPS):
+            correction_phases[phase] = np.angle(factor)
+    jump = abs(np.angle(np.exp(1j * (correction_phases[np.pi - PHASE_EPS]
+                                    - correction_phases[-np.pi + PHASE_EPS]))))
+    assert jump == pytest.approx(2 * np.pi / 3, abs=2e-5)
 
 
 def test_transaction_rejects_mixed_files(tmp_path):
@@ -720,3 +753,73 @@ def test_evaluate_rejects_a_tampered_receipt(tmp_path):
     assert 'rejected' in report['receipt_status']['reference']
     assert report['run_state']['status']['reference'] == 'draft'
     assert report['physical_score'] is None
+
+
+def test_hmc_diagnostic_builds_verified_text_and_figures(tmp_path):
+    import json
+    from tasks.wilson_loop.hmc_production_diagnostic import main, sha256
+
+    chain = tmp_path / 'chain'
+    chain.mkdir()
+    trajectory_path = chain / 'trajectories.jsonl'
+    manifest_path = chain / 'manifest.json'
+    rows = []
+    configs = []
+    accepted_production = 0
+    for trajectory in range(1, 31):
+        config_id = None
+        config_hash = None
+        config_path = None
+        if trajectory in (6, 16):
+            config_id = len(configs)
+            path = chain / f'wilson_b6.{config_id}'
+            path.write_bytes(f'synthetic gauge file {config_id}'.encode())
+            config_hash = sha256(path)
+            config_path = str(path)
+            configs.append({'id': config_id, 'trajectory': trajectory,
+                            'plaquette': 0.58 + 0.001 * trajectory,
+                            'sha256': config_hash, 'metropolis_accept': True})
+        accepted = trajectory % 4 != 0
+        if trajectory > 5:
+            accepted_production += int(accepted)
+        production_count = max(0, trajectory - 5)
+        rows.append({
+            'trajectory': trajectory,
+            'phase': 'thermalization' if trajectory <= 5 else 'production',
+            'delta_h': float((trajectory % 7 - 3) / 10),
+            'metropolis_accept': accepted,
+            'state_update': 'accepted' if accepted else 'rejected_restored',
+            'thermalization_forced_update': False,
+            'plaquette_after_update': float(0.58 + 0.001 * np.sin(trajectory)),
+            'production_accepts': accepted_production,
+            'production_trajectories': production_count,
+            'production_acceptance_rate': accepted_production / production_count if production_count else None,
+            'configuration_id': config_id,
+            'configuration_path': config_path,
+            'configuration_sha256': config_hash,
+            'elapsed_seconds': 1.0,
+        })
+    trajectory_path.write_text(''.join(json.dumps(row, sort_keys=True) + '\n' for row in rows))
+    manifest_path.write_text(json.dumps({'configs': configs}, indent=2) + '\n')
+    delta_h_production = np.asarray([row['delta_h'] for row in rows if row['trajectory'] > 5])
+    receipt_path = chain / 'receipt.json'
+    receipt_path.write_text(json.dumps({
+        'status': 'COMPLETED', 'actual_trajectories': 30, 'saved_configurations': 2,
+        'production_trajectories': 25, 'production_accepts': accepted_production,
+        'production_acceptance_rate': accepted_production / 25,
+        'production_delta_h_mean': float(delta_h_production.mean()),
+        'production_delta_h_std': float(delta_h_production.std(ddof=1)),
+        'protocol': {'thermal_trajectories': 5},
+        'trajectory_log_sha256': sha256(trajectory_path),
+        'manifest_sha256': sha256(manifest_path),
+    }))
+
+    output = tmp_path / 'diagnostic'
+    main(['--receipt', str(receipt_path), '--trajectory-log', str(trajectory_path),
+          '--manifest', str(manifest_path), '--out', str(output)])
+    assert (output / 'README.md').is_file()
+    assert (output / 'trajectory_table.csv').is_file()
+    assert len(list(output.glob('*.png'))) == 4
+    summary = json.loads((output / 'diagnostic_summary.json').read_text())
+    assert summary['physical_status'] == 'NOT_RUN'
+    assert summary['configuration_payload_hashes_verified'] == 2

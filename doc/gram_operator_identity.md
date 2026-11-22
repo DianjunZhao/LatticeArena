@@ -53,6 +53,14 @@ $C_{0,n_i+n_j}$——这正是旧 Hankel 构造成立的原因。
    $K_j$ 与 sink 端的 $H^n$ 并没有精确对应（参数/约定/标签之一不一致），不能先用 $(C+C^\dagger)/2$
    把问题藏起来。
 
+旧 `s16t16_ms` validation IDs 70–99 已被读取，不能再叫 blind。按同一口径，其 $t=3,4,5,6$ 的相对 anti-Hermitian
+max norm 为 0.299、0.309、0.316、0.316。development 与 validation 的逐时曲线、$t=5$ 元素级残差图和输入
+SHA-256 见[只读 CPU 诊断报告](../results/pion_projection/source_sink_hermiticity_diagnostic_20261121_v1/README.md)：
+
+![开发与已观察 validation 的 source-sink Hermiticity gate](../results/pion_projection/source_sink_hermiticity_diagnostic_20261121_v1/antihermitian_fraction_by_time.png)
+
+这些图用的是 ensemble-mean 矩阵，没有统计误差带；它们显示两组已保存矩阵都大幅超过 5% 门，不判断唯一历史根因，也不构成物理参考认证。
+
 ## 4. 对旧结果的影响
 
 - `s16t16_gram`/`gram3` 的 GEVP 用的是 $M$，即 **sink–sink Gram**，不是标准变分矩阵；

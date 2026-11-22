@@ -7,7 +7,7 @@ def main():
     parser.add_argument('--output', default=str(DEFAULT_OUTPUT))
     commands = parser.add_subparsers(dest='command', required=True)
     measure = commands.add_parser('measure')
-    measure.add_argument('--split', choices=['development', 'validation'], required=True)
+    measure.add_argument('--split', choices=['development', 'anchor', 'validation'], required=True)
     measure.add_argument('--limit', type=int)
     measure.add_argument('--plan', help='pre-registered measurement plan (required for new runs)')
     commands.add_parser('develop')
