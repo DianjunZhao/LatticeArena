@@ -16,10 +16,11 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUT = ROOT / "results/pion_projection/bounded_score_dependence_sensitivity_20261123_v1"
+DEFAULT_OUT = ROOT / "results/pion_projection/bounded_block_risk_calibration_20261123_v2"
 BLOCK_COUNTS = (20, 100, 400)
 FAMILY = 2
 ALPHA_S = 0.05
+ALPHA_TOTAL = 0.05
 
 
 def _positive_integer(value: int, name: str) -> int:
@@ -47,15 +48,32 @@ def dependence_penalty(*, blocks: int, chromatic_number: int,
     return math.sqrt(2.0 * chi * math.log(f / alpha_s) / n)
 
 
+def _validate_alpha_allocation(*, alpha_s: float, alpha_anchor: float,
+                               alpha_total: float) -> None:
+    if not math.isfinite(alpha_s) or not 0 < alpha_s < 1:
+        raise ValueError("alpha_s must be finite and in (0, 1)")
+    if not math.isfinite(alpha_anchor) or not 0 <= alpha_anchor < 1:
+        raise ValueError("alpha_anchor must be finite and in [0, 1)")
+    if not math.isfinite(alpha_total) or not 0 < alpha_total < 1:
+        raise ValueError("alpha_total must be finite and in (0, 1)")
+    if alpha_s + alpha_anchor > alpha_total:
+        raise ValueError("alpha_s + alpha_anchor must not exceed alpha_total")
+
+
 def normalized_lower_bound(valid_mean: float, *, blocks: int,
-                           chromatic_number: int, family: int = FAMILY,
-                           alpha_s: float = ALPHA_S,
+                           chromatic_number: int, family: int,
+                           alpha_s: float, alpha_anchor: float,
+                           alpha_total: float,
                            relative_anchor_bound: float = 0.0,
                            failure_fraction: float = 0.0) -> float:
-    """Return L/R^2 under worst-case -R^2 coding of failed blocks.
+    """Return a lower bound for the bounded block-risk estimand.
 
-    This bound applies to the failure-augmented operational estimand unless
-    every failed block has a well-defined bounded counterfactual score.
+    ``valid_mean`` is the observed mean over valid planned blocks; failures are
+    coded as -1, so the planned-sample mean is
+    ``(1-failure_fraction)*valid_mean - failure_fraction``. The dependency
+    graph and concentration bound apply to all planned blocks, including coded
+    failures. ``relative_anchor_bound`` is B/R and its factor 2 is valid for a
+    squared-error contrast only when ``|y_candidate-y_reference| <= R``.
     """
     if not math.isfinite(valid_mean) or not -1 <= valid_mean <= 1:
         raise ValueError("valid_mean must be finite and in [-1, 1]")
@@ -64,6 +82,8 @@ def normalized_lower_bound(valid_mean: float, *, blocks: int,
         raise ValueError("relative_anchor_bound must be finite and nonnegative")
     if not math.isfinite(failure_fraction) or not 0 <= failure_fraction < 1:
         raise ValueError("failure_fraction must be finite and in [0, 1)")
+    _validate_alpha_allocation(alpha_s=alpha_s, alpha_anchor=alpha_anchor,
+                               alpha_total=alpha_total)
     penalty = dependence_penalty(
         blocks=blocks, chromatic_number=chromatic_number,
         family=family, alpha_s=alpha_s,
@@ -73,14 +93,16 @@ def normalized_lower_bound(valid_mean: float, *, blocks: int,
 
 
 def required_valid_mean(*, blocks: int, chromatic_number: int,
-                        family: int = FAMILY, alpha_s: float = ALPHA_S,
+                        family: int, alpha_s: float,
+                        alpha_anchor: float, alpha_total: float,
                         relative_anchor_bound: float = 0.0,
                         normalized_threshold: float = 0.0,
                         failure_fraction: float = 0.0) -> float:
-    """Solve for the valid-block mean needed to exceed a normalized threshold.
+    """Return the observed valid-block mean boundary for a threshold.
 
-    The result is a planning boundary, not an observed score. Values above 1
-    are unattainable for a score bounded in [-1, 1].
+    The equality point is a planning boundary, not an observed score; a strict
+    certification rule requires the observed bound to exceed the threshold.
+    Values above 1 are unattainable for scores bounded in [-1, 1].
     """
     if not math.isfinite(normalized_threshold):
         raise ValueError("normalized_threshold must be finite")
@@ -88,6 +110,8 @@ def required_valid_mean(*, blocks: int, chromatic_number: int,
         raise ValueError("relative_anchor_bound must be finite and nonnegative")
     if not math.isfinite(failure_fraction) or not 0 <= failure_fraction < 1:
         raise ValueError("failure_fraction must be finite and in [0, 1)")
+    _validate_alpha_allocation(alpha_s=alpha_s, alpha_anchor=alpha_anchor,
+                               alpha_total=alpha_total)
     penalty = dependence_penalty(
         blocks=blocks, chromatic_number=chromatic_number,
         family=family, alpha_s=alpha_s,
@@ -121,7 +145,8 @@ def _write_plot(path: Path) -> None:
     for n, color in zip(BLOCK_COUNTS, colors):
         chis = list(range(1, n + 1))
         required = [required_valid_mean(
-            blocks=n, chromatic_number=chi,
+            blocks=n, chromatic_number=chi, family=FAMILY,
+            alpha_s=ALPHA_S, alpha_anchor=0.0, alpha_total=ALPHA_TOTAL,
         ) for chi in chis]
         ax.plot(chis, required, color=color, lw=2,
                 label=f"N={n} planned blocks")
@@ -134,7 +159,7 @@ def _write_plot(path: Path) -> None:
     ax.grid(alpha=0.25)
     ax.legend(fontsize=8)
     fig.suptitle("Dependency-graph sensitivity: analytic illustration only\n"
-                 "F=2, alpha_s=0.05, alpha_A=0; no physical score or dependence estimate",
+                 "F=2, alpha_total=alpha_s=0.05, alpha_A=0; no physical score or dependence estimate",
                  fontsize=12)
     fig.savefig(path, dpi=180)
     plt.close(fig)
@@ -152,14 +177,20 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
                 "chromatic_number_upper_bound": chi,
                 "family": FAMILY,
                 "alpha_s": ALPHA_S,
-                "anchor_failure_budget_alpha_a": 0.0,
+                "alpha_anchor": 0.0,
+                "alpha_total": ALPHA_TOTAL,
+                "union_bound_alpha": ALPHA_S,
                 "normalized_penalty": penalty,
                 "effective_block_count_algebraic_only": n / chi,
                 "required_valid_mean_over_R2_zero_failure": required_valid_mean(
-                    blocks=n, chromatic_number=chi,
+                    blocks=n, chromatic_number=chi, family=FAMILY,
+                    alpha_s=ALPHA_S, alpha_anchor=0.0,
+                    alpha_total=ALPHA_TOTAL,
                 ),
                 "feasible_at_maximum_valid_mean": required_valid_mean(
-                    blocks=n, chromatic_number=chi,
+                    blocks=n, chromatic_number=chi, family=FAMILY,
+                    alpha_s=ALPHA_S, alpha_anchor=0.0,
+                    alpha_total=ALPHA_TOTAL,
                 ) <= 1.0,
                 "classification": "analytic sensitivity; not a measured dependence bound",
             })
@@ -171,7 +202,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
 
     source_hash = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     protocol = {
-        "schema": "pion-bounded-score-dependency-graph-sensitivity-v1",
+        "schema": "pion-bounded-block-risk-calibration-v2",
         "status": "ANALYTIC_SENSITIVITY_ONLY",
         "physical_score": None,
         "data_access": "No correlator, anchor, validation, gap, holdout, GPU, or QUDA input was read.",
@@ -179,8 +210,10 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "normalized_score_range": [-1, 1],
         "formula": {
             "penalty": "sqrt(2*chi*log(F/alpha_s)/N)",
-            "lower_bound": "L/R^2=(1-phi)*mu_valid-phi-sqrt(2*chi*log(F/alpha_s)/N)-2*B/R",
-            "required_mean": "mu_valid>(delta_star/R^2+sqrt(2*chi*log(F/alpha_s)/N)+2*B/R+phi)/(1-phi)",
+            "coded_sample_mean": "zbar=(1-phi_hat)*zbar_valid-phi_hat",
+            "lower_bound": "L/R^2=zbar-sqrt(2*chi*log(F/alpha_s)/N)-2*B/R",
+            "required_mean": "zbar_valid>(delta_star/R^2+sqrt(2*chi*log(F/alpha_s)/N)+2*B/R+phi_hat)/(1-phi_hat)",
+            "anchor_error_condition": "|D(A)-D(m*)|=2*|A-m*|*|y_candidate-y_reference| <= 2*B*R",
             "algebraic_effective_count": "N/chi (notation for this bound only; not an estimated ESS)",
         },
         "illustration_only": {
@@ -188,6 +221,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
             "family": FAMILY,
             "alpha_s": ALPHA_S,
             "alpha_anchor": 0.0,
+            "alpha_total": ALPHA_TOTAL,
             "relative_anchor_bound": 0.0,
             "normalized_threshold": 0.0,
             "failure_fraction": 0.0,
@@ -195,7 +229,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         },
         "rows": len(rows),
         "source_sha256": source_hash,
-        "files": ["README.md", "sensitivity.csv", "dependence_sensitivity.png"],
+        "files": ["README.md", "sensitivity.csv", "dependence_sensitivity.png", "artifact_hashes.json"],
     }
     (out / "summary.json").write_text(json.dumps(protocol, indent=2) + "\n")
     _write_plot(out / "dependence_sensitivity.png")
@@ -210,7 +244,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "",
         "## Bound and assumptions",
         "",
-        "Let `Z_i=d_i/R^2` be a planned normalized paired block score in `[-1,1]`, `N` the planned blocks, `F` the fixed candidate family, and `chi` an upper bound on the chromatic number of a dependency graph for the scores. If each color class consists of jointly independent scores (conditional on the shared anchor and frozen protocol), coloring plus Holder's inequality gives the conservative one-sided penalty",
+        "Let `D_i(A)` be the predeclared paired squared-error contrast on planned block `i`, and define `Z_i=clip(D_i(A)/R^2,-1,1)`. The estimand is the finite-plan mean `theta_N=(1/N)*sum_i E[Z_i | frozen protocol, anchor]`; stationarity may simplify it to one common block mean but is not needed for the bounded concentration inequality. `N` is the planned block count, `F` the fixed candidate family, and `chi` an upper bound on the chromatic number of a dependency graph. If each color class consists of jointly independent scores conditional on the shared anchor and frozen protocol, coloring plus Holder's inequality gives the conservative one-sided penalty",
         "",
         "```text",
         "sqrt(2*chi*log(F/alpha_s)/N)",
@@ -220,14 +254,18 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "",
         "For centered `X_i=Z_i-E[Z_i]` and color classes `C_r`, Holder gives `E exp(lambda sum_i X_i) <= product_r {E exp(chi*lambda sum_{i in C_r} X_i)}^(1/chi)`. Within each color class the variables are jointly independent; Hoeffding's lemma for a width-2 variable then bounds the right side by `exp(chi*lambda^2*N/2)`. Chernoff's inequality gives a one-sided tail `exp(-N*epsilon^2/(2*chi))`; a union bound over the fixed family `F` yields the displayed penalty at tail budget `alpha_s`.",
         "",
-        "With `phi` failures coded as the worst normalized improvement `-1`, relative anchor bias bound `B/R`, and normalized threshold `delta_star/R^2`, the planning inequality is",
+        "This is a bounded block-risk estimand, not the ensemble-risk estimand. Let `\u03c6_hat` be the planned-sample failure fraction, `zbar_valid` the observed valid-block mean, and code each failed planned block as `-1`; then `zbar=(1-\u03c6_hat)*zbar_valid-\u03c6_hat`. Concentration targets the mean of the coded scores over all `N` planned blocks, not only the survivors. A failure rate selected after observing results is not a new denominator.",
+        "For a squared-error contrast `D(A)=(A-y_ref)^2-(A-y_candidate)^2`, the anchor perturbation is exactly `D(A)-D(m*)=2(A-m*)(y_candidate-y_ref)`. Therefore `2B/R` after division by `R^2` is justified only if `|A-m*|<=B` and the predeclared candidate/reference prediction difference satisfies `|y_candidate-y_ref|<=R`. If the score has additional variance, fitting, clipping, or nonlinear terms, derive and add their own Lipschitz bounds; do not reuse `2B/R` by default.",
+        "Allocate the total noncoverage budget before evaluation. Conditional score error is `alpha_s`; anchor coverage error is `alpha_A`; the implementation requires `alpha_s + alpha_A <= alpha_total` and the union bound is at most that sum. The figure uses the optimistic special case `alpha_s=alpha_total=0.05`, `alpha_A=0`.",
+        "With `phi_hat` failures coded as the worst normalized improvement `-1`, relative anchor bias bound `B/R`, and normalized threshold `delta_star/R^2`, the planning inequality is",
         "",
         "```text",
-        "L/R^2 = (1-phi)*mu_valid - phi - sqrt(2*chi*log(F/alpha_s)/N) - 2*B/R",
-        "mu_valid > (delta_star/R^2 + sqrt(2*chi*log(F/alpha_s)/N) + 2*B/R + phi)/(1-phi)",
+        "L/R^2 = (1-phi_hat)*zbar_valid - phi_hat - sqrt(2*chi*log(F/alpha_s)/N) - 2*B/R",
+        "zbar_valid > (delta_star/R^2 + sqrt(2*chi*log(F/alpha_s)/N) + 2*B/R + phi_hat)/(1-phi_hat)",
         "```",
         "",
         "The dependency graph must describe the actual planned score variables, including whatever worst-case coding is used for failures. A finite trajectory gap alone does not establish such a graph. A finite-state Markov chain is not automatically finitely dependent; mixing, autocorrelation, or spectral-gap arguments need their own score-specific assumptions and bound. If no justified graph bound is available, the dependence-adjusted certificate is unavailable and the decision remains `ABSTAIN/NOT_READY`.",
+        "The bounded score must be clipped or otherwise range-limited before data access, with the threshold and physical interpretation frozen. Clipping protects concentration from unbounded tails but changes the estimand; it does not make correlated blocks independent. A paired block bootstrap, HAC/effective-sample-size estimate, or median-of-means result may be reported as a sensitivity diagnostic, but cannot replace a justified dependence bound or certify the physical score on its own.",
         "",
         "## Illustration",
         "",
@@ -247,6 +285,12 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "Deterministic rebuild into a new directory: `python3 -B -m tasks.pion_projection.dependency_graph_bound --output NEW_DIRECTORY`.",
     ]
     (out / "README.md").write_text("\n".join(readme) + "\n")
+    artifact_hashes = {
+        p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in (out / "README.md", out / "summary.json", out / "sensitivity.csv",
+                  out / "dependence_sensitivity.png")
+    }
+    (out / "artifact_hashes.json").write_text(json.dumps(artifact_hashes, indent=2) + "\n")
     return protocol
 
 
