@@ -56,11 +56,14 @@ These are task examples, not automatic plug-ins for every task family.
   `tasks/pion_projection/bounded_block_risk_score.py` implements the blockwise
   clipping, fixed failure denominator, and conditional lower-bound arithmetic
   as a pure CPU helper; it is not wired into the evaluator and always leaves
-  `physical_score` null. The synthetic coverage MC shows the cost of a wrong IID
-  assumption under one known finite-dependence generator and the conservatism
-  of the graph bound; it does not establish the real score graph or anchor
-  coverage. Clipping changes the estimand and must be frozen before confirmation
-  data.
+  `physical_score` null. The synthetic coverage MCs compare a known finite-
+  dependence graph with an IID misspecification and add an independent,
+  known-variance anchor interval with explicit `alpha_score/alpha_anchor`
+  allocation. They show the calibration path and its utility cost under those
+  generators; they do not establish the real score graph, E-anchor coverage,
+  common-bias bound, or conditional independence. The plots and reports retain
+  separate paired-block, family-score, and anchor-observation denominators.
+  Clipping changes the estimand and must be frozen before confirmation data.
 - **Optimize Gaussian:** add a task-specific run specification that binds the
   same objective, reference, fit IDs, W/v/c constraints, SLSQP comparison,
   fixed spectral baseline, dual contrasts, equal-parameter-count arm, budgets
@@ -102,8 +105,8 @@ failures and protocol abstentions are distinct states and should stay visible.
 The current `main` has a full Pion pilot. Pion dependence calibration and the
 Optimize/Wilson additions are isolated analytic/synthetic CPU diagnostics and
 theory artifacts; none is a production measurement pipeline. Pion's bounded
-risk reports include a 1,728-scenario feasibility surface and a known-graph
-coverage MC; the companion Optimize/Wilson PR reports the 36-panel trainable-W
+risk reports include a 1,728-scenario feasibility surface, a known-graph
+coverage MC, and a joint score/anchor coverage MC; the companion Optimize/Wilson PR reports the 36-panel trainable-W
 stress grid, finite-`N_t` Creutz toy identity check, and randomized positive-
 spectrum four-point stress over 4,000 cases, all with figures and source/artifact
 hashes. Their TODOs remain until task-specific references, effect/tolerance or

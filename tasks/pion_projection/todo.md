@@ -35,6 +35,16 @@ graph-color LCB 在高 `m` 下虽保持覆盖，正下界通过率也可能降�
 
 此实验不含 anchor error（`alpha_A=0`）、不估计效应分布、没有物理阈值，并且用可证明的创新构造直接给定依赖图；真实流程仍须先证明 score-specific 图或带常数的 mixing bound。`IID`/`graph-color` 模拟差异不能用来替代那项证明，也不能把剪裁后 estimand 换回 ensemble-risk。
 
+### 有限样本共同覆盖：依赖分数 + 独立 anchor（合成，见 v1）
+
+[联合校准报告](../../results/pion_projection/bounded_block_risk_anchor_coverage_mc_20261123_v1/README.md) 补上上一版 `alpha_A=0` 的方法学缺口。16 个 cell 横扫 `N={128,512}`、已知依赖范围 `m={0,15}`、假设失败率 `{0,0.1}`、独立 anchor 样本数 `n_A={32,128}`；每 cell 5,000 个 replicate，共 80,000。`F=2` 的 score 误差预算为 `alpha_s=0.04`，anchor 双侧精确正态区间预算为 `alpha_A=0.01`，总计 `alpha_total=0.05`。score 生成器用已知 `m` 的滑窗高斯创新，anchor 误差与 score 独立；anchor 的 `sigma=0.05` 已知。这些都是明确的合成假设，不是从项目数据估得的参数。
+
+![依赖分数与共享 anchor 的联合覆盖诊断](../../results/pion_projection/bounded_block_risk_anchor_coverage_mc_20261123_v1/coverage_and_utility.png)
+
+在该生成器下，正确 `chi=m+1` 的 graph-color 规则 16/16 cell 均观测到零 false certificate；每格 5,000 次对应的最大 Monte Carlo 95% Wilson 上界为 `0.000768`。故意用 IID `chi=1` 时，最大误认证率为 `11.0%`（`N=128,m=15,phi=0,n_A=128`）；anchor 区间实测覆盖率跨 cell 为 `98.92%–99.22%`，标称 99%。图左下的正证书率展示效用损失：`N=512,m=0,phi=0,n_A=128` 为 `97.74%`，而 `m=15` 时为 0。零观测误认证只是有限次模拟结果，不是实际数据覆盖证明；正证书阈值 0 也只是演示值。
+
+每 cell 保存分层分母：MC replicate、paired block event、family-block score、anchor estimate 和 anchor observation 的 planned/valid/failed/abstained 数。假设失败 block 留在计划分母并记 `-1`；all-failed replicate abstain。源码、随机种子、replicate 级结果、图、协议和哈希随报告保存。此诊断只验证**已知依赖图、独立且已知方差正态 anchor**下的联合校准路径；不估计真实 `chi`、anchor 覆盖、共同偏差、目标质量/物理效应，也不满足 reference gate。任务仍为 `NOT_READY/UNCERTIFIED`，`physical_score=null`，封存数据未访问。
+
 ### Planned-block 评分函数合同测试（CPU；未接入 evaluator）
 
 `conditional_block_risk_lcb` 的数据流是：`D_i(A)=(A-y_ref)^2-(A-y_candidate)^2` → 对有效 block 计算 `clip(D_i/R^2,-1,1)` → 失败 block 记 `-1` → 以完整 planned `N` 计算均值与 graph-color LCB。四块测试例的原始差为 `[8,-8,2,NaN]`、`R=2`、掩码为 `[valid,valid,valid,failed]`，因此 bounded scores 为 `[1,-1,0.5,-1]`，分母为 planned/valid/failed/abstained=`4/3/1/0`。全失败时函数返回 `ABSTAIN_NO_VALID_BLOCKS` 且不输出 LCB。
@@ -75,9 +85,9 @@ zbar_valid > (delta_star/R^2 + epsilon + 2B/R + phi_hat) / (1-phi_hat)
 ## 下一位 agent 的工作顺序
 
 1. 先形成一页评分合同草案，列清 `m*` 单位/范围、`R`、剪裁函数、失败编码、目标 `delta_star`、`F`、总 alpha 分配及每个 score 组件；对上式 Lipschitz 界逐项复核。不从现有 toy 或开发误差反推物理阈值。
-2. **合成规划/覆盖诊断已完成：**1,728 点解析可行性网格和 30-cell 已知 `m`-dependence Monte Carlo 均有图、逐格分母和可复现种子。前者的 `m_required >= 1` 必须 `ABSTAIN`；后者只验证已知合成图下校准公式，不估计真实覆盖。
-3. 对 block 独立性路径二选一并先写可审阅证明：提供 score-specific dependency graph 与 `chi` 上界；或提出带明确常数的 mixing/spectral-gap 浓缩定理。若两者都没有，维持 `NOT_READY`，不拿经验有效样本数代替。
-4. anchor 路径需要独立、匹配的 E correlator receipt，以及 `B` 的来源、覆盖率与和 score 样本的条件独立说明。尚无此证据时不要读取封存 E/gap/validation/holdout。
+2. **合成规划/覆盖诊断已完成：**1,728 点解析可行性网格、30-cell 已知 `m`-dependence MC、16-cell 共同 score+anchor MC 均有图、逐格分母和可复现种子。前者的 `m_required >= 1` 必须 `ABSTAIN`；两类 MC 只验证已知合成图/anchor 模型下的校准公式和效用，不估计真实覆盖。
+3. 对 block 独立性路径二选一并先写可审阅证明：提供 score-specific dependency graph 与 `chi` 上界；或提出带明确常数的 mixing/spectral-gap 浓缩定理。若两者都没有，维持 `NOT_READY`，不拿经验有效样本数代替。现有 MC 的 `chi=m+1` 是生成器已知值，不是项目估计。
+4. anchor 路径需要独立、匹配的 E correlator receipt，以及 `B` 的来源、覆盖率与和 score 样本的条件独立说明。现有 `n_A/sigma/alpha_A` 仅为合成设计值；尚无此证据时不要读取封存 E/gap/validation/holdout。
 5. 通过独立审阅并获数据授权后，才进行确认测量；冻结候选族后报告全量 paired block 原始 score、planned/valid/failed/abstained、剪裁前后诊断、图色数来源、alpha 分配和 `LCB`。即使统计门通过，也必须单独通过原先失败的 reference/model-identification gate 才能产生物理分数。
 
 停止规则：没有可审阅的 dependence bound、anchor bias 覆盖界或通过的物理 reference 时，输出 `ABSTAIN/NOT_READY` 并保持 `physical_score=null`；不以更窄的 bootstrap 区间代替缺失假设。

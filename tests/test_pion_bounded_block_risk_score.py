@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from tasks.pion_projection.bounded_block_risk_score import (
+    bounded_block_scores,
     conditional_block_risk_lcb,
 )
 
@@ -63,6 +64,22 @@ def test_all_failed_blocks_abstain_without_a_lower_bound():
         "abstained_blocks": 0,
     }
     assert result["physical_score"] is None
+
+
+def test_batched_score_transform_uses_last_axis_and_preserves_failures():
+    raw = np.array([
+        [[8.0, 2.0, np.nan], [-4.0, 0.0, 6.0]],
+        [[-2.0, 4.0, 0.0], [2.0, np.nan, 2.0]],
+    ])
+    valid = np.array([
+        [[True, True, False], [True, True, True]],
+        [[True, True, True], [True, False, True]],
+    ])
+    scores = bounded_block_scores(raw, valid_blocks=valid, score_scale_R=2.0)
+    np.testing.assert_array_equal(scores, [
+        [[1.0, 0.5, -1.0], [-1.0, 0.0, 1.0]],
+        [[-0.5, 1.0, 0.0], [0.5, -1.0, 0.5]],
+    ])
 
 
 @pytest.mark.parametrize("differences, mask, kwargs", [

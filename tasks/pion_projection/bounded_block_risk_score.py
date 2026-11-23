@@ -19,6 +19,37 @@ from .dependency_graph_bound import (
 )
 
 
+def bounded_block_scores(
+    raw_differences: object,
+    *,
+    valid_blocks: object,
+    score_scale_R: float,
+) -> np.ndarray:
+    """Clip paired differences on the last (planned-block) axis.
+
+    Leading axes may batch families and Monte Carlo replicates. Every failed
+    planned block receives score ``-1``; it is never removed from the array.
+    """
+    differences = np.asarray(raw_differences, dtype=float)
+    valid = np.asarray(valid_blocks)
+    if differences.ndim < 1 or differences.size == 0:
+        raise ValueError("raw_differences must have at least one planned block")
+    if valid.shape != differences.shape:
+        raise ValueError("valid_blocks must match the planned block array")
+    if valid.dtype != np.bool_:
+        raise ValueError("valid_blocks must contain booleans")
+    if not math.isfinite(score_scale_R) or score_scale_R <= 0:
+        raise ValueError("score_scale_R must be finite and positive")
+    scale_squared = score_scale_R * score_scale_R
+    if not math.isfinite(scale_squared) or scale_squared <= 0:
+        raise ValueError("score_scale_R squared must be finite and positive")
+    if not np.all(np.isfinite(differences[valid])):
+        raise ValueError("valid block differences must be finite")
+    scores = np.full(differences.shape, -1.0, dtype=float)
+    scores[valid] = np.clip(differences[valid] / scale_squared, -1.0, 1.0)
+    return scores
+
+
 def conditional_block_risk_lcb(
     raw_differences: object,
     *,
@@ -50,24 +81,13 @@ def conditional_block_risk_lcb(
         raise ValueError("raw_differences must be a nonempty one-dimensional array")
     if valid.ndim != 1 or valid.shape != differences.shape:
         raise ValueError("valid_blocks must match the planned block array")
-    if valid.dtype != np.bool_:
-        raise ValueError("valid_blocks must contain booleans")
-    if not math.isfinite(score_scale_R) or score_scale_R <= 0:
-        raise ValueError("score_scale_R must be finite and positive")
-    scale_squared = score_scale_R * score_scale_R
-    if not math.isfinite(scale_squared) or scale_squared <= 0:
-        raise ValueError("score_scale_R squared must be finite and positive")
-    if not np.all(np.isfinite(differences[valid])):
-        raise ValueError("valid block differences must be finite")
+    scores = bounded_block_scores(
+        differences, valid_blocks=valid, score_scale_R=score_scale_R,
+    )
 
     planned = int(differences.size)
     valid_count = int(valid.sum())
     failed_count = planned - valid_count
-    scores = np.full(planned, -1.0, dtype=float)
-    if valid_count:
-        scores[valid] = np.clip(
-            differences[valid] / scale_squared, -1.0, 1.0,
-        )
 
     # Validate the explicit calibration contract even when the data path must
     # abstain because every planned block failed. The dummy result is discarded.
