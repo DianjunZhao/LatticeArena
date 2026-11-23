@@ -59,10 +59,13 @@ These are task examples, not automatic plug-ins for every task family.
   `physical_score` null. The synthetic coverage MCs compare a known finite-
   dependence graph with an IID misspecification and add an independent,
   known-variance anchor interval with explicit `alpha_score/alpha_anchor`
-  allocation. They show the calibration path and its utility cost under those
-  generators; they do not establish the real score graph, E-anchor coverage,
-  common-bias bound, or conditional independence. The plots and reports retain
-  separate paired-block, family-score, and anchor-observation denominators.
+  allocation. A separate exact two-point enumeration contrasts the known-
+  variance Gaussian z radius with a distribution-free Hoeffding radius when
+  anchor support is known. These diagnostics show calibration choices and
+  utility costs only under their declared models; they do not establish the
+  real score graph, E-anchor coverage/support, common-bias bound, or conditional
+  independence. The plots and reports retain separate paired-block,
+  family-score, hypothetical anchor-observation, and exact-outcome denominators.
   Clipping changes the estimand and must be frozen before confirmation data.
 - **Optimize Gaussian:** add a task-specific run specification that binds the
   same objective, reference, fit IDs, W/v/c constraints, SLSQP comparison,
@@ -106,7 +109,8 @@ The current `main` has a full Pion pilot. Pion dependence calibration and the
 Optimize/Wilson additions are isolated analytic/synthetic CPU diagnostics and
 theory artifacts; none is a production measurement pipeline. Pion's bounded
 risk reports include a 1,728-scenario feasibility surface, a known-graph
-coverage MC, and a joint score/anchor coverage MC; the companion Optimize/Wilson PR reports the 36-panel trainable-W
+coverage MC, a joint score/anchor coverage MC, and an exact anchor-distribution
+robustness comparison; the companion Optimize/Wilson PR reports the 36-panel trainable-W
 stress grid, finite-`N_t` Creutz toy identity check, and randomized positive-
 spectrum four-point stress over 4,000 cases, all with figures and source/artifact
 hashes. Their TODOs remain until task-specific references, effect/tolerance or
