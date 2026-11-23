@@ -8,7 +8,7 @@
 
 ## 已完成的 CPU 诊断
 
-主产物是 [2026-11-23 source-closed replay](trainable_w_operator_cpu_replay_20261123_v1/README.md)，包含协议、独立合成输入、逐调用原始 trace、代码快照和图。旧的 [`trainable_w_operator_cpu_20261121_final`](trainable_w_operator_cpu_20261121_final/README.md) 保留为历史结果：其 `trainable_w.py` 哈希与同目录源不一致且漏掉导入的 SU(3) fixture helper，因此不能作为闭合 provenance 的主收据。新 replay 修复 source hash 缺口，但不增加独立样本。
+主产物是 [2026-11-23 source-closed replay](https://github.com/Greyyy-HJC/LatticeArena/tree/codex/optimize-wilson-cpu-diagnostics-20261123/tasks/optimize_gaussian/trainable_w_operator_cpu_replay_20261123_v1/README.md)，包含协议、独立合成输入、逐调用原始 trace、代码快照和图。旧的 [`trainable_w_operator_cpu_20261121_final`](https://github.com/Greyyy-HJC/LatticeArena/tree/codex/optimize-wilson-cpu-diagnostics-20261123/tasks/optimize_gaussian/trainable_w_operator_cpu_20261121_final/README.md) 保留为历史结果：其 `trainable_w.py` 哈希与同目录源不一致且漏掉导入的 SU(3) fixture helper，因此不能作为闭合 provenance 的主收据。新 replay 修复 source hash 缺口，但不增加独立样本。
 
 | 确认维度 | CPU 诊断内容 | 直接观察到的结果 | 可支持的结论 |
 |---|---|---|---|
@@ -16,9 +16,17 @@
 | 强谱算符 | 同一固定热核目标上的 degree-1/degree-4 Chebyshev 直接最小二乘；不调 heldout | degree-4 heldout loss 为 `2.40e-7, 3.34e-8, 1.11e-7`，比一跳学习参数化约低四至五个数量级 | 该 fixture 的目标按定义就是 `exp(tau H)` 谱函数，因此强谱基占优是结构性负诊断；不能外推为所有物理 smearing 都由谱基胜出。 |
 | 数值正确性 | 压缩二次 loss 对照 dense operator loss；W/v/c 梯度对有限差分；在独立 heldout links 复查 | 最大梯度差约 `1.3e-11`，压缩/dense loss 差低于 `2e-16` | 验证此 CPU 实现和 fixture 的代数一致性，不验证 GPU、物理风险或实现耗时优势。 |
 
-![Trainable-W 与固定谱算符对照](trainable_w_operator_cpu_replay_20261123_v1/operator_comparison.png)
+![Trainable-W 与固定谱算符对照](https://github.com/Greyyy-HJC/LatticeArena/blob/codex/optimize-wilson-cpu-diagnostics-20261123/tasks/optimize_gaussian/trainable_w_operator_cpu_replay_20261123_v1/operator_comparison.png)
 
 文字数据流：`protocol + 固定 seed -> 3 个独立合成 link panel -> 每 panel 切分 3 fit / 3 heldout -> 同一初始化/参数边界/调用上限拟合 -> 仅 fit 选择 -> heldout + KKT/梯度残差作诊断`。优化秒数不含算符/目标构造和后检；因此它是 call-budget 对照，不是 walltime 或训练摊销基准。
+
+### 扩展 CPU 压力测试（已完成，见 companion PR #6）
+
+[Trainable-W stress report](https://github.com/Greyyy-HJC/LatticeArena/tree/codex/optimize-wilson-cpu-diagnostics-20261123/results/optimize_gaussian/trainable_w_stress_20261123_v4/README.md) 扩展到 36 个合成 panel：三种 link generator、谱热核/非谱局域环境两类目标、0/2% 相对 Frobenius 算符噪声、每格 3 个 replicate。每个 panel 使用相同 fit/heldout links、初始化和边界，对照 joint-W SLSQP、joint-W L-BFGS-B、fixed-W width-2 SLSQP，以及 **同为 7 个拟合标量**的 fixed-W width-6 SLSQP；预算为 32/128 次 objective+gradient call。谱目标另与固定 degree-4 Chebyshev 强基线比较，局域目标另报匹配其构造的 degree-2 基线。后者只是容量诊断，不代替选定的强谱基线。
+
+planned/valid/failed/abstained panel = `36/36/0/0`；solver fit = `288/288` returned，其中 93 次达到调用上限或 solver non-success，均保留，未排除样本。三次重复/格只支持描述性 stress test。width-6 等参数量对照中，六个局域环境 cell 的 joint-W/fixed-W heldout loss ratio 中位数均不小于 1（`log10` 比值中位数均为非负），谱目标则接近持平；强 Chebyshev 基线在谱目标下明显较低。图中单点、cell 中位线、budget 曲线、conditioning 和基线误差均明确标为合成/描述性结果。这不证明固定 W 普遍更优，也不否证学习 W 在真实目标上的可能性；它只没有显示稳定的等参数量优势。
+
+复核材料包括 paired loss 图、32/128-call 收敛图、feature conditioning/基线图、逐 panel 输入与 solver trace、源码快照、哈希清单。输出目录内部 `artifact_hashes.json` 已核对，脚本哈希与报告 source manifest 相符。没有 production 或 sealed data/GPU 输入。
 
 ## 理论上学习型 smear 可能获益的情形
 
@@ -34,7 +42,7 @@
 2. **D06 `r_star`：**由研究者预先给出最小有意义效应及物理单位/解释；不得根据这三个合成 panel、标准误或 optimizer 残差反推。
 3. **D11 强谱基合同：**冻结 degree-4 Chebyshev 的 operator `H`、谱区间/缩放映射、恒等项和归一化、系数约束、正性/投影约束、失败处理，以及它与学习族之间允许不同的参数维数。当前 artifact 的 degree-4 系数是无约束实数最小二乘，只适用于诊断目标。
 4. 冻结完整公平预算：同一 objective、输入实例、fit/heldout ID、初始化规则、候选/重启数；分别计训练、setup、objective/gradient calls、求解、推理、I/O、失败恢复与总 walltime。训练数据不能与确认 panel 重叠。
-5. 先开展公开/合成方法学扩展：独立生成器族、非纯谱目标、不同噪声/condition number 和预算曲线；输出每个 panel 的 paired loss、调用/时间收敛图、KKT/residual、planned/success/non-success/cap-stop 分母。不使用 production/sealed IDs。
+5. **CPU stress grid 已完成**（见上方 companion PR #6）。不要重复同一热核/局域教师网格来增加“样本量”；三个 panel/cell 不支持总体推断。如继续纯 CPU 方法学工作，只新增能区分具体机制的预注册对照，并给出 paired loss、预算/耗时定义、KKT/residual、planned/valid/failed/abstained 分母和图/流程描述。
 6. 物理合同与阈值通过审阅并另行授权后，再用独立配置/ensemble 做 `F=2` paired confirmation：trainable-W 对同预算 SLSQP；trainable-W 对固定 strong spectral baseline。两条对照都要报告多重性调整的单侧区间、失败/abstain 和训练摊销；只有两条均越过事前效应阈值才支持双重优势。
 
 ## 停止规则与扩展接口

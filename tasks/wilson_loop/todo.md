@@ -9,14 +9,30 @@
 
 ## 已完成的解析与源核对
 
-- [零温正谱敏感度报告](../../results/wilson_loop/ground_state_bound_sensitivity_20261123_v1/README.md)：实现 `|chi-f0| <= log(1+Q exp(-Delta_min*T))` 的条件界，并在 `Q=1e-3…1e2`、`Delta_min=0.01…1.0` 格点单位、`T=4…7` 上生成 14,884 行解析网格和四面板图。`Q` 和能隙全是插图输入，不是估计值；这个公式不包含有限 `N_t` 热迹。
-- [有限 `N_t` 热/绕回理论审阅](../../results/wilson_loop/finite_nt_thermal_bound_review_20261122/README.md)：从 trace 展开静态对与无源两套 Hilbert sector，保留 pair excited `q`、thermal `h` 和 mixed `x`。如果各项有独立非负 envelope，则先构成 `B_k(R,t)=log(1+q_bound+h_bound+x_bound)`，再把四个 loop 点的 `B` 传播进 `Delta_R Delta_t` 的力/Creutz 系统界。当前没有任何物理 `Q,H,X,Delta` 输入，推导不等于认证。
+- [零温正谱敏感度报告](https://github.com/Greyyy-HJC/LatticeArena/tree/codex/optimize-wilson-cpu-diagnostics-20261123/results/wilson_loop/ground_state_bound_sensitivity_20261123_v1/README.md)：实现 `|chi-f0| <= log(1+Q exp(-Delta_min*T))` 的条件界，并在 `Q=1e-3…1e2`、`Delta_min=0.01…1.0` 格点单位、`T=4…7` 上生成 14,884 行解析网格和四面板图。`Q` 和能隙全是插图输入，不是估计值；这个公式不包含有限 `N_t` 热迹。
+- [有限 `N_t` 热/绕回理论审阅](https://github.com/Greyyy-HJC/LatticeArena/tree/codex/optimize-wilson-cpu-diagnostics-20261123/results/wilson_loop/finite_nt_thermal_bound_review_20261122/README.md)：从 trace 展开静态对与无源两套 Hilbert sector，保留 pair excited `q`、thermal `h` 和 mixed `x`。如果各项有独立非负 envelope，则先构成 `B_k(R,t)=log(1+q_bound+h_bound+x_bound)`，再把四个 loop 点的 `B` 传播进 `Delta_R Delta_t` 的力/Creutz 系统界。当前没有任何物理 `Q,H,X,Delta` 输入，推导不等于认证。
 - 原文编号已复核：有限温热迹和谱分解在 Bala et al. Appendix A 的 Eq. (35)–(36)；零温 Wilson-loop 正谱展开在 Brambilla et al. Eq. (3)。更复杂空间路径/链接 smear 会改谱权重，不改固定 action 下能级位置这一点来自有限温论文对静态介子算符的讨论。来源与适用边界见上述报告文末链接。
 - [框架扩展点地图](../../doc/framework_extensibility.md)建议将 C/F 写成两个 versioned estimand contract：共享 loop/block IDs 和 paired draws，但分别设数值门和系统误差门。
 
-![有限T Creutz与基态力的零温激发态敏感度](../../results/wilson_loop/ground_state_bound_sensitivity_20261123_v1/contamination_sensitivity.png)
+![有限T Creutz与基态力的零温激发态敏感度](https://github.com/Greyyy-HJC/LatticeArena/blob/codex/optimize-wilson-cpu-diagnostics-20261123/results/wilson_loop/ground_state_bound_sensitivity_20261123_v1/contamination_sensitivity.png)
 
 文字流程图：`W_k(R,t;N_t)` → `q: pair excitations ~ Q exp(-Delta_Q t)` + `h: no-pair thermal ~ H exp(-Delta_0(N_t-t))` + `x: mixed sector` → `C lane 保留有限t的chi`；`F lane 经 log 后做 Delta_R Delta_t` → 加总统计、激发态、热/绕回、混合、finite-a/volume 误差 → 与事前容差比较 → 缺任一独立 bound 时保持 `GROUND_STATE_FORCE_UNCERTIFIED`。
+
+### 有限 `N_t` q/h/x 四点式 toy 验证（CPU 代数检查已完成）
+
+[Finite-`N_t` toy report](https://github.com/Greyyy-HJC/LatticeArena/tree/codex/optimize-wilson-cpu-diagnostics-20261123/results/wilson_loop/finite_nt_toy_validation_20261123_v2/README.md) 用手设、无量纲正谱 toy 参数生成
+
+```text
+log W(R,t;N_t) = log A0(R) - V0(R)t + log1p(q+h+x)
+chi - Delta_R V0 = -Delta_R Delta_t delta
+|chi - Delta_R V0| <= sum_of_four_points log1p(q+h+x)
+```
+
+5 个 `t=4...8` stencil 的直接 bias 与 `-Delta_R Delta_t delta` 恒等式最大差为 `7.63e-16`；四点保守 envelope 覆盖全部 5 个 toy bias。`q` 随 `t` 下降，而 complementary-time `h` 在图示参数下上升，展示两类污染的竞争。测试另将 `H=X=0` 的极限与已有零温正谱 `creutz_excited_correction` 逐点交叉核对。
+
+![有限 N_t 的 q/h/x 污染和四点误差界](https://github.com/Greyyy-HJC/LatticeArena/blob/codex/optimize-wilson-cpu-diagnostics-20261123/results/wilson_loop/finite_nt_toy_validation_20261123_v2/finite_nt_toy_validation.png)
+
+这只验证符号、索引和误差传播。输入不是 measurement、fit 或独立物理上界；保守 envelope 也未证明有用。C lane 仍是有限-T Creutz observable；F lane 仍需要真实、独立的激发态/热/绕回/mixed-sector 界和事前容差，状态保持 `GROUND_STATE_FORCE_UNCERTIFIED`。
 
 ## 解析公式与注意事项
 
@@ -43,7 +59,7 @@ W ~ exp[-V0(R)t] * [1 + q(R,t) + h(R,N_t-t) + x(R,t,N_t-t)]
 
 1. **C lane contract：**冻结 primary `R/T/kernel`、有限 `N_t`/边界与空间单位、loop mean 的正值/log 规则、坏点处理、候选族、多重性、配对 block 方案与精度目标。它的结论名称必须保留“finite-T Creutz”。开发数据不得反复用于选择确认点。
 2. **F lane contract：**明确 `U0`、`f0` 的 lattice/physical units 和静态源约定；冻结 force finite-difference stencil、目标 `R`/`T`、谱模型/截断、置信度和总系统预算。给 `Q_k(R), Delta_Q(R), H_k(R), Delta_0, X_k(R)` 的独立来源，或提交有完整失败诊断的多态/变分谱方案。
-3. 先用解析 toy 参数验证 `q/h/x -> log W -> Delta_R Delta_t` 的符号、R/T 四点索引、界的单位和误差传播；输出公式单元测试、污染面板图及逐项误差表。toy 范围必须标示 illustrative，不能称测得值。
+3. **q/h/x 四点 toy 已完成**（见上方 companion PR #6，含解析恒等式、零温极限交叉测试、图和哈希收据）。不要把 toy 参数推广为真实系统误差界。
 4. 比较可审阅的证据路线：独立 static-source operator basis 的谱/overlap 稳定性；或 matched `N_t`（相同 action、`a_t`、空间体积、`R`、kernel）的热污染差异。任一路径均须冻结 rank/截断、重采样和失败/abstain 规则；短单 `N_t` 数据不可识别每个 sector 的上界。
 5. 只有方案通过审阅并获数据/GPU 授权后才测量。报告 C/F 两条 lane 各自的 planned/valid/failed/abstained、paired intervals、统计误差、激发态界、热界、mixed 界、格距/体积误差及其图示。禁止把 C lane 数值重命名为 F lane。
 
