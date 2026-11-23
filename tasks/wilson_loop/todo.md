@@ -9,18 +9,18 @@
 
 ## 已完成的解析与源核对
 
-- [零温正谱敏感度报告](https://github.com/Greyyy-HJC/LatticeArena/tree/codex/optimize-wilson-cpu-diagnostics-20261123/results/wilson_loop/ground_state_bound_sensitivity_20261123_v1/README.md)：实现 `|chi-f0| <= log(1+Q exp(-Delta_min*T))` 的条件界，并在 `Q=1e-3…1e2`、`Delta_min=0.01…1.0` 格点单位、`T=4…7` 上生成 14,884 行解析网格和四面板图。`Q` 和能隙全是插图输入，不是估计值；这个公式不包含有限 `N_t` 热迹。
-- [有限 `N_t` 热/绕回理论审阅](https://github.com/Greyyy-HJC/LatticeArena/tree/codex/optimize-wilson-cpu-diagnostics-20261123/results/wilson_loop/finite_nt_thermal_bound_review_20261122/README.md)：从 trace 展开静态对与无源两套 Hilbert sector，保留 pair excited `q`、thermal `h` 和 mixed `x`。如果各项有独立非负 envelope，则先构成 `B_k(R,t)=log(1+q_bound+h_bound+x_bound)`，再把四个 loop 点的 `B` 传播进 `Delta_R Delta_t` 的力/Creutz 系统界。当前没有任何物理 `Q,H,X,Delta` 输入，推导不等于认证。
+- [零温正谱敏感度报告](https://github.com/DianjunZhao/LatticeArena/tree/6f1aa442d4f8b1121899fb6515bcd5b51501b161/results/wilson_loop/ground_state_bound_sensitivity_20261123_v1/README.md)：实现 `|chi-f0| <= log(1+Q exp(-Delta_min*T))` 的条件界，并在 `Q=1e-3…1e2`、`Delta_min=0.01…1.0` 格点单位、`T=4…7` 上生成 14,884 行解析网格和四面板图。`Q` 和能隙全是插图输入，不是估计值；这个公式不包含有限 `N_t` 热迹。
+- [有限 `N_t` 热/绕回理论审阅](https://github.com/DianjunZhao/LatticeArena/tree/6f1aa442d4f8b1121899fb6515bcd5b51501b161/results/wilson_loop/finite_nt_thermal_bound_review_20261122/README.md)：从 trace 展开静态对与无源两套 Hilbert sector，保留 pair excited `q`、thermal `h` 和 mixed `x`。如果各项有独立非负 envelope，则先构成 `B_k(R,t)=log(1+q_bound+h_bound+x_bound)`，再把四个 loop 点的 `B` 传播进 `Delta_R Delta_t` 的力/Creutz 系统界。当前没有任何物理 `Q,H,X,Delta` 输入，推导不等于认证。
 - 原文编号已复核：有限温热迹和谱分解在 Bala et al. Appendix A 的 Eq. (35)–(36)；零温 Wilson-loop 正谱展开在 Brambilla et al. Eq. (3)。更复杂空间路径/链接 smear 会改谱权重，不改固定 action 下能级位置这一点来自有限温论文对静态介子算符的讨论。来源与适用边界见上述报告文末链接。
 - [框架扩展点地图](../../doc/framework_extensibility.md)建议将 C/F 写成两个 versioned estimand contract：共享 loop/block IDs 和 paired draws，但分别设数值门和系统误差门。
 
-![有限T Creutz与基态力的零温激发态敏感度](https://github.com/Greyyy-HJC/LatticeArena/blob/codex/optimize-wilson-cpu-diagnostics-20261123/results/wilson_loop/ground_state_bound_sensitivity_20261123_v1/contamination_sensitivity.png)
+![有限T Creutz与基态力的零温激发态敏感度](https://github.com/DianjunZhao/LatticeArena/blob/6f1aa442d4f8b1121899fb6515bcd5b51501b161/results/wilson_loop/ground_state_bound_sensitivity_20261123_v1/contamination_sensitivity.png)
 
 文字流程图：`W_k(R,t;N_t)` → `q: pair excitations ~ Q exp(-Delta_Q t)` + `h: no-pair thermal ~ H exp(-Delta_0(N_t-t))` + `x: mixed sector` → `C lane 保留有限t的chi`；`F lane 经 log 后做 Delta_R Delta_t` → 加总统计、激发态、热/绕回、混合、finite-a/volume 误差 → 与事前容差比较 → 缺任一独立 bound 时保持 `GROUND_STATE_FORCE_UNCERTIFIED`。
 
 ### 有限 `N_t` q/h/x 四点式 toy 验证（CPU 代数检查已完成）
 
-[Finite-`N_t` toy report](https://github.com/Greyyy-HJC/LatticeArena/tree/codex/optimize-wilson-cpu-diagnostics-20261123/results/wilson_loop/finite_nt_toy_validation_20261123_v2/README.md) 用手设、无量纲正谱 toy 参数生成
+[Finite-`N_t` toy report](https://github.com/DianjunZhao/LatticeArena/tree/6f1aa442d4f8b1121899fb6515bcd5b51501b161/results/wilson_loop/finite_nt_toy_validation_20261123_v2/README.md) 用手设、无量纲正谱 toy 参数生成
 
 ```text
 log W(R,t;N_t) = log A0(R) - V0(R)t + log1p(q+h+x)
@@ -30,15 +30,15 @@ chi - Delta_R V0 = -Delta_R Delta_t delta
 
 5 个 `t=4...8` stencil 的直接 bias 与 `-Delta_R Delta_t delta` 恒等式最大差为 `7.63e-16`；四点保守 envelope 覆盖全部 5 个 toy bias。`q` 随 `t` 下降，而 complementary-time `h` 在图示参数下上升，展示两类污染的竞争。测试另将 `H=X=0` 的极限与已有零温正谱 `creutz_excited_correction` 逐点交叉核对。
 
-![有限 N_t 的 q/h/x 污染和四点误差界](https://github.com/Greyyy-HJC/LatticeArena/blob/codex/optimize-wilson-cpu-diagnostics-20261123/results/wilson_loop/finite_nt_toy_validation_20261123_v2/finite_nt_toy_validation.png)
+![有限 N_t 的 q/h/x 污染和四点误差界](https://github.com/DianjunZhao/LatticeArena/blob/6f1aa442d4f8b1121899fb6515bcd5b51501b161/results/wilson_loop/finite_nt_toy_validation_20261123_v2/finite_nt_toy_validation.png)
 
 这只验证符号、索引和误差传播。输入不是 measurement、fit 或独立物理上界；保守 envelope 也未证明有用。C lane 仍是有限-T Creutz observable；F lane 仍需要真实、独立的激发态/热/绕回/mixed-sector 界和事前容差，状态保持 `GROUND_STATE_FORCE_UNCERTIFIED`。
 
 ### 正谱参数范围的随机代数压力测试（已完成）
 
-[Randomized finite-`N_t` stress report](https://github.com/DianjunZhao/LatticeArena/tree/codex/optimize-wilson-cpu-diagnostics-20261123/results/wilson_loop/finite_nt_randomized_stress_20261123_v1/README.md) 对 4,000 个独立 seed case 重复计算同一四点恒等式和正污染 envelope。输入范围是 `N_t=4…64`、`t` 均匀取 `1…N_t-1`、`A0` 对数均匀 `[0.1,10]`、`V0` 均匀 `[0,1.5]`、各半径独立 `Q/H/X` 对数均匀 `[1e-3,1e2]`、各 gap 对数均匀 `[0.01,1]`。这些是压力测试区间，不是格点谱的先验或估计。
+[Randomized finite-`N_t` stress report](https://github.com/DianjunZhao/LatticeArena/tree/6f1aa442d4f8b1121899fb6515bcd5b51501b161/results/wilson_loop/finite_nt_randomized_stress_20261123_v1/README.md) 对 4,000 个独立 seed case 重复计算同一四点恒等式和正污染 envelope。输入范围是 `N_t=4…64`、`t` 均匀取 `1…N_t-1`、`A0` 对数均匀 `[0.1,10]`、`V0` 均匀 `[0,1.5]`、各半径独立 `Q/H/X` 对数均匀 `[1e-3,1e2]`、各 gap 对数均匀 `[0.01,1]`。这些是压力测试区间，不是格点谱的先验或估计。
 
-![随机正谱参数下的 Creutz 偏差与四点 envelope](https://github.com/DianjunZhao/LatticeArena/blob/codex/optimize-wilson-cpu-diagnostics-20261123/results/wilson_loop/finite_nt_randomized_stress_20261123_v1/finite_nt_randomized_stress.png)
+![随机正谱参数下的 Creutz 偏差与四点 envelope](https://github.com/DianjunZhao/LatticeArena/blob/6f1aa442d4f8b1121899fb6515bcd5b51501b161/results/wilson_loop/finite_nt_randomized_stress_20261123_v1/finite_nt_randomized_stress.png)
 
 4,000/4,000 个情景的 `-Delta_R Delta_t delta` identity 与 envelope 检查通过；最大浮点 identity 差为 `3.20e-14`。`|bias|/envelope` 中位数 `0.0118`、95th percentile `0.117`、最大 `0.398`，显示这个解析 envelope 在抽样域里通常偏松。分母为 randomized cases `4000/4000/0/0`、四点 loop evaluations `16000/16000/0/0`（planned/valid/failed/abstained）。报告保存所有参数、逐情景诊断、源码快照和哈希。
 
