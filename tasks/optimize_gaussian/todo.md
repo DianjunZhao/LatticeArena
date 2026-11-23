@@ -30,7 +30,7 @@ planned/valid/failed/abstained panel = `36/36/0/0`；solver fit = `288/288` retu
 
 ### 跨任务 pooled initialization + 同预算 SLSQP（CPU，companion PR #6）
 
-[新增报告](../../results/optimize_gaussian/trainable_w_meta_init_20261123_v5/README.md) 补查了 per-panel stress 未覆盖的可复用初始化机制：12 个训练 panel 的 fit links 只训练一个 joint-W width-2 共享初值；另 12 个独立 eval panel 对比 pooled learned init、随机冷启动和固定非零初值，然后三组均跑同一个 joint-W SLSQP，调用上限 `8/32/128`。Heldout links 不参与 prior 训练或停止/选择。每个 eval panel 同时拟合 degree-4 Chebyshev（指定谱基线）和固定 degree-2 local-polynomial（该合成教师族的 target-matched control）。
+[新增报告](https://github.com/DianjunZhao/LatticeArena/blob/7d05b0e779eba91a175bb333e91751ee5187eee3/results/optimize_gaussian/trainable_w_meta_init_20261123_v5/README.md) 补查了 per-panel stress 未覆盖的可复用初始化机制：12 个训练 panel 的 fit links 只训练一个 joint-W width-2 共享初值；另 12 个独立 eval panel 对比 pooled learned init、随机冷启动和固定非零初值，然后三组均跑同一个 joint-W SLSQP，调用上限 `8/32/128`。Heldout links 不参与 prior 训练或停止/选择。每个 eval panel 同时拟合 degree-4 Chebyshev（指定谱基线）和固定 degree-2 local-polynomial（该合成教师族的 target-matched control）。
 
 planned/valid/failed/abstained 训练 panel=`12/12/0/0`，评估 panel=`12/12/0/0`，在线 solver run=`108/108/0/0`；其中 36 次达到预算、36 次 solver non-success，两个诊断分别保留，未删样本。pooled SLSQP 使用 15 次跨 24 个训练 link cases 的 optimizer objective/gradient 调用；成本折成每任务调用数是 180，再加一次初值诊断等于 192 panel-equivalent evaluations。以每个 panel 冷启动初始 fit loss 的共同 10%/1% 作为合成收敛目标，pooled init 平均分别用 3.58/4.25 次，cold SLSQP 用 4.58/6.92 次；若未来任务真来自同一分布，按已观测调用节省严格覆盖训练成本的最小 K 分别为 193/73。它们是 12-panel 的算术描述，不是置信下界、物理 `r_star` 或墙钟收益证明。
 
