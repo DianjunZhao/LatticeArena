@@ -166,6 +166,6 @@ Neither route alone automatically proves a bound; both need frozen operators, un
 
 - [`ground_state_bound.py`](../../../tasks/wilson_loop/ground_state_bound.py), positive-spectrum `Q/gap` sensitivity implementation
 - [`ground_state_bound_20261121_v1`](../ground_state_bound_20261121_v1/README.md), historical illustrative sensitivity report
-- [`todo.md`](../../../tasks/wilson_loop/todo.md), current research gates
+- Research gates remain open; this is a derivation and design aid, not a task closure.
 - [Static-force spectral decomposition, Phys. Rev. D 105, 054514](https://doi.org/10.1103/PhysRevD.105.054514)
 - [Static quark-antiquark correlators at finite temperature, Phys. Rev. D 105, 054513](https://arxiv.org/abs/2110.11659), Appendix A, thermal trace and spectral decomposition, Eqs. (35)–(36)
