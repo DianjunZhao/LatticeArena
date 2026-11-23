@@ -52,11 +52,15 @@ These are task examples, not automatic plug-ins for every task family.
   score gate can validate. The accepted bounded block-risk calibration belongs
   behind a versioned score specification, not in the generic comparator. Its
   finite planned-block denominator, failure-as-worst rule, `alpha_s/alpha_A`
-  split and graph-color/mixing assumptions should be explicit contract fields;
-  clipping changes the estimand and must be frozen before confirmation data.
-  The synthetic coverage MC shows the cost of a wrong IID assumption under one
-  known finite-dependence generator, and the conservatism of the graph bound;
-  it does not establish the real score graph or anchor coverage.
+  split and graph-color/mixing assumptions should be explicit contract fields.
+  `tasks/pion_projection/bounded_block_risk_score.py` implements the blockwise
+  clipping, fixed failure denominator, and conditional lower-bound arithmetic
+  as a pure CPU helper; it is not wired into the evaluator and always leaves
+  `physical_score` null. The synthetic coverage MC shows the cost of a wrong IID
+  assumption under one known finite-dependence generator and the conservatism
+  of the graph bound; it does not establish the real score graph or anchor
+  coverage. Clipping changes the estimand and must be frozen before confirmation
+  data.
 - **Optimize Gaussian:** add a task-specific run specification that binds the
   same objective, reference, fit IDs, W/v/c constraints, SLSQP comparison,
   fixed spectral baseline, dual contrasts, equal-parameter-count arm, budgets
