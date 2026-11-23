@@ -100,9 +100,9 @@ Optimize/Wilson additions are isolated analytic/synthetic CPU diagnostics and
 theory artifacts; none is a production measurement pipeline. Pion's bounded
 risk reports include a 1,728-scenario feasibility surface and a known-graph
 coverage MC; the companion Optimize/Wilson PR reports the 36-panel trainable-W
-stress grid and finite-`N_t` Creutz toy identity check, all with figures and
-source/artifact hashes. Their TODOs
-remain until the open scientific reference, effect/tolerance, confirmation
-family, dependence/anchor bounds and data/compute authorization gates are
-resolved. CPU tests establish software/algebra behavior only, not GPU/MPI
-physics validation.
+stress grid, finite-`N_t` Creutz toy identity check, and randomized positive-
+spectrum four-point stress over 4,000 cases, all with figures and source/artifact
+hashes. Their TODOs remain until task-specific references, effect/tolerance or
+spectral-error contracts, dependence/anchor bounds, lane protocols, and
+data/compute authorization gates are resolved. CPU tests establish
+software/algebra behavior only, not GPU/MPI physics validation.
