@@ -44,6 +44,14 @@ chi - Delta_R V0 = -Delta_R Delta_t delta
 
 该结果只加强 toy 代码在宽正参数域内的代数验证，并显示保守界的松弛程度会随任意参数域变化。它不证明真实 `Q/H/X/gap` 落在该范围，也不提供有限样本物理覆盖概率或 F-lane 误差预算。
 
+### C/F lane contract inspector（结构诊断，companion PR #6）
+
+[`lane_contract.py`](lane_contract.py) 为 C/F 两条用户选定 estimand 提供独立 schema 检查；[诊断报告](../../results/wilson_loop/lane_contract_diagnostic_20261123_v5/README.md) 同时保留当前 null draft、synthetic C-only fixture 和 synthetic C+F 完整 fixture，并在报告目录保存源码快照与逐文件 hash。校验项包括共享 action/geometry/边界/单位、kernel 与 split/paired-block receipts；C lane 的 `R/T/kernel`、`R+1<=N_s`、`T+1<=N_t`、四点 stencil/sign、positive ensemble-mean log 规则、失败处理、比较族、precision 与 alpha/multiplicity；F lane 的候选/参考 force stencil、单位、dimensionless q/h/x receipts、已传播到 force units 的 excited-state bound、thermal/mixed/finite-a/volume/other force-level bounds、独立 receipt、alpha 分配和总误差预算。q/h/x 原始谱比值不能直接与力的 tolerance 相加。
+
+fixture 分母每条 lane 均为 planned/valid/failed/abstained=`1/0/1/0`（空 draft）、C-only 时 C=`1/1/0/0` 而 F=`1/0/1/0`、合成 C+F 结构完整时各=`1/1/0/0`。即使字段齐全也只给 `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`，永远不设置 `certified` 或 `physical_score`。缺失界不会默认成零；bound receipt 目前只核对 hash/字段形状，不会打开或认证其来源。F 总预算累加已换算成同一力单位的 q/h/x excited-state、其他系统界和统计 precision；不能把无量纲 q/h/x 原始值直接当作力误差。alpha allocations 之和不得超过总 alpha。测试也覆盖报告源码快照及所有 artifact hash，见 [`test_wilson_lane_contract.py`](../../tests/test_wilson_lane_contract.py)。
+
+这项工作将“还缺什么字段”变成可复核的 text flow/table，但不冻结任何真实 `R/T/kernel`、单位、污染阈值或多重性方法，不读取测量、封存分区或生产 receipt；状态仍为 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+
 ## 解析公式与注意事项
 
 零温正谱下写

@@ -35,7 +35,7 @@ contracts; declaring a schema alone does not create an evaluator.
 | Add a measurement backend | [`core/measurement.py`](../core/measurement.py): arrays, manifest, dtype and declared `linear_response`, `cross_matrix`, `new_source` capabilities | Implement the task-owned CPU/GPU/MPI measurement route, bind inputs and software identity in the manifest, and reject unavailable capabilities before measurement. Current bundle validation checks finite nonempty arrays; it does not provide storage isolation or verify all provenance hashes by itself |
 | Add a search method | [`core/search.py`](../core/search.py): common validate → budget → evaluate → record path | Adapt LLM, deterministic optimizer, evolutionary search or learned initializer to emit proposals; count invalid attempts according to the frozen budget and retain every rejection reason |
 | Add a score or paired estimand | [`core/comparator.py`](../core/comparator.py): shared draw-length checks, optional unique draw IDs, positive paired risk ratio and a log lower bound | Implement the task estimand and failure policy; preserve common draw/configuration identity, planned denominators and multiplicity. A new formula must not silently inherit the current ratio's positivity or interval semantics |
-| Plan diagnostics and retain denominators | The Pion bounded-risk feasibility grid/known-graph coverage MC and Optimize/Wilson CPU reports show reproducible seeds, explicit scenarios, source-bound raw rows, coverage intervals, and separate planned/valid/failed/abstained counts; these are task scripts, not a shared API yet | Add a versioned `ScenarioSpec`/seed plan and `RunReceipt` that distinguish panel, measurement, optimizer-fit, and stencil denominators. Keep cap-stop/non-success and abstention reasons rather than folding them into `valid` or dropping them |
+| Plan diagnostics and retain denominators | The Pion bounded-risk feasibility grid/known-graph coverage MC, empirical-Bernstein comparison, Optimize cross-task initialization replay, and Wilson lane-contract fixtures show reproducible seeds, explicit scenarios, source-bound raw rows, text/figure diagnostics, and separate planned/valid/failed/abstained counts; these are task scripts, not a shared API yet | Add a versioned `ScenarioSpec`/seed plan and `RunReceipt` that distinguish panel, measurement, optimizer-fit, stencil, and contract-check denominators. Keep cap-stop/non-success and abstention reasons rather than folding them into `valid` or dropping them |
 | Track evidence readiness | [`core/state.py`](../core/state.py): operator, reference, numerical, statistical and comparison states; validation observation is permanent; a score is available only when all states have hash-bound validation | Provide evidence hashes and allowed transitions for each task. Keep diagnostic/physical output labels explicit and make abstention a first-class terminal result |
 | Compare learned/iterative methods fairly | `core/ledger.py` has generic setup/solve/residual phases; the Optimize stress report keeps call cap, optimizer seconds, fit selection and postchecks separate | Add `BudgetSpec` fields for objective/gradient calls, setup, training, inference, I/O, recovery and amortization count. Enforce shared fit/heldout IDs, initialization policy and restart count; report call-budget and total-walltime estimands separately |
 | Preserve artifacts | [`core/io.py`](../core/io.py): content digest, canonical fingerprint and JSON writing; the CPU diagnostics additionally retain raw synthetic arrays, source snapshots, plots and hash manifests | Bind protocol, code, environment, input, output, plot and report identities; use no-clobber run directories and retain failure receipts. A manifest proves byte identity, not scientific validity or input independence |
@@ -61,7 +61,10 @@ These are task examples, not automatic plug-ins for every task family.
   known-variance anchor interval with explicit `alpha_score/alpha_anchor`
   allocation. A separate exact two-point enumeration contrasts the known-
   variance Gaussian z radius with a distribution-free Hoeffding radius when
-  anchor support is known. These diagnostics show calibration choices and
+  anchor support is known. An optional color-class empirical-Bernstein bound
+  is compared with graph-color Hoeffding only under the known synthetic graph;
+  it may help at low chromatic number but loses certificate rate as classes
+  shrink, so it remains a sensitivity lane. These diagnostics show calibration choices and
   utility costs only under their declared models; they do not establish the
   real score graph, E-anchor coverage/support, common-bias bound, or conditional
   independence. The plots and reports retain separate paired-block,
@@ -72,15 +75,21 @@ These are task examples, not automatic plug-ins for every task family.
   fixed spectral baseline, dual contrasts, equal-parameter-count arm, budgets
   and full failure receipts. The 36-panel synthetic grid demonstrates how to
   retain a paired heldout-loss plot and separate solver stops from failed fits;
-  its small descriptive cells do not resolve physical reference or minimum
-  effect size. The generic optimizer hook does not define those choices.
+  a separate 12-train/12-eval pooled initialization replay separates train-only
+  prior fitting, identical online SLSQP budgets, and heldout scoring. Its
+  synthetic break-even count is call accounting, not a production timing
+  claim. These small descriptive cells do not resolve physical reference or
+  minimum effect size. The generic optimizer hook does not define those choices.
 - **Wilson loop:** add versioned estimand contracts for finite-`T` Creutz and
   ground-state discrete force separately. Both can share block IDs and paired
   draws while using different systematic-error gates. The fixed q/h/x toy and
   randomized positive-spectrum stress validate the four-point algebra and
   envelope propagation over the declared synthetic ranges, but supply no
-  physical contamination envelope. The generic `RunState` does not infer
-  spectral, thermal or mixed-sector bounds.
+  physical contamination envelope. A new lane-contract inspector checks
+  stencil, units, alpha allocation and evidence-receipt shape while keeping
+  `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW` separate from readiness; it does
+  not authenticate receipts. The generic `RunState` does not infer spectral,
+  thermal or mixed-sector bounds.
 
 ## Practical implementation order for a new task
 
@@ -109,11 +118,13 @@ The current `main` has a full Pion pilot. Pion dependence calibration and the
 Optimize/Wilson additions are isolated analytic/synthetic CPU diagnostics and
 theory artifacts; none is a production measurement pipeline. Pion's bounded
 risk reports include a 1,728-scenario feasibility surface, a known-graph
-coverage MC, a joint score/anchor coverage MC, and an exact anchor-distribution
-robustness comparison; the companion Optimize/Wilson PR reports the 36-panel trainable-W
-stress grid, finite-`N_t` Creutz toy identity check, and randomized positive-
-spectrum four-point stress over 4,000 cases, all with figures and source/artifact
-hashes. Their TODOs remain until task-specific references, effect/tolerance or
-spectral-error contracts, dependence/anchor bounds, lane protocols, and
-data/compute authorization gates are resolved. CPU tests establish
-software/algebra behavior only, not GPU/MPI physics validation.
+coverage MC, a joint score/anchor coverage MC, an exact anchor-distribution
+robustness comparison, and a color-class empirical-Bernstein sensitivity grid.
+The companion Optimize/Wilson PR reports the 36-panel trainable-W stress grid,
+12-panel pooled-initialization replay, Wilson lane-contract completeness
+fixtures, finite-`N_t` Creutz toy identity check, and randomized positive-
+spectrum four-point stress over 4,000 cases, all with figures or text flow,
+denominators and source/artifact hashes. Their TODOs remain until task-specific
+references, effect/tolerance or spectral-error contracts, dependence/anchor
+bounds, lane protocols, and data/compute authorization gates are resolved. CPU
+tests establish software/algebra behavior only, not GPU/MPI physics validation.
