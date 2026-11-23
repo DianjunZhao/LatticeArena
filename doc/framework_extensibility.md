@@ -66,10 +66,11 @@ These are task examples, not automatic plug-ins for every task family.
   effect size. The generic optimizer hook does not define those choices.
 - **Wilson loop:** add versioned estimand contracts for finite-`T` Creutz and
   ground-state discrete force separately. Both can share block IDs and paired
-  draws while using different systematic-error gates. The q/h/x toy validates
-  the four-point algebra and envelope propagation but supplies no physical
-  contamination envelope. The generic `RunState` does not infer spectral,
-  thermal or mixed-sector bounds.
+  draws while using different systematic-error gates. The fixed q/h/x toy and
+  randomized positive-spectrum stress validate the four-point algebra and
+  envelope propagation over the declared synthetic ranges, but supply no
+  physical contamination envelope. The generic `RunState` does not infer
+  spectral, thermal or mixed-sector bounds.
 
 ## Practical implementation order for a new task
 
