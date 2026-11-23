@@ -35,7 +35,7 @@ contracts; declaring a schema alone does not create an evaluator.
 | Add a measurement backend | [`core/measurement.py`](../core/measurement.py): arrays, manifest, dtype and declared `linear_response`, `cross_matrix`, `new_source` capabilities | Implement the task-owned CPU/GPU/MPI measurement route, bind inputs and software identity in the manifest, and reject unavailable capabilities before measurement. Current bundle validation checks finite nonempty arrays; it does not provide storage isolation or verify all provenance hashes by itself |
 | Add a search method | [`core/search.py`](../core/search.py): common validate → budget → evaluate → record path | Adapt LLM, deterministic optimizer, evolutionary search or learned initializer to emit proposals; count invalid attempts according to the frozen budget and retain every rejection reason |
 | Add a score or paired estimand | [`core/comparator.py`](../core/comparator.py): shared draw-length checks, optional unique draw IDs, positive paired risk ratio and a log lower bound | Implement the task estimand and failure policy; preserve common draw/configuration identity, planned denominators and multiplicity. A new formula must not silently inherit the current ratio's positivity or interval semantics |
-| Plan diagnostics and retain denominators | The Pion bounded-risk grid and Optimize/Wilson CPU reports show reproducible seeds, explicit scenarios, source-bound raw rows, and separate planned/valid/failed/abstained counts; these are task scripts, not a shared API yet | Add a versioned `ScenarioSpec`/seed plan and `RunReceipt` that distinguish panel, measurement, optimizer-fit, and stencil denominators. Keep cap-stop/non-success and abstention reasons rather than folding them into `valid` or dropping them |
+| Plan diagnostics and retain denominators | The Pion bounded-risk feasibility grid/known-graph coverage MC and Optimize/Wilson CPU reports show reproducible seeds, explicit scenarios, source-bound raw rows, coverage intervals, and separate planned/valid/failed/abstained counts; these are task scripts, not a shared API yet | Add a versioned `ScenarioSpec`/seed plan and `RunReceipt` that distinguish panel, measurement, optimizer-fit, and stencil denominators. Keep cap-stop/non-success and abstention reasons rather than folding them into `valid` or dropping them |
 | Track evidence readiness | [`core/state.py`](../core/state.py): operator, reference, numerical, statistical and comparison states; validation observation is permanent; a score is available only when all states have hash-bound validation | Provide evidence hashes and allowed transitions for each task. Keep diagnostic/physical output labels explicit and make abstention a first-class terminal result |
 | Compare learned/iterative methods fairly | `core/ledger.py` has generic setup/solve/residual phases; the Optimize stress report keeps call cap, optimizer seconds, fit selection and postchecks separate | Add `BudgetSpec` fields for objective/gradient calls, setup, training, inference, I/O, recovery and amortization count. Enforce shared fit/heldout IDs, initialization policy and restart count; report call-budget and total-walltime estimands separately |
 | Preserve artifacts | [`core/io.py`](../core/io.py): content digest, canonical fingerprint and JSON writing; the CPU diagnostics additionally retain raw synthetic arrays, source snapshots, plots and hash manifests | Bind protocol, code, environment, input, output, plot and report identities; use no-clobber run directories and retain failure receipts. A manifest proves byte identity, not scientific validity or input independence |
@@ -54,6 +54,9 @@ These are task examples, not automatic plug-ins for every task family.
   finite planned-block denominator, failure-as-worst rule, `alpha_s/alpha_A`
   split and graph-color/mixing assumptions should be explicit contract fields;
   clipping changes the estimand and must be frozen before confirmation data.
+  The synthetic coverage MC shows the cost of a wrong IID assumption under one
+  known finite-dependence generator, and the conservatism of the graph bound;
+  it does not establish the real score graph or anchor coverage.
 - **Optimize Gaussian:** add a task-specific run specification that binds the
   same objective, reference, fit IDs, W/v/c constraints, SLSQP comparison,
   fixed spectral baseline, dual contrasts, equal-parameter-count arm, budgets
@@ -93,9 +96,11 @@ failures and protocol abstentions are distinct states and should stay visible.
 
 The current `main` has a full Pion pilot. Pion dependence calibration and the
 Optimize/Wilson additions are isolated analytic/synthetic CPU diagnostics and
-theory artifacts; none is a production measurement pipeline. The companion
-Optimize/Wilson PR reports the 36-panel trainable-W stress grid and finite-`N_t`
-Creutz toy identity check with figures and source/artifact hashes. Their TODOs
+theory artifacts; none is a production measurement pipeline. Pion's bounded
+risk reports include a 1,728-scenario feasibility surface and a known-graph
+coverage MC; the companion Optimize/Wilson PR reports the 36-panel trainable-W
+stress grid and finite-`N_t` Creutz toy identity check, all with figures and
+source/artifact hashes. Their TODOs
 remain until the open scientific reference, effect/tolerance, confirmation
 family, dependence/anchor bounds and data/compute authorization gates are
 resolved. CPU tests establish software/algebra behavior only, not GPU/MPI
