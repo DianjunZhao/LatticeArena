@@ -151,8 +151,8 @@ The current `main` has a full Pion pilot. Pion dependence calibration and the
 Optimize/Wilson additions are isolated analytic/synthetic CPU diagnostics and
 theory artifacts; none is a production measurement pipeline. A shared receipt
 API now has Optimize and Wilson contract consumers, plus Pion contract and saved
-known-graph coverage-report consumers; Pion's joint score/anchor Monte Carlo and
-other sensitivity reports still use task-local schemas. Pion's bounded
+known-graph, joint score/anchor, and time-varying Eq. (3.26) report consumers;
+remaining Pion sensitivity reports still use task-local schemas. Pion's bounded
 risk reports include a 1,728-scenario feasibility surface, a known-graph
 coverage MC, a joint score/anchor coverage MC, an exact anchor-distribution
 robustness comparison, and a color-class empirical-Bernstein sensitivity grid.
@@ -162,8 +162,9 @@ four fail-closed mutation fixtures, finite-`N_t` Creutz toy identity check, and
 randomized positive-spectrum four-point stress over 4,000 cases, all with
 figures or text flow, denominators and source/artifact hashes. All three task
 families now exercise shared receipt generation for contract diagnostics with
-explicit count/reason semantics; extending it to statistical result units is
-still open. Their TODOs remain until task-specific
+explicit count/reason semantics; Pion also binds saved statistical-diagnostic
+units without rerunning their simulations or formula grids. Extending receipts
+to remaining task-specific units is still open. Their TODOs remain until task-specific
 references, effect/tolerance or spectral-error contracts, dependence/anchor
 bounds, lane protocols, and data/compute authorization gates are resolved. CPU
 tests establish software/algebra behavior only, not GPU/MPI physics validation.
