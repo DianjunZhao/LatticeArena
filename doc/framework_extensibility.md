@@ -31,7 +31,7 @@ contracts; declaring a schema alone does not create an evaluator.
 | Need | Existing hook | What a new task must add |
 |---|---|---|
 | Describe a scientific problem | [`core/specs.py`](../core/specs.py): `task_spec` includes observable, geometry, boundary, source, splits, reference, metric, budget, dependencies | Freeze units, operator conventions, split identity, reference and invalid-result rules; strengthen checks for disjoint splits and permitted data capabilities where needed |
-| Declare an operator/candidate | `operator_contract` and `candidate_spec` bind axes, dtype, transformation, support, parameters, builder and dependencies | Add an explicit versioned contract and builder validator. The current candidate registry only accepts `pion-kernel-v1` and `wilson-kernel-v1`; Optimize needs its own candidate schema before production integration |
+| Declare an operator/candidate | `operator_contract` and `candidate_spec` bind axes, dtype, transformation, support, parameters, builder and dependencies | Pion and Wilson retain their task schemas; Optimize now registers `optimize-chebyshev-diagnostic-v1` through a task-owned validator. This schema is diagnostic only: it does not freeze D11, create a complete Optimize `TaskSpec`, or connect production evaluation |
 | Add a measurement backend | [`core/measurement.py`](../core/measurement.py): arrays, manifest, dtype and declared `linear_response`, `cross_matrix`, `new_source` capabilities | Implement the task-owned CPU/GPU/MPI measurement route, bind inputs and software identity in the manifest, and reject unavailable capabilities before measurement. Current bundle validation checks finite nonempty arrays; it does not provide storage isolation or verify all provenance hashes by itself |
 | Add a search method | [`core/search.py`](../core/search.py): common validate → budget → evaluate → record path | Adapt LLM, deterministic optimizer, evolutionary search or learned initializer to emit proposals; count invalid attempts according to the frozen budget and retain every rejection reason |
 | Add a score or paired estimand | [`core/comparator.py`](../core/comparator.py): shared draw-length checks, optional unique draw IDs, positive paired risk ratio and a log lower bound | Implement the task estimand and failure policy; preserve common draw/configuration identity, planned denominators and multiplicity. A new formula must not silently inherit the current ratio's positivity or interval semantics |
@@ -86,9 +86,14 @@ These are task examples, not automatic plug-ins for every task family.
 - **Optimize Gaussian:** a standalone versioned draft inspector now retains the
   two selected contrasts (trainable-W versus same-budget SLSQP; trainable-W
   versus fixed degree-4 Chebyshev) and lists unset D04 reference, D06 `r_star`,
-  D11 operator and fairness-budget fields. Its complete synthetic fixture only
-  reaches `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`; it is not wired to the
-  generic `TaskSpec`, operator registry, measurement route or evaluator. The
+  D11 operator and fairness-budget fields. The degree-4 Bernstein/Chebyshev
+  candidate now has a versioned diagnostic adapter in
+  [candidate_contract.py](https://github.com/Greyyy-HJC/LatticeArena/blob/133eae86eec57b3e8aeefb1cebdb2f242eafde21/tasks/optimize_gaussian/candidate_contract.py)
+  and a [hashed text-flow report](https://github.com/Greyyy-HJC/LatticeArena/blob/133eae86eec57b3e8aeefb1cebdb2f242eafde21/results/optimize_gaussian/framework_candidate_contract_20261124_v1/README.md).
+  It validates the illustrative Bernstein controls against the generic candidate
+  schema, but its complete synthetic fixture only reaches
+  `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`; it does not create a complete
+  Optimize `TaskSpec` or connect a measurement route/evaluator. The
   36-panel synthetic grid demonstrates how to retain a paired heldout-loss plot
   and separate solver stops from failed fits; a separate 12-train/12-eval pooled
   initialization replay separates train-only prior fitting, identical online
