@@ -14,10 +14,12 @@ import re
 from pathlib import Path
 from typing import Any
 
+from core.receipts import run_receipt, scenario_spec
+
 
 SCHEMA = "wilson-two-lane-contract-v2"
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/wilson_loop/lane_contract_diagnostic_20261124_v3")
+               / "results/wilson_loop/lane_contract_diagnostic_20261124_v4")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 F_BOUND_COMPONENTS = (
     "excited_state_force", "finite_T_thermal", "mixed", "finite_a",
@@ -613,7 +615,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "  -> physical_score remains null until those gates are independently satisfied",
         "```",
         "",
-        "`lane_summary.csv` reports planned/valid/failed/abstained counts for each fixture and lane. A missing bound is never treated as zero. Bound rows require a scope, hash-shaped evidence receipt and review receipt; those strings are checked only for shape and are not opened or authenticated here. q/h/x receipts are dimensionless spectral inputs; the force-budget check requires their separately propagated `excited_state_force` bound and sums that with thermal/mixed/finite-a/volume/other force-level systematic bounds and the statistical precision target. Familywise alpha allocations must sum to no more than `alpha_total`.",
+        "`lane_summary.csv` reports planned/valid/failed/abstained counts for each fixture and lane. `run_receipt.json` records the same 14 fixture-lane checks, source hashes, artifact hashes, and one reason row for every failed schema check; `complete` means all planned checks are accounted for, not that a lane or method succeeded. `artifact_hashes.json` also covers the receipt. A missing bound is never treated as zero. Bound rows require a scope, hash-shaped evidence receipt and review receipt; those strings are checked only for shape and are not opened or authenticated here. q/h/x receipts are dimensionless spectral inputs; the force-budget check requires their separately propagated `excited_state_force` bound and sums that with thermal/mixed/finite-a/volume/other force-level systematic bounds and the statistical precision target. Familywise alpha allocations must sum to no more than `alpha_total`.",
         "",
         "## Fixture results",
         "",
@@ -663,17 +665,79 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         },
         "fixtures": list(fixtures),
         "meaning_of_valid": "schema complete only; requires human physics review and does not certify",
+        "receipt": {
+            "schema": "latticearena-run-receipt-v1",
+            "unit": "one fixture-lane structural check",
+            "complete_means": "all planned schema checks are accounted for; not scientific success",
+        },
     }
     (out / "protocol.json").write_text(json.dumps(protocol, indent=2) + "\n")
     source_snapshot = out / "snapshot_lane_contract.py"
     source_snapshot.write_bytes(Path(__file__).read_bytes())
+    receipt_source = Path(__file__).resolve().parents[2] / "core/receipts.py"
+    (out / "snapshot_core_receipts.py").write_bytes(receipt_source.read_bytes())
     files = ["README.md", "contract_diagnostics.json", "lane_summary.csv",
-             "protocol.json", "snapshot_lane_contract.py"]
+             "protocol.json", "snapshot_lane_contract.py",
+             "snapshot_core_receipts.py"]
+    source_hashes = {
+        "tasks/wilson_loop/lane_contract.py": hashlib.sha256(
+            source_snapshot.read_bytes()).hexdigest(),
+        "core/receipts.py": hashlib.sha256(
+            (out / "snapshot_core_receipts.py").read_bytes()).hexdigest(),
+    }
+    scenario = scenario_spec(
+        "wilson-two-lane-contract-fixtures",
+        "one fixture-lane structural check",
+        "Synthetic contract validation only; no Wilson measurements or production inputs.",
+        assumptions=[
+            "fixtures are software checks and are not independent physical observations",
+            "structural validity does not imply physics validity or certification",
+        ],
+        source_hashes=source_hashes,
+    )
+    denominators = {}
+    reason_rows = []
+    for row in summary_rows:
+        unit = f"{row['fixture']}::{row['lane']}"
+        denominators[unit] = {
+            "unit": "one fixture-lane structural check",
+            "planned": row["planned"],
+            "valid": row["valid"],
+            "failed": row["failed"],
+            "abstained": row["abstained"],
+        }
+        if row["failed"]:
+            issues = results[row["fixture"]]["lanes"][row["lane"]]["issues"]
+            reason_rows.append({
+                "unit": unit,
+                "state": "failed",
+                "count": row["failed"],
+                "reason": "; ".join(issues) or "structural validation failed",
+            })
+    receipt_payload_hashes = {
+        name: hashlib.sha256((out / name).read_bytes()).hexdigest()
+        for name in files
+    }
+    receipt = run_receipt(
+        scenario, denominators, artifact_hashes=receipt_payload_hashes,
+        text_flow=(
+            "synthetic contract fixture -> separate C/F lane validation -> "
+            "fixture-lane denominator and blocker reasons -> hashed report; "
+            "complete means accounting only, not scientific success; human physics "
+            "review and authorized measurement remain later gates"
+        ),
+        reason_rows=reason_rows,
+    )
+    (out / "run_receipt.json").write_text(
+        json.dumps(receipt, indent=2, sort_keys=True) + "\n"
+    )
     hashes = {name: hashlib.sha256((out / name).read_bytes()).hexdigest()
-              for name in files}
+              for name in files + ["run_receipt.json"]}
     (out / "artifact_hashes.json").write_text(json.dumps(hashes, indent=2) + "\n")
     return {"status": protocol["status"], "physical_score": None,
-            "fixtures": results, "files": files + ["artifact_hashes.json"]}
+            "fixtures": results,
+            "receipt": receipt,
+            "files": files + ["run_receipt.json", "artifact_hashes.json"]}
 
 
 def main() -> None:

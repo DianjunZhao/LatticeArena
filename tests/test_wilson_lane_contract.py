@@ -143,9 +143,25 @@ def test_build_report_snapshots_source_and_hashes_every_artifact(tmp_path):
     summary = build(output)
     manifest = json.loads((output / "artifact_hashes.json").read_text())
     assert "snapshot_lane_contract.py" in manifest
+    assert "snapshot_core_receipts.py" in manifest
+    assert "run_receipt.json" in manifest
     assert summary["physical_score"] is None
+    receipt = json.loads((output / "run_receipt.json").read_text())
+    assert receipt["schema"] == "latticearena-run-receipt-v1"
+    assert receipt["status"] == "complete"
+    assert len(receipt["denominators"]) == 14
+    assert sum(row["planned"] for row in receipt["denominators"].values()) == 14
+    assert sum(row["valid"] for row in receipt["denominators"].values()) == 6
+    assert sum(row["failed"] for row in receipt["denominators"].values()) == 8
+    assert sum(row["abstained"] for row in receipt["denominators"].values()) == 0
+    assert sum(row["count"] for row in receipt["reason_rows"]
+               if row["state"] == "failed") == 8
+    assert "not scientific success" in receipt["scenario"]["description"] or (
+        "not scientific success" in receipt["text_flow"]
+    )
     report = (output / "README.md").read_text()
     assert "|fixture|lane|planned|valid|failed|abstained|status|" in report
+    assert "complete` means all planned checks are accounted for" in report
     with (output / "lane_summary.csv").open(newline="") as stream:
         denominator_rows = list(csv.DictReader(stream))
     assert sum(int(row["planned"]) for row in denominator_rows) == 14
@@ -167,4 +183,6 @@ def test_build_report_snapshots_source_and_hashes_every_artifact(tmp_path):
     null_kernels = summary["fixtures"]["synthetic_null_common_kernel_ids"]["lanes"]
     assert all(not row["structurally_complete"] for row in null_kernels.values())
     for name, expected in manifest.items():
+        assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected
+    for name, expected in receipt["artifact_hashes"].items():
         assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected
