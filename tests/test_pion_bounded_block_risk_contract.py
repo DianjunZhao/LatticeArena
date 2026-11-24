@@ -1,0 +1,146 @@
+import hashlib
+import json
+
+import pytest
+
+from tasks.pion_projection.bounded_block_risk_contract import (
+    _synthetic_complete_contract,
+    build_report,
+    empty_contract,
+    inspect_contract,
+)
+
+
+def test_current_null_contract_is_not_ready_and_keeps_physical_score_null():
+    result = inspect_contract(empty_contract())
+
+    assert result["status"] == "NOT_READY"
+    assert result["structurally_complete"] is False
+    assert result["certified"] is False
+    assert result["physical_score"] is None
+    assert any("dependence.method" in issue for issue in result["issues"])
+    assert any("anchor.estimate_receipt_sha256" in issue for issue in result["issues"])
+    assert any("estimand.reference_gate" in issue for issue in result["issues"])
+
+
+@pytest.mark.parametrize(
+    "method",
+    ["graph_color_hoeffding", "markov_pseudo_gap_bernstein"],
+)
+def test_synthetic_complete_dependence_routes_only_request_human_review(method):
+    result = inspect_contract(_synthetic_complete_contract(method))
+
+    assert result["status"] == "CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW"
+    assert result["structurally_complete"] is True
+    assert result["certified"] is False
+    assert result["physical_score"] is None
+    assert result["issues"] == []
+
+
+
+def test_target_mstar_is_explicit_and_finite():
+    contract = _synthetic_complete_contract()
+    contract["estimand"]["target"]["m_star"] = float("nan")
+
+    result = inspect_contract(contract)
+    assert result["status"] == "NOT_READY"
+    assert any("target.m_star" in issue for issue in result["issues"])
+
+def test_alpha_budget_and_prediction_difference_bound_fail_closed():
+    alpha_over = _synthetic_complete_contract()
+    alpha_over["inference"]["alpha_score"] = 0.05
+    assert inspect_contract(alpha_over)["status"] == "NOT_READY"
+    assert any("alpha_score + alpha_anchor" in issue
+               for issue in inspect_contract(alpha_over)["issues"])
+
+    bound_over = _synthetic_complete_contract()
+    bound_over["estimand"]["prediction_difference_abs_bound"] = 2.01
+    assert any("exceeds score_scale_R" in issue
+               for issue in inspect_contract(bound_over)["issues"])
+
+
+def test_bad_receipt_and_mismatched_anchor_units_fail_closed():
+    contract = _synthetic_complete_contract()
+    contract["anchor"]["common_bias_coverage_receipt_sha256"] = "not-a-hash"
+    contract["anchor"]["units"] = "SYNTHETIC_ONLY_other_unit"
+
+    result = inspect_contract(contract)
+    assert result["status"] == "NOT_READY"
+    assert any("common_bias_coverage_receipt_sha256" in issue
+               for issue in result["issues"])
+    assert any("anchor.units" in issue for issue in result["issues"])
+
+
+
+def test_anchor_coverage_methods_require_their_specific_assumptions():
+    normal = _synthetic_complete_contract()
+    normal["anchor"].update({
+        "coverage_method": "known_sigma_normal_interval",
+        "coverage_parameters": {
+            "sample_count_n_A": 32,
+            "known_sigma": 0.05,
+            "normality_assumption": "SYNTHETIC_ONLY normal anchor observations",
+            "parameter_receipt_sha256": hashlib.sha256(b"SYNTHETIC_ONLY normal parameters").hexdigest(),
+        },
+    })
+    result = inspect_contract(normal)
+    assert result["status"] == "CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW"
+
+    del normal["anchor"]["coverage_parameters"]["normality_assumption"]
+    result = inspect_contract(normal)
+    assert result["status"] == "NOT_READY"
+    assert any("normality_assumption" in issue for issue in result["issues"])
+
+
+def test_common_bias_bound_must_be_explicit_and_bounded_by_total_B():
+    contract = _synthetic_complete_contract()
+    contract["anchor"]["common_bias_bound_C"] = contract["anchor"]["total_error_bound_B"] + 0.01
+
+    result = inspect_contract(contract)
+    assert result["status"] == "NOT_READY"
+    assert any("common_bias_bound_C: cannot exceed total_error_bound_B" in issue
+               for issue in result["issues"])
+
+    del contract["anchor"]["bound_combination_rule"]
+    result = inspect_contract(contract)
+    assert any("bound_combination_rule" in issue for issue in result["issues"])
+
+def test_invalid_top_level_contract_returns_not_ready_without_raising():
+    result = inspect_contract(None)
+
+    assert result == {
+        "schema_valid": False,
+        "status": "NOT_READY",
+        "structurally_complete": False,
+        "certified": False,
+        "physical_score": None,
+        "issues": ["contract: expected an object"],
+    }
+
+
+def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
+    output = tmp_path / "diagnostic"
+    summary = build_report(output)
+
+    assert summary["denominators"] == {
+        "planned": 6, "valid": 2, "failed": 4, "abstained": 0,
+    }
+    assert summary["physical_score"] is None
+    manifest = json.loads((output / "artifact_hashes.json").read_text())
+    assert manifest["algorithm"] == "sha256"
+    assert len(manifest["files"]) == 7
+    for name, expected in manifest["files"].items():
+        actual = hashlib.sha256((output / name).read_bytes()).hexdigest()
+        assert actual == expected
+
+    report = (output / "README.md").read_text()
+    assert "no correlator, anchor, gap, validation, holdout" in report
+    assert "CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW" in report
+    assert "physical_score remains null" in report
+
+
+def test_contract_json_and_python_draft_are_identical():
+    from pathlib import Path
+
+    contract_path = Path(__file__).parents[1] / "tasks/pion_projection/bounded_block_risk_contract_v1.json"
+    assert json.loads(contract_path.read_text()) == empty_contract()

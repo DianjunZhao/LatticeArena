@@ -34,6 +34,8 @@ D_i(A) - D_i(m*) = 2 * (A - m*) * (y_candidate,i - y_reference,i)
 
 so an anchor bound `|A-m*| <= B` yields normalized correction `2B/R` only when the predeclared prediction difference also satisfies `|y_candidate-y_reference| <= R`. If the score adds variance, fit, or other terms, each needs its own valid range and Lipschitz bound before it enters this contract.
 
+The anchor input `B` in the lower bound is the **total** bound on `|A-m*|`, including any common-mode bias. The receipt must state the random-coverage component, an explicit common-bias bound `C`, and a justified rule that combines them into `B`; merely hashing the same shared anchor or listing its standard error is insufficient. The selected coverage route must also expose its assumptions: known variance and a justified normal model for a normal interval, or a predeclared finite support and iid anchor units for Hoeffding. The structural inspector checks that these fields are present and numerically consistent; it does not verify the receipts or assumptions.
+
 The candidate lower bound is
 
 ```text
@@ -46,7 +48,7 @@ If `A` is covered only with probability at least `1-alpha_A`, require `alpha_s +
 
 |Field|Current value|Required decision/evidence|
 |---|---|---|
-|Target `m*`, observable, physical units and interpretation|`null`|Name the matched E-anchor target and units; identify what physical quantity it represents|
+|Target `m*`, observable, physical units and interpretation|`null`|Give the target value/definition, matched E-anchor observable, units and physical interpretation|
 |Scale `R` and prediction-difference bound|`null`|Give units, range and a reason that `|y_candidate-y_reference| <= R` holds for every included score|
 |Clipping interval and score components|candidate `[-1,1]`; not frozen|Confirm clipping before confirmation; enumerate all terms and their individual bounds|
 |Failure coding|candidate `-1`; not frozen|Confirm which failures receive worst score and which invalidate/abstain a whole panel|
@@ -54,7 +56,7 @@ If `A` is covered only with probability at least `1-alpha_A`, require `alpha_s +
 |Result unit and panel-level denominator|one candidate-reference comparison|Count an all-failed comparison as abstained while retaining its failed blocks in the block denominator|
 |Dependence graph and `chi`|`null`|Supply a score-specific proof and auditable upper bound, or a different finite-sample concentration theorem with explicit constants|
 |Candidate family `F`|`null`|Freeze every comparison entering simultaneous inference|
-|Anchor estimate `A`, bound `B`, coverage and independence|`null`|Provide matched E-correlator receipt, source of `B`, coverage model, shared-anchor dependence and conditional independence evidence|
+|Anchor estimate `A`, bound `B`, coverage and independence|`null`|Provide matched E-correlator receipt, total `B` bound, explicit common-bias sub-bound `C <= B`, the rule combining them, coverage model and its assumptions, shared-anchor dependence and conditional-independence evidence|
 |`alpha_total`, `alpha_s`, `alpha_A`|`null`|Choose in advance and enforce `alpha_s+alpha_A<=alpha_total`|
 |Minimum effect `delta_star` and reference gate|`null`|State units, physical interpretation, threshold rationale and independent reference/model-identification pass rule|
 

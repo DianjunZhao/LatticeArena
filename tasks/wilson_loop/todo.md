@@ -97,3 +97,9 @@ W ~ exp[-V0(R)t] * [1 + q(R,t) + h(R,N_t-t) + x(R,t,N_t-t)]
 - companion PR #6 新增 Optimize degree-4 Chebyshev 系数在 `[-1,1]` 连续区间上的正性诊断，报告包含图、逐 panel 区间最小值、分母和哈希。它只覆盖三个 synthetic fit；对 Wilson 的 estimand 或物理结论没有影响。
 - PR #6 源码/测试提交 `f25acababd490729328af1189a5934f56bde7f89` 上，9 个 Optimize/Wilson 专项 CPU 测试模块共 **65 passed**；这不是完整仓库测试或生产验证。
 - C lane 与 F lane 仍分别是有限-T Creutz observable 和基态离散静态力；没有封存数据或 GPU/QUDA 测量。C lane 仍缺 primary `R/T/kernel`、精度及多重性规则；F lane 仍缺独立污染上界与总误差预算，状态保持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED` 和 `physical_score=null`。
+
+## 2026-11-24 Pion contract structure check follow-up
+
+- PR #5 增加 [Pion contract inspector](../pion_projection/bounded_block_risk_contract.py) 和 [诊断报告](../../results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v4/README.md)，覆盖 null draft、两条依赖理论路线、anchor 的 `B/C` 共偏差结构与覆盖假设、alpha 分配及独立 reference gate。报告分母 `6/2/4/0` 统计合同检查，不是 Wilson measurement。
+- Pion 的 8 个 bounded-risk/dependence CPU 专项模块共 65 passed；该工作没有访问 Wilson 数据或改变 C/F lane 的任何物理状态。
+- PR #5 当前共 8 个 tracked Pion report manifest / 67 个 payload 文件，PR #6 的 Optimize/Wilson 报告分别为 4/38 与 6/32，SHA-256 均已复核。C/F lane 仍缺各自 TODO 列明的研究者输入与物理证据。 三份 task TODO 的 34 个相对链接与 28 个 GitHub commit/tree 链接本轮也全部解析通过。
