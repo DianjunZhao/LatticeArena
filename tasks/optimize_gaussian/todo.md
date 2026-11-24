@@ -56,7 +56,7 @@ planned/valid/failed/abstained 训练 panel=`12/12/0/0`，评估 panel=`12/12/0/
 
 1. **D04 reference：**填写 contract 中独立物理目标、单位、关联量、数据来源/receipt、通过与失败门，并完成独立审阅。原有 reference gate 未通过时，所有对照只能写 diagnostic；不能把 proxy loss 改名为物理 improvement。
 2. **D06 `r_star`：**由研究者预先填写最小有意义效应、单位、方向和物理解释；不得根据这三个合成 panel、标准误或 optimizer 残差反推。
-3. **D11 强谱基合同：**填写 degree-4 Chebyshev 的 operator `H`、谱区间/缩放映射、恒等项和归一化、系数约束、正性/投影约束、失败处理，以及它与学习族之间允许不同的参数维数。当前 artifact 的 degree-4 系数是无约束实数最小二乘，只适用于诊断目标。
+3. **D11 强谱基合同：**填写 degree-4 Chebyshev 的 operator `H`、谱区间/缩放映射、恒等项和归一化、系数约束、正性/投影约束、失败处理，以及它与学习族之间允许不同的参数维数。旧 source-closed replay 的系数是无约束最小二乘，仅适用于诊断目标；PR #6 另有受约束 degree-4 候选，见本文末尾，仍待 D11 审阅。
 4. 冻结完整公平预算：同一 objective、输入实例、fit/heldout ID、初始化规则、候选/重启数；分别计训练、setup、objective/gradient calls、求解、推理、I/O、失败恢复与总 walltime。训练数据不能与确认 panel 重叠。
 5. **CPU stress grid 与 null contract diagnostic 已完成**（见上方 companion PR #6）。不要重复同一热核/局域教师网格来增加“样本量”；三个 panel/cell 不支持总体推断。如继续纯 CPU 方法学工作，只新增能区分具体机制的预注册对照，并给出 paired loss、预算/耗时定义、KKT/residual、planned/valid/failed/abstained 分母和图/流程描述。
 6. 物理合同与阈值通过审阅并另行授权后，再用独立配置/ensemble 做 `F=2` paired confirmation：trainable-W 对同预算 SLSQP；trainable-W 对固定 strong spectral baseline。两条对照都要报告多重性调整的单侧区间、失败/abstain 和训练摊销；只有两条均越过事前效应阈值才支持双重优势。
@@ -126,7 +126,30 @@ P4(X) = sum_{k=0}^4 c_k T_k(X),  T_0=I, T_1=X, T_k=2 X T_{k-1}-T_{k-2}
 - Pion 的 time-varying `f_i` Eq. (3.26) 路线现已在 PR #5 作为可选 helper/contract 分支实现，要求冻结 `k_ps`、逐 residue class variance-sum 上界、score schedule、`M/k_ps` 和 anchor-shift receipts；它尚不核验 receipt 内容。此 Pion 方法学更新不能填 Optimize 的 D04 reference、D06 `r_star` 或 D11 operator contract。
 - 下一位 Optimize agent 按本文件既有顺序继续：由研究者提供可审阅的 D04 reference、事前 `r_star`、D11 算符及正性/归一化/失败规则，再冻结同预算 trainable-W vs SLSQP 与 trainable-W vs degree-4 Chebyshev 的 setup/call/total-walltime 对照；缺字段时保留 `NOT_READY/UNCERTIFIED`，不要重跑相同 synthetic teacher grid。
 
-## 2026-11-24 最新跨任务状态
+## 2026-11-24 PR #5 head 71589ab 时的跨任务快照（已被后续记录取代）
 
 - PR #5 当前 head 为 `71589ab`，新增的 Eq. (3.26) time-varying Markov helper、合同分支和 v7 结构报告已提交；Pion 当前专项 suite 为 **116 passed**，已跟踪报告为 **14 manifests / 116 payload files**，哈希均匹配。此更新只同步 Pion 交接，不改变本任务结论。
-- Optimize 仍没有研究者可审阅的 D04 reference、D06 `r_star` 或 D11 生产算符/谱区间/正性与 normalization 规则；两项比较仍为 trainable-W vs same-budget SLSQP、trainable-W vs fixed degree-4 Chebyshev。现有 CPU 方法学工作已覆盖，本任务下一步受这些输入和后续测量授权约束，不新增同族 synthetic 网格。
+- Optimize 仍没有研究者可审阅的 D04 reference、D06 `r_star` 或 D11 生产算符假设与最终正性/归一化合同（PR #6 已有待审阅候选）；两项比较仍为 trainable-W vs same-budget SLSQP、trainable-W vs fixed degree-4 Chebyshev。现有 CPU 方法学工作已覆盖，本任务下一步受这些输入和后续测量授权约束，不新增同族 synthetic 网格。
+
+
+## 2026-11-24 Astra 研究输入审阅与 D11 更新
+
+GPT-6.2-Astra 子代理完成只读审阅后已关闭。研究输入可形成候选合同；它不能代表用户选择 D04/D06，也不能授权 GPU、production data 或 sealed split。状态继续 NOT_READY/UNCERTIFIED、physical_score=null。
+
+### D04：建议先冻结目标，再挑独立 reference
+
+当前代码与合同没有证明要优化的物理量就是 pion mass。若研究目标确认为 pion ground-state mass extraction，可把独立多算符 correlator/GEVP 或经过独立审核的多态拟合作为 D04 候选，并以格点单位 a_t m0 报告；reference 的算符基底、source/sink、时间窗、协方差/重采样、boundary/unresolved-fit 失败规则和原始 receipt 必须先冻结，且不能让 trainable-W/SLSQP/谱臂的结果参与 reference 拟合或选窗。历史 M2 草案是可供方法审阅的起点（输入来源与边界见 [Pion TODO](../pion_projection/todo.md)），不是已验证基态，也不在 PR #5 当前树内。若 D04 目标不是 pion mass，应由研究者明确 observable、单位和物理解释，不能拿合成 operator loss 充当 D04。
+
+### D06：给用户的量化选项，不回填阈值
+
+为避免方向歧义，可把风险比定义成 rho = risk(comparator) / risk(candidate)，candidate 是 trainable-W；rho>1 表示 trainable-W 风险较低。若要表达最小相对风险下降，可选 5%、10% 或 20%，对应 rho_star=1/0.95≈1.0526、1/0.90≈1.1111、1/0.80=1.25。建议先由研究者选一个主要门槛，或对两个对照分别解释门槛；不能用合成结果、标准误或 SLSQP 残差推定。两个确认对比仍同时保留：trainable-W vs 同预算 SLSQP，以及 trainable-W vs 强谱基线。通过规则须检查 paired risk-ratio 的同时区间是否越过 rho_star，并计入 F=2；单位、风险定义、方向和置信水平均需写入 D06；若某臂风险可为零或近零，改用预先定义的 log-risk/绝对差或冻结稳定的分母下限，不能事后加 epsilon 救活比值。
+
+### D11：现有强谱基线候选已更具体，但仍未冻结
+
+PR #6 head 52bc4b7 新增了[约束 degree-4 Bernstein/Chebyshev 候选及响应图](https://github.com/Greyyy-HJC/LatticeArena/blob/52bc4b7/results/optimize_gaussian/chebyshev_constrained_baseline_20261124_v1/README.md)和[CPU 实现](https://github.com/Greyyy-HJC/LatticeArena/blob/52bc4b7/tasks/optimize_gaussian/chebyshev_baseline.py)。在等权、周期空间、unitary SU(3) links 的三维 covariant Laplacian H∈[-12,0] 下，令 y=I+H/12，并取 P4(y)=Σ_i b_i C(4,i)y^i(1−y)^(4−i)，约束 0≤b0≤b1≤b2≤b3≤b4=1。由 Bernstein 基非负且和为一，0≤P4≤1；导数系数非负使响应单调；P4(1)=1 固定低模归一化。该算符族给出了正性、单调性和归一化明确的强基线候选。实现尚未接入 train.main、没有用 D04 拟合系数、没有真实 W 训练或 GPU 路径；不能称为已认证最佳基线，也不能把图里的三条示意曲线说成测量结果。其主要响应图已经随报告保存，说明文字也列出 complete planned denominator=3/3/0/0（仅示意曲线）。
+
+建议先请研究者确认生产 H 的方向权重、边界和 link 假设，外层 Gaussian sandwich 的 alpha/m/归一化，以及此 Bernstein 单调性是否为目标约束；确认后才把该候选写入 D11 合同。继续保留矩阵/矩阵自由一致性与 PSD 条件验证，生产 links、物理 objective 与 coefficient-fit/setup 成本须在同一公平预算中计入。
+
+文字数据流：独立 D04 objective + 生产 H/spectrum → 冻结 Bernstein controls 与 Gaussian sandwich → 同 IDs/objective/precision 下比较 trainable-W、同预算 SLSQP、degree-4 谱臂 → 配对风险、同时区间及训练/推理/总 walltime；没有 D04/D06/D11 任一冻结项就停止在 draft。
+
+**下一步给 Optimize agent：**不再扩大相同 synthetic teacher 网格；先把 D04 reference 候选、D06 风险比方向/选项、D11 新谱基候选并列成一页确认表，引用 PR #6 的新报告。收到明确选择后更新合同并做 CPU 合同/算子验证；在此前不训练真实 W、不触碰封存 split、不申请或假称 GPU 授权。

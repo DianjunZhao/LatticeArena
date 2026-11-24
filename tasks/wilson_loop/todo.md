@@ -115,7 +115,7 @@ W ~ exp[-V0(R)t] * [1 + q(R,t) + h(R,N_t-t) + x(R,t,N_t-t)]
 - 当时的 Pion Markov helper 仅支持固定 score；Eq. (3.26) 的变时路线已在 PR #5 最新更新中独立实现并加结构合同，但这不改变 Wilson 的两条独立 estimand，也不提供 Wilson 的物理污染界。
 - 下一位 Wilson agent 仍按本文件原顺序推进：C lane 等待 primary `R/T/kernel`、精度和多重性规则；F lane 等待独立谱/热/绕回/mixed 污染界及总误差预算。不得从 Pion 的 TV 校准、Wilson toy 或单一 `N_t` 推导这些量；收到相应研究者输入后再冻结 protocol 与执行授权。
 
-## 2026-11-24 companion PR #6 最新 handoff
+## 2026-11-24 companion PR #6 head 337bc99 时的 handoff（历史快照）
 
 - PR #6 当前报告头为 [`337bc99b`](https://github.com/Greyyy-HJC/LatticeArena/tree/337bc99b87952c4c866c6f55ea000427c00273b5)；lane contract v3 的文本决策流程和完整分母表已经包含两个独立 estimand、两种 stencil 符号 fail-closed 例、单位错配与空 kernel-ID 例。该结构诊断只检查字段/收据格式，未读取 Wilson measurements。
 - C lane 仍要由研究者冻结 primary `R/T/kernel`、有限 `N_t`/边界和单位、正 ensemble-mean/log 规则、坏点、候选族、多重性、paired-block 方案与统计精度；最终名称仍为有限-T Creutz。
@@ -123,7 +123,28 @@ W ~ exp[-V0(R)t] * [1 + q(R,t) + h(R,N_t-t) + x(R,t,N_t-t)]
 - Pion Eq. (3.26) 变时集中界只改善 Pion 的可选统计合同，与 Wilson 的 C/F 物理输入无关。没有新的 R/T/kernel、谱界、总误差预算和数据/GPU 授权时，不生成 C/F 物理分数，保持 `NOT_READY/UNCERTIFIED`、sealed data 关闭与 `physical_score=null`。
 - 本轮在 PR #6 head `337bc99b87952c4c866c6f55ea000427c00273b5` 上连同 Optimize 一起重跑 9 个 CPU 专项模块：**65 passed**；Wilson 代码验证仍只覆盖 toy 恒等式、正谱范围和合同 fail-closed 行为。
 
-## 2026-11-24 最新跨任务状态
+## 2026-11-24 PR #5 head 71589ab 时的跨任务快照（已被后续记录取代）
 
 - PR #5 当前 head 为 `71589ab`，Pion Eq. (3.26) time-varying Markov helper/合同分支与 v7 结构报告已经提交；Pion 当前专项 suite 为 **116 passed**，已跟踪报告为 **14 manifests / 116 payload files**，哈希均匹配。这些 Pion 更新不提供 Wilson 的谱/热/mixed 污染界。
 - Wilson 的有限-T Creutz C lane 和基态离散静态力 F lane 继续是独立 estimand。当前任务没有未完成的 CPU-only 代数/结构诊断；下一步须先获得 C lane 的 primary `R/T/kernel` 和推断规则，以及 F lane 的独立污染界和力单位总误差预算，再决定确认测量授权。此前冻结的 `NOT_READY/UNCERTIFIED` 与 `GROUND_STATE_FORCE_UNCERTIFIED` 保持不变。
+
+
+## 2026-11-24 Astra 输入审阅：C/F 两条 lane 的候选合同
+
+GPT-6.2-Astra 子代理完成只读协议审阅后已关闭；它不能授予数据或集群权限。遵照用户此前决定，不读 sealed split、不启动 production GPU；两条 lane 仍为独立 estimand，状态 NOT_READY/UNCERTIFIED、GROUND_STATE_FORCE_UNCERTIFIED、physical_score=null。
+
+### C lane：单一 finite-T Creutz 候选
+
+本机历史审阅分支 codex/continue-research-todos-20261123、提交 f9603b4 中的 protocol_d_20261120.json（SHA-256 bf8048ff570df1eed251c4518ea1d4e4a224ee985d4aa4dd0ae0f342de65ced0；该快照不在 PR #5/#6 当前树内）固定 S16T16D、beta=6、16^4 全周期边界，development stencil 覆盖 R=1…4、T=4…8，并列有 5-step APE alpha=0.4 与 stout rho=0.1 这组弱场线性化匹配候选（rho=alpha/4 只匹配 leading weak-field update，不认证非微扰 smearing radius）。可供研究者审批的新确认 primary 候选为 R=2、T=5，对比 stout_rho0.1_n5 与 ape_a0.4_n5 的有限-T observable difference。R/T 位于已冻结网格内，kernel pair 也是 protocol 的弱场匹配对；但这个具体 primary 现在才提出，D0–99 已被观察，故绝不能用该 split 作确认，只能在单独授权且尚未查看的独立输入上评估。C 值按 chi_k(2,5)=−[log Wbar_k(3,6)+log Wbar_k(2,5)−log Wbar_k(3,5)−log Wbar_k(2,6)] 计算，差值单位为 dimensionless lattice observable，不称为 ground-state force 或风险改善。因为 D0–99 已用于 development，此候选只能在另行授权且未查看的确认输入上检验；不把旧 development 区间重新命名为确认结果。
+
+**推断规则候选：**对两个 kernel 和四个必需 loop 使用共同的 configuration/block IDs；每个 bootstrap draw 先重算每个 loop 的 ensemble mean，再计算 log ratio 与 paired delta-chi，以保留相关性。任何必需 mean 非正/非有限时保留该 draw 的失败原因和 planned denominator，不删 draw。先只设这一组 R/T 和一个 kernel-pair contrast；若扩展到多个 R/T/kernel，使用预先冻结的 max-statistic simultaneous interval 或 Bonferroni。若 C 与 F 同为 co-primary，建议总单侧错误预算 alpha_total=0.05 并以 Bonferroni 各分 alpha_C=alpha_F=0.025；这只是清晰保守的候选规则，block independence、bootstrap coverage 和实际 alpha 仍需审阅/批准。protocol 中 block_length=5、5000 bootstrap 只能作为复核起点，不构成独立性或覆盖证明。
+
+### F lane：基态静态离散力与污染预算
+
+若两条 lane 用同一空间 midpoint，可提议 R_mid=2.5，即 f0(2.5)=U0(3)−U0(2)=a_t[V0(3)−V0(2)]，保持 fixed-a lattice quantity 的 dimensionless 约定；不要自动称为物理单位的连续静态力。提取需冻结谱模型/GEVP operator basis、时间窗、rank/truncation、mode tracking、协方差与失败/弃权规则。可选独立证据是扩展静态源 operator basis 的多态 GEVP/多时间拟合，或相同 action、a_t、体积、R 与 kernel 的 matched-N_t 比较；仅有窗口稳定、单一 Nt、bootstrap 很窄或正谱 toy 都不构成污染上界。
+
+研究者需给出独立收据支持的 Q_k(R)、Delta_Q(R)、H_k(R)、Delta_0、X_k(R) envelope，或通过审阅的谱/变分方案，并把每项传播到 force units 后纳入总预算。建议预算表至少分列统计项、激发态项、热/绕回项、mixed-sector 项、谱截断/拟合项；只有声称 continuum/physical force 时才另加入格距/体积换算误差。保守接受条件可写作所有 force-unit 项的总上界不超过研究者冻结的 epsilon_F，且独立 receipts 和整体 alpha 分配闭合。q/h/x 原始无量纲振幅不得直接与 force tolerance 相加。
+
+文字数据流：同一新配置与 paired blocks → loop means/logs → C lane finite-T delta-chi；同一 blocks → 多态谱/GEVP → U0(2),U0(3) → F lane f0(2.5) → 激发态+热+mixed+截断误差转为 force units → epsilon_F gate。任一步缺测/不辨识即 ABSTAIN；没有新增测量时分母保持 0/0/0/0。
+
+**下一位 Wilson agent：**先交这份 C/F 候选卡供研究者冻结；随后只做协议/收据的 CPU preflight，不读 D100–119、D120–139、D140–199，不用已观察 D0–99挑 primary，也不从 toy 给污染项填数。任何确认测量还要由数据/集群 owner 单独授权。
