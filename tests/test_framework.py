@@ -17,6 +17,15 @@ def test_task_spec_validation():
         task_spec(**dict(good, geometry=[16, 16]))
     with pytest.raises(ValueError, match='splits'):
         task_spec(**dict(good, splits={'development': [0, 9]}))
+    with pytest.raises(ValueError, match='overlap'):
+        task_spec(**dict(good, splits={'development': [0, 9], 'validation': [9, 19]}))
+    with pytest.raises(ValueError, match='start greater than end'):
+        task_spec(**dict(good, splits={'development': [9, 0], 'validation': [10, 19]}))
+    with pytest.raises(ValueError, match='inclusive'):
+        task_spec(**dict(good, splits={'development': [0, '9'], 'validation': [10, 19]}))
+    with pytest.raises(ValueError, match='split names'):
+        task_spec(**dict(good, splits={
+            'development': [0, 9], 'validation': [10, 19], 1: [20, 29]}))
 
 
 def test_operator_and_candidate_contracts():

@@ -24,6 +24,24 @@ def task_spec(**fields):
     splits = fields['splits']
     if not isinstance(splits, dict) or not {'development', 'validation'} <= set(splits):
         raise ValueError('splits must declare development and validation ranges')
+    intervals = []
+    for name, bounds in splits.items():
+        if not isinstance(name, str) or not name:
+            raise ValueError('split names must be nonempty strings')
+        if (not isinstance(bounds, (list, tuple)) or len(bounds) != 2
+                or any(isinstance(value, bool) or not isinstance(value, int)
+                       for value in bounds)):
+            raise ValueError(f'split {name!r} must be an inclusive [start, end] integer range')
+        start, end = bounds
+        if start > end:
+            raise ValueError(f'split {name!r} has start greater than end')
+        intervals.append((start, end, name))
+    intervals.sort()
+    for previous, current in zip(intervals, intervals[1:]):
+        if current[0] <= previous[1]:
+            raise ValueError(
+                f'split ranges overlap: {previous[2]!r} and {current[2]!r}'
+            )
     if not isinstance(fields['dependencies'], dict):
         raise ValueError('dependencies must be a mapping of name to hash')
     return dict(fields)

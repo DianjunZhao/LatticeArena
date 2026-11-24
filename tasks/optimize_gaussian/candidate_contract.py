@@ -18,7 +18,7 @@ from .chebyshev_baseline import validate_control_points
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUT = ROOT / "results/optimize_gaussian/framework_candidate_contract_20261124_v1"
+DEFAULT_OUT = ROOT / "results/optimize_gaussian/framework_candidate_contract_20261124_v2"
 SCHEMA = "optimize-framework-candidate-diagnostic-v1"
 BUILDER = "tasks.optimize_gaussian.chebyshev_baseline:apply_hopping_filter_cpu"
 EXAMPLE_CONTROLS = [0.0, 0.25, 0.5, 0.75, 1.0]
