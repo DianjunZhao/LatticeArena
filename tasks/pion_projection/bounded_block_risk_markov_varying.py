@@ -316,6 +316,9 @@ def markov_time_varying_score_lcb(
     initial_law_receipt_sha256: str,
     anchor_shift_receipt_sha256: str,
     score_schedule_receipt_sha256: str,
+    dependence_evidence_receipt_sha256: str,
+    block_chain_receipt_sha256: str,
+    gamma_ps_lower_receipt_sha256: str,
     variance_receipt_sha256: str,
     k_ps_receipt_sha256: str,
 ) -> dict:
@@ -346,6 +349,9 @@ def markov_time_varying_score_lcb(
         anchor_shift_receipt_sha256=anchor_shift_receipt_sha256,
         score_schedule_receipt_sha256=score_schedule_receipt_sha256,
         route_receipts={
+            "dependence_evidence_receipt_sha256": dependence_evidence_receipt_sha256,
+            "block_chain_receipt_sha256": block_chain_receipt_sha256,
+            "gamma_ps_lower_receipt_sha256": gamma_ps_lower_receipt_sha256,
             "variance_receipt_sha256": variance_receipt_sha256,
             "k_ps_receipt_sha256": k_ps_receipt_sha256,
         },
@@ -370,6 +376,8 @@ def markov_time_varying_score_lcb_from_gap_bound(
     initial_law_tv_bound: float,
     anchor_score_shift_bound: float,
     gamma_ps_lower_receipt_sha256: str,
+    dependence_evidence_receipt_sha256: str,
+    block_chain_receipt_sha256: str,
     initial_law_receipt_sha256: str,
     anchor_shift_receipt_sha256: str,
     score_schedule_receipt_sha256: str,
@@ -404,6 +412,8 @@ def markov_time_varying_score_lcb_from_gap_bound(
         anchor_shift_receipt_sha256=anchor_shift_receipt_sha256,
         score_schedule_receipt_sha256=score_schedule_receipt_sha256,
         route_receipts={
+            "dependence_evidence_receipt_sha256": dependence_evidence_receipt_sha256,
+            "block_chain_receipt_sha256": block_chain_receipt_sha256,
             "gamma_ps_lower_receipt_sha256": gamma_ps_lower_receipt_sha256,
         },
         dependence_method="markov_time_varying_support_gap_bernstein_eq_3_26",
@@ -411,149 +421,3 @@ def markov_time_varying_score_lcb_from_gap_bound(
                    "chain assumptions, initial-law TV, and anchor-shift assumptions"),
         radius_builder=radius_builder,
     )
-def markov_time_varying_score_lcb(
-    planned_scores: object,
-    *,
-    valid_blocks: object,
-    gamma_ps_lower: float,
-    k_ps: int,
-    variance_upper_by_residue: object,
-    family: int,
-    alpha_score: float,
-    alpha_anchor: float,
-    alpha_total: float,
-    initial_law_mode: str,
-    burn_in_blocks: int,
-    initial_law_tv_bound: float,
-    anchor_score_shift_bound: float,
-    initial_law_receipt_sha256: str,
-    anchor_shift_receipt_sha256: str,
-    score_schedule_receipt_sha256: str,
-    variance_receipt_sha256: str,
-    k_ps_receipt_sha256: str,
-) -> dict:
-    """Compute a conditional LCB from already-coded block-specific scores.
-
-    Each planned score must be the value of its predeclared ``f_i(X_i)`` in
-    ``[-1, 1]``. Failures remain in planned N and are coded as -1. The supplied
-    ``anchor_score_shift_bound`` is in normalized score units and is subtracted
-    without interpretation; for a physical bounded-block-risk use, an audited
-    derivation must link it to the accepted anchor contract. The stationary
-    start or post-burn-in TV receipt, plus the schedule, variance, and k_ps
-    receipts, are required inputs. This routine only reports a conditional
-    mathematical bound and never a physical score.
-    """
-    from .bounded_block_risk_markov_gap import _validate_alpha_allocation
-
-    raw_values = np.asarray(planned_scores, dtype=object)
-    valid = np.asarray(valid_blocks)
-    if raw_values.ndim != 1 or raw_values.size == 0:
-        raise ValueError("planned_scores must be a nonempty one-dimensional array")
-    if valid.ndim != 1 or valid.shape != raw_values.shape or valid.dtype != np.bool_:
-        raise ValueError("valid_blocks must be a matching boolean vector")
-    if any(not _finite_real(value) for value in raw_values[valid]):
-        raise ValueError("valid planned scores must be finite non-boolean real numbers")
-    values = np.full(raw_values.size, np.nan, dtype=float)
-    values[valid] = np.asarray(raw_values[valid], dtype=float)
-    if np.any(values[valid] < -1.0) or np.any(values[valid] > 1.0):
-        raise ValueError("valid planned scores must lie in [-1, 1]")
-    receipts = (score_schedule_receipt_sha256, variance_receipt_sha256,
-                k_ps_receipt_sha256, initial_law_receipt_sha256,
-                anchor_shift_receipt_sha256)
-    if not all(isinstance(receipt, str) and len(receipt) == 64
-               and all(char in "0123456789abcdef" for char in receipt)
-               for receipt in receipts):
-        raise ValueError("score schedule, variance, k_ps, initial-law, and anchor-shift receipts must be SHA-256 hex strings")
-    _validate_alpha_allocation(
-        alpha_score=alpha_score, alpha_anchor=alpha_anchor,
-        alpha_total=alpha_total,
-    )
-    if not _finite_real(initial_law_tv_bound) or not 0 <= initial_law_tv_bound <= 1:
-        raise ValueError("initial_law_tv_bound must be finite and in [0, 1]")
-    if (not isinstance(initial_law_mode, str)
-            or initial_law_mode not in {"stationary", "post_burn_in_tv"}):
-        raise ValueError("initial_law_mode must be stationary or post_burn_in_tv")
-    burn_in_blocks = (burn_in_blocks if isinstance(burn_in_blocks, int)
-                      and not isinstance(burn_in_blocks, bool) else -1)
-    if burn_in_blocks < 0:
-        raise ValueError("burn_in_blocks must be a nonnegative integer")
-    if initial_law_mode == "stationary" and (
-            burn_in_blocks != 0 or initial_law_tv_bound != 0):
-        raise ValueError("stationary initial law requires zero burn-in and zero TV bound")
-    if not _finite_real(anchor_score_shift_bound) or anchor_score_shift_bound < 0:
-        raise ValueError("anchor_score_shift_bound must be finite and nonnegative")
-
-    planned = int(values.size)
-    family = _positive_integer(family, "family")
-    try:
-        family_tv_cost = (0.0 if initial_law_tv_bound == 0
-                          else family * float(initial_law_tv_bound))
-    except OverflowError:
-        family_tv_cost = math.inf
-    if not math.isfinite(family_tv_cost) or family_tv_cost >= float(alpha_score):
-        raise ValueError("family * initial_law_tv_bound must be smaller than alpha_score")
-    stationary_alpha = float(alpha_score) - family_tv_cost
-    if not math.isfinite(stationary_alpha) or stationary_alpha <= 0:
-        raise ValueError("family * initial_law_tv_bound must be smaller than alpha_score")
-    radius_details = time_varying_markov_radius(
-        blocks=planned,
-        gamma_ps_lower=gamma_ps_lower,
-        k_ps=k_ps,
-        variance_upper_by_residue=variance_upper_by_residue,
-        family=family,
-        alpha_stationary=stationary_alpha,
-    )
-
-    scores = np.full(planned, -1.0, dtype=float)
-    scores[valid] = values[valid]
-    valid_count = int(valid.sum())
-    failed_count = planned - valid_count
-    denominators = {
-        "planned": planned,
-        "valid": valid_count,
-        "failed": failed_count,
-        "abstained": 0,
-    }
-    result_denominators = {
-        "planned": 1,
-        "valid": int(valid_count > 0),
-        "failed": 0,
-        "abstained": int(valid_count == 0),
-    }
-    common = {
-        "estimand": "mean of predeclared time-varying bounded block scores",
-        "dependence_method": "markov_time_varying_bernstein_eq_3_26",
-        "status": "ABSTAIN_NO_VALID_BLOCKS" if valid_count == 0 else "CONDITIONAL_BOUND_ONLY",
-        "certified": False,
-        "physical_score": None,
-        "data_access": "none",
-        "denominators": denominators,
-        "result_denominators": result_denominators,
-        "coded_scores": scores.tolist(),
-        "planned_mean": None if valid_count == 0 else float(scores.mean()),
-        "radius": radius_details["radius"],
-        "initial_law_tv_bound": float(initial_law_tv_bound),
-        "initial_law_mode": initial_law_mode,
-        "burn_in_blocks": burn_in_blocks,
-        "initial_law_receipt_sha256": initial_law_receipt_sha256,
-        "familywise_tv_cost": family_tv_cost,
-        "stationary_alpha": stationary_alpha,
-        "initial_law_mean_shift_penalty": 2.0 * float(initial_law_tv_bound),
-        "anchor_score_shift_bound": float(anchor_score_shift_bound),
-        "anchor_shift_receipt_sha256": anchor_shift_receipt_sha256,
-        "lcb_scope": "conditional on all cited score-map, chain, variance, gap, TV, and anchor-shift assumptions",
-        "variance_receipt_sha256": variance_receipt_sha256,
-        "score_schedule_receipt_sha256": score_schedule_receipt_sha256,
-        "k_ps_receipt_sha256": k_ps_receipt_sha256,
-        **radius_details,
-    }
-    if valid_count == 0:
-        return {**common, "normalized_lower_bound": None}
-    lower_bound = (
-        float(scores.mean()) - radius_details["radius"]
-        - 2.0 * float(initial_law_tv_bound)
-        - float(anchor_score_shift_bound)
-    )
-    if not math.isfinite(lower_bound):
-        raise ValueError("time-varying Markov LCB is outside finite floating-point range")
-    return {**common, "normalized_lower_bound": lower_bound}

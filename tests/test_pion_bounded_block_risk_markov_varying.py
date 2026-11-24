@@ -34,6 +34,9 @@ def lcb_args():
         "k_ps_receipt_sha256": receipt("k-ps"),
         "initial_law_receipt_sha256": receipt("initial-law"),
         "anchor_shift_receipt_sha256": receipt("anchor-shift"),
+        "dependence_evidence_receipt_sha256": receipt("dependence-evidence"),
+        "block_chain_receipt_sha256": receipt("block-chain"),
+        "gamma_ps_lower_receipt_sha256": receipt("gamma-ps-lower"),
     }
 
 
@@ -155,6 +158,8 @@ def test_gap_only_lcb_keeps_failures_and_never_sets_a_physical_score():
         "initial_law_tv_bound": 0.0,
         "anchor_score_shift_bound": 0.02,
         "gamma_ps_lower_receipt_sha256": receipt("gap-lower-bound"),
+        "dependence_evidence_receipt_sha256": receipt("dependence-evidence"),
+        "block_chain_receipt_sha256": receipt("block-chain"),
         "initial_law_receipt_sha256": receipt("stationary"),
         "anchor_shift_receipt_sha256": receipt("anchor-shift"),
         "score_schedule_receipt_sha256": receipt("schedule"),
@@ -180,7 +185,12 @@ def test_gap_only_lcb_keeps_failures_and_never_sets_a_physical_score():
     assert "k_ps_receipt_sha256" not in result
 
 
-def test_gap_only_lcb_requires_receipt_for_the_gamma_lower_bound():
+@pytest.mark.parametrize(
+    "field",
+    ["gamma_ps_lower_receipt_sha256", "dependence_evidence_receipt_sha256",
+     "block_chain_receipt_sha256"],
+)
+def test_gap_only_lcb_requires_gap_chain_and_dependence_receipts(field):
     args = {
         "gamma_ps_lower": 0.5,
         "family": 1,
@@ -191,11 +201,14 @@ def test_gap_only_lcb_requires_receipt_for_the_gamma_lower_bound():
         "burn_in_blocks": 0,
         "initial_law_tv_bound": 0.0,
         "anchor_score_shift_bound": 0.0,
-        "gamma_ps_lower_receipt_sha256": "bad",
+        "gamma_ps_lower_receipt_sha256": receipt("gap-lower-bound"),
+        "dependence_evidence_receipt_sha256": receipt("dependence-evidence"),
+        "block_chain_receipt_sha256": receipt("block-chain"),
         "initial_law_receipt_sha256": receipt("stationary"),
         "anchor_shift_receipt_sha256": receipt("anchor-shift"),
         "score_schedule_receipt_sha256": receipt("schedule"),
     }
+    args[field] = "bad"
     with pytest.raises(ValueError, match="SHA-256"):
         markov_time_varying_score_lcb_from_gap_bound(
             [0.5], valid_blocks=np.array([True]), **args,
@@ -229,6 +242,9 @@ def test_invalid_eq_326_inputs_fail_closed(kwargs, message):
     ({"initial_law_tv_bound": 0.02}, "smaller than alpha_score"),
     ({"anchor_score_shift_bound": -0.01}, "nonnegative"),
     ({"score_schedule_receipt_sha256": "bad"}, "receipts must be SHA-256"),
+    ({"dependence_evidence_receipt_sha256": "bad"}, "receipts must be SHA-256"),
+    ({"block_chain_receipt_sha256": "bad"}, "receipts must be SHA-256"),
+    ({"gamma_ps_lower_receipt_sha256": "bad"}, "receipts must be SHA-256"),
 ])
 def test_varying_lcb_rejects_unreviewed_contract_values(kwargs, message):
     args = lcb_args()

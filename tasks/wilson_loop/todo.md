@@ -182,3 +182,9 @@ PR #6 提交 [`f9be949`](https://github.com/Greyyy-HJC/LatticeArena/commit/f9be9
 文字流程：`null C/F draft -> C stencil/geometry/unit check (C precision must be dimensionless) -> F force-unit/q-h-x/budget check -> missing field gives NOT_READY -> complete synthetic shape gives human-review-required only -> authorized measurement and independent physics review remain separate -> physical_score=null`。
 
 **下一位 Wilson agent：**不要重复这 16 个合同 fixture，也不要从 Pion 的 gap-bound 或 Wilson toy 推导 F 污染界。请先让研究者在单一 identity 绝对 `chi(2,5)` 与 matched APE/stout `delta-chi(2,5)` 两个不同 C estimand 中选择，并冻结 `R/T/kernel`、loop mean/log 失败规则、paired-block、precision/置信与 multiplicity；随后单独冻结 F 的谱提取/时间窗、独立激发态和热/绕回/mixed 界及同单位误差预算。历史候选 `R=2,T=5` 和 midpoint `R=2.5` 均仍是待审值，D0–99 已观察过，不能用来确认。任何未观察确认数据或 GPU/QUDA 测量均须相应 owner 授权。提交前可做不读数据的协议/收据 preflight，并用表/图或文字数据流列出 C、F 各自 planned/valid/failed/abstained 与 blocker；缺输入时保持当前状态。
+
+## 2026-11-24 继续工作后的授权边界复核
+
+用户对研究输入/外部授权问题的答复是：维持当前 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED` 与封存状态。Astra 给出的 C/F 候选是审阅材料，不是用户选定的 C primary、F 污染上界或测量授权；因此本轮不再重复同一批 synthetic contract/toy 诊断。Wilson TODO **保留**，因为两个 lane 都仍有未闭合的科学输入。
+
+下一位 agent 在得到新的研究者决定后再推进：C lane 须先明确选择单 kernel 绝对 `chi(2,5)` 或 matched APE/stout `delta-chi(2,5)`，并冻结 `N_t`/边界、loop mean/log 失败策略、paired block、precision、置信与 multiplicity；F lane 须给出独立的谱/GEVP 或 matched-`N_t` 证据，逐项约束激发态、热/绕回、mixed-sector、谱截断和总 force-unit 误差预算。输出保留 C/F 分开的 planned/valid/failed/abstained 表、污染/误差图或文字数据流。D0–99 不得转为确认样本；任何未观察 confirmation 输入与 GPU/QUDA 仍需相应 owner 单独授权。

@@ -201,3 +201,9 @@ Astra 的只读协议审阅没有产生负责人批准、数据授权、GPU 资�
 Astra 只读复核已结束，没有产生外部授权或可直接冻结的 D04/D06/D11 值。现有 CPU 证据已覆盖 trainable-W vs 同预算 SLSQP、trainable-W vs degree-4 Chebyshev，以及 pooled learned initialization + 同一 SLSQP 的独立 evaluation panels；[meta-init 报告](https://github.com/Greyyy-HJC/LatticeArena/blob/7d05b0e779eba91a175bb333e91751ee5187eee3/results/optimize_gaussian/trainable_w_meta_init_20261123_v5/README.md) 是 synthetic 方法诊断，不能推断物理风险或生产摊销。
 
 **下一位 Optimize agent：**不要重复同一教师或初始化网格。先请研究者冻结三张决策卡：(1) D04 的目标/reference 来源、observable/unit、独立 fit/eval IDs 和验收/失败规则；(2) D06 的 paired-risk 方向、低分母/失败处理、同时区间、最小有意义效应 `r_star`；(3) D11 的真实 degree-4 算符自变量、链接权重/方向、边界条件、归一化、零模和 PSD/单调约束。用户已要求两项比较并行保留：learned-W vs 相同调用预算 SLSQP，learned-W vs 指定强谱基线。若未冻结或无法授权新的独立物理输入，继续只做已有可复现的 CPU 软件维护，明确报告 planned/valid/failed/abstained 和总成本分解；不要把 synthetic `10%` 门槛当 `r_star`，保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed data closed。任何真实 GPU/QUDA 比较须另有资源 owner 授权。
+
+## 2026-11-24 继续工作后的授权边界复核
+
+用户对上一轮研究输入/外部授权问题的答复是：保持当前 `NOT_READY/UNCERTIFIED` 与数据封存状态。Astra 候选卡仅供以后审阅，不等于冻结 D04/D06/D11 或批准数据/GPU；因此本轮不把候选值写入 machine-readable contract，也不重复已有 synthetic teacher/meta-init 网格。Optimize TODO **保留**，因为任务仍未完成。
+
+下一位 agent 只有在用户/研究负责人明确更新输入后，才继续依赖这些输入的工作：D04 target/reference、单位与独立 fit/eval IDs；D06 paired-risk estimand、方向、失败和低分母规则、同时置信区间及 `r_star`；D11 degree-4 算符的自变量/方向/权重、边界、归一化、零模和 PSD/单调合同。届时先更新合同和 CPU 诊断，再按共同 objective/precision/call 与总时长预算比较 trainable-W、同预算 SLSQP、强谱基线。诊断至少给 paired-risk/成本图或完整文字数据流、训练/fit/求解/推理/I/O/失败恢复/heldout 分层分母；封存 split 与生产 GPU 仍需独立授权。

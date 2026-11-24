@@ -56,6 +56,21 @@ def test_markov_route_requires_fixed_score_function_and_initial_law_receipt():
                for issue in result["issues"])
 
 
+@pytest.mark.parametrize(
+    "field",
+    ["evidence_receipt_sha256", "block_chain_receipt_sha256",
+     "gamma_ps_lower_receipt_sha256"],
+)
+def test_every_markov_route_requires_chain_and_gap_evidence_receipts(field):
+    contract = _synthetic_complete_contract("markov_pseudo_gap_bernstein")
+    contract["dependence"][field] = None
+
+    result = inspect_contract(contract)
+
+    assert result["status"] == "NOT_READY"
+    assert any(field in issue for issue in result["issues"])
+
+
 def test_time_varying_markov_route_requires_kps_variances_and_schedule_receipts():
     contract = _synthetic_complete_contract("markov_time_varying_bernstein")
     result = inspect_contract(contract)
@@ -273,20 +288,20 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
     summary = build_report(output)
 
     assert summary["denominators"] == {
-        "planned": 15, "valid": 5, "failed": 10, "abstained": 0,
+        "planned": 16, "valid": 5, "failed": 11, "abstained": 0,
     }
     assert summary["physical_score"] is None
     receipt = json.loads((output / "run_receipt.json").read_text())
     assert receipt["schema"] == "latticearena-run-receipt-v1"
     assert receipt["status"] == "complete"
-    assert len(receipt["denominators"]) == 15
-    assert sum(row["planned"] for row in receipt["denominators"].values()) == 15
+    assert len(receipt["denominators"]) == 16
+    assert sum(row["planned"] for row in receipt["denominators"].values()) == 16
     assert sum(row["valid"] for row in receipt["denominators"].values()) == 5
-    assert sum(row["failed"] for row in receipt["denominators"].values()) == 10
+    assert sum(row["failed"] for row in receipt["denominators"].values()) == 11
     assert sum(row["abstained"] for row in receipt["denominators"].values()) == 0
     assert sum(row["not_run"] for row in receipt["denominators"].values()) == 0
     assert sum(row["count"] for row in receipt["reason_rows"]
-               if row["state"] == "failed") == 10
+               if row["state"] == "failed") == 11
     assert "not scientific success" in receipt["text_flow"]
     assert set(receipt["scenario"]["source_hashes"]) == {
         "tasks/pion_projection/bounded_block_risk_contract.py",

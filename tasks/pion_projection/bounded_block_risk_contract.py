@@ -20,7 +20,7 @@ from core.receipts import run_receipt, scenario_spec
 
 SCHEMA = "pion-bounded-block-risk-contract-v1"
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v9")
+               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v11")
 CONTRACT_PATH = Path(__file__).with_name("bounded_block_risk_contract_v1.json")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 DEPENDENCE_METHODS = {
@@ -258,6 +258,9 @@ def _check_dependence(dependence: Any, *, planned_blocks: Any,
         issues.extend(_required_receipt(
             dependence, "block_chain_receipt_sha256", label,
         ))
+        issues.extend(_required_receipt(
+            dependence, "gamma_ps_lower_receipt_sha256", label,
+        ))
         homogeneous = dependence.get("score_function_time_homogeneous")
         if method == "markov_pseudo_gap_bernstein":
             if homogeneous is not True:
@@ -294,10 +297,6 @@ def _check_dependence(dependence: Any, *, planned_blocks: Any,
                         issues.append(f"{label}.variance_upper_by_residue: every bound must be finite and strictly positive")
                 issues.extend(_required_receipt(
                     dependence, "variance_upper_receipt_sha256", label,
-                ))
-            else:
-                issues.extend(_required_receipt(
-                    dependence, "gamma_ps_lower_receipt_sha256", label,
                 ))
         initial_mode = dependence.get("initial_law_mode")
         if (not isinstance(initial_mode, str)
@@ -610,6 +609,7 @@ def _synthetic_complete_contract(method: str = "graph_color_hoeffding") -> dict[
     elif method == "markov_pseudo_gap_bernstein":
         dependence.update({
             "gamma_ps_lower_bound": 0.25,
+            "gamma_ps_lower_receipt_sha256": _synthetic_receipt("gamma-ps-lower-bound"),
             "block_chain_assumptions": "SYNTHETIC_ONLY stationary block-chain assumptions",
             "block_chain_receipt_sha256": _synthetic_receipt("block-chain"),
             "score_function_time_homogeneous": True,
@@ -621,6 +621,7 @@ def _synthetic_complete_contract(method: str = "graph_color_hoeffding") -> dict[
     elif method == "markov_time_varying_bernstein":
         dependence.update({
             "gamma_ps_lower_bound": 0.25,
+            "gamma_ps_lower_receipt_sha256": _synthetic_receipt("gamma-ps-lower-bound"),
             "pseudo_gap_k_ps": 2,
             "pseudo_gap_k_ps_receipt_sha256": _synthetic_receipt("pseudo-gap-k-ps"),
             "block_chain_assumptions": "SYNTHETIC_ONLY stationary block-chain assumptions",
@@ -733,6 +734,10 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
     invalid_varying_variance["dependence"]["variance_upper_by_residue"] = [0.2, 0.0]
     underbounded_varying_anchor = _synthetic_complete_contract("markov_time_varying_bernstein")
     underbounded_varying_anchor["anchor"]["time_varying_score_shift_bound"] = 0.1
+    missing_markov_gamma_receipt = _synthetic_complete_contract(
+        "markov_pseudo_gap_bernstein",
+    )
+    missing_markov_gamma_receipt["dependence"]["gamma_ps_lower_receipt_sha256"] = None
     fixtures = {
         "current_null_contract": current,
         "synthetic_graph_color_complete": valid_graph,
@@ -749,6 +754,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "synthetic_time_varying_missing_schedule_receipt": missing_varying_receipt,
         "synthetic_time_varying_zero_class_variance": invalid_varying_variance,
         "synthetic_time_varying_anchor_shift_under_2B_over_R": underbounded_varying_anchor,
+        "synthetic_markov_missing_gamma_receipt": missing_markov_gamma_receipt,
     }
     results = {name: inspect_contract(value) for name, value in fixtures.items()}
     rows = [{
@@ -793,7 +799,10 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "```text",
         "load the null v1 contract; do not load measurements",
         "  -> check estimand, R/prediction bound, clipping, failure policy, and planned-block receipt",
-        "  -> require a score-specific graph/color receipt, fixed-score gamma_ps receipt, or Eq. (3.26) time-varying Markov contract",
+        "  -> require a score-specific block map and dependence-evidence receipt",
+        "  -> graph-color route: prove color-class independence and provide its receipt",
+        "  -> every Markov route: provide block-chain and gamma_ps-lower-bound receipts",
+        "  -> fixed-score Markov: freeze one score function; time-varying Markov: receipt the full score schedule",
         "  -> exact-k Eq. (3.26): check k_ps/argmax receipt, positive variance upper bound per residue, variance receipt, and score-schedule receipt",
         "  -> support-only Eq. (3.26): check [-1,1] score support, block-chain/gamma lower-bound receipts, and score-schedule receipt; exact k_ps and class-variance receipts are unnecessary",
         "  -> for the Markov route, require stationary-start evidence or post-burn-in TV evidence and F*delta < alpha_score",
@@ -823,7 +832,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "## Remaining researcher-supplied inputs",
         "",
         "- Target `m*`, observable, interpretation and units; positive `R`, the all-included prediction-difference bound and its receipt; clipping and failure-policy approval.",
-        "- Planned block identities; score-specific graph/color proof, fixed-score block-chain assumptions, or a time-varying schedule with a reviewed `k_ps` plus class-variance evidence or the support-only route's independently reviewed pseudo-gap lower bound; candidate comparison family `F`.",
+        "- Planned block identities and score-specific dependence evidence. The graph route needs a coloring/color-class-independence receipt. Every Markov route needs block-chain assumptions, an independently reviewed `gamma_ps` lower-bound receipt, and stationary-start or post-burn-in TV evidence. Fixed-score Markov must freeze one score; Eq. (3.26) must receipt the full time-varying schedule. The exact-`k_ps` variant additionally needs the maximizing-index and residue-variance receipts; the support-only variant avoids those two inputs but not the chain/gap evidence. Freeze candidate comparison family `F`.",
         "- For time-varying scores, predeclare and receipt the full `f_i` schedule and an anchor-induced score-shift bound in normalized units. The exact-`k_ps` route needs class-variance receipts and keeps its actual `M/k_ps`; the support-only route uses the coded `[-1,1]` range and the conservative `N+ceil(1/gamma_ps_lower)-1` variance-sum bound. Neither route proves its chain/gap assumptions.",
         "- For the Markov route, document a stationary initial block law (`burn_in_blocks=0`, `delta=0`) or an audited post-burn-in TV bound and receipt; require `F*delta < alpha_score`.",
         "- Matched E-anchor receipt, total anchor-error bound `B`, explicit common-bias sub-bound `C <= B`, a justified combination rule, method-specific coverage assumptions, score/anchor conditional-independence evidence, and the preallocated alpha split. For the v1 conservative combination, the inspector also checks `B >= random_coverage_radius + C`.",

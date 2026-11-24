@@ -16,7 +16,7 @@ from .bounded_block_risk_markov_varying import (
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUT = ROOT / "results/pion_projection/bounded_block_risk_markov_varying_20261124_v1"
+DEFAULT_OUT = ROOT / "results/pion_projection/bounded_block_risk_markov_varying_20261124_v3"
 N_GRID = (20, 100, 500)
 K_GRID = (1, 2, 4, 8)
 GAMMA_GRID = (0.05, 0.2, 0.8)
@@ -207,6 +207,9 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict:
         initial_law_receipt_sha256=_receipt("demo-tv"),
         anchor_shift_receipt_sha256=_receipt("demo-anchor-shift"),
         score_schedule_receipt_sha256=_receipt("demo-schedule"),
+        dependence_evidence_receipt_sha256=_receipt("demo-dependence-evidence"),
+        block_chain_receipt_sha256=_receipt("demo-block-chain"),
+        gamma_ps_lower_receipt_sha256=_receipt("demo-gamma-ps-lower"),
         variance_receipt_sha256=_receipt("demo-variance"),
         k_ps_receipt_sha256=_receipt("demo-kps"),
     )
@@ -227,6 +230,9 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict:
         initial_law_receipt_sha256=_receipt("demo-stationary"),
         anchor_shift_receipt_sha256=_receipt("demo-zero-anchor"),
         score_schedule_receipt_sha256=_receipt("all-failed-schedule"),
+        dependence_evidence_receipt_sha256=_receipt("all-failed-dependence-evidence"),
+        block_chain_receipt_sha256=_receipt("all-failed-block-chain"),
+        gamma_ps_lower_receipt_sha256=_receipt("all-failed-gamma-ps-lower"),
         variance_receipt_sha256=_receipt("all-failed-variance"),
         k_ps_receipt_sha256=_receipt("all-failed-kps"),
     )
@@ -309,7 +315,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict:
         "",
         "```text",
         "freeze the entire time-varying f_i schedule and block map before observing scores",
-        "  -> obtain reviewed block-chain assumptions and gamma_ps lower bound",
+        "  -> provide score-specific dependence evidence, block-chain assumptions, and an independently reviewed gamma_ps lower-bound receipt",
         "  -> provide a receipt that k_ps is the smallest maximizing pseudo-gap index",
         "  -> provide positive upper bounds for every residue-class variance sum and their receipt",
         "  -> retain M/k_ps; allocate F*delta from alpha_score when the scored chain is nonstationary",
