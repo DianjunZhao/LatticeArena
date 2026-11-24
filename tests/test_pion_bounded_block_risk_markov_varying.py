@@ -5,7 +5,9 @@ import pytest
 
 from tasks.pion_projection.bounded_block_risk_markov_varying import (
     markov_time_varying_score_lcb,
+    markov_time_varying_score_lcb_from_gap_bound,
     time_varying_markov_radius,
+    time_varying_markov_radius_from_gap_bound,
 )
 
 
@@ -57,6 +59,40 @@ def test_varying_radius_solves_eq_326_exponent_with_residue_bounds():
     assert exponent == pytest.approx(math.log(2 * family / alpha))
 
 
+def test_gap_only_radius_uses_support_variance_and_conservative_integer_ceiling():
+    details = time_varying_markov_radius_from_gap_bound(
+        blocks=20,
+        gamma_ps_lower=0.5,
+        family=3,
+        alpha_stationary=0.04,
+    )
+    assert details["k_ps"] is None
+    assert details["k_ps_upper_bound"] == 2
+    assert details["variance_sum_upper"] == 21
+    assert details["variance_upper_by_residue"] is None
+    assert details["M_over_k_ps"] == 1.0
+    t = 20 * details["radius"]
+    exponent = (t * t * 0.5) / (8 * 21 + 40 * t)
+    assert exponent == pytest.approx(math.log(2 * 3 / 0.04))
+
+    just_below_half = math.nextafter(0.5, 0.0)
+    conservative = time_varying_markov_radius_from_gap_bound(
+        blocks=20,
+        gamma_ps_lower=just_below_half,
+        family=1,
+        alpha_stationary=0.05,
+    )
+    assert conservative["k_ps_upper_bound"] == 3
+
+
+@pytest.mark.parametrize("gamma", [0.0, -0.1, 1.01, float("nan"), True])
+def test_gap_only_radius_rejects_invalid_gap_inputs(gamma):
+    with pytest.raises(ValueError, match="gamma_ps_lower"):
+        time_varying_markov_radius_from_gap_bound(
+            blocks=20, gamma_ps_lower=gamma, family=2, alpha_stationary=0.04,
+        )
+
+
 def test_varying_lcb_uses_all_planned_scores_tv_and_anchor_shift():
     result = markov_time_varying_score_lcb(
         [0.8, -0.1, np.nan, 0.5],
@@ -105,6 +141,65 @@ def test_varying_lcb_abstains_when_every_planned_block_fails():
     assert result["result_denominators"] == {
         "planned": 1, "valid": 0, "failed": 0, "abstained": 1,
     }
+
+
+def test_gap_only_lcb_keeps_failures_and_never_sets_a_physical_score():
+    args = {
+        "gamma_ps_lower": 0.5,
+        "family": 2,
+        "alpha_score": 0.04,
+        "alpha_anchor": 0.01,
+        "alpha_total": 0.05,
+        "initial_law_mode": "stationary",
+        "burn_in_blocks": 0,
+        "initial_law_tv_bound": 0.0,
+        "anchor_score_shift_bound": 0.02,
+        "gamma_ps_lower_receipt_sha256": receipt("gap-lower-bound"),
+        "initial_law_receipt_sha256": receipt("stationary"),
+        "anchor_shift_receipt_sha256": receipt("anchor-shift"),
+        "score_schedule_receipt_sha256": receipt("schedule"),
+    }
+    result = markov_time_varying_score_lcb_from_gap_bound(
+        [0.7, np.nan, -0.2],
+        valid_blocks=np.array([True, False, True]),
+        **args,
+    )
+    assert result["dependence_method"] == (
+        "markov_time_varying_support_gap_bernstein_eq_3_26"
+    )
+    assert result["physical_score"] is None
+    assert result["certified"] is False
+    assert result["coded_scores"] == [0.7, -1.0, -0.2]
+    assert result["denominators"] == {
+        "planned": 3, "valid": 2, "failed": 1, "abstained": 0,
+    }
+    assert result["gamma_ps_lower_receipt_sha256"] == args[
+        "gamma_ps_lower_receipt_sha256"
+    ]
+    assert "variance_receipt_sha256" not in result
+    assert "k_ps_receipt_sha256" not in result
+
+
+def test_gap_only_lcb_requires_receipt_for_the_gamma_lower_bound():
+    args = {
+        "gamma_ps_lower": 0.5,
+        "family": 1,
+        "alpha_score": 0.04,
+        "alpha_anchor": 0.01,
+        "alpha_total": 0.05,
+        "initial_law_mode": "stationary",
+        "burn_in_blocks": 0,
+        "initial_law_tv_bound": 0.0,
+        "anchor_score_shift_bound": 0.0,
+        "gamma_ps_lower_receipt_sha256": "bad",
+        "initial_law_receipt_sha256": receipt("stationary"),
+        "anchor_shift_receipt_sha256": receipt("anchor-shift"),
+        "score_schedule_receipt_sha256": receipt("schedule"),
+    }
+    with pytest.raises(ValueError, match="SHA-256"):
+        markov_time_varying_score_lcb_from_gap_bound(
+            [0.5], valid_blocks=np.array([True]), **args,
+        )
 
 
 @pytest.mark.parametrize("kwargs, message", [

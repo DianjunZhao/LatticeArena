@@ -44,6 +44,7 @@
     "chromatic_number": null,
     "color_class_independence_receipt_sha256": null,
     "gamma_ps_lower_bound": null,
+    "gamma_ps_lower_receipt_sha256": null,
     "pseudo_gap_k_ps": null,
     "pseudo_gap_k_ps_receipt_sha256": null,
     "block_chain_assumptions": null,

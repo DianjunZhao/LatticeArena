@@ -189,3 +189,15 @@ PR #6 head [`f209015`](https://github.com/Greyyy-HJC/LatticeArena/commit/f209015
 全仓 `python -m pytest -q` 在与 PR #6 head f209015 对应的代码树上为 **139 passed**；这是 CPU 软件验证，不是生产性能、GPU/QUDA 或物理排名证据。收据的 source/artifact hashes 已由 Optimize 测试逐项校验。
 
 **下一位 Optimize agent：**不要重跑同一 synthetic teacher/初始化网格，也不要把 D04/D06/D11 空字段补成示例值。下一步先把研究者候选决策列为待审卡：D04 的独立 reference 路径与 fit/eval ID 规则；D06 的 paired risk estimand、方向/置信水平和最小有意义效应 `r_star`；D11 的 degree-4 Bernstein/Chebyshev 算符方向权重、边界/links、归一化/正性与失败规则。只有这些被明确冻结后，才把 shared receipt 接到真实 TaskSpec/evaluator，并用同一 ID/objective/precision 对比 trainable-W、同预算 SLSQP 与强谱基线；收据须分开记录训练、拟合、测量和 heldout 分母及失败原因，并保留图或文字数据流。封存 split 与 GPU/QUDA 生产授权仍是单独门槛；未获得授权时保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
+
+## 2026-11-24 GPT-6.2-Astra 输入与外部授权复核
+
+Astra 的只读协议审阅没有产生负责人批准、数据授权、GPU 资源授权或可直接冻结的 D04/D06/D11 值。现有 [pooled learned-initialization 报告](https://github.com/Greyyy-HJC/LatticeArena/blob/7d05b0e779eba91a175bb333e91751ee5187eee3/results/optimize_gaussian/trainable_w_meta_init_20261123_v5/README.md) 已补足跨任务 warm-start 这一 CPU 方法学空缺，并与同预算 SLSQP 及 degree-4 Chebyshev 对照；这不代替物理输入和确认样本。PR #6 当前 head [`f9be949`](https://github.com/Greyyy-HJC/LatticeArena/commit/f9be949e83fdc6f22e98d2eb1c7ffe068fc9f9ab) 全仓 CPU tests **140 passed**；新增 Wilson 单位校验不改变 Optimize 结论。
+
+**下一位 Optimize agent：**不要重复 meta-init 网格或把模拟 `10%` 目标认作 `r_star`。先分别冻结 D04 reference/fit-eval IDs，D06 paired-risk 方向/失败/低分母/置信与 `r_star`，D11 真实算符的方向权重、边界、归一化、零模与 PSD/单调合同；再给两项比较确定共同 objective、precision、预算与总成本账本。之后只能在研究者/数据 owner 已授权、未观察的独立数据上接 evaluator/确认；GPU/QUDA 还需资源 owner 授权。候选值未审、授权未到时保留 `NOT_READY/UNCERTIFIED`、`physical_score=null` 与 sealed data closed，并在诊断中分开报告训练、拟合、推理/求解、I/O、失败恢复和 heldout 分母。
+
+## 2026-11-24 GPT-6.2-Astra 输入/授权复核
+
+Astra 只读复核已结束，没有产生外部授权或可直接冻结的 D04/D06/D11 值。现有 CPU 证据已覆盖 trainable-W vs 同预算 SLSQP、trainable-W vs degree-4 Chebyshev，以及 pooled learned initialization + 同一 SLSQP 的独立 evaluation panels；[meta-init 报告](https://github.com/Greyyy-HJC/LatticeArena/blob/7d05b0e779eba91a175bb333e91751ee5187eee3/results/optimize_gaussian/trainable_w_meta_init_20261123_v5/README.md) 是 synthetic 方法诊断，不能推断物理风险或生产摊销。
+
+**下一位 Optimize agent：**不要重复同一教师或初始化网格。先请研究者冻结三张决策卡：(1) D04 的目标/reference 来源、observable/unit、独立 fit/eval IDs 和验收/失败规则；(2) D06 的 paired-risk 方向、低分母/失败处理、同时区间、最小有意义效应 `r_star`；(3) D11 的真实 degree-4 算符自变量、链接权重/方向、边界条件、归一化、零模和 PSD/单调约束。用户已要求两项比较并行保留：learned-W vs 相同调用预算 SLSQP，learned-W vs 指定强谱基线。若未冻结或无法授权新的独立物理输入，继续只做已有可复现的 CPU 软件维护，明确报告 planned/valid/failed/abstained 和总成本分解；不要把 synthetic `10%` 门槛当 `r_star`，保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed data closed。任何真实 GPU/QUDA 比较须另有资源 owner 授权。

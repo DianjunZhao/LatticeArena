@@ -172,3 +172,13 @@ PR #6 head [`f209015`](https://github.com/Greyyy-HJC/LatticeArena/commit/f209015
 ### Legacy Wilson v3 source-fingerprint audit
 
 复核 PR #6 的旧 `lane_contract_diagnostic_20261123_v3` manifest 时，README、`contract_diagnostics.json`、`lane_summary.csv` 和 `protocol.json` 四个报告 payload 的哈希匹配。第五项 `lane_contract.py` 是源代码 fingerprint，但 v3 目录未保存该源文件快照；当前 PR #6 源文件哈希为 `0a52b23e…d92c3`，manifest 中为 `2894d19d…acf7c`，在本地可见的该文件 Git 历史版本中也未找到匹配字节。因此只能复核 v3 的四个报告 payload，不能从当前 checkout 复现其源代码版本。将 v3 保留为历史诊断，不以它支持当前合同；PR #6 的 [v4 报告](https://github.com/Greyyy-HJC/LatticeArena/blob/f209015337b08f26e34b733771d56142a5288806/results/wilson_loop/lane_contract_diagnostic_20261124_v4/README.md) 已保存源码快照并通过本轮 manifest 核验。后续归档继续把 source snapshot 放进报告目录，再生成 manifest。
+
+## 2026-11-24 GPT-6.2-Astra 审阅与 C 单位 fail-closed 修复
+
+Astra 的只读审阅没有替数据/资源 owner 授权，也未给 C primary 或 F 污染界赋值；C/F 仍分别保持有限-T Creutz 与基态离散静态力 estimand，状态 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`，`physical_score=null`。
+
+PR #6 提交 [`f9be949`](https://github.com/Greyyy-HJC/LatticeArena/commit/f9be949e83fdc6f22e98d2eb1c7ffe068fc9f9ab) 现在要求 C lane 的统计精度目标使用 `dimensionless`，因为其估计量是 Wilson-loop ensemble means 的有符号四点 log 组合。新增错误单位 fixture 把能量单位送入 C precision 字段并被拒绝；F lane 原有 force-unit 检查保持独立。 [v5 文本诊断](https://github.com/Greyyy-HJC/LatticeArena/blob/f9be949e83fdc6f22e98d2eb1c7ffe068fc9f9ab/results/wilson_loop/lane_contract_diagnostic_20261124_v5/README.md) 分母为 8 fixtures × 2 lanes：planned/valid/failed/abstained=`16/7/9/0`，每个失败 lane 都记录 blocker；6 个 receipt payload 和 7 项 manifest 哈希逐一匹配。全仓 CPU suite 在 PR #6 head `f9be949` 为 **140 passed**。这是合同/软件检查，不是 Wilson 测量或污染认证。
+
+文字流程：`null C/F draft -> C stencil/geometry/unit check (C precision must be dimensionless) -> F force-unit/q-h-x/budget check -> missing field gives NOT_READY -> complete synthetic shape gives human-review-required only -> authorized measurement and independent physics review remain separate -> physical_score=null`。
+
+**下一位 Wilson agent：**不要重复这 16 个合同 fixture，也不要从 Pion 的 gap-bound 或 Wilson toy 推导 F 污染界。请先让研究者在单一 identity 绝对 `chi(2,5)` 与 matched APE/stout `delta-chi(2,5)` 两个不同 C estimand 中选择，并冻结 `R/T/kernel`、loop mean/log 失败规则、paired-block、precision/置信与 multiplicity；随后单独冻结 F 的谱提取/时间窗、独立激发态和热/绕回/mixed 界及同单位误差预算。历史候选 `R=2,T=5` 和 midpoint `R=2.5` 均仍是待审值，D0–99 已观察过，不能用来确认。任何未观察确认数据或 GPU/QUDA 测量均须相应 owner 授权。提交前可做不读数据的协议/收据 preflight，并用表/图或文字数据流列出 C、F 各自 planned/valid/failed/abstained 与 blocker；缺输入时保持当前状态。

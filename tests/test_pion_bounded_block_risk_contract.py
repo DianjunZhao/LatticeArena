@@ -29,6 +29,7 @@ def test_current_null_contract_is_not_ready_and_keeps_physical_score_null():
         "graph_color_hoeffding",
         "markov_pseudo_gap_bernstein",
         "markov_time_varying_bernstein",
+        "markov_time_varying_support_gap_bernstein",
     ],
 )
 def test_synthetic_complete_dependence_routes_only_request_human_review(method):
@@ -69,6 +70,22 @@ def test_time_varying_markov_route_requires_kps_variances_and_schedule_receipts(
     assert any("variance_upper_by_residue" in issue for issue in result["issues"])
     assert any("score_schedule_receipt_sha256" in issue for issue in result["issues"])
     assert any("pseudo_gap_k_ps_receipt_sha256" in issue for issue in result["issues"])
+
+
+def test_support_gap_time_varying_route_needs_gap_but_not_k_or_variance_receipts():
+    contract = _synthetic_complete_contract(
+        "markov_time_varying_support_gap_bernstein",
+    )
+    dependence = contract["dependence"]
+    assert dependence["pseudo_gap_k_ps"] is None
+    assert dependence["variance_upper_by_residue"] is None
+    assert inspect_contract(contract)["status"] == "CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW"
+
+    dependence["gamma_ps_lower_receipt_sha256"] = None
+    result = inspect_contract(contract)
+    assert result["status"] == "NOT_READY"
+    assert any("gamma_ps_lower_receipt_sha256" in issue
+               for issue in result["issues"])
 
 
 def test_time_varying_markov_route_requires_anchor_score_shift_bound():
@@ -256,15 +273,15 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
     summary = build_report(output)
 
     assert summary["denominators"] == {
-        "planned": 14, "valid": 4, "failed": 10, "abstained": 0,
+        "planned": 15, "valid": 5, "failed": 10, "abstained": 0,
     }
     assert summary["physical_score"] is None
     receipt = json.loads((output / "run_receipt.json").read_text())
     assert receipt["schema"] == "latticearena-run-receipt-v1"
     assert receipt["status"] == "complete"
-    assert len(receipt["denominators"]) == 14
-    assert sum(row["planned"] for row in receipt["denominators"].values()) == 14
-    assert sum(row["valid"] for row in receipt["denominators"].values()) == 4
+    assert len(receipt["denominators"]) == 15
+    assert sum(row["planned"] for row in receipt["denominators"].values()) == 15
+    assert sum(row["valid"] for row in receipt["denominators"].values()) == 5
     assert sum(row["failed"] for row in receipt["denominators"].values()) == 10
     assert sum(row["abstained"] for row in receipt["denominators"].values()) == 0
     assert sum(row["not_run"] for row in receipt["denominators"].values()) == 0
@@ -275,12 +292,13 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
         "tasks/pion_projection/bounded_block_risk_contract.py",
         "tasks/pion_projection/bounded_block_risk_contract_v1.json",
         "tasks/pion_projection/bounded_block_risk_score.py",
+        "tasks/pion_projection/bounded_block_risk_markov_varying.py",
         "core/receipts.py",
     }
-    assert len(receipt["artifact_hashes"]) == 8
+    assert len(receipt["artifact_hashes"]) == 9
     manifest = json.loads((output / "artifact_hashes.json").read_text())
     assert manifest["algorithm"] == "sha256"
-    assert len(manifest["files"]) == 9
+    assert len(manifest["files"]) == 10
     for name, expected in manifest["files"].items():
         actual = hashlib.sha256((output / name).read_bytes()).hexdigest()
         assert actual == expected
@@ -293,6 +311,7 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
     assert "CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW" in report
     assert "F*delta < alpha_score" in report
     assert "`M/k_ps`" in report
+    assert "support-only" in report
     assert "physical_score remains null" in report
     assert "run_receipt.json" in report
     assert "not that any dependence, anchor, reference, coverage or physical claim succeeded" in report
