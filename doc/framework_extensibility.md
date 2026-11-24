@@ -35,7 +35,7 @@ contracts; declaring a schema alone does not create an evaluator.
 | Add a measurement backend | [`core/measurement.py`](../core/measurement.py): arrays, manifest, dtype and declared `linear_response`, `cross_matrix`, `new_source` capabilities | Implement the task-owned CPU/GPU/MPI measurement route, bind inputs and software identity in the manifest, and reject unavailable capabilities before measurement. Current bundle validation checks finite nonempty arrays; it does not provide storage isolation or verify all provenance hashes by itself |
 | Add a search method | [`core/search.py`](../core/search.py): common validate → budget → evaluate → record path | Adapt LLM, deterministic optimizer, evolutionary search or learned initializer to emit proposals; count invalid attempts according to the frozen budget and retain every rejection reason |
 | Add a score or paired estimand | [`core/comparator.py`](../core/comparator.py): shared draw-length checks, optional unique draw IDs, positive paired risk ratio and a log lower bound | Implement the task estimand and failure policy; preserve common draw/configuration identity, planned denominators and multiplicity. A new formula must not silently inherit the current ratio's positivity or interval semantics |
-| Plan diagnostics and retain denominators | [`core/receipts.py`](https://github.com/Greyyy-HJC/LatticeArena/blob/f209015337b08f26e34b733771d56142a5288806/core/receipts.py) adds versioned `ScenarioSpec`, stage-specific denominators and `RunReceipt` with source/output SHA-256 references and exact reason accounting. Optimize's candidate-contract report is the first consumer; Wilson's lane-contract report is the second. Both retain text-flow diagnostics and distinguish contract checks from physical work | Add consumers at task-specific units (panel, measurement, optimizer fit, stencil or contract check). Keep cap-stop/non-success, failure, abstention and not-run counts distinct; receipt hashes identify bytes but do not prove provenance, independence or scientific validity |
+| Plan diagnostics and retain denominators | [`core/receipts.py`](https://github.com/Greyyy-HJC/LatticeArena/blob/f209015337b08f26e34b733771d56142a5288806/core/receipts.py) adds versioned `ScenarioSpec`, stage-specific denominators and `RunReceipt` with source/output SHA-256 references and exact reason accounting. Optimize candidate-contract, Wilson lane-contract and Pion bounded-risk contract reports are consumers; each records text-flow diagnostics and distinguishes structural checks from physical work | Extend receipts to task-specific statistical units (panel, replicate, block, optimizer fit, stencil or contract check). Keep cap-stop/non-success, failure, abstention and not-run counts distinct; receipt hashes identify bytes but do not prove provenance, independence or scientific validity |
 | Track evidence readiness | [`core/state.py`](https://github.com/Greyyy-HJC/LatticeArena/blob/710eeb27b5d94de37a646ee52ec743be18894786/core/state.py): operator, reference, numerical, statistical and comparison states; validation observation is permanent; a score is available only when all states have hash-bound validation; `abstained` is a terminal no-certificate state | Bind task receipts and evidence hashes to these states. Keep diagnostic/physical labels explicit; Pion, Optimize and Wilson task evaluators still need to connect their task-specific abstention rules to this generic state |
 | Compare learned/iterative methods fairly | `core/ledger.py` has generic setup/solve/residual phases; the Optimize stress report keeps call cap, optimizer seconds, fit selection and postchecks separate | Add `BudgetSpec` fields for objective/gradient calls, setup, training, inference, I/O, recovery and amortization count. Enforce shared fit/heldout IDs, initialization policy and restart count; report call-budget and total-walltime estimands separately |
 | Preserve artifacts | [`core/io.py`](../core/io.py): content digest, canonical fingerprint and JSON writing; [`core/receipts.py`](https://github.com/Greyyy-HJC/LatticeArena/blob/f209015337b08f26e34b733771d56142a5288806/core/receipts.py) binds declared source/output hash maps and reason-accounted denominators; CPU diagnostics retain text/figure explanations and snapshots | Extend receipts with environment and authorized input provenance only when a task defines those fields. Use no-clobber run directories and retain failure receipts. A manifest proves byte identity, not scientific validity or input independence |
@@ -150,7 +150,8 @@ failures and protocol abstentions are distinct states and should stay visible.
 The current `main` has a full Pion pilot. Pion dependence calibration and the
 Optimize/Wilson additions are isolated analytic/synthetic CPU diagnostics and
 theory artifacts; none is a production measurement pipeline. A shared receipt
-API now has Optimize and Wilson consumers; Pion is not yet migrated. Pion's bounded
+API now has Optimize, Wilson and Pion bounded-risk-contract consumers; Pion's
+Monte Carlo and anchor-sensitivity reports still use task-local report schemas. Pion's bounded
 risk reports include a 1,728-scenario feasibility surface, a known-graph
 coverage MC, a joint score/anchor coverage MC, an exact anchor-distribution
 robustness comparison, and a color-class empirical-Bernstein sensitivity grid.
@@ -158,9 +159,10 @@ The companion Optimize/Wilson PR reports the 36-panel trainable-W stress grid,
 12-panel pooled-initialization replay, Wilson lane-contract completeness and
 four fail-closed mutation fixtures, finite-`N_t` Creutz toy identity check, and
 randomized positive-spectrum four-point stress over 4,000 cases, all with
-figures or text flow, denominators and source/artifact hashes. Optimize and
-Wilson now also exercise shared receipt generation with explicit count/reason
-semantics; Pion still uses task-local reports. Their TODOs remain until task-specific
+figures or text flow, denominators and source/artifact hashes. All three task
+families now exercise shared receipt generation for contract diagnostics with
+explicit count/reason semantics; extending it to statistical result units is
+still open. Their TODOs remain until task-specific
 references, effect/tolerance or spectral-error contracts, dependence/anchor
 bounds, lane protocols, and data/compute authorization gates are resolved. CPU
 tests establish software/algebra behavior only, not GPU/MPI physics validation.

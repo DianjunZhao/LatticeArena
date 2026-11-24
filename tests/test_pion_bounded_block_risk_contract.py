@@ -259,10 +259,32 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
         "planned": 14, "valid": 4, "failed": 10, "abstained": 0,
     }
     assert summary["physical_score"] is None
+    receipt = json.loads((output / "run_receipt.json").read_text())
+    assert receipt["schema"] == "latticearena-run-receipt-v1"
+    assert receipt["status"] == "complete"
+    assert len(receipt["denominators"]) == 14
+    assert sum(row["planned"] for row in receipt["denominators"].values()) == 14
+    assert sum(row["valid"] for row in receipt["denominators"].values()) == 4
+    assert sum(row["failed"] for row in receipt["denominators"].values()) == 10
+    assert sum(row["abstained"] for row in receipt["denominators"].values()) == 0
+    assert sum(row["not_run"] for row in receipt["denominators"].values()) == 0
+    assert sum(row["count"] for row in receipt["reason_rows"]
+               if row["state"] == "failed") == 10
+    assert "not scientific success" in receipt["text_flow"]
+    assert set(receipt["scenario"]["source_hashes"]) == {
+        "tasks/pion_projection/bounded_block_risk_contract.py",
+        "tasks/pion_projection/bounded_block_risk_contract_v1.json",
+        "tasks/pion_projection/bounded_block_risk_score.py",
+        "core/receipts.py",
+    }
+    assert len(receipt["artifact_hashes"]) == 8
     manifest = json.loads((output / "artifact_hashes.json").read_text())
     assert manifest["algorithm"] == "sha256"
-    assert len(manifest["files"]) == 7
+    assert len(manifest["files"]) == 9
     for name, expected in manifest["files"].items():
+        actual = hashlib.sha256((output / name).read_bytes()).hexdigest()
+        assert actual == expected
+    for name, expected in receipt["artifact_hashes"].items():
         actual = hashlib.sha256((output / name).read_bytes()).hexdigest()
         assert actual == expected
 
@@ -272,6 +294,8 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
     assert "F*delta < alpha_score" in report
     assert "`M/k_ps`" in report
     assert "physical_score remains null" in report
+    assert "run_receipt.json" in report
+    assert "not that any dependence, anchor, reference, coverage or physical claim succeeded" in report
 
 
 def test_contract_json_and_python_draft_are_identical():

@@ -15,10 +15,12 @@ import statistics
 from pathlib import Path
 from typing import Any
 
+from core.receipts import run_receipt, scenario_spec
+
 
 SCHEMA = "pion-bounded-block-risk-contract-v1"
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v7")
+               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v8")
 CONTRACT_PATH = Path(__file__).with_name("bounded_block_risk_contract_v1.json")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 DEPENDENCE_METHODS = {
@@ -773,6 +775,8 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "",
         "Receipts are checked for presence and SHA-256 syntax only; their scientific contents and independence are not verified. `valid` below means structurally complete, not evidence-valid, measured, or certified. Each row counts one contract check; it is not a score block or physical sample.",
         "",
+        "`run_receipt.json` records these 14 contract checks as planned/valid/failed/abstained/not_run = 14/4/10/0/0, with one blocker reason for every fixture that is not structurally complete. Its `complete` status means every planned schema check was accounted for, not that any dependence, anchor, reference, coverage or physical claim succeeded. `artifact_hashes.json` covers the run receipt and all eight report payloads; source hashes bind the inspector, null contract, score helper and shared receipt implementation.",
+        "",
         "|fixture|planned|valid|failed|abstained|status|blockers|",
         "|---|---:|---:|---:|---:|---|---:|",
     ]
@@ -803,6 +807,11 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "certified": False,
         "fixtures": list(fixtures),
         "synthetic_fixture_values_are_physical": False,
+        "receipt": {
+            "schema": "latticearena-run-receipt-v1",
+            "unit": "one contract fixture inspection",
+            "complete_means": "all planned schema checks are accounted for; not scientific success",
+        },
         "markov_theorem_route": {
             "stationary": "Paulin arXiv:1212.2015v5 Theorem 3.11 / Eq. (3.25), one fixed score function f",
             "nonstationary": "Proposition 3.15 / Eq. (3.29), requires d_TV(q P^t0, pi) <= delta",
@@ -814,6 +823,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "snapshot_bounded_block_risk_contract.py": Path(__file__),
         "snapshot_bounded_block_risk_contract_v1.json": CONTRACT_PATH,
         "snapshot_bounded_block_risk_score.py": Path(__file__).with_name("bounded_block_risk_score.py"),
+        "snapshot_core_receipts.py": Path(__file__).resolve().parents[2] / "core/receipts.py",
     }
     for name, source in snapshots.items():
         (out / name).write_bytes(source.read_bytes())
@@ -821,7 +831,65 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "README.md", "contract_diagnostics.json", "contract_summary.csv",
         "protocol.json", *snapshots,
     ]
-    hashes = {name: _sha256_file(out / name) for name in payloads}
+    source_hashes = {
+        "tasks/pion_projection/bounded_block_risk_contract.py": _sha256_file(
+            out / "snapshot_bounded_block_risk_contract.py"),
+        "tasks/pion_projection/bounded_block_risk_contract_v1.json": _sha256_file(
+            out / "snapshot_bounded_block_risk_contract_v1.json"),
+        "tasks/pion_projection/bounded_block_risk_score.py": _sha256_file(
+            out / "snapshot_bounded_block_risk_score.py"),
+        "core/receipts.py": _sha256_file(out / "snapshot_core_receipts.py"),
+    }
+    scenario = scenario_spec(
+        "pion-bounded-block-risk-contract-fixtures",
+        "one contract fixture inspection",
+        "Null draft and synthetic schema fixtures only; no correlator, anchor or sealed inputs.",
+        assumptions=[
+            "contract completeness is metadata shape only and requires independent human review",
+            "fixtures are software checks and are not independent physical observations",
+            "receipt hashes do not authenticate dependence, anchor coverage or reference evidence",
+        ],
+        source_hashes=source_hashes,
+    )
+    denominators = {}
+    reason_rows = []
+    for row in rows:
+        name = row["fixture"]
+        denominators[name] = {
+            "unit": "one contract fixture inspection",
+            "planned": row["planned"],
+            "valid": row["valid"],
+            "failed": row["failed"],
+            "abstained": row["abstained"],
+        }
+        if row["failed"]:
+            reason_rows.append({
+                "unit": name,
+                "state": "failed",
+                "count": row["failed"],
+                "reason": "; ".join(results[name]["issues"])
+                or "structural validation failed",
+            })
+    receipt_payload_hashes = {
+        name: _sha256_file(out / name) for name in payloads
+    }
+    receipt = run_receipt(
+        scenario, denominators, artifact_hashes=receipt_payload_hashes,
+        text_flow=(
+            "null v1 contract plus synthetic graph/Markov/anchor fixtures -> "
+            "independent contract inspection per fixture -> explicit denominator "
+            "and blocker reasons -> hashed report; complete means accounting only, "
+            "not scientific success; physical review and authorized data access "
+            "remain later gates"
+        ),
+        reason_rows=reason_rows,
+    )
+    (out / "run_receipt.json").write_text(
+        json.dumps(receipt, indent=2, sort_keys=True) + "\n"
+    )
+    hashes = {
+        name: _sha256_file(out / name) for name in payloads + ["run_receipt.json"]
+    }
     (out / "artifact_hashes.json").write_text(json.dumps({
         "algorithm": "sha256", "files": hashes,
     }, indent=2) + "\n")
@@ -834,7 +902,8 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "physical_score": None,
         "fixture_results": results,
         "denominators": counts,
-        "files": payloads + ["artifact_hashes.json"],
+        "receipt": receipt,
+        "files": payloads + ["run_receipt.json", "artifact_hashes.json"],
     }
 
 
