@@ -30,7 +30,7 @@ contracts; declaring a schema alone does not create an evaluator.
 
 | Need | Existing hook | What a new task must add |
 |---|---|---|
-| Describe a scientific problem | [`core/specs.py`](../core/specs.py): `task_spec` includes observable, geometry, boundary, source, splits, reference, metric, budget, dependencies | Freeze units, operator conventions, split identity, reference and invalid-result rules; strengthen checks for disjoint splits and permitted data capabilities where needed |
+| Describe a scientific problem | [`core/specs.py`](https://github.com/Greyyy-HJC/LatticeArena/blob/3b9c77201be97d300dfce98b0c3e0d67dc57146f/core/specs.py): `task_spec` includes observable, geometry, boundary, source, splits, reference, metric, budget, dependencies; it validates inclusive integer ranges and rejects overlap | Freeze units, operator conventions, split identity, reference and invalid-result rules; declared range disjointness still does not authenticate data IDs or prove statistical independence |
 | Declare an operator/candidate | `operator_contract` and `candidate_spec` bind axes, dtype, transformation, support, parameters, builder and dependencies | Pion and Wilson retain their task schemas; Optimize now registers `optimize-chebyshev-diagnostic-v1` through a task-owned validator. This schema is diagnostic only: it does not freeze D11, create a complete Optimize `TaskSpec`, or connect production evaluation |
 | Add a measurement backend | [`core/measurement.py`](../core/measurement.py): arrays, manifest, dtype and declared `linear_response`, `cross_matrix`, `new_source` capabilities | Implement the task-owned CPU/GPU/MPI measurement route, bind inputs and software identity in the manifest, and reject unavailable capabilities before measurement. Current bundle validation checks finite nonempty arrays; it does not provide storage isolation or verify all provenance hashes by itself |
 | Add a search method | [`core/search.py`](../core/search.py): common validate → budget → evaluate → record path | Adapt LLM, deterministic optimizer, evolutionary search or learned initializer to emit proposals; count invalid attempts according to the frozen budget and retain every rejection reason |
@@ -45,7 +45,7 @@ Pion development evaluator. `agents/optimization_benchmark.py` illustrates
 paired synthetic episodes with development selection and a separate test draw.
 These are task examples, not automatic plug-ins for every task family.
 
-The generic run-state transition for a missing gate is `not_run/draft -> abstained(reason) -> terminal`; abstention cannot be upgraded in place to a validated result, and `score_or_null()` remains null unless every state has hash-bound validation. This distinguishes insufficient evidence from a demonstrated failure. The task-specific Pion, Optimize and Wilson evaluators do not yet route their contracts through this shared object.
+The generic split preflight is `split name + inclusive integer [start,end] -> valid endpoint order -> reject overlap`; it checks declared ranges only, not source data IDs or independence. The generic run-state transition for a missing gate is `not_run/draft -> abstained(reason) -> terminal`; abstention cannot be upgraded in place to a validated result, and `score_or_null()` remains null unless every state has hash-bound validation. This distinguishes insufficient evidence from a demonstrated failure. The task-specific Pion, Optimize and Wilson evaluators do not yet route their contracts through this shared object.
 
 ## Task-specific opportunities
 
@@ -91,7 +91,7 @@ The generic run-state transition for a missing gate is `not_run/draft -> abstain
   D11 operator and fairness-budget fields. The degree-4 Bernstein/Chebyshev
   candidate now has a versioned diagnostic adapter in
   [candidate_contract.py](https://github.com/Greyyy-HJC/LatticeArena/blob/133eae86eec57b3e8aeefb1cebdb2f242eafde21/tasks/optimize_gaussian/candidate_contract.py)
-  and a [hashed text-flow report](https://github.com/Greyyy-HJC/LatticeArena/blob/133eae86eec57b3e8aeefb1cebdb2f242eafde21/results/optimize_gaussian/framework_candidate_contract_20261124_v1/README.md).
+  and a [hashed text-flow report](https://github.com/Greyyy-HJC/LatticeArena/blob/3b9c77201be97d300dfce98b0c3e0d67dc57146f/results/optimize_gaussian/framework_candidate_contract_20261124_v2/README.md).
   It validates the illustrative Bernstein controls against the generic candidate
   schema, but its complete synthetic fixture only reaches
   `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`; it does not create a complete

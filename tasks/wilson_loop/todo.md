@@ -154,3 +154,9 @@ GPT-6.2-Astra 子代理完成只读协议审阅后已关闭；它不能授予数
 PR #6 [`710eeb2`](https://github.com/Greyyy-HJC/LatticeArena/commit/710eeb27b5d94de37a646ee52ec743be18894786) adds a terminal `abstained(reason)` state to generic `RunState`, distinct from `failed`. Missing C-lane protocol fields or F-lane contamination receipts can be represented as no-certificate states without calling them demonstrated physics failures. Wilson's lane inspector/evaluator is not yet wired to this generic state, so both lane statuses and all data-access restrictions remain unchanged. The repository-wide `python3 -m pytest -q` run passed **134 tests** on PR #6 head [`710eeb2`](https://github.com/Greyyy-HJC/LatticeArena/commit/710eeb27b5d94de37a646ee52ec743be18894786); this is CPU/software validation, not GPU/MPI physics validation.
 
 文字流程：`missing C/F freeze or independent bound -> abstained(reason) terminal -> no score`; after independent review and authorization, a fresh run can proceed through the ordinary state transitions. This state model supplies no `Q_k`, thermal, mixed-sector or force-unit error bound.
+
+## 2026-11-24 shared TaskSpec split preflight
+
+PR #6 head [`3b9c772`](https://github.com/Greyyy-HJC/LatticeArena/commit/3b9c77201be97d300dfce98b0c3e0d67dc57146f) makes generic `task_spec` require named inclusive integer split ranges and reject overlap or reversed endpoints. Wilson's lane contract is not yet represented as a `TaskSpec`, so this generic check does not freeze its C/F IDs, block pairing, or confirmation design. The full repository test suite passed **134 tests** on that head.
+
+文字流程：`future reviewed lane IDs -> declared split ranges -> generic format/disjointness check -> lane-specific receipt and paired-block checks`; the first check does not prove independence or contamination bounds. Wilson remains `NOT_READY/UNCERTIFIED` and `GROUND_STATE_FORCE_UNCERTIFIED`.

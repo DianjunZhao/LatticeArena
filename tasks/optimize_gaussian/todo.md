@@ -175,3 +175,9 @@ Verification on this head: `tests/test_framework.py tests/test_optimize*.py test
 PR #6 [`710eeb2`](https://github.com/Greyyy-HJC/LatticeArena/commit/710eeb27b5d94de37a646ee52ec743be18894786) adds a terminal `abstained(reason)` state to generic `RunState`, distinct from a solver/evaluation failure. Optimize's contract inspector and candidate evaluator are not yet wired to it; absent D04/D06/D11 inputs still leave the existing draft `NOT_READY`, `physical_score=null` and no-data status unchanged. The repository-wide `python3 -m pytest -q` run passed **134 tests** on PR #6 head [`710eeb2`](https://github.com/Greyyy-HJC/LatticeArena/commit/710eeb27b5d94de37a646ee52ec743be18894786); this is CPU/software validation, not GPU/MPI physics validation.
 
 文字流程：`D04/D06/D11 receipt 缺失 -> abstained(reason) terminal -> no physical score`; reviewed inputs start a new run rather than upgrading an abstained record in place. The generic state does not decide the effect threshold or validate an operator contract.
+
+## 2026-11-24 shared TaskSpec split preflight
+
+PR #6 head [`3b9c772`](https://github.com/Greyyy-HJC/LatticeArena/commit/3b9c77201be97d300dfce98b0c3e0d67dc57146f) now makes the generic `task_spec` reject malformed or overlapping inclusive split ranges. Optimize still has no complete TaskSpec because its D04/D06/D11 inputs and fit/eval split identities are unfrozen; this core check does not supply those values. The full repository test suite passed **134 tests** on that head.
+
+文字流程：`future frozen fit/eval range descriptors -> generic inclusive-range validation -> task-owned ID/hash receipts -> evaluator`; Optimize has not reached this path, and its two comparisons remain unmeasured.
