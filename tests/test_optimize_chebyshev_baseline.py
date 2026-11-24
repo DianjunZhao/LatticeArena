@@ -196,3 +196,60 @@ def test_matrix_application_rejects_spectrum_or_hermiticity_violation():
     nonhermitian = np.array([[0.0, 1.0], [0.0, 0.0]])
     with pytest.raises(ValueError, match="Hermitian"):
         apply_filter(np.linspace(0.0, 1.0, 5), nonhermitian, np.ones(2))
+
+
+def test_slsqp_control_fit_recovers_a_feasible_fixed_objective_minimum():
+    from tasks.optimize_gaussian.chebyshev_baseline import fit_control_points_slsqp
+
+    target = np.array([0.08, 0.29, 0.51, 0.77, 1.0])
+
+    def objective(controls):
+        return np.sum((controls - target) ** 2)
+
+    result = fit_control_points_slsqp(
+        objective, max_objective_calls=200, max_iterations=100, ftol=1e-12
+    )
+
+    assert result["solver_success"]
+    assert result["status"] == "SLSQP_SUCCESS"
+    assert result["objective_calls"] <= 200
+    assert result["feasibility_residual"] == 0.0
+    np.testing.assert_allclose(result["control_points"], target, atol=2e-6, rtol=0.0)
+    validate_control_points(result["control_points"])
+
+
+def test_slsqp_control_fit_stops_at_objective_call_cap_and_retains_best_feasible():
+    from tasks.optimize_gaussian.chebyshev_baseline import fit_control_points_slsqp
+
+    objective_calls = []
+
+    def objective(controls):
+        objective_calls.append(controls.copy())
+        return float(np.sum(controls**2))
+
+    result = fit_control_points_slsqp(
+        objective, max_objective_calls=1, max_iterations=100
+    )
+
+    assert result["status"] == "OBJECTIVE_CALL_BUDGET_EXHAUSTED"
+    assert not result["solver_success"]
+    assert result["objective_calls"] == len(objective_calls) == 1
+    assert result["feasibility_residual"] == 0.0
+    validate_control_points(result["control_points"])
+
+
+def test_slsqp_control_fit_rejects_nonfinite_objective_and_bad_budget():
+    from tasks.optimize_gaussian.chebyshev_baseline import fit_control_points_slsqp
+
+    with pytest.raises(ValueError, match="finite real scalar"):
+        fit_control_points_slsqp(
+            lambda _controls: np.nan,
+            max_objective_calls=10,
+            max_iterations=10,
+        )
+    with pytest.raises(ValueError, match="max_objective_calls"):
+        fit_control_points_slsqp(
+            lambda controls: float(np.sum(controls**2)),
+            max_objective_calls=0,
+            max_iterations=10,
+        )

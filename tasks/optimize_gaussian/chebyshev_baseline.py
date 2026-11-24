@@ -18,7 +18,7 @@ from .kernels import apply_kernel
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUT = ROOT / "results/optimize_gaussian/chebyshev_constrained_baseline_20261124_v1"
+DEFAULT_OUT = ROOT / "results/optimize_gaussian/chebyshev_constrained_baseline_20261124_v2"
 DEGREE = 4
 LAPLACIAN_MAX = 12.0
 
@@ -201,6 +201,135 @@ def apply_gaussian_sandwich_cpu(control_points, links, field, *, alpha, steps,
     return result
 
 
+
+
+class _ObjectiveCallBudgetExceeded(RuntimeError):
+    pass
+
+
+def fit_control_points_slsqp(objective, *, max_objective_calls, max_iterations,
+                             initial_free_controls=None, ftol=1e-9):
+    """Fit four Bernstein controls to a fixed scalar objective with SLSQP.
+
+    The callback receives all five controls, including the fixed endpoint b4=1.
+    The optimizer is constrained to 0<=b0<=b1<=b2<=b3<=1. Objective calls are
+    hard-capped; exhaustion returns the best feasible point evaluated so far
+    with a non-success status. The callback should be deterministic for fixed
+    controls and fit IDs. This helper does not choose or certify the objective
+    and is intended only as CPU plumbing for a later frozen D04.
+    """
+    from scipy.optimize import minimize
+
+    if not callable(objective):
+        raise TypeError("objective must be callable")
+    for name, value in (("max_objective_calls", max_objective_calls),
+                        ("max_iterations", max_iterations)):
+        if (isinstance(value, (bool, np.bool_))
+                or not isinstance(value, (int, np.integer)) or value < 1):
+            raise ValueError(f"{name} must be a positive integer")
+    ftol_array = np.asarray(ftol)
+    if (isinstance(ftol, (bool, np.bool_)) or ftol_array.ndim != 0
+            or np.iscomplexobj(ftol_array)
+            or not np.issubdtype(ftol_array.dtype, np.number)):
+        raise ValueError("ftol must be finite and positive")
+    ftol_value = float(ftol_array)
+    if not np.isfinite(ftol_value) or ftol_value <= 0:
+        raise ValueError("ftol must be finite and positive")
+
+    if initial_free_controls is None:
+        initial = np.array([0.0, 0.25, 0.5, 0.75], dtype=float)
+    else:
+        raw_initial = np.asarray(initial_free_controls)
+        if (raw_initial.shape != (DEGREE,) or np.iscomplexobj(raw_initial)
+                or not np.issubdtype(raw_initial.dtype, np.number)
+                or not np.isfinite(raw_initial).all()):
+            raise ValueError("initial_free_controls must be four finite real values")
+        initial = raw_initial.astype(float, copy=True)
+    validate_control_points(np.concatenate((initial, [1.0])))
+
+    objective_calls = 0
+    iterations = 0
+    best_controls = None
+    best_value = None
+    best_residual = None
+
+    def constraint_residual(free_controls):
+        controls = np.concatenate((np.asarray(free_controls, dtype=float), [1.0]))
+        violations = np.maximum(0.0, -controls)
+        upper_violations = np.maximum(0.0, controls - 1.0)
+        monotonicity_violations = np.maximum(0.0, -np.diff(controls))
+        return float(max(violations.max(), upper_violations.max(),
+                         monotonicity_violations.max()))
+
+    def wrapped_objective(free_controls):
+        nonlocal objective_calls, best_controls, best_value, best_residual
+        if objective_calls >= max_objective_calls:
+            raise _ObjectiveCallBudgetExceeded
+        controls = np.concatenate((np.asarray(free_controls, dtype=float), [1.0]))
+        if controls.shape != (DEGREE + 1,) or not np.isfinite(controls).all():
+            raise ValueError("SLSQP proposed nonfinite or malformed controls")
+        objective_calls += 1
+        raw_value = np.asarray(objective(controls.copy()))
+        if (raw_value.ndim != 0 or np.iscomplexobj(raw_value)
+                or not np.issubdtype(raw_value.dtype, np.number)
+                or not np.isfinite(raw_value)):
+            raise ValueError("objective must return one finite real scalar")
+        value = float(raw_value)
+        residual = constraint_residual(free_controls)
+        if (residual == 0.0 and (best_value is None or value < best_value)):
+            best_controls = controls.copy()
+            best_value = value
+            best_residual = residual
+        return value
+
+    def record_iteration(_free_controls):
+        nonlocal iterations
+        iterations += 1
+
+    constraints = [{
+        "type": "ineq",
+        "fun": lambda free: np.diff(np.concatenate((np.asarray(free, dtype=float), [1.0]))),
+    }]
+    try:
+        result = minimize(
+            wrapped_objective,
+            initial,
+            method="SLSQP",
+            bounds=[(0.0, 1.0)] * DEGREE,
+            constraints=constraints,
+            callback=record_iteration,
+            options={"maxiter": int(max_iterations), "ftol": ftol_value, "disp": False},
+        )
+    except _ObjectiveCallBudgetExceeded:
+        return {
+            "status": "OBJECTIVE_CALL_BUDGET_EXHAUSTED",
+            "solver_success": False,
+            "message": "objective-call budget exhausted; best feasible evaluated point retained",
+            "control_points": None if best_controls is None else best_controls.tolist(),
+            "objective": best_value,
+            "objective_calls": objective_calls,
+            "iterations": iterations,
+            "feasibility_residual": best_residual,
+        }
+
+    final_x = np.asarray(result.x, dtype=float)
+    final_residual = (constraint_residual(final_x)
+                      if final_x.shape == (DEGREE,) and np.isfinite(final_x).all()
+                      else float("inf"))
+    solver_success = bool(result.success and final_residual == 0.0)
+    status = "SLSQP_SUCCESS" if solver_success else "SLSQP_NON_SUCCESS"
+    return {
+        "status": status,
+        "solver_success": solver_success,
+        "message": str(result.message),
+        "control_points": None if best_controls is None else best_controls.tolist(),
+        "objective": best_value,
+        "objective_calls": objective_calls,
+        "iterations": iterations,
+        "feasibility_residual": best_residual,
+        "final_constraint_residual": final_residual,
+    }
+
 def _contract() -> dict:
     return {
         "schema": "optimize-degree4-chebyshev-baseline-review-v1",
@@ -216,8 +345,10 @@ def _contract() -> dict:
         "coefficient_domain": "0<=b0<=b1<=b2<=b3<=b4=1; four free control parameters",
         "properties": ["0<=P4(y)<=1", "P4 is nondecreasing in y", "P4(1)=1", "positive Hermitian contraction on H"],
         "application": "five Clenshaw operator matvecs; CPU matrix-free P4 and unnormalized G^m P4(H) G^m candidates use the periodic hopping kernel without an eigensolver; GPU/train.main integration is not implemented",
+        "coefficient_fit_helper": "fit_control_points_slsqp accepts a fixed scalar objective callback, constrains four free Bernstein controls with b4=1, enforces a hard objective-call cap, and returns solver status and best feasible controls; it has no D04 objective wired in",
+        "coefficient_fit_denominators": {"planned": 0, "valid": 0, "failed": 0, "abstained": 0, "unit": "no D04 callback supplied"},
         "comparison_contract_proposal": "Use the same outer Gaussian sandwich, objective/reference, fit/development IDs, precision, failure accounting, and paired evaluation as trainable-W; fit the four fixed-basis controls on fit IDs only; charge basis/application, solver calls, walltime, setup, and selection cost to this arm.",
-        "not_frozen": ["D04 reference", "D06 r_star or Delta_star", "alpha/sample-size/family-wise procedure", "whether this positivity/monotonicity constraint is the accepted strong baseline", "outer Gaussian sandwich power and normalization", "calls and walltime budgets"],
+        "not_frozen": ["D04 reference/objective", "D06 r_star or Delta_star", "alpha/sample-size/family-wise procedure", "whether this positivity/monotonicity constraint is the accepted strong baseline", "outer Gaussian sandwich power and normalization", "calls and walltime budgets"],
     }
 
 
@@ -287,7 +418,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "",
         "- Goal: make the user's chosen trainable-W vs strong spectral baseline contrast executable at the operator-contract level.",
         "- Inputs: the current `tasks/optimize_gaussian/kernels.py` hopping kernel, interpreted under the explicitly stated periodic three-dimensional operator contract, and the user-selected F=2 comparison family.",
-        "- Deliverable: a mathematically constrained degree-at-most-4 spectral family, dense and matrix-free CPU candidates including the unnormalized Gaussian sandwich, tests, and response plot.",
+        "- Deliverable: a mathematically constrained degree-at-most-4 spectral family, dense and matrix-free CPU candidates including the unnormalized Gaussian sandwich, a bounded-call SLSQP coefficient-fitting helper, tests, and response plot.",
         "- Acceptance: explicit spectrum map, normalization, positivity/monotonicity, solver domain, and a hard boundary that leaves D04/D06 and production authorization unresolved.",
         "",
         "## Operator and spectrum map",
@@ -303,6 +434,12 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "The identity, linear, and fourth-power cutoff curves are hand-chosen valid control vectors to show the allowed response shape. They are not fit results or selected physics kernels. A degree cap of four is fixed; it is not changed after development or blind inspection. The response plot's horizontal axis is the normalized Laplacian eigenvalue: zero is the low mode normalized to one, one is the maximum eigenvalue where suppression is strongest.",
         "",
         "The three illustrative curves are the only planned items in this report: planned/valid/failed/abstained = `3/3/0/0`. These counts do not represent optimizer fits, ensemble measurements, or physical samples.",
+        "",
+        "## Bounded-call coefficient fitting helper",
+        "",
+        "fit_control_points_slsqp accepts a fixed deterministic scalar objective callback and optimizes only b0..b3 with box and monotonicity constraints while fixing b4=1. It counts objective evaluations and stops before exceeding the caller-supplied cap, returning the best feasible point evaluated with OBJECTIVE_CALL_BUDGET_EXHAUSTED. Nonfinite or nonscalar objectives fail closed. No reference or physics objective is supplied or evaluated, so fitted-run denominator = 0/0/0/0.",
+        "",
+        "Text flow: fixed objective callback and fit IDs -> bounded SLSQP over four controls -> objective-call cap, status and feasibility residual -> retain fit failure or abstention -> later paired confirmation only after D04/D06 approval.",
         "",
         "## Proposed comparison plumbing",
         "",

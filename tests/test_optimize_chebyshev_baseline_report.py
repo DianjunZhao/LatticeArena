@@ -10,6 +10,10 @@ def test_constrained_baseline_report_is_hashed_and_labels_illustration_denominat
 
     assert contract["status"] == "REVIEW_DRAFT_NOT_FROZEN"
     assert contract["physical_score"] is None
+    assert contract["coefficient_fit_denominators"] == {
+        "planned": 0, "valid": 0, "failed": 0, "abstained": 0,
+        "unit": "no D04 callback supplied",
+    }
     assert contract["illustration_denominators"] == {
         "planned": 3,
         "valid": 3,
@@ -20,6 +24,8 @@ def test_constrained_baseline_report_is_hashed_and_labels_illustration_denominat
     readme = (output / "README.md").read_text()
     assert "planned/valid/failed/abstained = `3/3/0/0`" in readme
     assert "no physics objective" in readme
+    assert "fitted-run denominator = 0/0/0/0" in readme
+    assert "Text flow:" in readme
 
     manifest = json.loads((output / "artifact_hashes.json").read_text())
     assert set(manifest) == {
