@@ -35,7 +35,7 @@ contracts; declaring a schema alone does not create an evaluator.
 | Add a measurement backend | [`core/measurement.py`](../core/measurement.py): arrays, manifest, dtype and declared `linear_response`, `cross_matrix`, `new_source` capabilities | Implement the task-owned CPU/GPU/MPI measurement route, bind inputs and software identity in the manifest, and reject unavailable capabilities before measurement. Current bundle validation checks finite nonempty arrays; it does not provide storage isolation or verify all provenance hashes by itself |
 | Add a search method | [`core/search.py`](../core/search.py): common validate → budget → evaluate → record path | Adapt LLM, deterministic optimizer, evolutionary search or learned initializer to emit proposals; count invalid attempts according to the frozen budget and retain every rejection reason |
 | Add a score or paired estimand | [`core/comparator.py`](../core/comparator.py): shared draw-length checks, optional unique draw IDs, positive paired risk ratio and a log lower bound | Implement the task estimand and failure policy; preserve common draw/configuration identity, planned denominators and multiplicity. A new formula must not silently inherit the current ratio's positivity or interval semantics |
-| Plan diagnostics and retain denominators | The Pion bounded-risk feasibility grid/known-graph coverage MC, empirical-Bernstein comparison, Optimize cross-task initialization replay, and Wilson lane-contract fixtures show reproducible seeds, explicit scenarios, source-bound raw rows, text/figure diagnostics, and separate planned/valid/failed/abstained counts; these are task scripts, not a shared API yet | Add a versioned `ScenarioSpec`/seed plan and `RunReceipt` that distinguish panel, measurement, optimizer-fit, stencil, and contract-check denominators. Keep cap-stop/non-success and abstention reasons rather than folding them into `valid` or dropping them |
+| Plan diagnostics and retain denominators | The Pion bounded-risk feasibility grid/known-graph coverage MC, empirical-Bernstein comparison, Markov pseudo-gap sensitivity, Optimize cross-task initialization replay, and Wilson lane-contract fixtures show reproducible seeds, explicit scenarios, source-bound raw rows, text/figure diagnostics, and separate planned/valid/failed/abstained counts; these are task scripts, not a shared API yet | Add a versioned `ScenarioSpec`/seed plan and `RunReceipt` that distinguish panel, measurement, optimizer-fit, stencil, and contract-check denominators. Keep cap-stop/non-success and abstention reasons rather than folding them into `valid` or dropping them |
 | Track evidence readiness | [`core/state.py`](../core/state.py): operator, reference, numerical, statistical and comparison states; validation observation is permanent; a score is available only when all states have hash-bound validation | Provide evidence hashes and allowed transitions for each task. Keep diagnostic/physical output labels explicit and make abstention a first-class terminal result |
 | Compare learned/iterative methods fairly | `core/ledger.py` has generic setup/solve/residual phases; the Optimize stress report keeps call cap, optimizer seconds, fit selection and postchecks separate | Add `BudgetSpec` fields for objective/gradient calls, setup, training, inference, I/O, recovery and amortization count. Enforce shared fit/heldout IDs, initialization policy and restart count; report call-budget and total-walltime estimands separately |
 | Preserve artifacts | [`core/io.py`](../core/io.py): content digest, canonical fingerprint and JSON writing; the CPU diagnostics additionally retain raw synthetic arrays, source snapshots, plots and hash manifests | Bind protocol, code, environment, input, output, plot and report identities; use no-clobber run directories and retain failure receipts. A manifest proves byte identity, not scientific validity or input independence |
@@ -73,7 +73,16 @@ These are task examples, not automatic plug-ins for every task family.
   real score graph, E-anchor coverage/support, common-bias bound, or conditional
   independence. The plots and reports retain separate paired-block,
   family-score, hypothetical anchor-observation, and exact-outcome denominators.
-  Clipping changes the estimand and must be frozen before confirmation data.
+  A second dependence route is now explicit: Paulin's Markov-chain
+  pseudo-spectral-gap Bernstein theorem can be applied conditionally to a
+  stationary chain of predeclared block states. Its 40-cell worst-case-radius
+  sensitivity is highly conservative at the 20-block planning point and does
+  not estimate the block-chain gap. A reusable Pion calibration extension
+  should therefore expose a typed dependence contract (graph-color bound or
+  Markov-gap bound), bind the block-map hash and theorem/assumption receipt,
+  record the bound's unit and confidence level, preserve separate anchor and
+  score error budgets, and fail closed when the receipt is absent. Clipping
+  changes the estimand and must be frozen before confirmation data.
 - **Optimize Gaussian:** a standalone versioned draft inspector now retains the
   two selected contrasts (trainable-W versus same-budget SLSQP; trainable-W
   versus fixed degree-4 Chebyshev) and lists unset D04 reference, D06 `r_star`,

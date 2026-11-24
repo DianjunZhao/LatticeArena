@@ -15,6 +15,7 @@
 5. [合成校准压力网格](../../results/pion_projection/bounded_block_risk_stress_20261123_v2/README.md) 横扫 `N, chi, alpha_s, alpha_A, B/R, failure_fraction, delta_star/R^2` 的 1,728 个情景，并输出分母表、失败/依赖/anchor 热图和 alpha 分配图。严格边界 `m_required >= 1` 被标成 `ABSTAIN`，没有裁剪成可行；这里的 “valid scenario” 仅指数学上可达，不是观测有效或物理认证。
 6. [框架扩展点地图](../../doc/framework_extensibility.md) 总结 LatticeArena 可复用的 task/operator、measurement capability、search、score、state、ledger、artifact 接口及目前缺少的跨 task 集成层。
 7. [bounded block-risk v1 合同草案](bounded_block_risk_contract_v1.md) 将 estimand、clipping/failure 变换、条件浓缩式、anchor Lipschitz 修正和缺失输入整理为独立版本化 handoff；所有需研究者冻结的物理与推断字段仍为 `null`，不会给出物理分数。
+8. [Markov pseudo-spectral-gap 替代界敏感度](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v1/README.md) 把“带常数 mixing/spectral-gap 定理”具体化为 Paulin Theorem 3.10 的条件路线，推导 simultaneous score radius 并作 40-cell 解析敏感度图。它没有估计实际 gap；最乐观假设下仅 2/40 场景能达到零阈值，真实 20-block 计划点全部不可达。
 
 ![依赖图染色与 block 数敏感度](../../results/pion_projection/bounded_block_risk_calibration_20261123_v2/dependence_sensitivity.png)
 
@@ -70,6 +71,20 @@ graph-color LCB 在高 `m` 下虽保持覆盖，正下界通过率也可能降�
 
 因此目前保留 graph-color Hoeffding 作为主校准路线，只把 empirical-Bernstein 留作有已证明着色且颜色类足够大时的敏感度选项。该结果不证明真实图、anchor 覆盖、支持范围、common-bias 或物理目标；没有图色数来源时两者都必须 abstain。函数测试见 [`test_pion_bounded_block_risk_empirical_bernstein.py`](../../tests/test_pion_bounded_block_risk_empirical_bernstein.py)；图、分母、源码快照和 hash 在报告目录。
 
+### Markov block-chain pseudo-spectral-gap 备选界（解析敏感度，新增）
+
+[敏感度报告](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v1/README.md)按 Paulin (2015) Theorem 3.10 写出 non-reversible Markov-chain Bernstein 路径。把一个预先固定、非重叠的 score block 作为 block-chain 状态，若该链平稳、齐次、`phi`-irreducible、aperiodic、state space 为 Polish 且有唯一 stationary law，则对 `Z_i in [-1,1]` 可取 `C=2`、`V_f<=1`。令 `L=log(2F/alpha_s)`，用 worst-case `V_f=1` 解定理指数，得到
+
+```text
+epsilon_ps = [20*C*L + sqrt((20*C*L)^2 + 32*gamma_ps*L*(N + 1/gamma_ps)*V_f)] / (2*gamma_ps*N)
+```
+
+再以 `LCB = zbar - epsilon_ps - 2B/R` 接入现有 squared-error anchor correction；`alpha_s/alpha_A` 和原物理 reference gate 仍独立保留。这里必须用 block chain 自身的、可审阅的 `gamma_ps` 正下界；采样间隔、block bootstrap 或 empirical ESS 都不能替代。初始分布非 stationary 时还须单独加入 burn-in/初始律修正。全失败的 panel 继续按当前 helper 规则 abstain。
+
+图比较 `N={20,50,100,200,500}` 与假设 `gamma_ps={0.005,...,1}`，固定 illustrative `F=2, alpha_s=0.05`，并以 `chi={1,2,4}` graph-color Hoeffding 惩罚作不同假设下的背景。scenario 分母 planned/valid/failed/abstained=`40/2/0/38`；valid 仅指在假设全部成立且所有样本分数取最大值 1 时，零阈值 LCB 才数学上可达。physical block-score 分母 `0/0/0/0`，没有测量。`N=20,gamma_ps=1` 的最优乐观半径仍为 `8.969`；`N=500,gamma_ps=1` 为 `0.493`。这是定理与 worst-case range term 的保守度，不是项目 mixing rate 或功效估计。
+
+**来源支持的内容：**Paulin 的论文要求 stationary Markov chain，定义 non-reversible pseudo spectral gap，并给出 Theorem 3.10 的 Bernstein 常数；见 [Paulin (2015)](https://arxiv.org/abs/1212.2015)。**本项目推论：**若每个 score 是固定 block-chain state 的有界函数，理论定理可沿上述映射条件应用；必须由实现/receipt 证明 block map 与链假设，不能只因底层采样器叫 Markov chain 就视为已满足。当前没有 block-chain pseudo-gap lower-bound receipt、anchor coverage/common-bias bound 或物理 reference，因此路线已具体化但不能用于认证，`NOT_READY/UNCERTIFIED` 和 `physical_score=null` 不变。
+
 ## 可审阅的 estimand 与校准合同草案
 
 令 `D_i(A)` 为预先限定的配对平方误差差，并定义 `Z_i=clip(D_i(A)/R^2,-1,1)`。bounded block-risk 是有限计划的 `theta_N=(1/N) sum_i E[Z_i | protocol, anchor]`；若有平稳性可简化为共同期望，但有界浓缩推导本身不要求同分布。它只针对这个 block 级 estimand，不替代 ensemble-risk 或物理真值。剪裁界限和剪裁前后的解释必须在看确认数据前冻结，因为 clipping 会改变 estimand。
@@ -105,7 +120,7 @@ zbar_valid > (delta_star/R^2 + epsilon + 2B/R + phi_hat) / (1-phi_hat)
 
 1. **版本化评分合同草案已整理**：见 [`bounded_block_risk_contract_v1.md`](bounded_block_risk_contract_v1.md)。下一步由研究者冻结 `m*` 单位/范围、`R`、剪裁函数、失败编码、目标 `delta_star`、`F` 和总 alpha 分配；现阶段不从 toy 或开发误差反推物理阈值。
 2. **合成规划/覆盖诊断已完成：**1,728 点解析可行性网格、30-cell 已知 `m`-dependence MC、16-cell 共同 score+anchor MC、12-cell exact anchor-distribution 枚举，以及 30-cell color-class empirical-Bernstein vs graph-Hoeffding MC 均有图/表、明确分母和可复现输入。它们只检验已知合成图、正态或有界 iid anchor 条件下的公式/效用；不估计真实覆盖、支持或依赖。经验方差界没有显示对高色数网格的普遍功效改进，故不替代 Hoeffding 基线。
-3. 对 block 独立性路径二选一并先写可审阅证明：提供 score-specific dependency graph 与 `chi` 上界；或提出带明确常数的 mixing/spectral-gap 浓缩定理。若两者都没有，维持 `NOT_READY`，不拿经验有效样本数代替。现有 MC 的 `chi=m+1` 是生成器已知值，不是项目估计。
+3. **替代理论界已具体化，项目依赖证据仍未完成：**graph-color Hoeffding 的合成覆盖报告与 Markov pseudo-gap 的常数/敏感度报告都已存在。下一位 agent 只能在获准、非 sealed 的 source receipt 内核对 score block map、Markov/stationarity 假设和是否有 block-chain `gamma_ps` lower bound receipt；不得用 trajectory spacing、bootstrap 或 ESS 替代。没有审阅通过的 score-specific `chi` 或 `gamma_ps` 证据时，维持 `NOT_READY`。
 4. anchor 路径需要独立、匹配的 E correlator receipt，以及 `B` 的来源、覆盖率与和 score 样本的条件独立说明。若使用正态区间，需支持正态/已知方差或改作敏感度近似；若使用 Hoeffding，需事前证明有限支持和 iid anchor 单位，并报告 `2B/R` 的效用代价。多个待覆盖 anchor 时事前分配 `alpha_A`；同一个共享 anchor 供候选族复用不因 `F` 自动重复分配。现有 `n_A/sigma/alpha_A` 仅为合成设计值；尚无此证据时不要读取封存 E/gap/validation/holdout。
 5. 通过独立审阅并获数据授权后，才进行确认测量；冻结候选族后报告全量 paired block 原始 score、planned/valid/failed/abstained、剪裁前后诊断、图色数来源、alpha 分配和 `LCB`。即使统计门通过，也必须单独通过原先失败的 reference/model-identification gate 才能产生物理分数。
 
