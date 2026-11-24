@@ -38,7 +38,7 @@ The alternative Markov pseudo-gap route uses Paulin's corrected non-reversible B
 
 For a nonstationary start, the accepted input mode is either (a) a stationary initial block law with `burn_in_blocks=0`, `delta=0`, and an initial-law receipt, or (b) an audited bound `delta >= d_TV(q P^t0, pi)` after the declared burn-in, also with a receipt. Paulin Proposition 3.15 / Eq. (3.29) adds at most `delta` to each comparison's event probability. The inspector checks that `F*delta < alpha_s`, leaving `alpha_s-F*delta` for the stationary two-sided Bernstein radius; for the operational finite-plan target it also subtracts the conservative `2*delta` mean shift allowed by the score range `[-1,1]`. It cannot verify the receipt itself.
 
-Paulin Eq. (3.26) separately treats sums with time-varying functions `f_i(X_i)`, but that route is not implemented here. A future version would need audited `k_ps`, an upper bound for the summed variances `V_{S'}`, per-index centered score bounds, and a finite upper bound for the `M/k_ps` factor. Until those terms have a reviewed contract and testable calibration, the inspector rejects time-varying Markov score functions.
+The optional time-varying route follows Paulin Eq. (3.26) for `S'=sum_i f_i(X_i)` and the finite-plan estimand `theta_N=N^{-1}sum_i E_pi[f_i(X_i)]`. It does not automatically equal the fixed-score estimand above: the full `f_i` schedule and its target equivalence must be frozen and human-reviewed. It requires a receipt for the smallest maximizing `k_ps`, a strictly positive upper bound for every residue-class variance sum `V'_r>=V_r`, a variance receipt, a schedule receipt, and an externally supported normalized-score anchor-shift bound with receipt. For the existing paired-squared-error component, the inspector requires that shift bound to be at least `2B/R`; a larger schedule-specific Lipschitz correction may be needed. The implementation computes `V'_sum=sum_r V'_r`, `M'=(sum_r sqrt(V'_r))/min_r sqrt(V'_r)`, and retains `M'/k_ps`; Paulin's Remark 3.12 says it is unknown whether that factor can be replaced by 1. Receipts are checked for shape only, and a complete fixture still requires human review.
 
 The anchor input `B` in the lower bound is the **total** bound on `|A-m*|`, including any common-mode bias. The receipt must state the random-coverage component, an explicit common-bias bound `C`, and a justified rule that combines them into `B`; the v1 conservative rule checked here requires `B >= random_coverage_radius + C`, with `B` and `C` in target units; merely hashing the same shared anchor or listing its standard error is insufficient. The selected coverage route must also expose its assumptions: known variance and a justified normal model for a normal interval, or a predeclared finite support and iid anchor units for Hoeffding. The structural inspector checks that these fields are present and numerically consistent; it does not verify the receipts or assumptions.
 
@@ -60,7 +60,7 @@ If `A` is covered only with probability at least `1-alpha_A`, require `alpha_s +
 |Failure coding|candidate `-1`; not frozen|Confirm which failures receive worst score and which invalidate/abstain a whole panel|
 |Planned block count `N` and block identities|`null`|Specify the planned unit and preserve all planned/valid/failed/abstained denominators|
 |Result unit and panel-level denominator|one candidate-reference comparison|Count an all-failed comparison as abstained while retaining its failed blocks in the block denominator|
-|Dependence graph and `chi`, or Markov pseudo-gap route|`null`|Supply graph/color independence evidence, or fixed-score block-chain assumptions, `gamma_ps`, initial-law mode/burn-in/TV bound and receipts; for nonstationary starts ensure `F*delta < alpha_s`. A time-varying Markov score route is not implemented|
+|Dependence graph and `chi`, or Markov pseudo-gap route|`null`|Supply graph/color independence evidence, or fixed-score block-chain assumptions, `gamma_ps`, initial-law mode/burn-in/TV bound and receipts; for nonstationary starts ensure `F*delta < alpha_s`. The optional Eq. (3.26) route also requires a frozen/reviewed `f_i` schedule, `k_ps` receipt, positive residue-class variance-sum upper bounds and receipts, and an anchor-shift bound in normalized score units|
 |Candidate family `F`|`null`|Freeze every comparison entering simultaneous inference|
 |Anchor estimate `A`, bound `B`, coverage and independence|`null`|Provide matched E-correlator receipt, total `B` bound, explicit common-bias sub-bound `C <= B`, the rule combining them, coverage model and its assumptions, shared-anchor dependence and conditional-independence evidence|
 |`alpha_total`, `alpha_s`, `alpha_A`|`null`|Choose in advance and enforce `alpha_s+alpha_A<=alpha_total`|
@@ -70,7 +70,7 @@ If `A` is covered only with probability at least `1-alpha_A`, require `alpha_s +
 
 ```text
 freeze score and planned blocks
-  -> verify graph-color evidence, or fixed-score Markov assumptions, gap, and initial-law evidence
+  -> verify graph-color evidence, fixed-score Markov assumptions, or the optional Eq. (3.26) schedule/variance/k_ps contract
   -> for Markov TV mode, require F*delta < alpha_s before computing the radius
   -> verify anchor coverage/bias bound
   -> compute coded planned mean - graph penalty - anchor correction

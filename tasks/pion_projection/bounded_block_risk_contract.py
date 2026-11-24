@@ -18,10 +18,14 @@ from typing import Any
 
 SCHEMA = "pion-bounded-block-risk-contract-v1"
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v6")
+               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v7")
 CONTRACT_PATH = Path(__file__).with_name("bounded_block_risk_contract_v1.json")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-DEPENDENCE_METHODS = {"graph_color_hoeffding", "markov_pseudo_gap_bernstein"}
+DEPENDENCE_METHODS = {
+    "graph_color_hoeffding",
+    "markov_pseudo_gap_bernstein",
+    "markov_time_varying_bernstein",
+}
 ANCHOR_METHODS = {"known_sigma_normal_interval", "bounded_iid_hoeffding"}
 FAILURE_POLICY = "failed_block=-1; all_failed_comparison=abstain"
 
@@ -71,9 +75,14 @@ def empty_contract() -> dict[str, Any]:
             "chromatic_number": None,
             "color_class_independence_receipt_sha256": None,
             "gamma_ps_lower_bound": None,
+            "pseudo_gap_k_ps": None,
+            "pseudo_gap_k_ps_receipt_sha256": None,
             "block_chain_assumptions": None,
             "block_chain_receipt_sha256": None,
             "score_function_time_homogeneous": None,
+            "score_schedule_receipt_sha256": None,
+            "variance_upper_by_residue": None,
+            "variance_upper_receipt_sha256": None,
             "initial_law_mode": None,
             "burn_in_blocks": None,
             "initial_law_tv_bound": None,
@@ -86,6 +95,8 @@ def empty_contract() -> dict[str, Any]:
             "total_error_bound_B": None,
             "common_bias_bound_C": None,
             "bound_combination_rule": None,
+            "time_varying_score_shift_bound": None,
+            "time_varying_score_shift_receipt_sha256": None,
             "coverage_method": None,
             "coverage_parameters": None,
             "coverage_probability_lower_bound": None,
@@ -230,7 +241,10 @@ def _check_dependence(dependence: Any, *, planned_blocks: Any,
         issues.extend(_required_receipt(
             dependence, "color_class_independence_receipt_sha256", label,
         ))
-    elif method == "markov_pseudo_gap_bernstein":
+    elif method in {
+        "markov_pseudo_gap_bernstein",
+        "markov_time_varying_bernstein",
+    }:
         gamma = dependence.get("gamma_ps_lower_bound")
         if not _finite_number(gamma) or not 0 < gamma <= 1:
             issues.append(f"{label}.gamma_ps_lower_bound: expected a value in (0, 1]")
@@ -239,10 +253,42 @@ def _check_dependence(dependence: Any, *, planned_blocks: Any,
         issues.extend(_required_receipt(
             dependence, "block_chain_receipt_sha256", label,
         ))
-        if dependence.get("score_function_time_homogeneous") is not True:
-            issues.append(
-                f"{label}.score_function_time_homogeneous: v1 Markov route requires one fixed score function across blocks"
-            )
+        homogeneous = dependence.get("score_function_time_homogeneous")
+        if method == "markov_pseudo_gap_bernstein":
+            if homogeneous is not True:
+                issues.append(
+                    f"{label}.score_function_time_homogeneous: fixed-score route requires one fixed score function across blocks"
+                )
+        else:
+            if homogeneous is not False:
+                issues.append(
+                    f"{label}.score_function_time_homogeneous: time-varying route requires an explicitly varying score schedule"
+                )
+            if not _positive_int(planned_blocks):
+                issues.append(f"{label}.planned_blocks_N: must be positive for the time-varying Markov route")
+            k_ps = dependence.get("pseudo_gap_k_ps")
+            if not _positive_int(k_ps):
+                issues.append(f"{label}.pseudo_gap_k_ps: expected a positive integer")
+            elif _positive_int(planned_blocks) and k_ps > planned_blocks:
+                issues.append(f"{label}.pseudo_gap_k_ps: cannot exceed planned_blocks_N")
+            issues.extend(_required_receipt(
+                dependence, "pseudo_gap_k_ps_receipt_sha256", label,
+            ))
+            issues.extend(_required_receipt(
+                dependence, "score_schedule_receipt_sha256", label,
+            ))
+            variance_bounds = dependence.get("variance_upper_by_residue")
+            if not isinstance(variance_bounds, list):
+                issues.append(f"{label}.variance_upper_by_residue: expected a list")
+            elif _positive_int(k_ps):
+                if len(variance_bounds) != k_ps:
+                    issues.append(f"{label}.variance_upper_by_residue: length must equal pseudo_gap_k_ps")
+                elif any(not _finite_number(value) or value <= 0
+                         for value in variance_bounds):
+                    issues.append(f"{label}.variance_upper_by_residue: every bound must be finite and strictly positive")
+            issues.extend(_required_receipt(
+                dependence, "variance_upper_receipt_sha256", label,
+            ))
         initial_mode = dependence.get("initial_law_mode")
         if (not isinstance(initial_mode, str)
                 or initial_mode not in {"stationary", "post_burn_in_tv"}):
@@ -280,7 +326,9 @@ def _check_dependence(dependence: Any, *, planned_blocks: Any,
 
 
 def _check_anchor(anchor: Any, *, target_units: Any,
-                  alpha_anchor: Any) -> list[str]:
+                  alpha_anchor: Any,
+                  dependence_method: Any,
+                  score_scale_R: Any) -> list[str]:
     label = "anchor"
     if not _mapping(anchor):
         return [f"{label}: expected an object"]
@@ -303,6 +351,25 @@ def _check_anchor(anchor: Any, *, target_units: Any,
         issues.append(f"{label}.common_bias_bound_C: cannot exceed total_error_bound_B")
     if not _nonempty(anchor.get("bound_combination_rule")):
         issues.append(f"{label}.bound_combination_rule: state how random and common-bias terms form total B")
+    if dependence_method == "markov_time_varying_bernstein":
+        shift = anchor.get("time_varying_score_shift_bound")
+        if not _finite_number(shift) or shift < 0:
+            issues.append(
+                f"{label}.time_varying_score_shift_bound: expected a finite nonnegative normalized-score shift bound"
+            )
+        elif (_finite_number(total_bound) and total_bound >= 0
+              and _finite_number(score_scale_R) and score_scale_R > 0):
+            try:
+                fixed_score_floor = 2.0 * total_bound / score_scale_R
+            except OverflowError:
+                fixed_score_floor = math.inf
+            if not math.isfinite(fixed_score_floor) or shift + 1e-12 < fixed_score_floor:
+                issues.append(
+                    f"{label}.time_varying_score_shift_bound: must cover the fixed paired-squared-error floor 2B/R"
+                )
+        issues.extend(_required_receipt(
+            anchor, "time_varying_score_shift_receipt_sha256", label,
+        ))
     method = anchor.get("coverage_method")
     if not isinstance(method, str) or method not in ANCHOR_METHODS:
         issues.append(f"{label}.coverage_method: expected one of {sorted(ANCHOR_METHODS)}")
@@ -461,6 +528,9 @@ def inspect_contract(contract: Any) -> dict[str, Any]:
     issues.extend(_check_anchor(
         contract.get("anchor"), target_units=target_units,
         alpha_anchor=alpha_anchor,
+        dependence_method=(contract.get("dependence", {}).get("method")
+                           if _mapping(contract.get("dependence")) else None),
+        score_scale_R=estimand.get("score_scale_R") if _mapping(estimand) else None,
     ))
     candidate_family_ids = (estimand.get("candidate_family_ids")
                             if _mapping(estimand) else None)
@@ -535,6 +605,22 @@ def _synthetic_complete_contract(method: str = "graph_color_hoeffding") -> dict[
             "initial_law_tv_bound": 0.0,
             "initial_law_receipt_sha256": _synthetic_receipt("stationary-initial-law"),
         })
+    elif method == "markov_time_varying_bernstein":
+        dependence.update({
+            "gamma_ps_lower_bound": 0.25,
+            "pseudo_gap_k_ps": 2,
+            "pseudo_gap_k_ps_receipt_sha256": _synthetic_receipt("pseudo-gap-k-ps"),
+            "block_chain_assumptions": "SYNTHETIC_ONLY stationary block-chain assumptions",
+            "block_chain_receipt_sha256": _synthetic_receipt("block-chain"),
+            "score_function_time_homogeneous": False,
+            "score_schedule_receipt_sha256": _synthetic_receipt("score-schedule"),
+            "variance_upper_by_residue": [0.2, 0.2],
+            "variance_upper_receipt_sha256": _synthetic_receipt("class-variance-bounds"),
+            "initial_law_mode": "stationary",
+            "burn_in_blocks": 0,
+            "initial_law_tv_bound": 0.0,
+            "initial_law_receipt_sha256": _synthetic_receipt("stationary-initial-law"),
+        })
     anchor = contract["anchor"]
     anchor.update({
         "estimate_receipt_sha256": _synthetic_receipt("anchor-estimate"),
@@ -555,6 +641,11 @@ def _synthetic_complete_contract(method: str = "graph_color_hoeffding") -> dict[
         "common_bias_coverage_receipt_sha256": _synthetic_receipt("common-bias"),
         "conditional_independence_receipt_sha256": _synthetic_receipt("anchor-score-independence"),
     })
+    if method == "markov_time_varying_bernstein":
+        anchor.update({
+            "time_varying_score_shift_bound": 0.30,
+            "time_varying_score_shift_receipt_sha256": _synthetic_receipt("time-varying-anchor-shift"),
+        })
     contract["inference"].update({
         "comparison_family_ids": family_ids.copy(),
         "F": len(family_ids),
@@ -576,6 +667,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
     current = json.loads(CONTRACT_PATH.read_text())
     valid_graph = _synthetic_complete_contract("graph_color_hoeffding")
     valid_markov = _synthetic_complete_contract("markov_pseudo_gap_bernstein")
+    valid_markov_varying = _synthetic_complete_contract("markov_time_varying_bernstein")
     valid_markov_tv = _synthetic_complete_contract("markov_pseudo_gap_bernstein")
     valid_markov_tv["dependence"].update({
         "block_chain_assumptions": "SYNTHETIC_ONLY homogeneous Markov block chain with unique stationary law",
@@ -601,10 +693,17 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
     })
     changing_score = _synthetic_complete_contract("markov_pseudo_gap_bernstein")
     changing_score["dependence"]["score_function_time_homogeneous"] = False
+    missing_varying_receipt = _synthetic_complete_contract("markov_time_varying_bernstein")
+    missing_varying_receipt["dependence"]["score_schedule_receipt_sha256"] = None
+    invalid_varying_variance = _synthetic_complete_contract("markov_time_varying_bernstein")
+    invalid_varying_variance["dependence"]["variance_upper_by_residue"] = [0.2, 0.0]
+    underbounded_varying_anchor = _synthetic_complete_contract("markov_time_varying_bernstein")
+    underbounded_varying_anchor["anchor"]["time_varying_score_shift_bound"] = 0.1
     fixtures = {
         "current_null_contract": current,
         "synthetic_graph_color_complete": valid_graph,
         "synthetic_markov_gap_complete": valid_markov,
+        "synthetic_markov_time_varying_complete": valid_markov_varying,
         "synthetic_markov_post_burn_in_tv_complete": valid_markov_tv,
         "synthetic_alpha_over_budget": alpha_over,
         "synthetic_prediction_bound_over_R": bound_over,
@@ -612,6 +711,9 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "synthetic_missing_initial_law_receipt": missing_initial_law,
         "synthetic_initial_tv_spends_score_alpha": tv_over_budget,
         "synthetic_time_varying_score_function": changing_score,
+        "synthetic_time_varying_missing_schedule_receipt": missing_varying_receipt,
+        "synthetic_time_varying_zero_class_variance": invalid_varying_variance,
+        "synthetic_time_varying_anchor_shift_under_2B_over_R": underbounded_varying_anchor,
     }
     results = {name: inspect_contract(value) for name, value in fixtures.items()}
     rows = [{
@@ -647,16 +749,17 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "",
         "The inspector checks whether a future contract contains the fields required by the v1 estimand: bounded paired squared-error scores, a score-specific dependence route, anchor coverage/common-bias evidence, preallocated alpha, and a separate physical reference gate.",
         "",
-        "The Markov pseudo-gap route follows Paulin arXiv v5 Theorem 3.11 / Eq. (3.25), which requires a single fixed score function across chain states. For a nonstationary start, Proposition 3.15 / Eq. (3.29) permits an audited post-burn-in TV bound `delta`; the familywise adjustment is `F*delta`, which must be smaller than `alpha_score`. The inspector checks receipt presence and this arithmetic, not the scientific validity of the bound. See [Paulin, arXiv:1212.2015v5](https://arxiv.org/html/1212.2015v5).",
+        "The fixed-score Markov route follows Paulin arXiv v5 Theorem 3.11 / Eq. (3.25). The optional time-varying route follows Eq. (3.26) for predeclared `f_i(X_i)` and `theta_N=N^-1 sum_i E_pi[f_i(X_i)]`; a human must review whether this schedule preserves the accepted target. It requires the smallest maximizing `k_ps`, a receipt for that choice, positive upper bounds for every residue-class variance sum, a variance receipt, and a score-schedule receipt. Its range term retains the published `M/k_ps`; the paper says it is not known whether that factor can be replaced by 1. The inspector checks receipt presence and field arithmetic, not scientific validity. See [Paulin, arXiv:1212.2015v5](https://arxiv.org/html/1212.2015v5).",
         "",
-        "Paulin Eq. (3.26) provides a separate theorem for time-varying `f_i`; this diagnostic deliberately does not accept that route. A future implementation needs an explicit contract for `k_ps`, a variance-sum upper bound, per-index centered bounds, and a finite bound on the `M` factor before it can be considered.",
+        "For a planned family with `F` comparisons, a post-burn-in TV bound `delta` spends `F*delta` from `alpha_score`; the remaining stationary alpha enters the Eq. (3.26) radius. The LCB subtracts `2*delta` for the bounded-score mean shift and an externally justified anchor shift in normalized score units; for the existing paired-squared-error component the inspector requires this shift to cover at least `2B/R`. Zero class-variance bounds are not accepted: a strictly positive conservative upper bound is needed to keep `M` finite.",
         "",
         "## Text decision flow",
         "",
         "```text",
         "load the null v1 contract; do not load measurements",
         "  -> check estimand, R/prediction bound, clipping, failure policy, and planned-block receipt",
-        "  -> require either a score-specific graph/color receipt or a fixed-score block-chain gamma_ps receipt",
+        "  -> require a score-specific graph/color receipt, fixed-score gamma_ps receipt, or Eq. (3.26) time-varying Markov contract",
+        "  -> for Eq. (3.26), check k_ps/argmax receipt, positive variance upper bound per residue, variance receipt, and score-schedule receipt",
         "  -> for the Markov route, require stationary-start evidence or post-burn-in TV evidence and F*delta < alpha_score",
         "  -> require matched anchor, bias/coverage/common-bias, and conditional-independence receipts",
         "  -> check comparison family F and alpha_score + alpha_anchor <= alpha_total",
@@ -682,7 +785,8 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "## Remaining researcher-supplied inputs",
         "",
         "- Target `m*`, observable, interpretation and units; positive `R`, the all-included prediction-difference bound and its receipt; clipping and failure-policy approval.",
-        "- Planned block identities; score-specific graph/color proof or fixed-score block-chain assumptions and `gamma_ps` lower-bound receipt; candidate comparison family `F`.",
+        "- Planned block identities; score-specific graph/color proof, fixed-score block-chain assumptions, or the time-varying route's `k_ps` maximizer and class-variance receipts; candidate comparison family `F`.",
+        "- For time-varying scores, predeclare and receipt the full `f_i` schedule, reviewed `k_ps`, positive residue-class variance-sum upper bounds, and an anchor-induced score-shift bound in normalized units. Do not assume `M/k_ps=1`.",
         "- For the Markov route, document a stationary initial block law (`burn_in_blocks=0`, `delta=0`) or an audited post-burn-in TV bound and receipt; require `F*delta < alpha_score`.",
         "- Matched E-anchor receipt, total anchor-error bound `B`, explicit common-bias sub-bound `C <= B`, a justified combination rule, method-specific coverage assumptions, score/anchor conditional-independence evidence, and the preallocated alpha split. For the v1 conservative combination, the inspector also checks `B >= random_coverage_radius + C`.",
         "- Minimum effect `delta_star` with units and rationale, plus an independently reviewed physical reference/model-identification gate.",
@@ -702,7 +806,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "markov_theorem_route": {
             "stationary": "Paulin arXiv:1212.2015v5 Theorem 3.11 / Eq. (3.25), one fixed score function f",
             "nonstationary": "Proposition 3.15 / Eq. (3.29), requires d_TV(q P^t0, pi) <= delta",
-            "time_varying_scores": "Eq. (3.26) is identified as a future route and is not implemented or accepted by this inspector",
+            "time_varying_scores": "Eq. (3.26), accepted only with k_ps maximizer receipt, positive variance upper bound per residue, score schedule receipt, and explicit M/k_ps factor",
         },
     }
     (out / "protocol.json").write_text(json.dumps(protocol, indent=2) + "\n")

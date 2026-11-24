@@ -83,7 +83,7 @@ P4(X) = sum_{k=0}^4 c_k T_k(X),  T_0=I, T_1=X, T_k=2 X T_{k-1}-T_{k-2}
 
 文字流程：`production links + boundary/axis convention -> 明确 Hermitian H 和可证谱区间 -> 固定 affine map 与 degree-4 basis -> 冻结系数是否跨配置共享、如何只用 fit/reference 拟合 -> 冻结输出 normalization 与 positivity 规则 -> 计入 coefficient-fit/setup/inference 全成本 -> 在 untouched confirmation 上比较`。
 
-可供用户审阅的物理合同草案可沿用上述 basis family，但必须另行选择：生产 `H` 的方向权重/链接/边界及谱界；系数是否固定、如何用独立 D04 reference 拟合；是否要求 `p_4(x)>=0` 对全部 `x∈[-1,1]`（当前代码不保证）；输出是否另作 normalization；rank/非有限系数/正性失败如何处理。当前 contract inspector 保持这些字段为 null 是正确的，本节只把合成基线定义显式化，不填充 null、重命名物理 reference 或关闭 D11 gate。
+可供用户审阅的物理合同草案可沿用上述 basis family，但必须另行选择：生产 `H` 的方向权重/链接/边界及谱界；系数是否固定、如何用独立 D04 reference 拟合；是否要求 `p_4(x)>=0` 对全部 `x∈[-1,1]`；输出是否另作 normalization；rank/非有限系数/正性失败如何处理。companion PR #6 已对现有三组系数做连续区间数值审计，但训练代码仍不施加 positivity constraint，contract inspector 保持 D11 字段为 null 是正确的。本节只把合成基线和诊断明示，不填充 null、重命名物理 reference 或关闭 D11 gate。
 
 ### D11 正性诊断：现有 degree-4 系数的连续区间检查
 
@@ -108,6 +108,13 @@ P4(X) = sum_{k=0}^4 c_k T_k(X),  T_0=I, T_1=X, T_k=2 X T_{k-1}-T_{k-2}
 - 本轮未读取封存数据或运行 GPU/QUDA；两个比较族保持 trainable-W vs same-budget SLSQP 和 trainable-W vs fixed degree-4 Chebyshev，NOT_READY/UNCERTIFIED 与 physical_score=null 不变。
 - Optimize 仍待冻结的研究者输入包括 D04 独立物理 reference、D06 事前 r_star、D11 经审阅的算符/约束，以及生产公平预算与数据/GPU 授权；不得用合成目标填写这些字段。纯 CPU 网格和 null contract diagnostic 已覆盖，不要重复同一教师族增加样本数。
 
+## 2026-11-24 companion PR #6 Chebyshev interval handoff
+
+- [连续区间正性报告](https://github.com/Greyyy-HJC/LatticeArena/blob/337bc99b87952c4c866c6f55ea000427c00273b5/results/optimize_gaussian/chebyshev_interval_positivity_20261124_v1/README.md) 与 [`chebyshev_interval.py`](https://github.com/Greyyy-HJC/LatticeArena/blob/337bc99b87952c4c866c6f55ea000427c00273b5/tasks/optimize_gaussian/chebyshev_interval.py) 检查现有 degree-4 Chebyshev 三个 synthetic fit：在 `[-1,1]` 上最小值分别约 `0.3134069, 0.3130279, 0.3135065`，均位于 `x=-1`；分母 planned/valid/failed/abstained=`3/3/0/0`。图展示完整区间多项式，表列端点和驻点得到的最小值。
+- **条件结论：**若算符 `H` Hermitian 且 `spec(H/6)⊆[-1,1]`，这三组多项式对应该 synthetic 算符为 PSD。当前 `np.linalg.lstsq` 仍未约束或投影 positivity，数值求根也不是 rigorous interval arithmetic；不能推广到其他 links、生产 `H` 或重拟合系数。
+- 这项工作闭合的是“现有三组系数在明确区间内的 CPU 诊断”，不是 D11：D04 独立 reference、D06 最小可接受效应 `r_star`、生产算符/谱界、归一化和失效规则、统计/计时预算及 GPU/data 授权仍需研究者冻结。两项比较继续同时保留为 trainable-W vs same-budget SLSQP 与 trainable-W vs fixed degree-4 Chebyshev；没有授权/输入前不做物理或 sealed 比较，也不重复相同 synthetic teacher 网格。
+- 本轮在 PR #6 当前提交 `337bc99b87952c4c866c6f55ea000427c00273b5` 上重跑 9 个 Optimize/Wilson 专项 CPU test modules：**65 passed**。这是代码/代数/合同验证，不是物理排名、生产性能或 GPU 证据。
+
 ## 2026-11-24 Pion Markov-score follow-up
 
 - PR #5 的 Pion Markov pseudo-gap 路线新增条件式 `conditional_block_risk_markov_lcb` 和 [v3 诊断报告](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v3/README.md)。它按 corrected arXiv v5 theorem version 记载 stationary radius，并实现有外部 post-burn-in TV receipt 时的 `F*delta` error-budget 与 `2*delta` mean-shift correction；synthetic 例保留 planned failure denominator。它不估计 Pion block-chain gap/TV 或项目覆盖率，也不改变 Optimize 决策门。
@@ -116,5 +123,5 @@ P4(X) = sum_{k=0}^4 c_k T_k(X),  T_0=I, T_1=X, T_k=2 X T_{k-1}-T_{k-2}
 ## 2026-11-24 Pion theorem-contract closure
 
 - PR #5 的 [Markov 报告](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v3/README.md) 与 [contract v6 报告](../../results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v6/README.md)现明确要求 fixed score function、stationary 起点或有 receipt 的 post-burn-in TV 界，以及 `F*delta < alpha_score`。synthetic fixtures 不估计 Pion chain gap、TV、anchor 或 coverage，也不读取物理数据。
-- Paulin Eq. (3.26) 的 time-varying `f_i` 路线列作未来理论实现选项，但需要新的 `k_ps`、variance-sum、逐项 range 与 `M/k_ps` 上界合同；当前 helper/inspector 不接受它。此 Pion 方法学更新不能填 Optimize 的 D04 reference、D06 `r_star` 或 D11 operator contract。
+- Pion 的 time-varying `f_i` Eq. (3.26) 路线现已在 PR #5 作为可选 helper/contract 分支实现，要求冻结 `k_ps`、逐 residue class variance-sum 上界、score schedule、`M/k_ps` 和 anchor-shift receipts；它尚不核验 receipt 内容。此 Pion 方法学更新不能填 Optimize 的 D04 reference、D06 `r_star` 或 D11 operator contract。
 - 下一位 Optimize agent 按本文件既有顺序继续：由研究者提供可审阅的 D04 reference、事前 `r_star`、D11 算符及正性/归一化/失败规则，再冻结同预算 trainable-W vs SLSQP 与 trainable-W vs degree-4 Chebyshev 的 setup/call/total-walltime 对照；缺字段时保留 `NOT_READY/UNCERTIFIED`，不要重跑相同 synthetic teacher grid。

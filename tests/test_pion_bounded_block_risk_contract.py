@@ -25,7 +25,11 @@ def test_current_null_contract_is_not_ready_and_keeps_physical_score_null():
 
 @pytest.mark.parametrize(
     "method",
-    ["graph_color_hoeffding", "markov_pseudo_gap_bernstein"],
+    [
+        "graph_color_hoeffding",
+        "markov_pseudo_gap_bernstein",
+        "markov_time_varying_bernstein",
+    ],
 )
 def test_synthetic_complete_dependence_routes_only_request_human_review(method):
     result = inspect_contract(_synthetic_complete_contract(method))
@@ -49,6 +53,54 @@ def test_markov_route_requires_fixed_score_function_and_initial_law_receipt():
                for issue in result["issues"])
     assert any("initial_law_receipt_sha256" in issue
                for issue in result["issues"])
+
+
+def test_time_varying_markov_route_requires_kps_variances_and_schedule_receipts():
+    contract = _synthetic_complete_contract("markov_time_varying_bernstein")
+    result = inspect_contract(contract)
+    assert result["status"] == "CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW"
+    assert result["physical_score"] is None
+
+    contract["dependence"]["variance_upper_by_residue"] = [0.2]
+    contract["dependence"]["score_schedule_receipt_sha256"] = None
+    contract["dependence"]["pseudo_gap_k_ps_receipt_sha256"] = "bad"
+    result = inspect_contract(contract)
+    assert result["status"] == "NOT_READY"
+    assert any("variance_upper_by_residue" in issue for issue in result["issues"])
+    assert any("score_schedule_receipt_sha256" in issue for issue in result["issues"])
+    assert any("pseudo_gap_k_ps_receipt_sha256" in issue for issue in result["issues"])
+
+
+def test_time_varying_markov_route_requires_anchor_score_shift_bound():
+    contract = _synthetic_complete_contract("markov_time_varying_bernstein")
+    contract["anchor"]["time_varying_score_shift_receipt_sha256"] = None
+    result = inspect_contract(contract)
+    assert result["status"] == "NOT_READY"
+    assert any("time_varying_score_shift_receipt_sha256" in issue
+               for issue in result["issues"])
+
+
+def test_time_varying_markov_route_rejects_anchor_shift_below_fixed_score_floor():
+    contract = _synthetic_complete_contract("markov_time_varying_bernstein")
+    contract["anchor"]["time_varying_score_shift_bound"] = 0.1
+    result = inspect_contract(contract)
+    assert result["status"] == "NOT_READY"
+    assert any("2B/R" in issue for issue in result["issues"])
+
+
+@pytest.mark.parametrize("field,value", [
+    ("pseudo_gap_k_ps", 0),
+    ("pseudo_gap_k_ps", 21),
+    ("score_function_time_homogeneous", True),
+    ("variance_upper_by_residue", [0.2, 0]),
+    ("variance_upper_receipt_sha256", None),
+])
+def test_time_varying_markov_route_fails_closed_on_malformed_variance_schedule(field, value):
+    contract = _synthetic_complete_contract("markov_time_varying_bernstein")
+    contract["dependence"][field] = value
+    result = inspect_contract(contract)
+    assert result["status"] == "NOT_READY"
+    assert any(field in issue for issue in result["issues"])
 
 
 def test_post_burn_in_tv_requires_audited_bound_and_preserves_score_alpha():
@@ -204,7 +256,7 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
     summary = build_report(output)
 
     assert summary["denominators"] == {
-        "planned": 10, "valid": 3, "failed": 7, "abstained": 0,
+        "planned": 14, "valid": 4, "failed": 10, "abstained": 0,
     }
     assert summary["physical_score"] is None
     manifest = json.loads((output / "artifact_hashes.json").read_text())
@@ -218,6 +270,7 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
     assert "no correlator, anchor, gap, validation, holdout" in report
     assert "CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW" in report
     assert "F*delta < alpha_score" in report
+    assert "`M/k_ps`" in report
     assert "physical_score remains null" in report
 
 
