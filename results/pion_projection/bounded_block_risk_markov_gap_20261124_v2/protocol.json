@@ -3,9 +3,10 @@
   "inputs_read": [],
   "data_access": "none; no physical or sealed inputs were opened",
   "formula_source": {
-    "paper": "Paulin, Concentration inequalities for Markov chains by Marton couplings and spectral methods (2015), Theorem 3.10",
-    "url": "https://arxiv.org/abs/1212.2015",
-    "bound": "P(|S-E S|>=t) <= 2 exp(-t^2 gamma_ps / (8(N+1/gamma_ps)V_f + 20 t C))"
+    "paper": "Paulin, arXiv:1212.2015v5 (2018), Theorem 3.11 / Eq. (3.25)",
+    "url": "https://arxiv.org/html/1212.2015v5",
+    "bound": "P(|S-E S|>=t) <= 2 exp(-t^2 gamma_ps / (8(N+1/gamma_ps)V_f + 20 t C))",
+    "version_note": "The author notes the prior general-state Bernstein proof argument was incomplete in previous versions, including the published version; this formula has been checked against the corrected arXiv v5 statement."
   },
   "block_chain_contract": [
     "Predeclare non-overlapping score blocks and represent each block as one state of a homogeneous block Markov chain.",
@@ -43,5 +44,6 @@
     "anchor_correction": 0.0,
     "failure_fraction": 0.0,
     "warning": "All values are hypothetical, not frozen or estimated project inputs."
-  }
+  },
+  "historical_artifact_note": "This report preserves its original sensitivity values and source_snapshot.py. The source snapshot contains the original citation; use the v3 README/protocol for current source attribution and the nonstationary initial-law correction."
 }

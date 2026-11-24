@@ -18,7 +18,7 @@ from typing import Any
 
 SCHEMA = "pion-bounded-block-risk-contract-v1"
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v5")
+               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v6")
 CONTRACT_PATH = Path(__file__).with_name("bounded_block_risk_contract_v1.json")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 DEPENDENCE_METHODS = {"graph_color_hoeffding", "markov_pseudo_gap_bernstein"}
@@ -73,6 +73,11 @@ def empty_contract() -> dict[str, Any]:
             "gamma_ps_lower_bound": None,
             "block_chain_assumptions": None,
             "block_chain_receipt_sha256": None,
+            "score_function_time_homogeneous": None,
+            "initial_law_mode": None,
+            "burn_in_blocks": None,
+            "initial_law_tv_bound": None,
+            "initial_law_receipt_sha256": None,
         },
         "anchor": {
             "estimate_receipt_sha256": None,
@@ -107,8 +112,12 @@ def _nonempty(value: Any) -> bool:
 
 
 def _finite_number(value: Any) -> bool:
-    return (isinstance(value, (int, float)) and not isinstance(value, bool)
-            and math.isfinite(float(value)))
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(float(value))
+    except (OverflowError, TypeError, ValueError):
+        return False
 
 
 def _positive_int(value: Any) -> bool:
@@ -200,7 +209,8 @@ def _check_estimand(estimand: Any) -> list[str]:
     return issues
 
 
-def _check_dependence(dependence: Any, *, planned_blocks: Any) -> list[str]:
+def _check_dependence(dependence: Any, *, planned_blocks: Any,
+                      comparison_family: Any, alpha_score: Any) -> list[str]:
     label = "dependence"
     if not _mapping(dependence):
         return [f"{label}: expected an object"]
@@ -229,6 +239,43 @@ def _check_dependence(dependence: Any, *, planned_blocks: Any) -> list[str]:
         issues.extend(_required_receipt(
             dependence, "block_chain_receipt_sha256", label,
         ))
+        if dependence.get("score_function_time_homogeneous") is not True:
+            issues.append(
+                f"{label}.score_function_time_homogeneous: v1 Markov route requires one fixed score function across blocks"
+            )
+        initial_mode = dependence.get("initial_law_mode")
+        if (not isinstance(initial_mode, str)
+                or initial_mode not in {"stationary", "post_burn_in_tv"}):
+            issues.append(
+                f"{label}.initial_law_mode: expected 'stationary' or 'post_burn_in_tv'"
+            )
+        burn_in = dependence.get("burn_in_blocks")
+        if (not isinstance(burn_in, int) or isinstance(burn_in, bool)
+                or burn_in < 0):
+            issues.append(f"{label}.burn_in_blocks: expected a nonnegative integer")
+        tv_bound = dependence.get("initial_law_tv_bound")
+        if not _finite_number(tv_bound) or not 0 <= tv_bound <= 1:
+            issues.append(f"{label}.initial_law_tv_bound: expected a finite value in [0, 1]")
+        issues.extend(_required_receipt(
+            dependence, "initial_law_receipt_sha256", label,
+        ))
+        if initial_mode == "stationary":
+            if isinstance(burn_in, int) and not isinstance(burn_in, bool) and burn_in != 0:
+                issues.append(f"{label}.burn_in_blocks: stationary mode requires zero burn-in")
+            if _finite_number(tv_bound) and tv_bound != 0:
+                issues.append(f"{label}.initial_law_tv_bound: stationary mode requires zero TV bound")
+        elif initial_mode == "post_burn_in_tv":
+            if (_finite_number(tv_bound) and 0 <= tv_bound <= 1
+                    and _positive_int(comparison_family)
+                    and _finite_number(alpha_score)):
+                try:
+                    familywise_tv_cost = comparison_family * tv_bound
+                except OverflowError:
+                    familywise_tv_cost = math.inf
+                if familywise_tv_cost >= alpha_score:
+                    issues.append(
+                        f"{label}.initial_law_tv_bound: F * delta must be smaller than inference.alpha_score"
+                    )
     return issues
 
 
@@ -401,12 +448,15 @@ def inspect_contract(contract: Any) -> dict[str, Any]:
     estimand = contract.get("estimand")
     issues.extend(_check_estimand(estimand))
     planned_blocks = estimand.get("planned_blocks_N") if _mapping(estimand) else None
+    inference = contract.get("inference")
+    comparison_family = inference.get("F") if _mapping(inference) else None
+    alpha_score = inference.get("alpha_score") if _mapping(inference) else None
     issues.extend(_check_dependence(
         contract.get("dependence"), planned_blocks=planned_blocks,
+        comparison_family=comparison_family, alpha_score=alpha_score,
     ))
     target = estimand.get("target") if _mapping(estimand) else None
     target_units = target.get("units") if _mapping(target) else None
-    inference = contract.get("inference")
     alpha_anchor = inference.get("alpha_anchor") if _mapping(inference) else None
     issues.extend(_check_anchor(
         contract.get("anchor"), target_units=target_units,
@@ -479,6 +529,11 @@ def _synthetic_complete_contract(method: str = "graph_color_hoeffding") -> dict[
             "gamma_ps_lower_bound": 0.25,
             "block_chain_assumptions": "SYNTHETIC_ONLY stationary block-chain assumptions",
             "block_chain_receipt_sha256": _synthetic_receipt("block-chain"),
+            "score_function_time_homogeneous": True,
+            "initial_law_mode": "stationary",
+            "burn_in_blocks": 0,
+            "initial_law_tv_bound": 0.0,
+            "initial_law_receipt_sha256": _synthetic_receipt("stationary-initial-law"),
         })
     anchor = contract["anchor"]
     anchor.update({
@@ -521,19 +576,42 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
     current = json.loads(CONTRACT_PATH.read_text())
     valid_graph = _synthetic_complete_contract("graph_color_hoeffding")
     valid_markov = _synthetic_complete_contract("markov_pseudo_gap_bernstein")
+    valid_markov_tv = _synthetic_complete_contract("markov_pseudo_gap_bernstein")
+    valid_markov_tv["dependence"].update({
+        "block_chain_assumptions": "SYNTHETIC_ONLY homogeneous Markov block chain with unique stationary law",
+        "initial_law_mode": "post_burn_in_tv",
+        "burn_in_blocks": 8,
+        "initial_law_tv_bound": 0.005,
+        "initial_law_receipt_sha256": _synthetic_receipt("post-burn-in-tv"),
+    })
     alpha_over = _synthetic_complete_contract()
     alpha_over["inference"]["alpha_score"] = 0.05
     bound_over = _synthetic_complete_contract()
     bound_over["estimand"]["prediction_difference_abs_bound"] = 2.1
     missing_anchor = _synthetic_complete_contract()
     missing_anchor["anchor"]["common_bias_coverage_receipt_sha256"] = None
+    missing_initial_law = _synthetic_complete_contract("markov_pseudo_gap_bernstein")
+    missing_initial_law["dependence"]["initial_law_receipt_sha256"] = None
+    tv_over_budget = _synthetic_complete_contract("markov_pseudo_gap_bernstein")
+    tv_over_budget["dependence"].update({
+        "initial_law_mode": "post_burn_in_tv",
+        "burn_in_blocks": 8,
+        "initial_law_tv_bound": 0.02,
+        "initial_law_receipt_sha256": _synthetic_receipt("post-burn-in-tv-over-budget"),
+    })
+    changing_score = _synthetic_complete_contract("markov_pseudo_gap_bernstein")
+    changing_score["dependence"]["score_function_time_homogeneous"] = False
     fixtures = {
         "current_null_contract": current,
         "synthetic_graph_color_complete": valid_graph,
         "synthetic_markov_gap_complete": valid_markov,
+        "synthetic_markov_post_burn_in_tv_complete": valid_markov_tv,
         "synthetic_alpha_over_budget": alpha_over,
         "synthetic_prediction_bound_over_R": bound_over,
         "synthetic_missing_anchor_coverage": missing_anchor,
+        "synthetic_missing_initial_law_receipt": missing_initial_law,
+        "synthetic_initial_tv_spends_score_alpha": tv_over_budget,
+        "synthetic_time_varying_score_function": changing_score,
     }
     results = {name: inspect_contract(value) for name, value in fixtures.items()}
     rows = [{
@@ -569,12 +647,17 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "",
         "The inspector checks whether a future contract contains the fields required by the v1 estimand: bounded paired squared-error scores, a score-specific dependence route, anchor coverage/common-bias evidence, preallocated alpha, and a separate physical reference gate.",
         "",
+        "The Markov pseudo-gap route follows Paulin arXiv v5 Theorem 3.11 / Eq. (3.25), which requires a single fixed score function across chain states. For a nonstationary start, Proposition 3.15 / Eq. (3.29) permits an audited post-burn-in TV bound `delta`; the familywise adjustment is `F*delta`, which must be smaller than `alpha_score`. The inspector checks receipt presence and this arithmetic, not the scientific validity of the bound. See [Paulin, arXiv:1212.2015v5](https://arxiv.org/html/1212.2015v5).",
+        "",
+        "Paulin Eq. (3.26) provides a separate theorem for time-varying `f_i`; this diagnostic deliberately does not accept that route. A future implementation needs an explicit contract for `k_ps`, a variance-sum upper bound, per-index centered bounds, and a finite bound on the `M` factor before it can be considered.",
+        "",
         "## Text decision flow",
         "",
         "```text",
         "load the null v1 contract; do not load measurements",
         "  -> check estimand, R/prediction bound, clipping, failure policy, and planned-block receipt",
-        "  -> require either a score-specific graph/color receipt or block-chain gamma_ps receipt",
+        "  -> require either a score-specific graph/color receipt or a fixed-score block-chain gamma_ps receipt",
+        "  -> for the Markov route, require stationary-start evidence or post-burn-in TV evidence and F*delta < alpha_score",
         "  -> require matched anchor, bias/coverage/common-bias, and conditional-independence receipts",
         "  -> check comparison family F and alpha_score + alpha_anchor <= alpha_total",
         "  -> check independent physical reference/model-identification gate",
@@ -599,7 +682,8 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "## Remaining researcher-supplied inputs",
         "",
         "- Target `m*`, observable, interpretation and units; positive `R`, the all-included prediction-difference bound and its receipt; clipping and failure-policy approval.",
-        "- Planned block identities; score-specific graph/color proof or block-chain assumptions and `gamma_ps` lower-bound receipt; candidate comparison family `F`.",
+        "- Planned block identities; score-specific graph/color proof or fixed-score block-chain assumptions and `gamma_ps` lower-bound receipt; candidate comparison family `F`.",
+        "- For the Markov route, document a stationary initial block law (`burn_in_blocks=0`, `delta=0`) or an audited post-burn-in TV bound and receipt; require `F*delta < alpha_score`.",
         "- Matched E-anchor receipt, total anchor-error bound `B`, explicit common-bias sub-bound `C <= B`, a justified combination rule, method-specific coverage assumptions, score/anchor conditional-independence evidence, and the preallocated alpha split. For the v1 conservative combination, the inspector also checks `B >= random_coverage_radius + C`.",
         "- Minimum effect `delta_star` with units and rationale, plus an independently reviewed physical reference/model-identification gate.",
         "- Even a structurally complete contract remains subject to human evidence review and separate data/GPU authorization. No fixture changes readiness or emits a score.",
@@ -615,6 +699,11 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "certified": False,
         "fixtures": list(fixtures),
         "synthetic_fixture_values_are_physical": False,
+        "markov_theorem_route": {
+            "stationary": "Paulin arXiv:1212.2015v5 Theorem 3.11 / Eq. (3.25), one fixed score function f",
+            "nonstationary": "Proposition 3.15 / Eq. (3.29), requires d_TV(q P^t0, pi) <= delta",
+            "time_varying_scores": "Eq. (3.26) is identified as a future route and is not implemented or accepted by this inspector",
+        },
     }
     (out / "protocol.json").write_text(json.dumps(protocol, indent=2) + "\n")
     snapshots = {

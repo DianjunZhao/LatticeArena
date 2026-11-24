@@ -45,7 +45,12 @@
     "color_class_independence_receipt_sha256": null,
     "gamma_ps_lower_bound": null,
     "block_chain_assumptions": null,
-    "block_chain_receipt_sha256": null
+    "block_chain_receipt_sha256": null,
+    "score_function_time_homogeneous": null,
+    "initial_law_mode": null,
+    "burn_in_blocks": null,
+    "initial_law_tv_bound": null,
+    "initial_law_receipt_sha256": null
   },
   "anchor": {
     "estimate_receipt_sha256": null,

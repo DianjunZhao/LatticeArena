@@ -34,6 +34,12 @@ D_i(A) - D_i(m*) = 2 * (A - m*) * (y_candidate,i - y_reference,i)
 
 so an anchor bound `|A-m*| <= B` yields normalized correction `2B/R` only when the predeclared prediction difference also satisfies `|y_candidate-y_reference| <= R`. If the score adds variance, fit, or other terms, each needs its own valid range and Lipschitz bound before it enters this contract.
 
+The alternative Markov pseudo-gap route uses Paulin's corrected non-reversible Bernstein inequality (arXiv v5, Theorem 3.11 / Eq. (3.25)). It requires the same fixed bounded score function `f` on each state of a homogeneous block chain, with a stationary law and an auditable `gamma_ps` lower bound for that block chain. The structural contract therefore requires `score_function_time_homogeneous=true`; a score map that changes with block index is not covered by this helper.
+
+For a nonstationary start, the accepted input mode is either (a) a stationary initial block law with `burn_in_blocks=0`, `delta=0`, and an initial-law receipt, or (b) an audited bound `delta >= d_TV(q P^t0, pi)` after the declared burn-in, also with a receipt. Paulin Proposition 3.15 / Eq. (3.29) adds at most `delta` to each comparison's event probability. The inspector checks that `F*delta < alpha_s`, leaving `alpha_s-F*delta` for the stationary two-sided Bernstein radius; for the operational finite-plan target it also subtracts the conservative `2*delta` mean shift allowed by the score range `[-1,1]`. It cannot verify the receipt itself.
+
+Paulin Eq. (3.26) separately treats sums with time-varying functions `f_i(X_i)`, but that route is not implemented here. A future version would need audited `k_ps`, an upper bound for the summed variances `V_{S'}`, per-index centered score bounds, and a finite upper bound for the `M/k_ps` factor. Until those terms have a reviewed contract and testable calibration, the inspector rejects time-varying Markov score functions.
+
 The anchor input `B` in the lower bound is the **total** bound on `|A-m*|`, including any common-mode bias. The receipt must state the random-coverage component, an explicit common-bias bound `C`, and a justified rule that combines them into `B`; the v1 conservative rule checked here requires `B >= random_coverage_radius + C`, with `B` and `C` in target units; merely hashing the same shared anchor or listing its standard error is insufficient. The selected coverage route must also expose its assumptions: known variance and a justified normal model for a normal interval, or a predeclared finite support and iid anchor units for Hoeffding. The structural inspector checks that these fields are present and numerically consistent; it does not verify the receipts or assumptions.
 
 The candidate lower bound is
@@ -54,7 +60,7 @@ If `A` is covered only with probability at least `1-alpha_A`, require `alpha_s +
 |Failure coding|candidate `-1`; not frozen|Confirm which failures receive worst score and which invalidate/abstain a whole panel|
 |Planned block count `N` and block identities|`null`|Specify the planned unit and preserve all planned/valid/failed/abstained denominators|
 |Result unit and panel-level denominator|one candidate-reference comparison|Count an all-failed comparison as abstained while retaining its failed blocks in the block denominator|
-|Dependence graph and `chi`|`null`|Supply a score-specific proof and auditable upper bound, or a different finite-sample concentration theorem with explicit constants|
+|Dependence graph and `chi`, or Markov pseudo-gap route|`null`|Supply graph/color independence evidence, or fixed-score block-chain assumptions, `gamma_ps`, initial-law mode/burn-in/TV bound and receipts; for nonstationary starts ensure `F*delta < alpha_s`. A time-varying Markov score route is not implemented|
 |Candidate family `F`|`null`|Freeze every comparison entering simultaneous inference|
 |Anchor estimate `A`, bound `B`, coverage and independence|`null`|Provide matched E-correlator receipt, total `B` bound, explicit common-bias sub-bound `C <= B`, the rule combining them, coverage model and its assumptions, shared-anchor dependence and conditional-independence evidence|
 |`alpha_total`, `alpha_s`, `alpha_A`|`null`|Choose in advance and enforce `alpha_s+alpha_A<=alpha_total`|
@@ -64,7 +70,9 @@ If `A` is covered only with probability at least `1-alpha_A`, require `alpha_s +
 
 ```text
 freeze score and planned blocks
-  -> verify score-specific dependence bound and anchor coverage/bias bound
+  -> verify graph-color evidence, or fixed-score Markov assumptions, gap, and initial-law evidence
+  -> for Markov TV mode, require F*delta < alpha_s before computing the radius
+  -> verify anchor coverage/bias bound
   -> compute coded planned mean - graph penalty - anchor correction
   -> compare LCB with delta_star / R^2
   -> separately require the physical reference/model-identification gate

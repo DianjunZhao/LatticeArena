@@ -37,6 +37,66 @@ def test_synthetic_complete_dependence_routes_only_request_human_review(method):
     assert result["issues"] == []
 
 
+def test_markov_route_requires_fixed_score_function_and_initial_law_receipt():
+    contract = _synthetic_complete_contract("markov_pseudo_gap_bernstein")
+    contract["dependence"]["score_function_time_homogeneous"] = False
+    contract["dependence"]["initial_law_receipt_sha256"] = None
+
+    result = inspect_contract(contract)
+
+    assert result["status"] == "NOT_READY"
+    assert any("score_function_time_homogeneous" in issue
+               for issue in result["issues"])
+    assert any("initial_law_receipt_sha256" in issue
+               for issue in result["issues"])
+
+
+def test_post_burn_in_tv_requires_audited_bound_and_preserves_score_alpha():
+    contract = _synthetic_complete_contract("markov_pseudo_gap_bernstein")
+    contract["dependence"].update({
+        "initial_law_mode": "post_burn_in_tv",
+        "burn_in_blocks": 8,
+        "initial_law_tv_bound": 0.02,
+    })
+
+    result = inspect_contract(contract)
+
+    assert result["status"] == "NOT_READY"
+    assert any("F * delta must be smaller" in issue for issue in result["issues"])
+
+
+@pytest.mark.parametrize("field,value", [
+    ("burn_in_blocks", -1),
+    ("initial_law_tv_bound", 1.01),
+    ("initial_law_mode", "unspecified"),
+    ("initial_law_mode", []),
+    ("initial_law_tv_bound", 10**400),
+])
+def test_markov_initial_law_fields_are_range_checked(field, value):
+    contract = _synthetic_complete_contract("markov_pseudo_gap_bernstein")
+    contract["dependence"][field] = value
+
+    result = inspect_contract(contract)
+
+    assert result["status"] == "NOT_READY"
+    assert any(field in issue for issue in result["issues"])
+
+
+def test_unrepresentably_large_comparison_family_does_not_crash_markov_tv_check():
+    contract = _synthetic_complete_contract("markov_pseudo_gap_bernstein")
+    contract["inference"]["F"] = 10**400
+    contract["dependence"].update({
+        "initial_law_mode": "post_burn_in_tv",
+        "burn_in_blocks": 8,
+        "initial_law_tv_bound": 0.005,
+    })
+
+    result = inspect_contract(contract)
+
+    assert result["status"] == "NOT_READY"
+    assert any("F * delta must be smaller" in issue for issue in result["issues"])
+
+
 
 def test_target_mstar_is_explicit_and_finite():
     contract = _synthetic_complete_contract()
@@ -144,7 +204,7 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
     summary = build_report(output)
 
     assert summary["denominators"] == {
-        "planned": 6, "valid": 2, "failed": 4, "abstained": 0,
+        "planned": 10, "valid": 3, "failed": 7, "abstained": 0,
     }
     assert summary["physical_score"] is None
     manifest = json.loads((output / "artifact_hashes.json").read_text())
@@ -157,6 +217,7 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
     report = (output / "README.md").read_text()
     assert "no correlator, anchor, gap, validation, holdout" in report
     assert "CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW" in report
+    assert "F*delta < alpha_score" in report
     assert "physical_score remains null" in report
 
 

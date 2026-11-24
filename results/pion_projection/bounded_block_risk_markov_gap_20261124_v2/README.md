@@ -1,5 +1,8 @@
 # Pion bounded-risk Markov gap sensitivity
 
+> **Source correction (2026-11-24):** This legacy report originally cited Paulin (2015), Theorem 3.10. The author’s current [arXiv v5](https://arxiv.org/html/1212.2015v5) labels the corrected non-reversible Bernstein bound Theorem 3.11, Eq. (3.25), and notes that the general-state Bernstein proof argument in previous versions, including the published version, was incomplete. The numeric bound used here matches the corrected Eq. (3.25), but use [the v3 report](../bounded_block_risk_markov_gap_20261124_v3/README.md) for the corrected citation, explicit initial-law TV correction, and current interpretation. The source snapshot below remains the original historical generator.
+
+
 **SYNTHETIC ANALYTIC SENSITIVITY ONLY. `physical_score=null`.** The script evaluates a published Markov-chain concentration inequality on hypothetical block counts and pseudo-spectral-gap lower bounds. It samples no scores and reads no ensemble, anchor, gap, validation, holdout, GPU, or QUDA input.
 
 ## Conditional route

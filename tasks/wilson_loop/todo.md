@@ -106,5 +106,11 @@ W ~ exp[-V0(R)t] * [1 + q(R,t) + h(R,N_t-t) + x(R,t,N_t-t)]
 
 ## 2026-11-24 Pion Markov-score follow-up
 
-- PR #5 的 Pion Markov pseudo-gap 路线现有条件式 block-risk LCB helper 与 [v2 图/文字报告](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v2/README.md)，包含部分失败与全失败两个 synthetic panel，并分别报告 planned block 和 comparison denominator。它没有访问 Wilson 输入、改变 C/F estimand，或提供 Wilson 污染界。
-- Pion bounded-risk/dependence 专项 suite 现为 **78 passed**；Pion report hash 与 task TODO 链接审计结果见 Pion TODO 的本轮 follow-up。Wilson 的 C lane primary `R/T/kernel` 与精度/多重性规则、F lane 独立污染界和总误差预算仍未冻结，状态保持 `NOT_READY/UNCERTIFIED` 与 `GROUND_STATE_FORCE_UNCERTIFIED`。
+- PR #5 的 Pion Markov pseudo-gap 路线现有条件式 block-risk LCB helper 与 [v3 图/文字报告](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v3/README.md)，按 corrected arXiv v5 theorem version 记载 stationary/nonstationary-TV 条件路径，含部分失败、全失败与 post-burn-in TV synthetic panel，并分别报告 planned block 和 comparison denominator。它没有访问 Wilson 输入、改变 C/F estimand，或提供 Wilson 污染界。
+- 此历史快照的 Pion bounded-risk/dependence 专项 suite 为 **78 passed**；后续 theorem-contract closure 的当前结果为 **93 passed**，manifest/hash 与本地 TODO 链接复核见 Pion TODO 最新记录。Wilson 的 C lane primary `R/T/kernel` 与精度/多重性规则、F lane 独立污染界和总误差预算仍未冻结，状态保持 `NOT_READY/UNCERTIFIED` 与 `GROUND_STATE_FORCE_UNCERTIFIED`。
+
+## 2026-11-24 Pion theorem-contract closure
+
+- PR #5 的 [Markov 报告](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v3/README.md) 与 [contract v6 报告](../../results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v6/README.md)现明确要求 fixed score function、stationary 起点或带 receipt 的 post-burn-in TV 界，并检查 `F*delta < alpha_score`。这只是 Pion synthetic contract 诊断，不是 Wilson measurement，也不提供 Wilson 的 q/h/x 污染界。
+- Paulin Eq. (3.26) 的 time-varying score 路线已记录为未来实现选项，当前 Pion helper 不接受；这不改变 Wilson 的两条独立 estimand。
+- 下一位 Wilson agent 仍按本文件原顺序推进：C lane 等待 primary `R/T/kernel`、精度和多重性规则；F lane 等待独立谱/热/绕回/mixed 污染界及总误差预算。不得从 Pion 的 TV 校准、Wilson toy 或单一 `N_t` 推导这些量；收到相应研究者输入后再冻结 protocol 与执行授权。

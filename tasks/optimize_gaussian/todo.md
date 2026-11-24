@@ -110,5 +110,11 @@ P4(X) = sum_{k=0}^4 c_k T_k(X),  T_0=I, T_1=X, T_k=2 X T_{k-1}-T_{k-2}
 
 ## 2026-11-24 Pion Markov-score follow-up
 
-- PR #5 的 Pion Markov pseudo-gap 路线新增条件式 `conditional_block_risk_markov_lcb` 和 [v2 诊断报告](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v2/README.md)。它保留失败 block 的 planned 分母、全失败比较 abstain，并在 synthetic 例中展示两级分母；不估计 block-chain gap 或项目覆盖率。
-- Pion bounded-risk/dependence 专项 suite 现为 **78 passed**；Pion 报告 manifest/hash 与三份 TODO 链接的最新审计结果记录在 Pion TODO 的本轮 follow-up。此软件闭环不修改 Optimize 的 D04/D06/D11 缺项，也不改变 Optimize 两项指定比较及 `NOT_READY/UNCERTIFIED` 状态。
+- PR #5 的 Pion Markov pseudo-gap 路线新增条件式 `conditional_block_risk_markov_lcb` 和 [v3 诊断报告](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v3/README.md)。它按 corrected arXiv v5 theorem version 记载 stationary radius，并实现有外部 post-burn-in TV receipt 时的 `F*delta` error-budget 与 `2*delta` mean-shift correction；synthetic 例保留 planned failure denominator。它不估计 Pion block-chain gap/TV 或项目覆盖率，也不改变 Optimize 决策门。
+- 此历史快照的 Pion bounded-risk/dependence 专项 suite 为 **78 passed**；后续 theorem-contract closure 的当前结果为 **93 passed**，manifest/hash 与本地 TODO 链接复核见 Pion TODO 最新记录。此软件闭环不修改 Optimize 的 D04/D06/D11 缺项，也不改变 Optimize 两项指定比较及 `NOT_READY/UNCERTIFIED` 状态。
+
+## 2026-11-24 Pion theorem-contract closure
+
+- PR #5 的 [Markov 报告](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v3/README.md) 与 [contract v6 报告](../../results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v6/README.md)现明确要求 fixed score function、stationary 起点或有 receipt 的 post-burn-in TV 界，以及 `F*delta < alpha_score`。synthetic fixtures 不估计 Pion chain gap、TV、anchor 或 coverage，也不读取物理数据。
+- Paulin Eq. (3.26) 的 time-varying `f_i` 路线列作未来理论实现选项，但需要新的 `k_ps`、variance-sum、逐项 range 与 `M/k_ps` 上界合同；当前 helper/inspector 不接受它。此 Pion 方法学更新不能填 Optimize 的 D04 reference、D06 `r_star` 或 D11 operator contract。
+- 下一位 Optimize agent 按本文件既有顺序继续：由研究者提供可审阅的 D04 reference、事前 `r_star`、D11 算符及正性/归一化/失败规则，再冻结同预算 trainable-W vs SLSQP 与 trainable-W vs degree-4 Chebyshev 的 setup/call/total-walltime 对照；缺字段时保留 `NOT_READY/UNCERTIFIED`，不要重跑相同 synthetic teacher grid。
