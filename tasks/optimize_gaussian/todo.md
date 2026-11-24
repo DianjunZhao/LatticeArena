@@ -85,9 +85,23 @@ P4(X) = sum_{k=0}^4 c_k T_k(X),  T_0=I, T_1=X, T_k=2 X T_{k-1}-T_{k-2}
 
 可供用户审阅的物理合同草案可沿用上述 basis family，但必须另行选择：生产 `H` 的方向权重/链接/边界及谱界；系数是否固定、如何用独立 D04 reference 拟合；是否要求 `p_4(x)>=0` 对全部 `x∈[-1,1]`（当前代码不保证）；输出是否另作 normalization；rank/非有限系数/正性失败如何处理。当前 contract inspector 保持这些字段为 null 是正确的，本节只把合成基线定义显式化，不填充 null、重命名物理 reference 或关闭 D11 gate。
 
+### D11 正性诊断：现有 degree-4 系数的连续区间检查
+
+我对 [source-closed replay 的原始系数](https://github.com/DianjunZhao/LatticeArena/blob/75537cbbbef0e1234dbb53a71c81b3a0476ef2f4/tasks/optimize_gaussian/trainable_w_operator_cpu_replay_20261123_v1/raw.json) 做了只读复核；输入 SHA-256 为 086f17a9ac7da9869014b554b0a1d364922a0b116d95745d9f9384936031fb9e。对应的 [可复现报告与图](https://github.com/Greyyy-HJC/LatticeArena/blob/337bc99b87952c4c866c6f55ea000427c00273b5/results/optimize_gaussian/chebyshev_interval_positivity_20261124_v1/README.md)、[诊断脚本](https://github.com/Greyyy-HJC/LatticeArena/blob/337bc99b87952c4c866c6f55ea000427c00273b5/tasks/optimize_gaussian/chebyshev_positivity_diagnostic.py)、[区间函数](https://github.com/Greyyy-HJC/LatticeArena/blob/337bc99b87952c4c866c6f55ea000427c00273b5/tasks/optimize_gaussian/chebyshev_interval.py) 与 [专项测试](https://github.com/Greyyy-HJC/LatticeArena/blob/337bc99b87952c4c866c6f55ea000427c00273b5/tests/test_optimize_chebyshev_interval.py) 已提交到 companion PR #6。对每组 Chebyshev 系数求 p4'(x) 的全部实根，再和区间端点 x=±1 一起计算 p4(x)，不靠有限网格采点估最小值：
+
+| panel seed | min p4(x), x in [-1,1] | argmin x | p4(-1) | p4(1) |
+|---:|---:|---:|---:|---:|
+| 2026112201 | 0.313406899943 | -1 | 0.313406899943 | 2.669528094588 |
+| 2026112202 | 0.313027858941 | -1 | 0.313027858941 | 2.670170688984 |
+| 2026112203 | 0.313506535758 | -1 | 0.313506535758 | 2.670263798375 |
+
+因此，对这三个 fit 得到的多项式，若 `H` Hermitian 且 `spec(H/6)⊂[-1,1]`，谱定理给出 `p_4(H/6) ⪰ 0`；观测到的最小值约 0.313。该连续区间结论只针对这三组 synthetic heat-kernel panel 的 fitted coefficients，浮点求根结果留有很大正裕量。它没有改变实现事实：`np.linalg.lstsq` 没有施加 positivity constraint，也没有投影；因此不能推出任意配置、物理 `H` 或未来重新拟合的系数保持正性。
+
+文字流程：`frozen fit coefficients -> endpoints + every real stationary point in [-1,1] -> interval minimum -> conditional PSD statement for Hermitian H -> retain physical gate`。若后续合同要求 PSD，可评估把连续区间最小值检查写成 fail-closed rule；容差、舍入裕量和生产谱区间仍需冻结，不能把本次三 panel 结果写成普遍保证。
+
 ## 2026-11-24 本轮复核记录
 
-- 在 companion PR #6 当前代码提交 [75537cbb](https://github.com/Greyyy-HJC/LatticeArena/tree/75537cbbbef0e1234dbb53a71c81b3a0476ef2f4) 上，对 Optimize/Wilson 共 8 个 CPU 测试模块重跑：**61 passed**；这不是完整仓库套件，也不验证物理排序或生产 walltime。
-- PR #6 中 Optimize 的 3 份已跟踪报告 manifest、**30 个**报告文件的 SHA-256 全部匹配。结构检查、stress 与 pooled-init 图/报告可从上述提交查阅。
+- 在 companion PR #6 源码/测试提交 [f25acaba](https://github.com/Greyyy-HJC/LatticeArena/tree/f25acababd490729328af1189a5934f56bde7f89) 上，Optimize/Wilson 9 个专项 CPU 测试模块：**65 passed**；这不是完整仓库套件，也不验证物理排序或生产 walltime。后续报告提交为 [337bc99b](https://github.com/Greyyy-HJC/LatticeArena/tree/337bc99b87952c4c866c6f55ea000427c00273b5)。
+- PR #6 中 Optimize 的 4 份已跟踪报告 manifest、38 个报告文件及 Wilson 的 6 份 manifest、32 个报告文件的 SHA-256 全部匹配；新增正性报告分母为 3/3/0/0，8 个报告文件哈希通过。
 - 本轮未读取封存数据或运行 GPU/QUDA；两个比较族保持 trainable-W vs same-budget SLSQP 和 trainable-W vs fixed degree-4 Chebyshev，NOT_READY/UNCERTIFIED 与 physical_score=null 不变。
 - Optimize 仍待冻结的研究者输入包括 D04 独立物理 reference、D06 事前 r_star、D11 经审阅的算符/约束，以及生产公平预算与数据/GPU 授权；不得用合成目标填写这些字段。纯 CPU 网格和 null contract diagnostic 已覆盖，不要重复同一教师族增加样本数。
