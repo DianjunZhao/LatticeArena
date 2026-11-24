@@ -85,11 +85,14 @@ These are task examples, not automatic plug-ins for every task family.
   draws while using different systematic-error gates. The fixed q/h/x toy and
   randomized positive-spectrum stress validate the four-point algebra and
   envelope propagation over the declared synthetic ranges, but supply no
-  physical contamination envelope. A new lane-contract inspector checks
-  stencil, units, alpha allocation and evidence-receipt shape while keeping
-  `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW` separate from readiness; it does
-  not authenticate receipts. The generic `RunState` does not infer spectral,
-  thermal or mixed-sector bounds.
+  physical contamination envelope. A new versioned lane-contract inspector
+  fixes the finite-`T` Creutz sign and candidate-minus-reference force direction,
+  checks precision units before adding statistical and systematic budgets, and
+  rejects malformed shared kernel lists. Synthetic mutations exercise these
+  fail-closed paths. It also checks alpha allocation and evidence-receipt shape
+  while keeping `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW` separate from
+  readiness; it does not authenticate receipts. The generic `RunState` does
+  not infer spectral, thermal or mixed-sector bounds.
 
 ## Practical implementation order for a new task
 
@@ -121,10 +124,10 @@ risk reports include a 1,728-scenario feasibility surface, a known-graph
 coverage MC, a joint score/anchor coverage MC, an exact anchor-distribution
 robustness comparison, and a color-class empirical-Bernstein sensitivity grid.
 The companion Optimize/Wilson PR reports the 36-panel trainable-W stress grid,
-12-panel pooled-initialization replay, Wilson lane-contract completeness
-fixtures, finite-`N_t` Creutz toy identity check, and randomized positive-
-spectrum four-point stress over 4,000 cases, all with figures or text flow,
-denominators and source/artifact hashes. Their TODOs remain until task-specific
+12-panel pooled-initialization replay, Wilson lane-contract completeness and
+four fail-closed mutation fixtures, finite-`N_t` Creutz toy identity check, and
+randomized positive-spectrum four-point stress over 4,000 cases, all with
+figures or text flow, denominators and source/artifact hashes. Their TODOs remain until task-specific
 references, effect/tolerance or spectral-error contracts, dependence/anchor
 bounds, lane protocols, and data/compute authorization gates are resolved. CPU
 tests establish software/algebra behavior only, not GPU/MPI physics validation.
