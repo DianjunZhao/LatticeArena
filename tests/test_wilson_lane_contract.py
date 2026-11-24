@@ -39,6 +39,28 @@ def test_c_complete_does_not_make_f_ready_and_complete_fixture_is_not_certified(
         assert row["physical_score"] is None
 
 
+def test_global_sign_reversal_is_rejected_for_both_physical_conventions():
+    contract = _synthetic_contract(complete_creutz=True, complete_force=True)
+    creutz = contract["lanes"]["finite_T_Creutz"]
+    for row in creutz["stencil"]:
+        row["coefficient"] *= -1
+    result = inspect_contract(contract)
+    c_issues = result["lanes"]["finite_T_Creutz"]["issues"]
+    assert any("prescribed signed four-point convention" in message
+               for message in c_issues)
+    assert not result["lanes"]["finite_T_Creutz"]["structurally_complete"]
+
+    contract = _synthetic_contract(complete_creutz=True, complete_force=True)
+    force = contract["lanes"]["ground_state_discrete_static_force"]
+    for row in force["force_stencil"]:
+        row["coefficient"] *= -1
+    result = inspect_contract(contract)
+    f_issues = result["lanes"]["ground_state_discrete_static_force"]["issues"]
+    assert any("coefficients must encode candidate minus reference" in message
+               for message in f_issues)
+    assert not result["lanes"]["ground_state_discrete_static_force"]["structurally_complete"]
+
+
 def test_invalid_temporal_extent_boolean_integer_and_stencil_are_rejected():
     contract = _synthetic_contract(complete_creutz=True, complete_force=True)
     contract["common"]["geometry"]["temporal_extent"] = 3
@@ -82,6 +104,29 @@ def test_qhx_inputs_are_dimensionless_and_force_budget_is_in_force_units():
                for message in issues)
 
 
+def test_force_precision_with_wrong_units_is_rejected_and_not_summed_as_force():
+    contract = _synthetic_contract(complete_creutz=True, complete_force=True)
+    force = contract["lanes"]["ground_state_discrete_static_force"]
+    force["inference"]["statistical_precision_target"] = 100.0
+    force["inference"]["precision_units"] = "dimensionless"
+    result = inspect_contract(contract)
+    issues = result["lanes"]["ground_state_discrete_static_force"]["issues"]
+    assert any("precision_units: expected 'SYNTHETIC_ONLY_GeV'" in message
+               for message in issues)
+    assert not any("systematic plus statistical budgets exceed total_tolerance" in message
+                   for message in issues)
+
+
+def test_null_common_kernel_list_is_reported_without_crashing():
+    contract = _synthetic_contract(complete_creutz=True, complete_force=True)
+    contract["common"]["kernel_ids"] = None
+    result = inspect_contract(contract)
+    assert any("common.kernel_ids: expected unique nonempty identifiers" in message
+               for message in result["common_issues"])
+    assert all(not row["structurally_complete"]
+               for row in result["lanes"].values())
+
+
 def test_schema_mismatch_cannot_return_structural_completeness():
     contract = _synthetic_contract(complete_creutz=True, complete_force=True)
     contract["schema"] = "future-or-unknown-schema"
@@ -98,5 +143,17 @@ def test_build_report_snapshots_source_and_hashes_every_artifact(tmp_path):
     manifest = json.loads((output / "artifact_hashes.json").read_text())
     assert "snapshot_lane_contract.py" in manifest
     assert summary["physical_score"] is None
+    c_reverse = summary["fixtures"]["synthetic_C_reversed_sign"]["lanes"][
+        "finite_T_Creutz"]
+    assert not c_reverse["structurally_complete"]
+    f_reverse = summary["fixtures"]["synthetic_F_reversed_sign"]["lanes"][
+        "ground_state_discrete_static_force"]
+    assert not f_reverse["structurally_complete"]
+    f_units = summary["fixtures"]["synthetic_F_wrong_precision_units"]["lanes"][
+        "ground_state_discrete_static_force"]
+    assert not f_units["structurally_complete"]
+    assert any("precision_units: expected" in message for message in f_units["issues"])
+    null_kernels = summary["fixtures"]["synthetic_null_common_kernel_ids"]["lanes"]
+    assert all(not row["structurally_complete"] for row in null_kernels.values())
     for name, expected in manifest.items():
         assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected

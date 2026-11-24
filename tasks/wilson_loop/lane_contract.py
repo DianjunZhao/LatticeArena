@@ -15,9 +15,9 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEMA = "wilson-two-lane-contract-v1"
+SCHEMA = "wilson-two-lane-contract-v2"
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/wilson_loop/lane_contract_diagnostic_20261123_v5")
+               / "results/wilson_loop/lane_contract_diagnostic_20261124_v2")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 F_BOUND_COMPONENTS = (
     "excited_state_force", "finite_T_thermal", "mixed", "finite_a",
@@ -181,15 +181,15 @@ def _check_stencil(rows: Any, *, expected: set[tuple[int, int]],
     elif all(_is_number(v) for v in observed.values()):
         actual = {key: int(value) if float(value).is_integer() else value
                   for key, value in observed.items()}
-        if actual != coefficient_pattern and actual != {
-                key: -value for key, value in coefficient_pattern.items()}:
-            issues.append(f"{label}: coefficients violate the four-point sign pattern")
+        if actual != coefficient_pattern:
+            issues.append(f"{label}: coefficients violate the prescribed signed four-point convention")
     else:
         issues.append(f"{label}: coefficients must be finite numbers")
     return issues
 
 
 def _check_interval(inference: Any, *, precision_field: str,
+                    expected_precision_units: str | None = None,
                     label: str) -> list[str]:
     if not _mapping(inference):
         return [f"{label}: expected an object"]
@@ -212,8 +212,14 @@ def _check_interval(inference: Any, *, precision_field: str,
     precision = inference.get(precision_field)
     if not _is_number(precision) or precision <= 0:
         issues.append(f"{label}.{precision_field}: expected a positive finite value")
-    if not _nonempty(inference.get("precision_units")):
+    precision_units = inference.get("precision_units")
+    if not _nonempty(precision_units):
         issues.append(f"{label}.precision_units: missing")
+    elif (expected_precision_units is not None
+          and precision_units != expected_precision_units):
+        issues.append(
+            f"{label}.precision_units: expected {expected_precision_units!r}"
+        )
     return issues
 
 
@@ -233,7 +239,8 @@ def _check_creutz(lane: Any, common: Any) -> list[str]:
         issues.append(f"{label}.primary.R: expected a positive integer")
     if not _positive_int(t):
         issues.append(f"{label}.primary.T: expected a positive integer")
-    kernels = common.get("kernel_ids", []) if _mapping(common) else []
+    kernels_value = common.get("kernel_ids") if _mapping(common) else None
+    kernels = kernels_value if isinstance(kernels_value, list) else []
     if not _nonempty(kernel) or kernel not in kernels:
         issues.append(f"{label}.primary.kernel_id: not declared in common.kernel_ids")
     geometry = common.get("geometry", {}) if _mapping(common) else {}
@@ -247,8 +254,8 @@ def _check_creutz(lane: Any, common: Any) -> list[str]:
         if _positive_int(nt) and t + 1 > nt:
             issues.append(f"{label}.primary.T: T+1 exceeds the declared temporal extent")
     if _positive_int(r) and _positive_int(t):
-        pattern = {(r, t): 1, (r + 1, t): -1,
-                   (r, t + 1): -1, (r + 1, t + 1): 1}
+        pattern = {(r, t): -1, (r + 1, t): 1,
+                   (r, t + 1): 1, (r + 1, t + 1): -1}
         issues.extend(_check_stencil(
             lane.get("stencil"), expected=set(pattern),
             coefficient_pattern=pattern, label=f"{label}.stencil",
@@ -311,7 +318,8 @@ def _check_force(lane: Any, common: Any) -> list[str]:
         primary = {}
     r = primary.get("R")
     candidate, reference = primary.get("candidate_kernel_id"), primary.get("reference_kernel_id")
-    kernels = common.get("kernel_ids", []) if _mapping(common) else []
+    kernels_value = common.get("kernel_ids") if _mapping(common) else None
+    kernels = kernels_value if isinstance(kernels_value, list) else []
     if not _positive_int(r):
         issues.append(f"{label}.primary.R: expected a positive integer")
     for name, value in (("candidate_kernel_id", candidate),
@@ -356,8 +364,10 @@ def _check_force(lane: Any, common: Any) -> list[str]:
             elif all(_is_number(value) for value in observed.values()):
                 actual = {key: int(value) if float(value).is_integer() else value
                           for key, value in observed.items()}
-                if actual != pattern and actual != {key: -value for key, value in pattern.items()}:
-                    issues.append(f"{label}.force_stencil: coefficients violate the force-difference pattern")
+                if actual != pattern:
+                    issues.append(
+                        f"{label}.force_stencil: coefficients must encode candidate minus reference"
+                    )
             else:
                 issues.append(f"{label}.force_stencil: coefficients must be finite numbers")
 
@@ -377,9 +387,16 @@ def _check_force(lane: Any, common: Any) -> list[str]:
         inference = lane.get("inference")
         precision = (_get_path(inference, "statistical_precision_target")
                      if _mapping(inference) else None)
-        total_budget = (systematic_sum
-                        + (float(precision)
-                           if _is_number(precision) and precision >= 0 else 0.0))
+        precision_units = (_get_path(inference, "precision_units")
+                           if _mapping(inference) else None)
+        precision_in_force_units = (
+            _is_number(precision) and precision >= 0
+            and _nonempty(lane.get("units"))
+            and precision_units == lane.get("units")
+        )
+        total_budget = systematic_sum + (
+            float(precision) if precision_in_force_units else 0.0
+        )
         if total_budget > lane["total_tolerance"]:
             issues.append(f"{label}.systematic_bounds: force-level systematic plus statistical budgets exceed total_tolerance")
     tolerance = lane.get("total_tolerance")
@@ -387,6 +404,10 @@ def _check_force(lane: Any, common: Any) -> list[str]:
         issues.append(f"{label}.total_tolerance: expected a positive finite value")
     issues.extend(_check_interval(lane.get("inference"),
                                   precision_field="statistical_precision_target",
+                                  expected_precision_units=(
+                                      lane.get("units") if _nonempty(lane.get("units"))
+                                      else None
+                                  ),
                                   label=f"{label}.inference"))
     return issues
 
@@ -457,10 +478,10 @@ def _synthetic_contract(*, complete_creutz: bool,
             "primary": {"R": 2, "T": 3,
                         "kernel_id": "SYNTHETIC_ONLY_candidate"},
             "stencil": [
-                {"R": 2, "T": 3, "coefficient": 1},
-                {"R": 3, "T": 3, "coefficient": -1},
-                {"R": 2, "T": 4, "coefficient": -1},
-                {"R": 3, "T": 4, "coefficient": 1},
+                {"R": 2, "T": 3, "coefficient": -1},
+                {"R": 3, "T": 3, "coefficient": 1},
+                {"R": 2, "T": 4, "coefficient": 1},
+                {"R": 3, "T": 4, "coefficient": -1},
             ],
             "log_rule": "log_positive_ensemble_mean",
             "invalid_point_rule": "SYNTHETIC_ONLY_fail closed if any mean is nonpositive",
@@ -517,6 +538,21 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
     """Write a source-closed report for the current draft and synthetic fixtures."""
     out = Path(output)
     out.mkdir(parents=True, exist_ok=False)
+    c_reversed = _synthetic_contract(complete_creutz=True, complete_force=True)
+    for row in c_reversed["lanes"]["finite_T_Creutz"]["stencil"]:
+        row["coefficient"] *= -1
+    f_reversed = _synthetic_contract(complete_creutz=True, complete_force=True)
+    for row in f_reversed["lanes"]["ground_state_discrete_static_force"]["force_stencil"]:
+        row["coefficient"] *= -1
+    f_wrong_precision_units = _synthetic_contract(
+        complete_creutz=True, complete_force=True,
+    )
+    f_inference = f_wrong_precision_units["lanes"][
+        "ground_state_discrete_static_force"]["inference"]
+    f_inference["statistical_precision_target"] = 100.0
+    f_inference["precision_units"] = QHX_UNITS
+    null_kernels = _synthetic_contract(complete_creutz=True, complete_force=True)
+    null_kernels["common"]["kernel_ids"] = None
     fixtures = {
         "current_null_draft": empty_contract(),
         "synthetic_C_only_complete": _synthetic_contract(
@@ -525,6 +561,10 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "synthetic_C_and_F_schema_complete": _synthetic_contract(
             complete_creutz=True, complete_force=True,
         ),
+        "synthetic_C_reversed_sign": c_reversed,
+        "synthetic_F_reversed_sign": f_reversed,
+        "synthetic_F_wrong_precision_units": f_wrong_precision_units,
+        "synthetic_null_common_kernel_ids": null_kernels,
     }
     results = {name: inspect_contract(contract)
                for name, contract in fixtures.items()}
@@ -565,8 +605,8 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "```text",
         "CURRENT NULL DRAFT",
         "  -> identify shared action, geometry, boundaries, units, kernels, split and paired-block receipts",
-        "  -> Lane C: freeze primary R/T/kernel, four-point Creutz stencil/sign, positive-mean log rule, failure rule, comparison family, precision and multiplicity",
-        "  -> Lane F: freeze candidate/reference force stencil, units, q/h/x receipts, thermal/mixed/cutoff/volume bounds, alpha allocation and total error budget",
+        "  -> Lane C: chi = -[log W(R+1,T+1)+log W(R,T)-log W(R+1,T)-log W(R,T+1)]; freeze primary R/T/kernel and remaining inference rules",
+        "  -> Lane F: freeze candidate-minus-reference force stencil and units, q/h/x receipts, thermal/mixed/cutoff/volume bounds, alpha allocation and total error budget",
         "  -> schema-complete? no: remain NOT_READY and list blockers",
         "  -> schema-complete? yes: CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW only",
         "  -> independent physics review + authorized measurements + sealed confirmation are separate later gates",
@@ -593,6 +633,14 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "- Synthetic C+F completeness validates stencil and budget bookkeeping only; it does not provide real Q/H/X spectra, independent bounds, action receipts, uncertainty calibration, or physics certification.",
         "- The accepted primary `R/T/kernel`, precision/multiplicity choices and physical contamination limits remain unfrozen, so production `NOT_READY/UNCERTIFIED` is unchanged.",
         "",
+        "### Fail-closed regression diagnostics",
+        "",
+        "- Reversing all four C coefficients is rejected because the declared convention is `chi = -[log W(R+1,T+1)+log W(R,T)-log W(R+1,T)-log W(R,T+1)]`, matching `finite_nt_toy.py`.",
+        "- Reversing all four F coefficients is rejected because the contrast is candidate force minus reference force.",
+        "- An F statistical precision target labeled dimensionless is rejected against the force-unit estimand and is excluded from the force-unit budget sum until units match.",
+        "- A null shared `kernel_ids` field produces explicit common blockers; the inspector does not crash or mark either lane complete.",
+        "- These are synthetic schema mutations. They diagnose contract handling only and do not read Wilson data or estimate a physical uncertainty.",
+        "",
         "## Next work",
         "",
         "1. Review the physical definitions and freeze C's primary rectangle, sign convention, kernel family, positive-loop rule, interval and multiplicity design.",
@@ -609,6 +657,10 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "certified": False,
         "lane_estimands": ["finite_T_Creutz",
                            "ground_state_discrete_static_force_difference"],
+        "fixed_sign_conventions": {
+            "finite_T_Creutz": "minus the R-T rectangular log-W difference, matching finite_nt_toy.py",
+            "ground_state_discrete_static_force_difference": "candidate force minus reference force",
+        },
         "fixtures": list(fixtures),
         "meaning_of_valid": "schema complete only; requires human physics review and does not certify",
     }
