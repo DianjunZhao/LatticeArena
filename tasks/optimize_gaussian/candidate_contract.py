@@ -12,13 +12,14 @@ import json
 from pathlib import Path
 
 from core.io import digest
+from core.receipts import run_receipt, scenario_spec
 from core.specs import candidate_spec, operator_contract
 
 from .chebyshev_baseline import validate_control_points
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUT = ROOT / "results/optimize_gaussian/framework_candidate_contract_20261124_v2"
+DEFAULT_OUT = ROOT / "results/optimize_gaussian/framework_candidate_contract_20261124_v3"
 SCHEMA = "optimize-framework-candidate-diagnostic-v1"
 BUILDER = "tasks.optimize_gaussian.chebyshev_baseline:apply_hopping_filter_cpu"
 EXAMPLE_CONTROLS = [0.0, 0.25, 0.5, 0.75, 1.0]
@@ -29,6 +30,7 @@ def operator_contract_for() -> dict:
     baseline = Path(__file__).with_name("chebyshev_baseline.py")
     kernels = Path(__file__).with_name("kernels.py")
     core_specs = ROOT / "core/specs.py"
+    core_receipts = ROOT / "core/receipts.py"
     return operator_contract(
         name="optimize-chebyshev-diagnostic-v1",
         axes="(z,y,x,3,nrhs)",
@@ -47,6 +49,7 @@ def operator_contract_for() -> dict:
         dependencies={
             "candidate_contract.py": digest(Path(__file__)),
             "chebyshev_baseline.py": digest(baseline),
+            "core/receipts.py": digest(core_receipts),
             "core/specs.py": digest(core_specs),
             "kernels.py": digest(kernels),
         },
@@ -89,6 +92,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict:
         "snapshot_candidate_contract.py": Path(__file__),
         "snapshot_chebyshev_baseline.py": Path(__file__).with_name("chebyshev_baseline.py"),
         "snapshot_kernels.py": Path(__file__).with_name("kernels.py"),
+        "snapshot_core_receipts.py": ROOT / "core/receipts.py",
         "snapshot_core_specs.py": ROOT / "core/specs.py",
     }
     for target, source in source_paths.items():
@@ -131,9 +135,31 @@ versioned diagnostic contract -> validate five Bernstein controls -> emit candid
                                       +-- invalid controls reject            +-- D04/D06/D11/evaluator/auth gates stay open
 ```
 
-The schema fixture denominator is `planned/valid/failed/abstained = 1/1/0/0`; it counts one illustrative descriptor only. Coefficient-fit denominator is `0/0/0/0`: no D04 callback was supplied. This adapter does not create an Optimize `TaskSpec`, connect a measurement evaluator, authorize production runs, or establish that the proposed periodic three-dimensional operator matches production conventions. All payload files are listed in `artifact_hashes.json`.
+The schema fixture denominator is `planned/valid/failed/abstained = 1/1/0/0`; it counts one illustrative descriptor only. Coefficient-fit denominator is `0/0/0/0`: no D04 callback was supplied. `run_receipt.json` records the scenario assumptions, source hashes, denominator units, text flow and payload hashes. Any failed, abstained or not-run planned units require reason rows whose counts match exactly. Receipt status `complete` means all planned units are accounted for, not that a method succeeded. This adapter does not create an Optimize `TaskSpec`, connect a measurement evaluator, authorize production runs, or establish that the proposed periodic three-dimensional operator matches production conventions. The receipt itself is covered by `artifact_hashes.json` to avoid a recursive self-hash.
 """
     (out / "README.md").write_text(readme)
+    scenario = scenario_spec(
+        "optimize-chebyshev-schema-example",
+        "one illustrative candidate descriptor",
+        "Schema validation only; no fitted coefficients or measurements.",
+        assumptions=["D11 is not frozen", "the controls are illustrative"],
+        source_hashes=contract["dependencies"],
+    )
+    text_flow = (
+        "versioned diagnostic contract -> validate five Bernstein controls -> "
+        "emit candidate descriptor -> CPU operator helper; missing D04/D06/D11 "
+        "and measurement authorization remain open"
+    )
+    receipt_payloads = sorted(path for path in out.iterdir() if path.is_file())
+    receipt_hashes = {
+        path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in receipt_payloads
+    }
+    receipt = run_receipt(
+        scenario, report["denominators"], artifact_hashes=receipt_hashes,
+        text_flow=text_flow,
+    )
+    _json(out / "run_receipt.json", receipt)
     payloads = sorted(path for path in out.iterdir() if path.is_file())
     hashes = {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
               for path in payloads}

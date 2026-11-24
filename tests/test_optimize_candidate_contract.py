@@ -34,15 +34,25 @@ def test_candidate_contract_report_is_hashed_and_has_text_flow(tmp_path):
     output = tmp_path / "candidate-contract"
     report = build_report(output)
     manifest = json.loads((output / "artifact_hashes.json").read_text())
+    receipt = json.loads((output / "run_receipt.json").read_text())
 
     assert report["status"] == "DIAGNOSTIC_SCHEMA_ONLY"
     assert report["physical_score"] is None
     assert report["data_access"] == "none"
     assert report["denominators"]["coefficient_fit"]["planned"] == 0
     assert "versioned diagnostic contract" in (output / "README.md").read_text()
+    assert receipt["schema"] == "latticearena-run-receipt-v1"
+    assert receipt["status"] == "complete"
+    assert receipt["reason_rows"] == []
+    assert receipt["denominators"]["schema_fixture"]["not_run"] == 0
+    assert receipt["denominators"]["coefficient_fit"]["planned"] == 0
+    assert "core/receipts.py" in receipt["scenario"]["source_hashes"]
+    for name, expected in receipt["artifact_hashes"].items():
+        assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected
     assert set(manifest) == {
         "README.md", "contract.json", "snapshot_candidate_contract.py",
-        "snapshot_chebyshev_baseline.py", "snapshot_core_specs.py",
+        "run_receipt.json", "snapshot_chebyshev_baseline.py",
+        "snapshot_core_receipts.py", "snapshot_core_specs.py",
         "snapshot_kernels.py",
     }
     for name, expected in manifest.items():
