@@ -1,3 +1,4 @@
+import csv
 import hashlib
 import json
 
@@ -143,6 +144,16 @@ def test_build_report_snapshots_source_and_hashes_every_artifact(tmp_path):
     manifest = json.loads((output / "artifact_hashes.json").read_text())
     assert "snapshot_lane_contract.py" in manifest
     assert summary["physical_score"] is None
+    report = (output / "README.md").read_text()
+    assert "|fixture|lane|planned|valid|failed|abstained|status|" in report
+    with (output / "lane_summary.csv").open(newline="") as stream:
+        denominator_rows = list(csv.DictReader(stream))
+    assert sum(int(row["planned"]) for row in denominator_rows) == 14
+    assert sum(int(row["valid"]) for row in denominator_rows) == 6
+    assert sum(int(row["failed"]) for row in denominator_rows) == 8
+    assert sum(int(row["abstained"]) for row in denominator_rows) == 0
+    assert all(int(row["planned"]) == int(row["valid"]) + int(row["failed"])
+               + int(row["abstained"]) for row in denominator_rows)
     c_reverse = summary["fixtures"]["synthetic_C_reversed_sign"]["lanes"][
         "finite_T_Creutz"]
     assert not c_reverse["structurally_complete"]

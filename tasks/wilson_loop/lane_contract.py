@@ -17,7 +17,7 @@ from typing import Any
 
 SCHEMA = "wilson-two-lane-contract-v2"
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/wilson_loop/lane_contract_diagnostic_20261124_v2")
+               / "results/wilson_loop/lane_contract_diagnostic_20261124_v3")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 F_BOUND_COMPONENTS = (
     "excited_state_force", "finite_T_thermal", "mixed", "finite_a",
@@ -617,12 +617,12 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "",
         "## Fixture results",
         "",
-        "|fixture|lane|planned|valid|failed|status|certified|score|blocker count|",
-        "|---|---|---:|---:|---:|---|---|---|---:|",
+        "|fixture|lane|planned|valid|failed|abstained|status|certified|score|blocker count|",
+        "|---|---|---:|---:|---:|---:|---|---|---|---:|",
     ]
     for row in summary_rows:
         lines.append(
-            f"|{row['fixture']}|{row['lane']}|{row['planned']}|{row['valid']}|{row['failed']}|{row['status']}|{row['certified']}|{row['physical_score']}|{row['issue_count']}|"
+            f"|{row['fixture']}|{row['lane']}|{row['planned']}|{row['valid']}|{row['failed']}|{row['abstained']}|{row['status']}|{row['certified']}|{row['physical_score']}|{row['issue_count']}|"
         )
     lines.extend([
         "",
