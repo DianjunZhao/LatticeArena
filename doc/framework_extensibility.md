@@ -56,7 +56,11 @@ These are task examples, not automatic plug-ins for every task family.
   `tasks/pion_projection/bounded_block_risk_score.py` implements the blockwise
   clipping, fixed failure denominator, and conditional lower-bound arithmetic
   as a pure CPU helper; it is not wired into the evaluator and always leaves
-  `physical_score` null. The synthetic coverage MCs compare a known finite-
+  `physical_score` null. The versioned draft at
+  `tasks/pion_projection/bounded_block_risk_contract_v1.md` collects the
+  estimand, transform, conditional bound and open decision fields while leaving
+  every study-specific threshold, block-dependence value and anchor receipt
+  unset. The synthetic coverage MCs compare a known finite-
   dependence graph with an IID misspecification and add an independent,
   known-variance anchor interval with explicit `alpha_score/alpha_anchor`
   allocation. A separate exact two-point enumeration contrasts the known-
