@@ -38,6 +38,12 @@ planned/valid/failed/abstained 训练 panel=`12/12/0/0`，评估 panel=`12/12/0/
 
 图、逐运行原始 trace、训练/评估输入、两种 baseline、分母表、协议、源码快照与哈希在 companion PR #6。仍缺独立物理 reference、事前 `r_star`、固定的 D11 谱算符/约束、可比 production total-walltime 和授权 GPU 确认，因此状态不变。
 
+### Task-specific contract inspector（结构诊断，companion PR #6）
+
+[合约检查器](https://github.com/DianjunZhao/LatticeArena/blob/031fa1498d5101d7501eca531aefb4837a7866cc/tasks/optimize_gaussian/contract.py) 将已选的两条对照写入 versioned contract：trainable-W 对同预算 SLSQP，以及 trainable-W 对固定 degree-4 Chebyshev 强谱基线；[text diagnostic](https://github.com/DianjunZhao/LatticeArena/blob/031fa1498d5101d7501eca531aefb4837a7866cc/results/optimize_gaussian/contract_diagnostic_20261124_v1/README.md) 列出 D04/D06/D11 与公平预算的缺项。五个 fixture 的 contract-check 分母 planned/valid/failed/abstained=`5/1/4/0`：一个全 `SYNTHETIC_ONLY` 完整形状只到 `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`；当前 null 草案和三个错误变体保持 `NOT_READY`。5/5 artifact hashes 通过；新增测试 5 passed，PR #6 全套 CPU suite 103 passed。
+
+该检查器不读取数据、不执行 search/evaluator、不认证 reference，也不设置 `physical_score`。当前只把字段和失败条件机械化；它没有替研究者冻结任何物理数值。
+
 ## 理论上学习型 smear 可能获益的情形
 
 1. **有限预算搜索：**在同一目标和同一函数族下，精确全局优化器不会被另一个方法理论保证优于；学习器可以通过 warm start、低成本代理、预条件或 proposal policy 更快接近可行解，但需在冻结的 call 与 walltime 预算下实测。
@@ -48,15 +54,15 @@ planned/valid/failed/abstained 训练 panel=`12/12/0/0`，评估 panel=`12/12/0/
 
 ## 下一位 agent 的工作顺序
 
-1. **D04 reference：**写明独立物理目标、单位、关联量、数据来源与通过门。原有 reference gate 未通过时，所有对照只能写 diagnostic；不能把 proxy loss 改名为物理 improvement。
-2. **D06 `r_star`：**由研究者预先给出最小有意义效应及物理单位/解释；不得根据这三个合成 panel、标准误或 optimizer 残差反推。
-3. **D11 强谱基合同：**冻结 degree-4 Chebyshev 的 operator `H`、谱区间/缩放映射、恒等项和归一化、系数约束、正性/投影约束、失败处理，以及它与学习族之间允许不同的参数维数。当前 artifact 的 degree-4 系数是无约束实数最小二乘，只适用于诊断目标。
+1. **D04 reference：**填写 contract 中独立物理目标、单位、关联量、数据来源/receipt、通过与失败门，并完成独立审阅。原有 reference gate 未通过时，所有对照只能写 diagnostic；不能把 proxy loss 改名为物理 improvement。
+2. **D06 `r_star`：**由研究者预先填写最小有意义效应、单位、方向和物理解释；不得根据这三个合成 panel、标准误或 optimizer 残差反推。
+3. **D11 强谱基合同：**填写 degree-4 Chebyshev 的 operator `H`、谱区间/缩放映射、恒等项和归一化、系数约束、正性/投影约束、失败处理，以及它与学习族之间允许不同的参数维数。当前 artifact 的 degree-4 系数是无约束实数最小二乘，只适用于诊断目标。
 4. 冻结完整公平预算：同一 objective、输入实例、fit/heldout ID、初始化规则、候选/重启数；分别计训练、setup、objective/gradient calls、求解、推理、I/O、失败恢复与总 walltime。训练数据不能与确认 panel 重叠。
-5. **CPU stress grid 已完成**（见上方 companion PR #6）。不要重复同一热核/局域教师网格来增加“样本量”；三个 panel/cell 不支持总体推断。如继续纯 CPU 方法学工作，只新增能区分具体机制的预注册对照，并给出 paired loss、预算/耗时定义、KKT/residual、planned/valid/failed/abstained 分母和图/流程描述。
+5. **CPU stress grid 与 null contract diagnostic 已完成**（见上方 companion PR #6）。不要重复同一热核/局域教师网格来增加“样本量”；三个 panel/cell 不支持总体推断。如继续纯 CPU 方法学工作，只新增能区分具体机制的预注册对照，并给出 paired loss、预算/耗时定义、KKT/residual、planned/valid/failed/abstained 分母和图/流程描述。
 6. 物理合同与阈值通过审阅并另行授权后，再用独立配置/ensemble 做 `F=2` paired confirmation：trainable-W 对同预算 SLSQP；trainable-W 对固定 strong spectral baseline。两条对照都要报告多重性调整的单侧区间、失败/abstain 和训练摊销；只有两条均越过事前效应阈值才支持双重优势。
 
 ## 停止规则与扩展接口
 
-若 trainable-W 只优于同预算 SLSQP、没有优于固定谱基，应表述为有限预算优化/摊销结果，不能称为更优物理 smear；若差异低于事前 `r_star` 或跨独立 panel 不稳定，停止扩大同一 fixture。当前任务还没有专属 `TaskSpec` / operator contract / evaluator，框架侧扩展顺序见[可扩展部分地图](../../doc/framework_extensibility.md)。
+若 trainable-W 只优于同预算 SLSQP、没有优于固定谱基，应表述为有限预算优化/摊销结果，不能称为更优物理 smear；若差异低于事前 `r_star` 或跨独立 panel 不稳定，停止扩大同一 fixture。当前已有独立的 Optimize contract inspector，但尚未接入通用 `TaskSpec`、candidate/operator registry、measurement capability 或 evaluator；框架侧扩展顺序见[可扩展部分地图](../../doc/framework_extensibility.md)。
 
 任何物理结论前都需要保留 `NOT_READY/UNCERTIFIED` 与 `physical_score=null`，直到 reference、效应阈值、operator contract、两条比较预算及数据/GPU 授权全部闭合。

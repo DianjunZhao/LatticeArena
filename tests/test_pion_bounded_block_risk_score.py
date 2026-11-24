@@ -37,6 +37,10 @@ def test_clips_valid_scores_and_keeps_failed_blocks_in_planned_mean():
         "failed_blocks": 1,
         "abstained_blocks": 0,
     }
+    assert result["result_unit"] == "one planned candidate-reference comparison"
+    assert result["result_denominators"] == {
+        "planned": 1, "valid": 1, "failed": 0, "abstained": 0,
+    }
     assert result["valid_block_mean"] == pytest.approx(1.0 / 6.0)
     assert result["planned_block_mean"] == pytest.approx(-0.125)
     expected_lcb = (
@@ -62,6 +66,9 @@ def test_all_failed_blocks_abstain_without_a_lower_bound():
         "valid_blocks": 0,
         "failed_blocks": 2,
         "abstained_blocks": 0,
+    }
+    assert result["result_denominators"] == {
+        "planned": 1, "valid": 0, "failed": 0, "abstained": 1,
     }
     assert result["physical_score"] is None
 

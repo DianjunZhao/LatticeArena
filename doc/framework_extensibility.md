@@ -74,16 +74,19 @@ These are task examples, not automatic plug-ins for every task family.
   independence. The plots and reports retain separate paired-block,
   family-score, hypothetical anchor-observation, and exact-outcome denominators.
   Clipping changes the estimand and must be frozen before confirmation data.
-- **Optimize Gaussian:** add a task-specific run specification that binds the
-  same objective, reference, fit IDs, W/v/c constraints, SLSQP comparison,
-  fixed spectral baseline, dual contrasts, equal-parameter-count arm, budgets
-  and full failure receipts. The 36-panel synthetic grid demonstrates how to
-  retain a paired heldout-loss plot and separate solver stops from failed fits;
-  a separate 12-train/12-eval pooled initialization replay separates train-only
-  prior fitting, identical online SLSQP budgets, and heldout scoring. Its
-  synthetic break-even count is call accounting, not a production timing
-  claim. These small descriptive cells do not resolve physical reference or
-  minimum effect size. The generic optimizer hook does not define those choices.
+- **Optimize Gaussian:** a standalone versioned draft inspector now retains the
+  two selected contrasts (trainable-W versus same-budget SLSQP; trainable-W
+  versus fixed degree-4 Chebyshev) and lists unset D04 reference, D06 `r_star`,
+  D11 operator and fairness-budget fields. Its complete synthetic fixture only
+  reaches `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`; it is not wired to the
+  generic `TaskSpec`, operator registry, measurement route or evaluator. The
+  36-panel synthetic grid demonstrates how to retain a paired heldout-loss plot
+  and separate solver stops from failed fits; a separate 12-train/12-eval pooled
+  initialization replay separates train-only prior fitting, identical online
+  SLSQP budgets, and heldout scoring. Its synthetic break-even count is call
+  accounting, not a production timing claim. These descriptive cells do not
+  resolve the physical reference or minimum effect size. The generic optimizer
+  hook does not define those choices.
 - **Wilson loop:** add versioned estimand contracts for finite-`T` Creutz and
   ground-state discrete force separately. Both can share block IDs and paired
   draws while using different systematic-error gates. The fixed q/h/x toy and

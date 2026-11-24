@@ -4,7 +4,9 @@ Goal: map planned paired block loss differences to the accepted bounded estimand
 Inputs: one raw difference and an explicit success flag per planned block, plus a
        fully specified normalization, graph bound, multiplicity, and alpha budget.
 Deliverable: per-block bounded scores and a conditional lower bound; never a
-             physical score or an evaluator-ready certification.
+             physical score or an evaluator-ready certification. Returned
+             denominators distinguish planned blocks from the one comparison
+             result, which can abstain when all planned blocks fail.
 Check: focused tests cover clipping, fixed failure denominator, and abstention.
 """
 from __future__ import annotations
@@ -111,7 +113,14 @@ def conditional_block_risk_lcb(
     common = {
         "estimand": "bounded_block_risk",
         "physical_score": None,
+        "result_unit": "one planned candidate-reference comparison",
         "denominators": counts,
+        "result_denominators": {
+            "planned": 1,
+            "valid": int(valid_count > 0),
+            "failed": 0,
+            "abstained": int(valid_count == 0),
+        },
         "normalized_block_scores": scores.tolist(),
         "relative_anchor_bound_B_over_R": float(relative_anchor_bound_B_over_R),
         "assumptions": [

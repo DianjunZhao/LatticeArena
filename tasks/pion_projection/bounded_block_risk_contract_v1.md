@@ -16,6 +16,8 @@ Positive `theta_N` favors the candidate on this **finite planned-block bounded e
 
 Every planned block remains in `N`. A valid block uses its clipped `Z_i`; a failed block is assigned `-1`, the worst normalized improvement. With failure fraction `phi_hat`, the coded planned mean is `(1-phi_hat)*Zbar_valid - phi_hat`. An all-failed panel returns `ABSTAIN_NO_VALID_BLOCKS`; it has no lower bound.
 
+Report two denominator levels: the block counts `(planned, valid, failed, abstained)` retain every planned block; the single comparison-result counts `(1, 1, 0, 0)` for a returned bound, or `(1, 0, 0, 1)` when all blocks fail. The latter prevents an abstained panel from disappearing inside a block-only denominator.
+
 ## Conditional calibration
 
 Let `F` be the fixed comparison family, `chi` a proven upper bound on the chromatic number of a score-specific dependency graph, `alpha_s` the score error budget, and `alpha_A` the anchor-coverage error budget. The graph's color classes must be jointly independent conditional on the frozen protocol and shared anchor. Under that condition, for `Z_i` in `[-1,1]`:
@@ -49,6 +51,7 @@ If `A` is covered only with probability at least `1-alpha_A`, require `alpha_s +
 |Clipping interval and score components|candidate `[-1,1]`; not frozen|Confirm clipping before confirmation; enumerate all terms and their individual bounds|
 |Failure coding|candidate `-1`; not frozen|Confirm which failures receive worst score and which invalidate/abstain a whole panel|
 |Planned block count `N` and block identities|`null`|Specify the planned unit and preserve all planned/valid/failed/abstained denominators|
+|Result unit and panel-level denominator|one candidate-reference comparison|Count an all-failed comparison as abstained while retaining its failed blocks in the block denominator|
 |Dependence graph and `chi`|`null`|Supply a score-specific proof and auditable upper bound, or a different finite-sample concentration theorem with explicit constants|
 |Candidate family `F`|`null`|Freeze every comparison entering simultaneous inference|
 |Anchor estimate `A`, bound `B`, coverage and independence|`null`|Provide matched E-correlator receipt, source of `B`, coverage model, shared-anchor dependence and conditional independence evidence|
