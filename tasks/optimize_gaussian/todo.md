@@ -172,6 +172,6 @@ Verification on this head: `tests/test_framework.py tests/test_optimize*.py test
 
 ## 2026-11-24 shared abstention-state follow-up
 
-PR #6 [`710eeb2`](https://github.com/Greyyy-HJC/LatticeArena/commit/710eeb27b5d94de37a646ee52ec743be18894786) adds a terminal `abstained(reason)` state to generic `RunState`, distinct from a solver/evaluation failure. Optimize's contract inspector and candidate evaluator are not yet wired to it; absent D04/D06/D11 inputs still leave the existing draft `NOT_READY`, `physical_score=null` and no-data status unchanged. The framework/Optimize/Wilson CPU suite passed **103 tests** on this code.
+PR #6 [`710eeb2`](https://github.com/Greyyy-HJC/LatticeArena/commit/710eeb27b5d94de37a646ee52ec743be18894786) adds a terminal `abstained(reason)` state to generic `RunState`, distinct from a solver/evaluation failure. Optimize's contract inspector and candidate evaluator are not yet wired to it; absent D04/D06/D11 inputs still leave the existing draft `NOT_READY`, `physical_score=null` and no-data status unchanged. The repository-wide `python3 -m pytest -q` run passed **134 tests** on PR #6 head [`710eeb2`](https://github.com/Greyyy-HJC/LatticeArena/commit/710eeb27b5d94de37a646ee52ec743be18894786); this is CPU/software validation, not GPU/MPI physics validation.
 
 文字流程：`D04/D06/D11 receipt 缺失 -> abstained(reason) terminal -> no physical score`; reviewed inputs start a new run rather than upgrading an abstained record in place. The generic state does not decide the effect threshold or validate an operator contract.
