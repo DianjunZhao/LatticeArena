@@ -181,3 +181,11 @@ PR #6 [`710eeb2`](https://github.com/Greyyy-HJC/LatticeArena/commit/710eeb27b5d9
 PR #6 head [`3b9c772`](https://github.com/Greyyy-HJC/LatticeArena/commit/3b9c77201be97d300dfce98b0c3e0d67dc57146f) now makes the generic `task_spec` reject malformed or overlapping inclusive split ranges. Optimize still has no complete TaskSpec because its D04/D06/D11 inputs and fit/eval split identities are unfrozen; this core check does not supply those values. The full repository test suite passed **134 tests** on that head.
 
 文字流程：`future frozen fit/eval range descriptors -> generic inclusive-range validation -> task-owned ID/hash receipts -> evaluator`; Optimize has not reached this path, and its two comparisons remain unmeasured.
+
+## 2026-11-24 shared ScenarioSpec/RunReceipt follow-up
+
+PR #6 head [`f209015`](https://github.com/Greyyy-HJC/LatticeArena/commit/f209015337b08f26e34b733771d56142a5288806) 新增通用 [`ScenarioSpec/RunReceipt`](https://github.com/Greyyy-HJC/LatticeArena/blob/f209015337b08f26e34b733771d56142a5288806/core/receipts.py)。Optimize 的 [candidate contract adapter](https://github.com/Greyyy-HJC/LatticeArena/blob/f209015337b08f26e34b733771d56142a5288806/tasks/optimize_gaussian/candidate_contract.py) 和 [v3 文字诊断](https://github.com/Greyyy-HJC/LatticeArena/blob/f209015337b08f26e34b733771d56142a5288806/results/optimize_gaussian/framework_candidate_contract_20261124_v3/README.md) 是首个消费者：`schema_fixture=1/1/0/0`、`coefficient_fit=0/0/0/0`，后者明确表示没有 D04 objective；收据状态 `complete` 仅表示所有计划单位均已入账。该 report 不接 measurement evaluator，也不证明拟合或候选方法有效。
+
+全仓 `python -m pytest -q` 在与 PR #6 head f209015 对应的代码树上为 **139 passed**；这是 CPU 软件验证，不是生产性能、GPU/QUDA 或物理排名证据。收据的 source/artifact hashes 已由 Optimize 测试逐项校验。
+
+**下一位 Optimize agent：**不要重跑同一 synthetic teacher/初始化网格，也不要把 D04/D06/D11 空字段补成示例值。下一步先把研究者候选决策列为待审卡：D04 的独立 reference 路径与 fit/eval ID 规则；D06 的 paired risk estimand、方向/置信水平和最小有意义效应 `r_star`；D11 的 degree-4 Bernstein/Chebyshev 算符方向权重、边界/links、归一化/正性与失败规则。只有这些被明确冻结后，才把 shared receipt 接到真实 TaskSpec/evaluator，并用同一 ID/objective/precision 对比 trainable-W、同预算 SLSQP 与强谱基线；收据须分开记录训练、拟合、测量和 heldout 分母及失败原因，并保留图或文字数据流。封存 split 与 GPU/QUDA 生产授权仍是单独门槛；未获得授权时保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`。

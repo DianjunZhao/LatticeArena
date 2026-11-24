@@ -199,3 +199,9 @@ PR #6 [`710eeb2`](https://github.com/Greyyy-HJC/LatticeArena/commit/710eeb27b5d9
 PR #6 head [`3b9c772`](https://github.com/Greyyy-HJC/LatticeArena/commit/3b9c77201be97d300dfce98b0c3e0d67dc57146f) strengthens `core.specs.task_spec`: split values must be inclusive integer `[start,end]` ranges, start must not exceed end, names must be nonempty strings, and declared ranges must not overlap. Pion's current development/gap/validation ranges pass this structural preflight. The full repository test suite passed **134 tests** on that head.
 
 文字数据流：`protocol 的 split endpoints -> TaskSpec 检查格式/闭区间/不重叠 -> downstream data loader 再核对实际 IDs 与 protocol hash`。前半段只能排除合同中写明的区间重叠；它不核验文件内容、receipt、独立性、anchor 覆盖或 reference，因此 Pion 的 `NOT_READY/UNCERTIFIED`、`physical_score=null` 与 sealed-data gate 保持不变。
+
+## 2026-11-24 shared ScenarioSpec/RunReceipt handoff
+
+PR #6 head [`f209015`](https://github.com/Greyyy-HJC/LatticeArena/commit/f209015337b08f26e34b733771d56142a5288806) 新增 [`core/receipts.py`](https://github.com/Greyyy-HJC/LatticeArena/blob/f209015337b08f26e34b733771d56142a5288806/core/receipts.py)：`ScenarioSpec` 记录情景单位、假设、seed 与来源哈希；`RunReceipt` 记录按阶段拆分的 planned/valid/failed/abstained/not_run、失败/弃权/未运行原因、报告 payload 哈希和文字数据流。Optimize v3 与 Wilson v4 已接入；Pion 尚未迁移。哈希只绑定声明的字节，不证明依赖界、独立性、anchor 覆盖或物理正确性。
+
+**下一位 Pion agent：**待 PR #6 的共享 API 可作为本分支依赖后，把 Pion 的 bounded-risk contract diagnostic 接入该 API；优先保留 graph-color 与 fixed/time-varying Markov 路线的合同 fixture 分母，不能把 scenario 网格、block-slot、anchor 检查合并成一个分母。报告须继续带图或文字流程，并列出每个单位的 planned/valid/failed/abstained/not_run 与每项失败/弃权原因；增加测试核对计数恒等式、receipt payload/source 哈希及 `physical_score=null`。不要为“验证收据”读取封存 split、猜测 gamma/TV/anchor 输入，或把 `complete` 写成 coverage/物理成功。真实 score-specific dependence、anchor common-bias/覆盖与 reference 门仍待研究者提供独立证据；无新输入时停止重跑已有 synthetic 网格。
