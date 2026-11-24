@@ -7,6 +7,11 @@ OPERATOR_FIELDS = ('name', 'axes', 'dtype', 'transformation', 'support',
 AXES = ('(mu,t,z,y,x,3,3)', '(3,z,y,x,3,3)', '(t,z,y,x,4,4,3,3)', '(z,y,x,3,nrhs)')
 TRANSFORMS = ('gauge_covariant', 'gauge_invariant', 'spin_scalar')
 SUPPORT = ('spacetime_local', 'time_slice', 'point')
+OPERATOR_CONTRACTS = frozenset((
+    'pion-kernel-v1',
+    'wilson-kernel-v1',
+    'optimize-chebyshev-diagnostic-v1',
+))
 
 
 def task_spec(**fields):
@@ -53,7 +58,7 @@ def candidate_spec(builder, parameters, contract, dependencies):
         raise ValueError('builder must be a "module:function" string')
     if not isinstance(parameters, dict):
         raise ValueError('parameters must be a mapping')
-    if contract['name'] not in ('pion-kernel-v1', 'wilson-kernel-v1'):
+    if contract['name'] not in OPERATOR_CONTRACTS:
         raise ValueError(f'unknown operator contract {contract["name"]!r}')
     return {'builder': builder, 'parameters': parameters, 'contract': contract['name'],
             'dependencies': dependencies}
