@@ -15,7 +15,7 @@
 5. [合成校准压力网格](../../results/pion_projection/bounded_block_risk_stress_20261123_v2/README.md) 横扫 `N, chi, alpha_s, alpha_A, B/R, failure_fraction, delta_star/R^2` 的 1,728 个情景，并输出分母表、失败/依赖/anchor 热图和 alpha 分配图。严格边界 `m_required >= 1` 被标成 `ABSTAIN`，没有裁剪成可行；这里的 “valid scenario” 仅指数学上可达，不是观测有效或物理认证。
 6. [框架扩展点地图](../../doc/framework_extensibility.md) 总结 LatticeArena 可复用的 task/operator、measurement capability、search、score、state、ledger、artifact 接口及目前缺少的跨 task 集成层。
 7. [bounded block-risk v1 合同草案](bounded_block_risk_contract_v1.md) 将 estimand、clipping/failure 变换、条件浓缩式、anchor Lipschitz 修正和缺失输入整理为独立版本化 handoff；所有需研究者冻结的物理与推断字段仍为 `null`，不会给出物理分数。
-8. [Markov pseudo-spectral-gap 替代界敏感度](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v1/README.md) 把“带常数 mixing/spectral-gap 定理”具体化为 Paulin Theorem 3.10 的条件路线，推导 simultaneous score radius 并作 40-cell 解析敏感度图。它没有估计实际 gap；最乐观假设下仅 2/40 场景能达到零阈值，真实 20-block 计划点全部不可达。
+8. [Markov pseudo-spectral-gap 替代界敏感度](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v1/README.md) 把“带常数 mixing/spectral-gap 定理”具体化为 Paulin Theorem 3.10 的条件路线，推导 simultaneous score radius 并作 40-cell 解析敏感度图。它没有估计实际 gap；最乐观假设下仅 2/40 场景能达到零阈值，真实 20-block 计划点全部不可达。后续 [v2 报告](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v2/README.md) 增加评分 helper 的两个固定 synthetic 面板：部分失败时 block 分母 `4/3/1/0`，全失败时 `2/0/2/0` 并在比较级 abstain；它们是软件 fixture，不是统计覆盖实验或项目测量。
 9. [合同结构检查器与报告](../../results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v5/README.md) 为当前 `DRAFT_NOT_READY` 评分草案增加了 machine-readable JSON 与 fail-closed inspector。它能检查图染色 Hoeffding 或 Markov pseudo-gap 路线、anchor 覆盖方法、总误差界 `B` 与共偏差子界 `C<=B`、`B >= random_coverage_radius + C`、alpha 分配、`R` 与预测差界及独立 reference gate 的字段结构；收据内容仍须人工审核，完整合成形状也只返回 `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`。测试见 [`test_pion_bounded_block_risk_contract.py`](../../tests/test_pion_bounded_block_risk_contract.py)。
 
 ![依赖图染色与 block 数敏感度](../../results/pion_projection/bounded_block_risk_calibration_20261123_v2/dependence_sensitivity.png)
@@ -121,7 +121,7 @@ zbar_valid > (delta_star/R^2 + epsilon + 2B/R + phi_hat) / (1-phi_hat)
 
 1. **版本化评分合同及结构检查器已整理**：人类可读草案见 [`bounded_block_risk_contract_v1.md`](bounded_block_risk_contract_v1.md)，当前 null JSON 为 [`bounded_block_risk_contract_v1.json`](bounded_block_risk_contract_v1.json)，检查器见 [`bounded_block_risk_contract.py`](bounded_block_risk_contract.py)。下一步仍需研究者冻结 `m*` 单位/范围、`R`、剪裁函数、失败编码、目标 `delta_star`、`F` 和总 alpha 分配；现阶段不从 toy 或开发误差反推物理阈值。
 2. **合成规划/覆盖诊断已完成：**1,728 点解析可行性网格、30-cell 已知 `m`-dependence MC、16-cell 共同 score+anchor MC、12-cell exact anchor-distribution 枚举，以及 30-cell color-class empirical-Bernstein vs graph-Hoeffding MC 均有图/表、明确分母和可复现输入。它们只检验已知合成图、正态或有界 iid anchor 条件下的公式/效用；不估计真实覆盖、支持或依赖。经验方差界没有显示对高色数网格的普遍功效改进，故不替代 Hoeffding 基线。
-3. **替代理论界已具体化，项目依赖证据仍未完成：**graph-color Hoeffding 的合成覆盖报告与 Markov pseudo-gap 的常数/敏感度报告都已存在。下一位 agent 只能在获准、非 sealed 的 source receipt 内核对 score block map、Markov/stationarity 假设和是否有 block-chain `gamma_ps` lower bound receipt；不得用 trajectory spacing、bootstrap 或 ESS 替代。没有审阅通过的 score-specific `chi` 或 `gamma_ps` 证据时，维持 `NOT_READY`。
+3. **替代理论界已具体化，评分 helper 已接通，但项目依赖证据仍未完成：**graph-color Hoeffding 和 Markov pseudo-gap 路线均有 conditional LCB 实现；Markov helper 只在显式给出 block-chain gap、anchor bound 和 alpha allocation 时返回条件 lower bound，始终标记 `certified=false` 且 `physical_score=null`。下一位 agent 只能在获准、非 sealed 的 source receipt 内核对 score block map、Markov/stationarity 假设和是否有 block-chain `gamma_ps` lower bound receipt；不得用 trajectory spacing、bootstrap 或 ESS 替代。没有审阅通过的 score-specific `chi` 或 `gamma_ps` 证据时，维持 `NOT_READY`。
 4. anchor 路径需要独立、匹配的 E correlator receipt，以及总误差界 `B` 的来源、显式 common-bias 子界 `C<=B`、两者的合并规则和与 score 样本的条件独立说明。v1 保守结构要求 `B >= random_coverage_radius + C`：正态区间需支持正态/已知方差；Hoeffding 需事前证明有限支持和 iid anchor 单位。两者都要给 coverage receipt，并报告 `2B/R` 的效用代价。多个待覆盖 anchor 时事前分配 `alpha_A`；同一个共享 anchor 供候选族复用不因 `F` 自动重复分配。现有 `n_A/sigma/alpha_A` 仅为合成设计值；尚无此证据时不要读取封存 E/gap/validation/holdout。
 5. 通过独立审阅并获数据授权后，才进行确认测量；冻结候选族后报告全量 paired block 原始 score、planned/valid/failed/abstained、剪裁前后诊断、图色数来源、alpha 分配和 `LCB`。即使统计门通过，也必须单独通过原先失败的 reference/model-identification gate 才能产生物理分数。
 
@@ -138,7 +138,7 @@ zbar_valid > (delta_star/R^2 + epsilon + 2B/R + phi_hat) / (1-phi_hat)
 
 - companion PR #6 新增 Optimize degree-4 Chebyshev 系数在连续区间 `[-1,1]` 上的正性诊断，含报告图、区间最小值表、协议、分母和哈希；结果仅针对三个 synthetic fit，不能作为任意配置或物理算符的 PSD 证明。
 - PR #6 源码/测试提交 `f25acababd490729328af1189a5934f56bde7f89` 上，9 个 Optimize/Wilson 专项 CPU 测试模块共 **65 passed**；后续报告提交为 `337bc99b87952c4c866c6f55ea000427c00273b5`。这不是完整仓库测试，也未运行 GPU/QUDA。
-- 本轮复核 PR #5 的 Pion 报告为 7 个 tracked manifest / 60 个 payload 文件，PR #6 的 Optimize/Wilson 合计 10 个 manifest / 70 个 payload 文件，所有 SHA-256 匹配；三份 TODO 中 26 个相对链接均解析，28 个 GitHub commit/tree 链接均解析，带文件路径的目标均存在。
+- 在后续 v5 inspector 与 Markov LCB follow-up 之前，复核 PR #5 的 Pion 报告为 7 个 tracked manifest / 60 个 payload 文件，PR #6 的 Optimize/Wilson 合计 10 个 manifest / 70 个 payload 文件，所有 SHA-256 匹配；三份 TODO 中 26 个相对链接均解析，28 个 GitHub commit/tree 链接均解析，带文件路径的目标均存在。
 - Pion 的 bounded block-risk 合同及其 `NOT_READY/UNCERTIFIED`、`physical_score=null` 状态没有变化；仍需 score-specific dependence receipt（或 block-chain `gamma_ps` 下界）、独立 anchor/common-bias 覆盖证据和物理 reference。未读取 sealed 输入。
 
 ## 2026-11-24 Pion contract inspector follow-up
@@ -147,4 +147,12 @@ zbar_valid > (delta_star/R^2 + epsilon + 2B/R + phi_hat) / (1-phi_hat)
 - 检查器要求 anchor 的 total error bound `B`、common-bias 子界 `C<=B`、合并规则及各自 receipt；并按 normal/Hoeffding 路线检查已知 sigma/分布假设或有限支持/iid 单位字段。v5 进一步计算相应随机覆盖半径，并要求 `B >= random_coverage_radius + C`。当前合同所有物理与证据输入仍为 null。
 - 合成报告为 6 个合同形状检查，planned/valid/failed/abstained=`6/2/4/0`；valid 只表示字段形状完整。v5 inspector 13 项测试通过；合计 8 个 Pion bounded-risk/dependence 专项模块 **67 passed**。
 - 当前未访问 E/gap/validation/holdout、未运行 GPU/QUDA。真实 dependence receipt、anchor 覆盖/共偏差证据、`m*`/`R`/阈值与独立 reference 仍是外部输入；本诊断不关闭 Pion 物理门。
-- 当前分支的 9 份 tracked Pion report manifest 共 74 个 payload 文件通过 SHA-256；三份 TODO 的 34 个相对链接均解析到 tracked 文件，28 个 GitHub commit/tree 链接跨 7 个 commit tree 均有目标。v5 是当前合同诊断版本；未提交的 interim 输出已清理。
+- 截至 v5 contract diagnostic 的当时复核，9 份 tracked Pion report manifest / 74 个 payload 文件通过 SHA-256；三份 TODO 的 34 个相对链接均解析到 tracked 文件，28 个 GitHub commit/tree 链接跨 7 个 commit tree 均有目标。该项保留为历史快照；当前报告/链接数量见下方 Markov LCB follow-up。
+
+## 2026-11-24 Markov LCB software integration follow-up
+
+- 将 `conditional_block_risk_markov_lcb` 接入 Markov pseudo-gap 路线：完整 planned block 数进入 Bernstein 半径与均值；有效 block 先按 `R^2` 缩放并裁剪至 `[-1,1]`，失败 block 记为 `-1`；all-failed panel abstain。返回 alpha allocation、block/result 两级分母、gap/anchor 假设、`certified=false`、`data_access=none` 和 `physical_score=null`。
+- 新增 [v2 文字/图报告](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v2/README.md)；与 v1 不同目录生成，含敏感度图、协议、源码快照、哈希和固定 helper fixtures。示例 comparison 分母 planned/valid/failed/abstained=`2/1/0/1`，block-slot 分母=`6/3/3/0`。这只是固定输入的算术/失败策略演示，不检验 Markov 定理覆盖率，不提供项目 gap 或 anchor 证据。
+- 新增 [`test_pion_bounded_block_risk_markov_score.py`](../../tests/test_pion_bounded_block_risk_markov_score.py)：11 项验证半径拼接、alpha 分配、planned failure 编码、全失败 abstention 与不合法输入 fail-closed；含新增模块的完整 Pion 相关 suite 已通过 78 项 CPU 测试。
+- 实际 `gamma_ps` lower-bound receipt、score-specific Markov/stationarity 条件、anchor 覆盖/共偏差、用户冻结阈值和独立物理 reference 仍缺；不访问 sealed 数据、不运行 GPU/QUDA，状态不变。
+- 本轮 Pion 相关 CPU suite（`test_pion_bounded_block_risk_*.py` 与 `test_pion_dependency_graph_bound.py`）为 **78 passed**。11 份 Pion 报告 manifest 对应 94 个 payload 文件，逐文件 SHA-256 均匹配；三份 task TODO 的 39 个相对 Markdown 链接均解析到存在文件。新报告与测试需随本次 PR 更新一起纳入版本控制。

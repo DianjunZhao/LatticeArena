@@ -11,17 +11,27 @@ import hashlib
 import json
 import math
 import shutil
+from numbers import Real
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUT = ROOT / "results/pion_projection/bounded_block_risk_markov_gap_20261124_v1"
+DEFAULT_OUT = ROOT / "results/pion_projection/bounded_block_risk_markov_gap_20261124_v2"
 BLOCKS_GRID = (20, 50, 100, 200, 500)
 GAP_GRID = (0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0)
 FAMILY = 2
 ALPHA_S = 0.05
 VARIANCE_BOUND = 1.0
 CENTERED_ABS_BOUND = 2.0
+
+
+def _finite_real(value: object) -> bool:
+    if not isinstance(value, Real) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(float(value))
+    except (OverflowError, TypeError, ValueError):
+        return False
 
 
 def markov_gap_radius(*, blocks: int, gamma_ps_lower: float,
@@ -39,21 +49,151 @@ def markov_gap_radius(*, blocks: int, gamma_ps_lower: float,
         raise ValueError("blocks must be a positive integer")
     if isinstance(family, bool) or not isinstance(family, int) or family < 1:
         raise ValueError("family must be a positive integer")
-    if not math.isfinite(gamma_ps_lower) or not 0 < gamma_ps_lower <= 1:
+    if (not _finite_real(gamma_ps_lower)
+            or not 0 < gamma_ps_lower <= 1):
         raise ValueError("gamma_ps_lower must be finite and in (0, 1]")
-    if not math.isfinite(alpha_s) or not 0 < alpha_s < 1:
+    if not _finite_real(alpha_s) or not 0 < alpha_s < 1:
         raise ValueError("alpha_s must be finite and in (0, 1)")
-    if (not math.isfinite(variance_bound) or variance_bound < 0
-            or not math.isfinite(centered_abs_bound)
+    if (not _finite_real(variance_bound) or variance_bound < 0
+            or not _finite_real(centered_abs_bound)
             or centered_abs_bound <= 0):
         raise ValueError("invalid Bernstein range or variance bound")
 
     log_tail = math.log(2 * family / alpha_s)
-    gamma = gamma_ps_lower
+    gamma = float(gamma_ps_lower)
+    variance_bound = float(variance_bound)
+    centered_abs_bound = float(centered_abs_bound)
     linear = 20 * centered_abs_bound * log_tail
     variance = 8 * log_tail * (blocks + 1 / gamma) * variance_bound
     sum_deviation = (linear + math.sqrt(linear * linear + 4 * gamma * variance)) / (2 * gamma)
-    return sum_deviation / blocks
+    radius = sum_deviation / blocks
+    if not math.isfinite(radius):
+        raise ValueError("Markov pseudo-gap radius is non-finite for these settings")
+    return radius
+
+
+def _validate_alpha_allocation(*, alpha_score: float, alpha_anchor: float,
+                               alpha_total: float) -> None:
+    if not _finite_real(alpha_score) or not 0 < alpha_score < 1:
+        raise ValueError("alpha_score must be finite and in (0, 1)")
+    if not _finite_real(alpha_anchor) or not 0 <= alpha_anchor < 1:
+        raise ValueError("alpha_anchor must be finite and in [0, 1)")
+    if not _finite_real(alpha_total) or not 0 < alpha_total < 1:
+        raise ValueError("alpha_total must be finite and in (0, 1)")
+    if alpha_score + alpha_anchor > alpha_total:
+        raise ValueError("alpha_score + alpha_anchor must not exceed alpha_total")
+
+
+def conditional_block_risk_markov_lcb(
+    raw_differences: object,
+    *,
+    valid_blocks: object,
+    score_scale_R: float,
+    gamma_ps_lower: float,
+    family: int,
+    alpha_score: float,
+    alpha_anchor: float,
+    alpha_total: float,
+    relative_anchor_bound_B_over_R: float,
+) -> dict:
+    """Compute a conditional Markov-chain LCB over the full planned block set.
+
+    This is a math helper only. A valid lower bound on the *block-chain* pseudo
+    spectral gap and every theorem condition must be supplied by the caller.
+    Failed blocks stay in the planned denominator and receive score -1. An
+    all-failed comparison abstains. This function never emits a physical score.
+    """
+    import numpy as np
+
+    from .bounded_block_risk_score import bounded_block_scores
+
+    differences = np.asarray(raw_differences, dtype=float)
+    valid = np.asarray(valid_blocks)
+    if differences.ndim != 1 or differences.size == 0:
+        raise ValueError("raw_differences must be a nonempty one-dimensional array")
+    if valid.ndim != 1 or valid.shape != differences.shape:
+        raise ValueError("valid_blocks must match the planned block array")
+    scores = bounded_block_scores(
+        differences, valid_blocks=valid, score_scale_R=score_scale_R,
+    )
+    if (isinstance(family, bool) or not isinstance(family, int)
+            or family < 1):
+        raise ValueError("family must be a positive integer")
+    _validate_alpha_allocation(
+        alpha_score=alpha_score, alpha_anchor=alpha_anchor,
+        alpha_total=alpha_total,
+    )
+    if (not _finite_real(relative_anchor_bound_B_over_R)
+            or relative_anchor_bound_B_over_R < 0):
+        raise ValueError("relative_anchor_bound_B_over_R must be finite and nonnegative")
+
+    planned = int(differences.size)
+    valid_count = int(valid.sum())
+    failed_count = planned - valid_count
+    radius = markov_gap_radius(
+        blocks=planned,
+        gamma_ps_lower=gamma_ps_lower,
+        family=family,
+        alpha_s=alpha_score,
+    )
+    planned_mean = float(scores.mean())
+    anchor_penalty = 2.0 * float(relative_anchor_bound_B_over_R)
+    denominators = {
+        "planned_blocks": planned,
+        "valid_blocks": valid_count,
+        "failed_blocks": failed_count,
+        "abstained_blocks": 0,
+    }
+    common = {
+        "estimand": "bounded_block_risk",
+        "dependence_method": "markov_pseudo_gap_bernstein",
+        "gamma_ps_lower_bound_assumed": float(gamma_ps_lower),
+        "alpha_allocation": {
+            "score": float(alpha_score),
+            "anchor": float(alpha_anchor),
+            "total": float(alpha_total),
+        },
+        "certified": False,
+        "data_access": "none",
+        "physical_score": None,
+        "result_unit": "one planned candidate-reference comparison",
+        "denominators": denominators,
+        "result_denominators": {
+            "planned": 1,
+            "valid": int(valid_count > 0),
+            "failed": 0,
+            "abstained": int(valid_count == 0),
+        },
+        "normalized_block_scores": scores.tolist(),
+        "planned_block_mean": planned_mean,
+        "relative_anchor_bound_B_over_R": float(relative_anchor_bound_B_over_R),
+        "anchor_penalty": anchor_penalty,
+        "assumptions": [
+            "the predeclared block process is a stationary homogeneous Markov chain satisfying the theorem conditions",
+            "gamma_ps_lower is a valid auditable lower bound for that block chain",
+            "the theorem's range/variance bounds apply to all planned coded scores in [-1, 1]",
+            "the supplied anchor bound has coverage at least 1-alpha_anchor",
+            "|y_candidate-y_reference| <= score_scale_R for the squared-error correction",
+        ],
+    }
+    if valid_count == 0:
+        return {
+            **common,
+            "status": "ABSTAIN_NO_VALID_BLOCKS",
+            "valid_block_mean": None,
+            "concentration_penalty": None,
+            "normalized_lower_bound": None,
+        }
+
+    valid_mean = float(scores[valid].mean())
+    lower_bound = planned_mean - radius - anchor_penalty
+    return {
+        **common,
+        "status": "CONDITIONAL_MARKOV_PSEUDOGAP_BOUND_ONLY",
+        "valid_block_mean": valid_mean,
+        "concentration_penalty": radius,
+        "normalized_lower_bound": lower_bound,
+    }
 
 
 def graph_color_radius(*, blocks: int, chi: int, family: int = FAMILY,
@@ -148,6 +288,68 @@ def _write_plot(out: Path, rows: list[dict]) -> None:
     plt.close(fig)
 
 
+def _synthetic_lcb_demo() -> dict:
+    """Exercise the Markov LCB integration on two explicitly synthetic panels."""
+    import numpy as np
+
+    calibration = {
+        "score_scale_R": 2.0,
+        "gamma_ps_lower": 1.0,
+        "family": 2,
+        "alpha_score": 0.04,
+        "alpha_anchor": 0.01,
+        "alpha_total": 0.05,
+        "relative_anchor_bound_B_over_R": 0.03,
+    }
+    partially_failed = conditional_block_risk_markov_lcb(
+        [8.0, -8.0, 2.0, np.nan],
+        valid_blocks=np.asarray([True, True, True, False]),
+        **calibration,
+    )
+    all_failed = conditional_block_risk_markov_lcb(
+        [np.nan, np.nan],
+        valid_blocks=np.asarray([False, False]),
+        **calibration,
+    )
+    return {
+        "classification": "SYNTHETIC_HELPER_INTEGRATION_ONLY",
+        "physical_score": None,
+        "certified": False,
+        "data_access": "none",
+        "calibration": calibration,
+        "input_encoding": (
+            "JSON null in raw_differences denotes a failed block and is passed to the helper as NaN; "
+            "the explicit valid_blocks mask controls failure coding."
+        ),
+        "cases": [
+            {
+                "name": "partially_failed_panel",
+                "raw_differences": [8.0, -8.0, 2.0, None],
+                "valid_blocks": [True, True, True, False],
+                "result": partially_failed,
+            },
+            {
+                "name": "all_failed_panel",
+                "raw_differences": [None, None],
+                "valid_blocks": [False, False],
+                "result": all_failed,
+            },
+        ],
+        "comparison_denominators": {
+            "planned": 2,
+            "valid": 1,
+            "failed": 0,
+            "abstained": 1,
+        },
+        "block_denominators": {
+            "planned": 6,
+            "valid": 3,
+            "failed": 3,
+            "abstained": 0,
+        },
+    }
+
+
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -157,6 +359,7 @@ def build_report(out: Path) -> dict:
         raise FileExistsError(f"refusing to overwrite existing output: {out}")
     out.mkdir(parents=True)
     rows = make_grid()
+    demo = _synthetic_lcb_demo()
     feasible = sum(row["status"] == "CONDITIONALLY_FEASIBLE" for row in rows)
     summary = {
         "classification": "SYNTHETIC_ANALYTIC_SENSITIVITY_ONLY",
@@ -168,6 +371,8 @@ def build_report(out: Path) -> dict:
         "physical_block_score_denominators": {
             "planned": 0, "valid": 0, "failed": 0, "abstained": 0,
         },
+        "synthetic_helper_demo_comparisons": demo["comparison_denominators"],
+        "synthetic_helper_demo_blocks": demo["block_denominators"],
         "scenario_weighted_hypothetical_planned_blocks": sum(
             row["planned_blocks"] for row in rows
         ),
@@ -209,6 +414,7 @@ def build_report(out: Path) -> dict:
             "The score-family union bound uses log(2F/alpha_s), because the cited theorem is two-sided.",
             "The score bound is conditional on a fixed anchor; if the anchor shares trajectory dependence, include it in a proved joint process or use a valid joint bound.",
             "Anchor coverage/bias, target threshold, and nonstationary-start correction remain separate; none is included in this sensitivity radius.",
+            "A separate synthetic integration fixture exercises the implemented LCB helper and failure denominators; it is not project data or a coverage test.",
         ],
         "grid": {
             "planned_blocks": list(BLOCKS_GRID),
@@ -238,10 +444,21 @@ def build_report(out: Path) -> dict:
             "planned": 0, "valid": 0, "failed": 0, "abstained": 0,
             "interpretation": "No physical block score was sampled; these are not measurement denominators.",
         },
+        {
+            "unit": "synthetic Markov-LCB comparison fixtures",
+            **demo["comparison_denominators"],
+            "interpretation": "Two fixed software fixtures: one conditional helper result and one all-failed abstention; no random experiment or physical sample.",
+        },
+        {
+            "unit": "synthetic Markov-LCB planned block slots",
+            **demo["block_denominators"],
+            "interpretation": "The two software fixtures contain six hypothetical slots; three valid and three explicitly failed slots, with no block removed.",
+        },
     ]
     _write_csv(out / "denominator_summary.csv", scenario_denominators)
     (out / "protocol.json").write_text(json.dumps(protocol, indent=2) + "\n")
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+    (out / "markov_lcb_demo.json").write_text(json.dumps(demo, indent=2) + "\n")
     _write_plot(out, rows)
     shutil.copy2(Path(__file__), out / "source_snapshot.py")
 
@@ -276,6 +493,10 @@ The left panel spans `N={list(BLOCKS_GRID)}` and assumed `gamma_ps` lower bounds
 The scenario denominator is planned/valid/failed/abstained = `{summary['scenario_denominators']['planned']}/{summary['scenario_denominators']['valid']}/{summary['scenario_denominators']['failed']}/{summary['scenario_denominators']['abstained']}`. “Valid” means only that the hypothetical LCB could exceed zero if every score were at its maximum value of one; it does not indicate data availability. Physical block-score outcomes are `0/0/0/0`, because none were sampled. The scenario-weighted planning grid contains `{summary['scenario_weighted_hypothetical_planned_blocks']}` hypothetical block slots.
 
 At the candidate planning count `N=20`, even the hypothetical `gamma_ps=1` case has radius `{summary['baseline_at_N20_gamma1']:.3f}`, so no zero-threshold certificate is attainable with this worst-case version. At `N=500, gamma_ps=1`, the radius is `{summary['best_case_at_N500_gamma1']:.3f}`; only `{summary['feasible_scenarios']}/{len(rows)}` grid cases are mathematically reachable. This quantifies conservatism under the declared theorem/variance bound, not the project's actual mixing rate or future utility.
+
+## Synthetic helper integration
+
+`markov_lcb_demo.json` exercises the implemented `conditional_block_risk_markov_lcb` with a fixed four-block example and an all-failed example. The first maps normalized scores to `[1, -1, 0.5, -1]`, retains the failed fourth block in `N=4`, and returns only `CONDITIONAL_MARKOV_PSEUDOGAP_BOUND_ONLY`; the all-failed case returns `ABSTAIN_NO_VALID_BLOCKS` and no lower bound. Across these two fixed software fixtures, comparison denominators are planned/valid/failed/abstained=`{demo['comparison_denominators']['planned']}/{demo['comparison_denominators']['valid']}/{demo['comparison_denominators']['failed']}/{demo['comparison_denominators']['abstained']}`; block-slot denominators are `{demo['block_denominators']['planned']}/{demo['block_denominators']['valid']}/{demo['block_denominators']['failed']}/{demo['block_denominators']['abstained']}`. These counts are deterministic fixture cases, not sampled observations. Alpha allocation, the assumed block-chain gap, and `B/R` are illustrative only; the helper marks `certified=false`, leaves `physical_score=null`, and cannot verify any theorem receipt.
 
 ## Text flow
 

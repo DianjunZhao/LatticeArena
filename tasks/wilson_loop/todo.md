@@ -103,3 +103,8 @@ W ~ exp[-V0(R)t] * [1 + q(R,t) + h(R,N_t-t) + x(R,t,N_t-t)]
 - PR #5 增加 [Pion contract inspector](../pion_projection/bounded_block_risk_contract.py) 和 [诊断报告](../../results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v5/README.md)，覆盖 null draft、两条依赖理论路线、anchor 的 `B/C` 共偏差结构与覆盖假设、alpha 分配及独立 reference gate。报告分母 `6/2/4/0` 统计合同检查，不是 Wilson measurement。
 - Pion 的 8 个 bounded-risk/dependence CPU 专项模块共 67 passed；v5 还校验总 anchor 界覆盖随机半径加 common-bias `C`；该工作没有访问 Wilson 数据或改变 C/F lane 的任何物理状态。
 - PR #5 当前共 9 个 tracked Pion report manifest / 74 个 payload 文件，PR #6 的 Optimize/Wilson 报告分别为 4/38 与 6/32，SHA-256 均已复核。C/F lane 仍缺各自 TODO 列明的研究者输入与物理证据；三份 task TODO 的 34 个相对链接与 28 个 GitHub commit/tree 链接本轮也全部解析通过。
+
+## 2026-11-24 Pion Markov-score follow-up
+
+- PR #5 的 Pion Markov pseudo-gap 路线现有条件式 block-risk LCB helper 与 [v2 图/文字报告](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v2/README.md)，包含部分失败与全失败两个 synthetic panel，并分别报告 planned block 和 comparison denominator。它没有访问 Wilson 输入、改变 C/F estimand，或提供 Wilson 污染界。
+- Pion bounded-risk/dependence 专项 suite 现为 **78 passed**；Pion report hash 与 task TODO 链接审计结果见 Pion TODO 的本轮 follow-up。Wilson 的 C lane primary `R/T/kernel` 与精度/多重性规则、F lane 独立污染界和总误差预算仍未冻结，状态保持 `NOT_READY/UNCERTIFIED` 与 `GROUND_STATE_FORCE_UNCERTIFIED`。

@@ -107,3 +107,8 @@ P4(X) = sum_{k=0}^4 c_k T_k(X),  T_0=I, T_1=X, T_k=2 X T_{k-1}-T_{k-2}
 - 本轮重新核对三份 task TODO：34 个相对链接均指向 tracked 文件；28 个 GitHub commit/tree 链接跨 7 个 commit tree 均存在。
 - 本轮未读取封存数据或运行 GPU/QUDA；两个比较族保持 trainable-W vs same-budget SLSQP 和 trainable-W vs fixed degree-4 Chebyshev，NOT_READY/UNCERTIFIED 与 physical_score=null 不变。
 - Optimize 仍待冻结的研究者输入包括 D04 独立物理 reference、D06 事前 r_star、D11 经审阅的算符/约束，以及生产公平预算与数据/GPU 授权；不得用合成目标填写这些字段。纯 CPU 网格和 null contract diagnostic 已覆盖，不要重复同一教师族增加样本数。
+
+## 2026-11-24 Pion Markov-score follow-up
+
+- PR #5 的 Pion Markov pseudo-gap 路线新增条件式 `conditional_block_risk_markov_lcb` 和 [v2 诊断报告](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v2/README.md)。它保留失败 block 的 planned 分母、全失败比较 abstain，并在 synthetic 例中展示两级分母；不估计 block-chain gap 或项目覆盖率。
+- Pion bounded-risk/dependence 专项 suite 现为 **78 passed**；Pion 报告 manifest/hash 与三份 TODO 链接的最新审计结果记录在 Pion TODO 的本轮 follow-up。此软件闭环不修改 Optimize 的 D04/D06/D11 缺项，也不改变 Optimize 两项指定比较及 `NOT_READY/UNCERTIFIED` 状态。
