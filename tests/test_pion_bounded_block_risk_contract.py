@@ -105,6 +105,27 @@ def test_common_bias_bound_must_be_explicit_and_bounded_by_total_B():
     result = inspect_contract(contract)
     assert any("bound_combination_rule" in issue for issue in result["issues"])
 
+
+def test_total_anchor_bound_must_cover_sampling_radius_plus_common_bias():
+    contract = _synthetic_complete_contract()
+    contract["anchor"]["total_error_bound_B"] = 0.20
+
+    result = inspect_contract(contract)
+    assert result["status"] == "NOT_READY"
+    assert any("random radius plus common_bias_bound_C" in issue
+               for issue in result["issues"])
+
+
+def test_sampling_coverage_methods_require_positive_anchor_alpha():
+    contract = _synthetic_complete_contract()
+    contract["inference"]["alpha_anchor"] = 0.0
+    contract["anchor"]["coverage_probability_lower_bound"] = 1.0
+
+    result = inspect_contract(contract)
+    assert result["status"] == "NOT_READY"
+    assert any("alpha_anchor must be positive" in issue
+               for issue in result["issues"])
+
 def test_invalid_top_level_contract_returns_not_ready_without_raising():
     result = inspect_contract(None)
 

@@ -11,13 +11,14 @@ import hashlib
 import json
 import math
 import re
+import statistics
 from pathlib import Path
 from typing import Any
 
 
 SCHEMA = "pion-bounded-block-risk-contract-v1"
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v4")
+               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v5")
 CONTRACT_PATH = Path(__file__).with_name("bounded_block_risk_contract_v1.json")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 DEPENDENCE_METHODS = {"graph_color_hoeffding", "markov_pseudo_gap_bernstein"}
@@ -259,10 +260,15 @@ def _check_anchor(anchor: Any, *, target_units: Any,
     if not isinstance(method, str) or method not in ANCHOR_METHODS:
         issues.append(f"{label}.coverage_method: expected one of {sorted(ANCHOR_METHODS)}")
     parameters = anchor.get("coverage_parameters")
+    random_coverage_radius = None
+    sample_count = None
     if not _mapping(parameters):
         issues.append(f"{label}.coverage_parameters: expected method-specific assumptions")
     elif method == "known_sigma_normal_interval":
         if not _positive_int(parameters.get("sample_count_n_A")):
+            issues.append(f"{label}.coverage_parameters.sample_count_n_A: expected a positive integer")
+        sample_count = parameters.get("sample_count_n_A")
+        if not _positive_int(sample_count):
             issues.append(f"{label}.coverage_parameters.sample_count_n_A: expected a positive integer")
         sigma = parameters.get("known_sigma")
         if not _finite_number(sigma) or sigma <= 0:
@@ -271,18 +277,40 @@ def _check_anchor(anchor: Any, *, target_units: Any,
             issues.append(f"{label}.coverage_parameters.normality_assumption: missing explicit assumption")
         if not _sha256(parameters.get("parameter_receipt_sha256")):
             issues.append(f"{label}.coverage_parameters.parameter_receipt_sha256: expected a SHA-256 receipt")
+        if (not _finite_number(alpha_anchor) or alpha_anchor <= 0):
+            issues.append(f"{label}.coverage_parameters: alpha_anchor must be positive for a sampling interval")
+        elif (_positive_int(sample_count) and _finite_number(sigma) and sigma > 0):
+            probability = 1.0 - alpha_anchor / 2.0
+            if not 0.5 < probability < 1.0:
+                issues.append(f"{label}.coverage_parameters: alpha_anchor is outside normal-quantile precision")
+            else:
+                random_coverage_radius = (
+                    statistics.NormalDist().inv_cdf(probability)
+                    * sigma / math.sqrt(sample_count)
+                )
     elif method == "bounded_iid_hoeffding":
         if not _positive_int(parameters.get("sample_count_n_A")):
             issues.append(f"{label}.coverage_parameters.sample_count_n_A: expected a positive integer")
+        sample_count = parameters.get("sample_count_n_A")
+        if not _positive_int(sample_count):
+            issues.append(f"{label}.coverage_parameters.sample_count_n_A: expected a positive integer")
         support = parameters.get("support_interval")
-        if (not isinstance(support, list) or len(support) != 2
-                or not all(_finite_number(value) for value in support)
-                or support[0] >= support[1]):
+        support_valid = (isinstance(support, list) and len(support) == 2
+                         and all(_finite_number(value) for value in support)
+                         and support[0] < support[1])
+        if not support_valid:
             issues.append(f"{label}.coverage_parameters.support_interval: expected finite increasing bounds")
         if not _nonempty(parameters.get("iid_unit_statement")):
             issues.append(f"{label}.coverage_parameters.iid_unit_statement: missing explicit iid unit")
         if not _sha256(parameters.get("support_receipt_sha256")):
             issues.append(f"{label}.coverage_parameters.support_receipt_sha256: expected a SHA-256 receipt")
+        if not _finite_number(alpha_anchor) or alpha_anchor <= 0:
+            issues.append(f"{label}.coverage_parameters: alpha_anchor must be positive for a sampling interval")
+        elif _positive_int(sample_count) and support_valid:
+            random_coverage_radius = (
+                (support[1] - support[0])
+                * math.sqrt(math.log(2.0 / alpha_anchor) / (2.0 * sample_count))
+            )
     coverage = anchor.get("coverage_probability_lower_bound")
     if not _finite_number(coverage) or not 0 < coverage <= 1:
         issues.append(f"{label}.coverage_probability_lower_bound: expected a value in (0, 1]")
@@ -294,6 +322,15 @@ def _check_anchor(anchor: Any, *, target_units: Any,
         "conditional_independence_receipt_sha256",
     ):
         issues.extend(_required_receipt(anchor, field, label))
+    if (random_coverage_radius is not None and _finite_number(common_bias)
+            and _finite_number(total_bound)):
+        required_total = random_coverage_radius + common_bias
+        tolerance = 1e-12 * max(1.0, abs(required_total))
+        if total_bound + tolerance < required_total:
+            issues.append(
+                f"{label}.total_error_bound_B: must cover random radius "
+                "plus common_bias_bound_C"
+            )
     return issues
 
 
@@ -448,7 +485,7 @@ def _synthetic_complete_contract(method: str = "graph_color_hoeffding") -> dict[
         "estimate_receipt_sha256": _synthetic_receipt("anchor-estimate"),
         "target_match_statement": "SYNTHETIC_ONLY matched anchor target",
         "units": "SYNTHETIC_ONLY_unit",
-        "total_error_bound_B": 0.05,
+        "total_error_bound_B": 0.30,
         "common_bias_bound_C": 0.01,
         "bound_combination_rule": "SYNTHETIC_ONLY total B includes the random coverage radius and common-bias C",
         "coverage_method": "bounded_iid_hoeffding",
@@ -546,6 +583,8 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "  -> physical_score remains null throughout",
         "```",
         "",
+        "For the two-sided known-sigma normal route, the random radius is `z_(1-alpha_A/2) * sigma / sqrt(n_A)`; for bounded iid Hoeffding it is `(U-L) * sqrt(log(2/alpha_A) / (2*n_A))`. The v1 conservative combination requires total `B >= random_coverage_radius + C`, where `C` bounds common bias.",
+        "",
         "Receipts are checked for presence and SHA-256 syntax only; their scientific contents and independence are not verified. `valid` below means structurally complete, not evidence-valid, measured, or certified. Each row counts one contract check; it is not a score block or physical sample.",
         "",
         "|fixture|planned|valid|failed|abstained|status|blockers|",
@@ -561,7 +600,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "",
         "- Target `m*`, observable, interpretation and units; positive `R`, the all-included prediction-difference bound and its receipt; clipping and failure-policy approval.",
         "- Planned block identities; score-specific graph/color proof or block-chain assumptions and `gamma_ps` lower-bound receipt; candidate comparison family `F`.",
-        "- Matched E-anchor receipt, total anchor-error bound `B`, explicit common-bias sub-bound `C <= B`, a justified combination rule, method-specific coverage assumptions, score/anchor conditional-independence evidence, and the preallocated alpha split.",
+        "- Matched E-anchor receipt, total anchor-error bound `B`, explicit common-bias sub-bound `C <= B`, a justified combination rule, method-specific coverage assumptions, score/anchor conditional-independence evidence, and the preallocated alpha split. For the v1 conservative combination, the inspector also checks `B >= random_coverage_radius + C`.",
         "- Minimum effect `delta_star` with units and rationale, plus an independently reviewed physical reference/model-identification gate.",
         "- Even a structurally complete contract remains subject to human evidence review and separate data/GPU authorization. No fixture changes readiness or emits a score.",
         "",

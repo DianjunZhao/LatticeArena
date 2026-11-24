@@ -102,8 +102,8 @@ P4(X) = sum_{k=0}^4 c_k T_k(X),  T_0=I, T_1=X, T_k=2 X T_{k-1}-T_{k-2}
 ## 2026-11-24 本轮复核记录
 
 - 在 companion PR #6 源码/测试提交 [f25acaba](https://github.com/Greyyy-HJC/LatticeArena/tree/f25acababd490729328af1189a5934f56bde7f89) 上，Optimize/Wilson 9 个专项 CPU 测试模块：**65 passed**；这不是完整仓库套件，也不验证物理排序或生产 walltime。后续报告提交为 [337bc99b](https://github.com/Greyyy-HJC/LatticeArena/tree/337bc99b87952c4c866c6f55ea000427c00273b5)。
-- PR #5 Pion 的 8 份已跟踪报告 manifest / 67 个 payload 文件，以及 PR #6 Optimize 的 4 份 manifest / 38 个文件和 Wilson 的 6 份 manifest / 32 个文件，SHA-256 全部匹配；新增正性报告分母为 3/3/0/0，8 个文件哈希通过。
-- Pion 新增的 [bounded block-risk contract inspector](../pion_projection/bounded_block_risk_contract.py) 与 [文字诊断报告](../../results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v4/README.md) 是 CPU-only schema check；8 个 Pion bounded-risk/dependence 专项模块共 65 passed。它不读取物理数据，也不改变三个 task 的 readiness。
+- PR #5 Pion 的 9 份已跟踪报告 manifest / 74 个 payload 文件，以及 PR #6 Optimize 的 4 份 manifest / 38 个文件和 Wilson 的 6 份 manifest / 32 个文件，SHA-256 全部匹配；新增正性报告分母为 3/3/0/0，8 个文件哈希通过。
+- Pion 新增的 [bounded block-risk contract inspector](../pion_projection/bounded_block_risk_contract.py) 与 [文字诊断报告](../../results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v5/README.md) 是 CPU-only schema check；8 个 Pion bounded-risk/dependence 专项模块共 67 passed。v5 还验证 `B` 至少覆盖采样覆盖半径与 common-bias `C` 之和。它不读取物理数据，也不改变三个 task 的 readiness。
 - 本轮重新核对三份 task TODO：34 个相对链接均指向 tracked 文件；28 个 GitHub commit/tree 链接跨 7 个 commit tree 均存在。
 - 本轮未读取封存数据或运行 GPU/QUDA；两个比较族保持 trainable-W vs same-budget SLSQP 和 trainable-W vs fixed degree-4 Chebyshev，NOT_READY/UNCERTIFIED 与 physical_score=null 不变。
 - Optimize 仍待冻结的研究者输入包括 D04 独立物理 reference、D06 事前 r_star、D11 经审阅的算符/约束，以及生产公平预算与数据/GPU 授权；不得用合成目标填写这些字段。纯 CPU 网格和 null contract diagnostic 已覆盖，不要重复同一教师族增加样本数。

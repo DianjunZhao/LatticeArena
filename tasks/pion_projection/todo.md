@@ -16,7 +16,7 @@
 6. [框架扩展点地图](../../doc/framework_extensibility.md) 总结 LatticeArena 可复用的 task/operator、measurement capability、search、score、state、ledger、artifact 接口及目前缺少的跨 task 集成层。
 7. [bounded block-risk v1 合同草案](bounded_block_risk_contract_v1.md) 将 estimand、clipping/failure 变换、条件浓缩式、anchor Lipschitz 修正和缺失输入整理为独立版本化 handoff；所有需研究者冻结的物理与推断字段仍为 `null`，不会给出物理分数。
 8. [Markov pseudo-spectral-gap 替代界敏感度](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v1/README.md) 把“带常数 mixing/spectral-gap 定理”具体化为 Paulin Theorem 3.10 的条件路线，推导 simultaneous score radius 并作 40-cell 解析敏感度图。它没有估计实际 gap；最乐观假设下仅 2/40 场景能达到零阈值，真实 20-block 计划点全部不可达。
-9. [合同结构检查器与报告](../../results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v4/README.md) 为当前 `DRAFT_NOT_READY` 评分草案增加了 machine-readable JSON 与 fail-closed inspector。它能检查图染色 Hoeffding 或 Markov pseudo-gap 路线、anchor 覆盖方法、总误差界 `B` 与共偏差子界 `C<=B`、alpha 分配、`R` 与预测差界及独立 reference gate 的字段结构；收据内容仍须人工审核，完整合成形状也只返回 `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`。测试见 [`test_pion_bounded_block_risk_contract.py`](../../tests/test_pion_bounded_block_risk_contract.py)。
+9. [合同结构检查器与报告](../../results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v5/README.md) 为当前 `DRAFT_NOT_READY` 评分草案增加了 machine-readable JSON 与 fail-closed inspector。它能检查图染色 Hoeffding 或 Markov pseudo-gap 路线、anchor 覆盖方法、总误差界 `B` 与共偏差子界 `C<=B`、`B >= random_coverage_radius + C`、alpha 分配、`R` 与预测差界及独立 reference gate 的字段结构；收据内容仍须人工审核，完整合成形状也只返回 `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`。测试见 [`test_pion_bounded_block_risk_contract.py`](../../tests/test_pion_bounded_block_risk_contract.py)。
 
 ![依赖图染色与 block 数敏感度](../../results/pion_projection/bounded_block_risk_calibration_20261123_v2/dependence_sensitivity.png)
 
@@ -144,7 +144,7 @@ zbar_valid > (delta_star/R^2 + epsilon + 2B/R + phi_hat) / (1-phi_hat)
 ## 2026-11-24 Pion contract inspector follow-up
 
 - 增加 machine-readable null contract 和纯结构检查器；`graph_color_hoeffding` 与 `markov_pseudo_gap_bernstein` 两个条件路线都能进入结构完整分支，但输出仅为 `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`，始终 `certified=false`、`physical_score=null`、`data_access=none`。
-- 检查器要求 anchor 的 total error bound `B`、common-bias 子界 `C<=B`、合并规则及各自 receipt；并按 normal/Hoeffding 路线检查已知 sigma/分布假设或有限支持/iid 单位字段。当前合同所有物理与证据输入仍为 null。
-- 合成报告为 6 个合同形状检查，planned/valid/failed/abstained=`6/2/4/0`；valid 只表示字段形状完整。新 inspector 11 项测试通过；合计 8 个 Pion bounded-risk/dependence 专项模块 **65 passed**。
+- 检查器要求 anchor 的 total error bound `B`、common-bias 子界 `C<=B`、合并规则及各自 receipt；并按 normal/Hoeffding 路线检查已知 sigma/分布假设或有限支持/iid 单位字段。v5 进一步计算相应随机覆盖半径，并要求 `B >= random_coverage_radius + C`。当前合同所有物理与证据输入仍为 null。
+- 合成报告为 6 个合同形状检查，planned/valid/failed/abstained=`6/2/4/0`；valid 只表示字段形状完整。v5 inspector 13 项测试通过；合计 8 个 Pion bounded-risk/dependence 专项模块 **67 passed**。
 - 当前未访问 E/gap/validation/holdout、未运行 GPU/QUDA。真实 dependence receipt、anchor 覆盖/共偏差证据、`m*`/`R`/阈值与独立 reference 仍是外部输入；本诊断不关闭 Pion 物理门。
-- 当前分支的 8 份 tracked Pion report manifest 共 67 个 payload 文件通过 SHA-256；三份 TODO 的 34 个相对链接均解析到 tracked 文件，28 个 GitHub commit/tree 链接跨 7 个 commit tree 均有目标。新的结构诊断版本为 v4，旧的本轮 interim 输出已清理。
+- 当前分支的 9 份 tracked Pion report manifest 共 74 个 payload 文件通过 SHA-256；三份 TODO 的 34 个相对链接均解析到 tracked 文件，28 个 GitHub commit/tree 链接跨 7 个 commit tree 均有目标。v5 是当前合同诊断版本；未提交的 interim 输出已清理。
