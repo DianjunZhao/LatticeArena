@@ -84,3 +84,10 @@ W ~ exp[-V0(R)t] * [1 + q(R,t) + h(R,N_t-t) + x(R,t,N_t-t)]
 ## 停止规则
 
 若 `R/T/kernel`、单位、失败和多重性规则未冻结，不做确认性比较；若 F lane 的任一独立谱/热/混合界无法以事前容差认证，则保留 `GROUND_STATE_FORCE_UNCERTIFIED`。有限-T 精度、窗口稳定、单一能隙假设或 narrow bootstrap 都不能代替缺失系统界。
+
+## 2026-11-24 本轮复核记录
+
+- 在 companion PR #6 当前代码提交 [75537cbb](https://github.com/Greyyy-HJC/LatticeArena/tree/75537cbbbef0e1234dbb53a71c81b3a0476ef2f4) 上，对 Optimize/Wilson 共 8 个 CPU 测试模块重跑：**61 passed**；其中 Wilson 覆盖有限 Nt toy、随机正谱恒等式、bound 和 lane contract。
+- PR #6 中 Wilson 的 6 份已跟踪报告 manifest、**32 个**报告文件的 SHA-256 全部匹配；当前 lane-contract 报告 v3 的表格包含 planned/valid/failed/abstained，逐行与汇总分母恒等式成立。
+- 没有读取 sealed data 或运行 GPU/QUDA；有限-T Creutz 和基态离散静态力仍为不同 estimand，NOT_READY/UNCERTIFIED、GROUND_STATE_FORCE_UNCERTIFIED 与 physical_score=null 不变。
+- 下一步只有在用户冻结 C lane 的 primary R/T/kernel、精度/多重性规则，以及 F lane 的独立激发态/热/混合污染界与误差预算后，才可进入确认测量；不得由 toy 参数或单一 Nt 数据推定这些物理界。

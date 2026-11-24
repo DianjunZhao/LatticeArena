@@ -66,3 +66,10 @@ planned/valid/failed/abstained 训练 panel=`12/12/0/0`，评估 panel=`12/12/0/
 若 trainable-W 只优于同预算 SLSQP、没有优于固定谱基，应表述为有限预算优化/摊销结果，不能称为更优物理 smear；若差异低于事前 `r_star` 或跨独立 panel 不稳定，停止扩大同一 fixture。当前已有独立的 Optimize contract inspector，但尚未接入通用 `TaskSpec`、candidate/operator registry、measurement capability 或 evaluator；框架侧扩展顺序见[可扩展部分地图](../../doc/framework_extensibility.md)。
 
 任何物理结论前都需要保留 `NOT_READY/UNCERTIFIED` 与 `physical_score=null`，直到 reference、效应阈值、operator contract、两条比较预算及数据/GPU 授权全部闭合。
+
+## 2026-11-24 本轮复核记录
+
+- 在 companion PR #6 当前代码提交 [75537cbb](https://github.com/Greyyy-HJC/LatticeArena/tree/75537cbbbef0e1234dbb53a71c81b3a0476ef2f4) 上，对 Optimize/Wilson 共 8 个 CPU 测试模块重跑：**61 passed**；这不是完整仓库套件，也不验证物理排序或生产 walltime。
+- PR #6 中 Optimize 的 3 份已跟踪报告 manifest、**30 个**报告文件的 SHA-256 全部匹配。结构检查、stress 与 pooled-init 图/报告可从上述提交查阅。
+- 本轮未读取封存数据或运行 GPU/QUDA；两个比较族保持 trainable-W vs same-budget SLSQP 和 trainable-W vs fixed degree-4 Chebyshev，NOT_READY/UNCERTIFIED 与 physical_score=null 不变。
+- Optimize 仍待冻结的研究者输入包括 D04 独立物理 reference、D06 事前 r_star、D11 经审阅的算符/约束，以及生产公平预算与数据/GPU 授权；不得用合成目标填写这些字段。纯 CPU 网格和 null contract diagnostic 已覆盖，不要重复同一教师族增加样本数。
