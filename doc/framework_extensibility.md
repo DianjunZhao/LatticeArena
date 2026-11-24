@@ -90,7 +90,7 @@ The generic split preflight is `split name + inclusive integer [start,end] -> va
   versus fixed degree-4 Chebyshev) and lists unset D04 reference, D06 `r_star`,
   D11 operator and fairness-budget fields. The degree-4 Bernstein/Chebyshev
   candidate now has a versioned diagnostic adapter in
-  [candidate_contract.py](https://github.com/Greyyy-HJC/LatticeArena/blob/133eae86eec57b3e8aeefb1cebdb2f242eafde21/tasks/optimize_gaussian/candidate_contract.py)
+  [candidate_contract.py](https://github.com/Greyyy-HJC/LatticeArena/blob/3b9c77201be97d300dfce98b0c3e0d67dc57146f/tasks/optimize_gaussian/candidate_contract.py)
   and a [hashed text-flow report](https://github.com/Greyyy-HJC/LatticeArena/blob/3b9c77201be97d300dfce98b0c3e0d67dc57146f/results/optimize_gaussian/framework_candidate_contract_20261124_v2/README.md).
   It validates the illustrative Bernstein controls against the generic candidate
   schema, but its complete synthetic fixture only reaches
