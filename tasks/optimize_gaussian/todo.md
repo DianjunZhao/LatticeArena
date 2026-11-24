@@ -125,3 +125,8 @@ P4(X) = sum_{k=0}^4 c_k T_k(X),  T_0=I, T_1=X, T_k=2 X T_{k-1}-T_{k-2}
 - PR #5 的 [Markov 报告](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v3/README.md) 与 [contract v6 报告](../../results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v6/README.md)现明确要求 fixed score function、stationary 起点或有 receipt 的 post-burn-in TV 界，以及 `F*delta < alpha_score`。synthetic fixtures 不估计 Pion chain gap、TV、anchor 或 coverage，也不读取物理数据。
 - Pion 的 time-varying `f_i` Eq. (3.26) 路线现已在 PR #5 作为可选 helper/contract 分支实现，要求冻结 `k_ps`、逐 residue class variance-sum 上界、score schedule、`M/k_ps` 和 anchor-shift receipts；它尚不核验 receipt 内容。此 Pion 方法学更新不能填 Optimize 的 D04 reference、D06 `r_star` 或 D11 operator contract。
 - 下一位 Optimize agent 按本文件既有顺序继续：由研究者提供可审阅的 D04 reference、事前 `r_star`、D11 算符及正性/归一化/失败规则，再冻结同预算 trainable-W vs SLSQP 与 trainable-W vs degree-4 Chebyshev 的 setup/call/total-walltime 对照；缺字段时保留 `NOT_READY/UNCERTIFIED`，不要重跑相同 synthetic teacher grid。
+
+## 2026-11-24 最新跨任务状态
+
+- PR #5 当前 head 为 `71589ab`，新增的 Eq. (3.26) time-varying Markov helper、合同分支和 v7 结构报告已提交；Pion 当前专项 suite 为 **116 passed**，已跟踪报告为 **14 manifests / 116 payload files**，哈希均匹配。此更新只同步 Pion 交接，不改变本任务结论。
+- Optimize 仍没有研究者可审阅的 D04 reference、D06 `r_star` 或 D11 生产算符/谱区间/正性与 normalization 规则；两项比较仍为 trainable-W vs same-budget SLSQP、trainable-W vs fixed degree-4 Chebyshev。现有 CPU 方法学工作已覆盖，本任务下一步受这些输入和后续测量授权约束，不新增同族 synthetic 网格。

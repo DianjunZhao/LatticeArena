@@ -122,3 +122,8 @@ W ~ exp[-V0(R)t] * [1 + q(R,t) + h(R,N_t-t) + x(R,t,N_t-t)]
 - F lane 仍需 independent `Q_k, Delta_Q, H_k, Delta_0, X_k` 或可审阅的多态/变分方案，并把激发态、热/绕回、mixed、finite-a、volume 等传播到 force units 后列入总误差预算；不能从 q/h/x 无量纲量直接与力容差相加。ground-state force 继续 `GROUND_STATE_FORCE_UNCERTIFIED`。
 - Pion Eq. (3.26) 变时集中界只改善 Pion 的可选统计合同，与 Wilson 的 C/F 物理输入无关。没有新的 R/T/kernel、谱界、总误差预算和数据/GPU 授权时，不生成 C/F 物理分数，保持 `NOT_READY/UNCERTIFIED`、sealed data 关闭与 `physical_score=null`。
 - 本轮在 PR #6 head `337bc99b87952c4c866c6f55ea000427c00273b5` 上连同 Optimize 一起重跑 9 个 CPU 专项模块：**65 passed**；Wilson 代码验证仍只覆盖 toy 恒等式、正谱范围和合同 fail-closed 行为。
+
+## 2026-11-24 最新跨任务状态
+
+- PR #5 当前 head 为 `71589ab`，Pion Eq. (3.26) time-varying Markov helper/合同分支与 v7 结构报告已经提交；Pion 当前专项 suite 为 **116 passed**，已跟踪报告为 **14 manifests / 116 payload files**，哈希均匹配。这些 Pion 更新不提供 Wilson 的谱/热/mixed 污染界。
+- Wilson 的有限-T Creutz C lane 和基态离散静态力 F lane 继续是独立 estimand。当前任务没有未完成的 CPU-only 代数/结构诊断；下一步须先获得 C lane 的 primary `R/T/kernel` 和推断规则，以及 F lane 的独立污染界和力单位总误差预算，再决定确认测量授权。此前冻结的 `NOT_READY/UNCERTIFIED` 与 `GROUND_STATE_FORCE_UNCERTIFIED` 保持不变。
