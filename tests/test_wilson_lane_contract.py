@@ -118,6 +118,23 @@ def test_force_precision_with_wrong_units_is_rejected_and_not_summed_as_force():
                    for message in issues)
 
 
+def test_creutz_precision_must_be_dimensionless():
+    contract = _synthetic_contract(complete_creutz=True, complete_force=True)
+    creutz = contract["lanes"]["finite_T_Creutz"]
+    assert creutz["inference"]["precision_units"] == "dimensionless"
+    assert inspect_contract(contract)["lanes"]["finite_T_Creutz"][
+        "structurally_complete"
+    ]
+
+    creutz["inference"]["precision_units"] = "SYNTHETIC_ONLY_GeV"
+    result = inspect_contract(contract)
+    lane = result["lanes"]["finite_T_Creutz"]
+    assert not lane["structurally_complete"]
+    assert any("precision_units: expected 'dimensionless'" in message
+               for message in lane["issues"])
+    assert result["physical_score"] is None
+
+
 def test_null_common_kernel_list_is_reported_without_crashing():
     contract = _synthetic_contract(complete_creutz=True, complete_force=True)
     contract["common"]["kernel_ids"] = None
@@ -149,13 +166,13 @@ def test_build_report_snapshots_source_and_hashes_every_artifact(tmp_path):
     receipt = json.loads((output / "run_receipt.json").read_text())
     assert receipt["schema"] == "latticearena-run-receipt-v1"
     assert receipt["status"] == "complete"
-    assert len(receipt["denominators"]) == 14
-    assert sum(row["planned"] for row in receipt["denominators"].values()) == 14
-    assert sum(row["valid"] for row in receipt["denominators"].values()) == 6
-    assert sum(row["failed"] for row in receipt["denominators"].values()) == 8
+    assert len(receipt["denominators"]) == 16
+    assert sum(row["planned"] for row in receipt["denominators"].values()) == 16
+    assert sum(row["valid"] for row in receipt["denominators"].values()) == 7
+    assert sum(row["failed"] for row in receipt["denominators"].values()) == 9
     assert sum(row["abstained"] for row in receipt["denominators"].values()) == 0
     assert sum(row["count"] for row in receipt["reason_rows"]
-               if row["state"] == "failed") == 8
+               if row["state"] == "failed") == 9
     assert "not scientific success" in receipt["scenario"]["description"] or (
         "not scientific success" in receipt["text_flow"]
     )
@@ -164,9 +181,9 @@ def test_build_report_snapshots_source_and_hashes_every_artifact(tmp_path):
     assert "complete` means all planned checks are accounted for" in report
     with (output / "lane_summary.csv").open(newline="") as stream:
         denominator_rows = list(csv.DictReader(stream))
-    assert sum(int(row["planned"]) for row in denominator_rows) == 14
-    assert sum(int(row["valid"]) for row in denominator_rows) == 6
-    assert sum(int(row["failed"]) for row in denominator_rows) == 8
+    assert sum(int(row["planned"]) for row in denominator_rows) == 16
+    assert sum(int(row["valid"]) for row in denominator_rows) == 7
+    assert sum(int(row["failed"]) for row in denominator_rows) == 9
     assert sum(int(row["abstained"]) for row in denominator_rows) == 0
     assert all(int(row["planned"]) == int(row["valid"]) + int(row["failed"])
                + int(row["abstained"]) for row in denominator_rows)
@@ -180,6 +197,11 @@ def test_build_report_snapshots_source_and_hashes_every_artifact(tmp_path):
         "ground_state_discrete_static_force"]
     assert not f_units["structurally_complete"]
     assert any("precision_units: expected" in message for message in f_units["issues"])
+    c_units = summary["fixtures"]["synthetic_C_wrong_precision_units"]["lanes"][
+        "finite_T_Creutz"]
+    assert not c_units["structurally_complete"]
+    assert any("precision_units: expected 'dimensionless'" in message
+               for message in c_units["issues"])
     null_kernels = summary["fixtures"]["synthetic_null_common_kernel_ids"]["lanes"]
     assert all(not row["structurally_complete"] for row in null_kernels.values())
     for name, expected in manifest.items():

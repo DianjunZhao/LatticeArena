@@ -19,7 +19,7 @@ from core.receipts import run_receipt, scenario_spec
 
 SCHEMA = "wilson-two-lane-contract-v2"
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/wilson_loop/lane_contract_diagnostic_20261124_v4")
+               / "results/wilson_loop/lane_contract_diagnostic_20261124_v5")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 F_BOUND_COMPONENTS = (
     "excited_state_force", "finite_T_thermal", "mixed", "finite_a",
@@ -27,6 +27,7 @@ F_BOUND_COMPONENTS = (
 )
 QHX_TERMS = ("q", "h", "x")
 QHX_UNITS = "dimensionless"
+CREUTZ_UNITS = "dimensionless"
 
 
 def empty_contract() -> dict[str, Any]:
@@ -270,6 +271,7 @@ def _check_creutz(lane: Any, common: Any) -> list[str]:
         issues.append(f"{label}.comparison_family: missing")
     issues.extend(_check_interval(lane.get("inference"),
                                   precision_field="precision_target",
+                                  expected_precision_units=CREUTZ_UNITS,
                                   label=f"{label}.inference"))
     return issues
 
@@ -492,7 +494,7 @@ def _synthetic_contract(*, complete_creutz: bool,
                 "interval_method": "SYNTHETIC_ONLY_paired_block_interval",
                 "alpha_total": 0.05, "alpha_allocations": {"primary": 0.05},
                 "precision_target": 0.01,
-                "precision_units": "SYNTHETIC_ONLY_log Creutz units",
+                "precision_units": CREUTZ_UNITS,
                 "multiplicity_method": "SYNTHETIC_ONLY_maxT",
             },
         }
@@ -553,6 +555,11 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "ground_state_discrete_static_force"]["inference"]
     f_inference["statistical_precision_target"] = 100.0
     f_inference["precision_units"] = QHX_UNITS
+    c_wrong_precision_units = _synthetic_contract(
+        complete_creutz=True, complete_force=True,
+    )
+    c_inference = c_wrong_precision_units["lanes"]["finite_T_Creutz"]["inference"]
+    c_inference["precision_units"] = "SYNTHETIC_ONLY_GeV"
     null_kernels = _synthetic_contract(complete_creutz=True, complete_force=True)
     null_kernels["common"]["kernel_ids"] = None
     fixtures = {
@@ -566,6 +573,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "synthetic_C_reversed_sign": c_reversed,
         "synthetic_F_reversed_sign": f_reversed,
         "synthetic_F_wrong_precision_units": f_wrong_precision_units,
+        "synthetic_C_wrong_precision_units": c_wrong_precision_units,
         "synthetic_null_common_kernel_ids": null_kernels,
     }
     results = {name: inspect_contract(contract)
@@ -607,7 +615,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "```text",
         "CURRENT NULL DRAFT",
         "  -> identify shared action, geometry, boundaries, units, kernels, split and paired-block receipts",
-        "  -> Lane C: chi = -[log W(R+1,T+1)+log W(R,T)-log W(R+1,T)-log W(R,T+1)]; freeze primary R/T/kernel and remaining inference rules",
+        "  -> Lane C: chi = -[log W(R+1,T+1)+log W(R,T)-log W(R+1,T)-log W(R,T+1)]; require dimensionless precision units and freeze primary R/T/kernel and remaining inference rules",
         "  -> Lane F: freeze candidate-minus-reference force stencil and units, q/h/x receipts, thermal/mixed/cutoff/volume bounds, alpha allocation and total error budget",
         "  -> schema-complete? no: remain NOT_READY and list blockers",
         "  -> schema-complete? yes: CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW only",
@@ -615,7 +623,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "  -> physical_score remains null until those gates are independently satisfied",
         "```",
         "",
-        "`lane_summary.csv` reports planned/valid/failed/abstained counts for each fixture and lane. `run_receipt.json` records the same 14 fixture-lane checks, source hashes, artifact hashes, and one reason row for every failed schema check; `complete` means all planned checks are accounted for, not that a lane or method succeeded. `artifact_hashes.json` also covers the receipt. A missing bound is never treated as zero. Bound rows require a scope, hash-shaped evidence receipt and review receipt; those strings are checked only for shape and are not opened or authenticated here. q/h/x receipts are dimensionless spectral inputs; the force-budget check requires their separately propagated `excited_state_force` bound and sums that with thermal/mixed/finite-a/volume/other force-level systematic bounds and the statistical precision target. Familywise alpha allocations must sum to no more than `alpha_total`.",
+        f"`lane_summary.csv` reports planned/valid/failed/abstained counts for each fixture and lane. `run_receipt.json` records the same {len(summary_rows)} fixture-lane checks, source hashes, artifact hashes, and one reason row for every failed schema check; `complete` means all planned checks are accounted for, not that a lane or method succeeded. `artifact_hashes.json` also covers the receipt. The C interval precision target must be labeled `{CREUTZ_UNITS}` because its signed log-Creutz observable is dimensionless. A missing bound is never treated as zero. Bound rows require a scope, hash-shaped evidence receipt and review receipt; those strings are checked only for shape and are not opened or authenticated here. q/h/x receipts are dimensionless spectral inputs; the force-budget check requires their separately propagated `excited_state_force` bound and sums that with thermal/mixed/finite-a/volume/other force-level systematic bounds and the statistical precision target. Familywise alpha allocations must sum to no more than `alpha_total`.",
         "",
         "## Fixture results",
         "",
@@ -639,6 +647,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "",
         "- Reversing all four C coefficients is rejected because the declared convention is `chi = -[log W(R+1,T+1)+log W(R,T)-log W(R+1,T)-log W(R,T+1)]`, matching `finite_nt_toy.py`.",
         "- Reversing all four F coefficients is rejected because the contrast is candidate force minus reference force.",
+        "- A C statistical precision target labeled with energy/force units is rejected because the four-point log-Creutz estimator is dimensionless.",
         "- An F statistical precision target labeled dimensionless is rejected against the force-unit estimand and is excluded from the force-unit budget sum until units match.",
         "- A null shared `kernel_ids` field produces explicit common blockers; the inspector does not crash or mark either lane complete.",
         "- These are synthetic schema mutations. They diagnose contract handling only and do not read Wilson data or estimate a physical uncertainty.",
