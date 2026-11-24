@@ -67,6 +67,24 @@ planned/valid/failed/abstained 训练 panel=`12/12/0/0`，评估 panel=`12/12/0/
 
 任何物理结论前都需要保留 `NOT_READY/UNCERTIFIED` 与 `physical_score=null`，直到 reference、效应阈值、operator contract、两条比较预算及数据/GPU 授权全部闭合。
 
+### D11：从现有代码提取的合成算符候选（供审阅，不冻结物理合同）
+
+在 companion PR #6 的 [operator diagnostic](https://github.com/Greyyy-HJC/LatticeArena/blob/75537cbbbef0e1234dbb53a71c81b3a0476ef2f4/tasks/optimize_gaussian/trainable_w_operator_diagnostic.py)、[kernel](https://github.com/Greyyy-HJC/LatticeArena/blob/75537cbbbef0e1234dbb53a71c81b3a0476ef2f4/tasks/optimize_gaussian/kernels.py) 与 [shift convention](https://github.com/Greyyy-HJC/LatticeArena/blob/75537cbbbef0e1234dbb53a71c81b3a0476ef2f4/tasks/optimize_gaussian/features.py) 中，CPU 对照实际构造
+
+```text
+H psi(x) = sum_mu [U_mu(x) psi(x+mu) + U_mu†(x-mu) psi(x-mu)]
+X = H / 6
+P4(X) = sum_{k=0}^4 c_k T_k(X),  T_0=I, T_1=X, T_k=2 X T_{k-1}-T_{k-2}
+```
+
+这里 U 是三维、周期边界的合成 SU(3) links，空间轴顺序为 z/y/x，d=0,1,2 分别对应 x/y/z；H 是正反向最近邻平行移动项之和。若 link 矩阵严格 unitary，则每个方向的正向/反向平移算符范数为 1，故由三角不等式 `||H||_2 <= 6`，`X` 的谱落在 `[-1,1]`。这解释了当前代码的 Chebyshev 映射，但结论依赖 unitary links、相同三方向权重和当前周期移位约定；各向异性、非 unitary 的有效链接或不同边界需重算界。
+
+当前系数由 fit rows 上的 `np.linalg.lstsq` 一次性拟合成共享实数 `c_0...c_4`；loss 是对合成、trace-normalized heat-kernel teacher `G=exp(0.18 H)/(tr exp(0.18 H)/dim)` 的平均相对平方 Frobenius operator error。`T_0=I` 只说明恒等基函数被包含，**不表示输出被 trace/行和归一化**。当前系数无约束，代码没有 PSD 投影；它记录设计矩阵 rank，但没有 rank-deficiency failure rule。由于教师本身是 `H` 的谱函数，这只是一个与教师家族匹配的合成谱对照，不证明它是生产中最强或可用的 smearing。
+
+文字流程：`production links + boundary/axis convention -> 明确 Hermitian H 和可证谱区间 -> 固定 affine map 与 degree-4 basis -> 冻结系数是否跨配置共享、如何只用 fit/reference 拟合 -> 冻结输出 normalization 与 positivity 规则 -> 计入 coefficient-fit/setup/inference 全成本 -> 在 untouched confirmation 上比较`。
+
+可供用户审阅的物理合同草案可沿用上述 basis family，但必须另行选择：生产 `H` 的方向权重/链接/边界及谱界；系数是否固定、如何用独立 D04 reference 拟合；是否要求 `p_4(x)>=0` 对全部 `x∈[-1,1]`（当前代码不保证）；输出是否另作 normalization；rank/非有限系数/正性失败如何处理。当前 contract inspector 保持这些字段为 null 是正确的，本节只把合成基线定义显式化，不填充 null、重命名物理 reference 或关闭 D11 gate。
+
 ## 2026-11-24 本轮复核记录
 
 - 在 companion PR #6 当前代码提交 [75537cbb](https://github.com/Greyyy-HJC/LatticeArena/tree/75537cbbbef0e1234dbb53a71c81b3a0476ef2f4) 上，对 Optimize/Wilson 共 8 个 CPU 测试模块重跑：**61 passed**；这不是完整仓库套件，也不验证物理排序或生产 walltime。
