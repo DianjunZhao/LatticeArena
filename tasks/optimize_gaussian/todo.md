@@ -169,3 +169,9 @@ PR #6 head [`133eae8`](https://github.com/Greyyy-HJC/LatticeArena/commit/133eae8
 Verification on this head: `tests/test_framework.py tests/test_optimize*.py tests/test_wilson*.py` passed **102 tests**; Python compilation and `git diff --check` passed. This closes only the Optimize candidate-schema registration step in the framework map. It deliberately does not create a complete Optimize `TaskSpec`, measurement capability, evaluator, or physical candidate contract; D04, D06, D11 production review and authorization remain open. Report status is `DIAGNOSTIC_SCHEMA_ONLY`, `physical_score=null`, `data_access=none`.
 
 文字数据流：`versioned diagnostic contract -> validate five Bernstein controls -> candidate descriptor with source hashes -> CPU operator helper`；无效控制直接拒绝，D04/D06/D11、evaluator 与 production authorization gates 保持打开。下一步可在 D04/D06/D11 被明确冻结后再连接完整 TaskSpec、同源 objective 的 fit/eval IDs 和 measurement evaluator；在此之前不应把此 adapter 当作生产注册或用它生成物理分数。
+
+## 2026-11-24 shared abstention-state follow-up
+
+PR #6 [`710eeb2`](https://github.com/Greyyy-HJC/LatticeArena/commit/710eeb27b5d94de37a646ee52ec743be18894786) adds a terminal `abstained(reason)` state to generic `RunState`, distinct from a solver/evaluation failure. Optimize's contract inspector and candidate evaluator are not yet wired to it; absent D04/D06/D11 inputs still leave the existing draft `NOT_READY`, `physical_score=null` and no-data status unchanged. The framework/Optimize/Wilson CPU suite passed **103 tests** on this code.
+
+文字流程：`D04/D06/D11 receipt 缺失 -> abstained(reason) terminal -> no physical score`; reviewed inputs start a new run rather than upgrading an abstained record in place. The generic state does not decide the effect threshold or validate an operator contract.

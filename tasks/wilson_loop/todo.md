@@ -148,3 +148,9 @@ GPT-6.2-Astra 子代理完成只读协议审阅后已关闭；它不能授予数
 文字数据流：同一新配置与 paired blocks → loop means/logs → C lane finite-T delta-chi；同一 blocks → 多态谱/GEVP → U0(2),U0(3) → F lane f0(2.5) → 激发态+热+mixed+截断误差转为 force units → epsilon_F gate。任一步缺测/不辨识即 ABSTAIN；没有新增测量时分母保持 0/0/0/0。
 
 **下一位 Wilson agent：**先交这份 C/F 候选卡供研究者冻结；随后只做协议/收据的 CPU preflight，不读 D100–119、D120–139、D140–199，不用已观察 D0–99挑 primary，也不从 toy 给污染项填数。任何确认测量还要由数据/集群 owner 单独授权。
+
+## 2026-11-24 shared abstention-state follow-up
+
+PR #6 [`710eeb2`](https://github.com/Greyyy-HJC/LatticeArena/commit/710eeb27b5d94de37a646ee52ec743be18894786) adds a terminal `abstained(reason)` state to generic `RunState`, distinct from `failed`. Missing C-lane protocol fields or F-lane contamination receipts can be represented as no-certificate states without calling them demonstrated physics failures. Wilson's lane inspector/evaluator is not yet wired to this generic state, so both lane statuses and all data-access restrictions remain unchanged. The framework/Optimize/Wilson CPU suite passed **103 tests** on this code.
+
+文字流程：`missing C/F freeze or independent bound -> abstained(reason) terminal -> no score`; after independent review and authorization, a fresh run can proceed through the ordinary state transitions. This state model supplies no `Q_k`, thermal, mixed-sector or force-unit error bound.
