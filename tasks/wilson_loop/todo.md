@@ -370,3 +370,13 @@ PR #6 当前的 `apply_evidence_bundle_gate`：C lane 可将四个 loop/source/c
 只读检索当前 PR #6 checkout 后，没有找到 `tasks/wilson_loop/measure.py`、Wilson `protocol_d_*.json` 或 `measurement_input_manifest` 实现；当前 task-owned 实现是 lane contract、结构/诊断脚本和 C/F evidence adapter，没有接入所选 C/F measurement 的 live reader。历史 TODO/归档记录中的 reader、RunSpec 或远端任务不能据此视为当前 checkout 可调用的入口。故 source-byte API 目前只接受调用方显式给的路径，尚不能证明这些路径就是 C loop、F force、GEVP/thermal 计算真正读取的文件。
 
 文字诊断：`当前 checkout: protocol/lane contract + archived diagnostics + adapter -> no selected-lane reader -> no production file map -> C/F remain abstained`。后续先补一个冻结、可审查的 C/F source reader/RunSpec：在读取前做 split、hash、geometry/action/kernel 和授权 preflight；同一 read transaction 产出所读文件清单、manifest/receipt hashes 与 source paths；随后才调用 task adapter，并以 CPU fixture 测试 reader/gate 清单一致、缺文件、篡改、split 拒绝和完整分母。当前代码盘点没有读取任何 gauge/loop/GEVP/thermal 数据，物理文件分母 `0/0/0/0`；没有启动 GPU/QUDA。该软件入口完成也不会补出独立 coverage、q/h/x bounds、正 reference-force 或 physics review，状态继续保持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+
+### 2026-11-26 C/F source snapshot 与 reader 分支核对
+
+shared [`core/source_integrity.py`](../../core/source_integrity.py) 现提供有界 `capture_source_snapshot`，Wilson C 单 envelope 与 F 六路原子 bundle gate 可接收同一批 immutable snapshots。任务 reader 可先从 snapshot 的 `read_bytes(name)` 解析 loop/force/GEVP/thermal 数据，再将同一 snapshot 交给 gate；后者会重算保留字节的 SHA-256，并在结果写 `read_mode=immutable_snapshot`。默认捕获总量最多 64 MiB，超限文件不进入 snapshot，按 failed 处理；大 gauge field 仍需受审的流式 reader，不能提高上限来掩盖内存预算。
+
+文字流程：`selected C/F source map -> read once into bounded snapshot -> C: parse four paired loops / F: parse force + GEVP + Nt32 receipts -> route-specific metadata/budget gate -> same snapshot byte gate -> lane draft or abstain`。合成负控在捕获后改写原路径，C 仍核验 `8/8`，F 六路仍原子核验 `53/53`；缺文件保持 planned，不能因其它 route 通过而部分 draft。PR #6 聚焦 shared/Optimize/Wilson adapter suite **52 passed**、完整 CPU suite **284 passed**；这些不是生产 gauge/loop/GEVP 输入。
+
+此次 Git 核验还发现另一条本地历史分支 `fork/dianjun@54f0e97` 有 `tasks/wilson_loop/measure.py` 与 `protocol_d_20261120.json`；当前 PR #6 HEAD 不含它们，而且该分支携带大量与本 PR 无关的代码和结果差异。故“当前 checkout 没有 reader”仍准确，但不能写成“本地 Git 中从未存在 reader”；也不把整条分支或 D protocol 直接并入已选定的有限-$T$ Creutz / 基态力 lane，因为其中测量窗与方法未逐项对齐当前合同。
+
+仍未完成的具体软件工作：审计是否能最小移植 `measure.py` 所依赖的 NERSC/identity/kernel 模块；不得绕开新 lane contract，且要把当前 C 的 `(R=2,T=5,stout)` 与 F 的 `R_mid=2.5` stencil 映射到同一 snapshot reader。加入 reader 实际解析对象与 receipt summary 的一致性测试、split/hash/action/kernel 拒绝、C/F planned denominator 和 route 原子失败图文，再由 reviewer 独立核验 Creutz 符号与 F 的谱/热污染定义。没有独立 coverage、matched-$N_t=32$、正 reference-force 与 q/h/x receipts 前不重测/不解封数据；保持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。

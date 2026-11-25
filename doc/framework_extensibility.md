@@ -227,12 +227,22 @@ paths never reach file hashing. Missing paths/files count as abstentions and
 digest mismatches/read failures as failures. The shared
 `apply_evidence_gate_with_source_bytes` and bundle variant run this preflight
 before the metadata gate; complete bytes still advance only to `draft`.
-Optimize D04/D06/D11 and Wilson C/F task adapters now call these wrappers by
-default and abstain when their explicit root/path maps are absent. Their
-synthetic fixtures opt out of byte checks explicitly. The adapters are not yet
-connected to real RunSpecs/source readers, so production callers still need to
-bind the files they actually read. A digest receipt also cannot authenticate
-its expected-hash authority or freeze the underlying file after the read.
+`capture_source_snapshot` adds a bounded in-memory option: it reads each mapped
+file once, retains only digest-matching immutable `bytes`, and exposes them via
+`SourceByteSnapshot.read_bytes`. `verify_source_snapshot` rechecks those same
+bytes at the gate; route bundles are checked atomically. The default snapshot
+budget is 64 MiB, so larger inputs need an explicitly sized or future streaming
+reader. Pion, Optimize D04/D06/D11 and Wilson C/F adapters accept snapshots as
+well as the older path-verification call. A task reader can now parse from the
+snapshot and pass that exact object to its gate, avoiding a path reopen between
+verification and computation.
+
+This interface is not yet connected to the live measurement/evaluator readers
+in the PR branches. The path-verification compatibility route still cannot
+prove that a separate parser used the hashed bytes, and even a snapshot does not
+authenticate expected-hash authority, reviewer identity, provenance,
+independence or scientific claims. Synthetic fixtures opt out of byte checks
+only when explicitly requested; source-complete fixtures stop at `draft`.
 
 This PR's fixtures cover Optimize D04/D06/D11 and Wilson C/F metadata. They
 exercise missing Markov gap, wrong chain, wrong force unit, stale source hash,
@@ -244,13 +254,13 @@ synthetic positive metadata fixtures declare their opt-out. Optimize maps both b
 shared positive denominator to one bundle, while D04 and D11 retain separate
 stages. Wilson keeps C and F receipts in separate lane-specific states. The
 adapters advance only to `draft`; byte matching does not authenticate receipt
-authority or certify statistical/physical claims. Optimize/Wilson adapter
-fixtures report **18 passed** (9 Optimize, 9 Wilson), and the focused shared
-evidence/source-integrity plus adapter set reports **44 passed**; the full CPU
-suite reports **276 passed**. PR #5 contains
-the Pion adapter and its fixtures as a separate change. No production receipt
-was supplied. Connecting real readers to byte maps, independent review of task
-checks, and numerical/physics evaluators remain future work.
+authority or certify statistical/physical claims. The current PR #6 focused
+Optimize/Wilson adapter plus shared evidence/source-integrity set reports
+**52 passed** and its full CPU suite reports **284 passed**. PR #5 separately
+reports **43 passed** for its Pion/shared focused set and **247 passed** for its
+full CPU suite. Snapshot fixtures use synthetic files only. No production
+receipt was supplied. Connecting real readers to snapshots, independent review
+of task checks, and numerical/physics evaluators remain future work.
 
 ## Practical implementation order for a new task
 
@@ -278,9 +288,9 @@ failures and protocol abstentions are distinct states and should stay visible.
 The current `main` has a Pion pilot, but these additions remain analytic,
 synthetic or structural CPU work; none closes a production physics measurement
 pipeline. Shared receipts cover several contract and diagnostic consumers, and
-the Optimize/Wilson adapters consume the typed evidence validator plus an
-explicit-path byte check; neither establishes source authority, independence,
-or scientific claims. Pion's selected
+the task adapters consume the typed evidence validator plus either an
+explicit-path byte check or a caller-provided immutable snapshot; neither
+establishes source authority, independence, or scientific claims. Pion's selected
 `F=3` Markov score sensitivity, separate Markov-anchor sensitivity, coverage
 simulations and common-bias feasibility analysis are in the separate PR #5.
 Optimize now has two

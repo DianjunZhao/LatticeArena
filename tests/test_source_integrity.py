@@ -2,7 +2,11 @@ import hashlib
 
 import pytest
 
-from core.source_integrity import verify_source_bytes
+from core.source_integrity import (
+    capture_source_snapshot,
+    verify_source_bytes,
+    verify_source_snapshot,
+)
 
 
 def _sha(data: bytes) -> str:
@@ -129,3 +133,73 @@ def test_unexpected_map_key_and_invalid_digest_fail_before_any_read(tmp_path, mo
     with pytest.raises(ValueError, match="lowercase SHA-256"):
         verify_source_bytes(tmp_path, {"data": "bad"}, {})
     assert not called
+
+
+def test_source_snapshot_reuses_the_exact_bytes_after_path_changes(tmp_path):
+    original = b'{"measurement": [1, 2, 3]}'
+    (tmp_path / "measurement.json").write_bytes(original)
+    expected = {"measurement": _sha(original)}
+    snapshot = capture_source_snapshot(
+        tmp_path, expected, {"measurement": "measurement.json"},
+    )
+
+    # A task reader consumes the retained bytes; a later path edit cannot
+    # change either the value it parsed or the bytes presented to the gate.
+    read_by_task = snapshot.read_bytes("measurement")
+    (tmp_path / "measurement.json").write_bytes(b"replaced after capture")
+    verification = verify_source_snapshot(snapshot, expected)
+
+    assert read_by_task == original
+    assert snapshot.read_bytes("measurement") == original
+    assert verification["status"] == "verified"
+    assert verification["read_mode"] == "immutable_snapshot"
+    assert verification["denominator"]["valid"] == 1
+    with pytest.raises(TypeError):
+        snapshot.source_bytes["measurement"] = b"changed"
+
+
+def test_source_snapshot_fails_closed_on_size_limit_and_digest_mismatch(tmp_path):
+    payload = b"too much for this snapshot"
+    (tmp_path / "large.bin").write_bytes(payload)
+    oversized = capture_source_snapshot(
+        tmp_path, {"large": _sha(payload)}, {"large": "large.bin"},
+        max_total_bytes=len(payload) - 1,
+    )
+    assert verify_source_snapshot(oversized, {"large": _sha(payload)})[
+        "denominator"]["failed"] == 1
+    with pytest.raises(ValueError, match="size_limit"):
+        oversized.read_bytes("large")
+
+    mismatched = capture_source_snapshot(
+        tmp_path, {"large": _sha(b"different")}, {"large": "large.bin"},
+    )
+    result = verify_source_snapshot(mismatched, {"large": _sha(b"different")})
+    assert result["denominator"]["failed"] == 1
+    assert result["entries"]["large"]["reason"] == "sha256_mismatch"
+
+
+def test_source_snapshot_rejects_unmapped_paths_and_root_escapes(tmp_path):
+    outside = tmp_path.parent / "snapshot-outside.bin"
+    outside.write_bytes(b"outside")
+    traversal = capture_source_snapshot(
+        tmp_path, {"outside": _sha(b"outside")}, {"outside": "../snapshot-outside.bin"},
+    )
+    assert verify_source_snapshot(traversal, {"outside": _sha(b"outside")})[
+        "entries"]["outside"]["reason"] == "path_must_remain_relative_to_root"
+
+    (tmp_path / "expected.bin").write_bytes(b"inside")
+    try:
+        (tmp_path / "escape.bin").symlink_to(outside)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation is unavailable")
+    escaped = capture_source_snapshot(
+        tmp_path, {"escape": _sha(b"outside")}, {"escape": "escape.bin"},
+    )
+    assert verify_source_snapshot(escaped, {"escape": _sha(b"outside")})[
+        "entries"]["escape"]["reason"] == "resolved_source_escapes_root"
+
+    with pytest.raises(ValueError, match="unexpected source names"):
+        capture_source_snapshot(
+            tmp_path, {"expected": _sha(b"inside")},
+            {"unexpected": "expected.bin"},
+        )

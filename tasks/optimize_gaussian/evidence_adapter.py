@@ -1,9 +1,10 @@
 """Optimize task gates for D04, bounded-block D06, and D11 evidence.
 
 These adapters bind task metadata and denominators to the selected Optimize
-contracts. By default they also require an explicit root and per-source path
-map, then hash the bytes before a successful transition can reach ``draft``.
-The explicit metadata-only option is for synthetic fixtures. Neither byte
+contracts. By default they also require either an explicit root/path map or
+immutable source snapshots before a successful transition can reach ``draft``.
+Snapshot callers can use the same retained bytes in their reader and gate. The
+explicit metadata-only option is for synthetic fixtures. Neither byte
 matching nor metadata validates scientific content, source authority, or
 reviewer independence; ``physical_score`` remains unset.
 """
@@ -24,7 +25,7 @@ from core.evidence import (
     apply_evidence_gate_with_source_bytes,
 )
 from core.receipts import RECEIPT_SCHEMA, run_receipt as normalize_run_receipt
-from core.source_integrity import SOURCE_VERIFICATION_SCHEMA
+from core.source_integrity import SOURCE_VERIFICATION_SCHEMA, SourceByteSnapshot
 from .bounded_block_risk import R_STAR
 
 
@@ -261,6 +262,7 @@ def apply_optimize_d04_reference_gate(
     required_source_hashes: object,
     source_root: str | Path | None = None,
     source_paths: dict[str, str] | None = None,
+    source_snapshot: SourceByteSnapshot | None = None,
     require_source_bytes: bool = True,
 ) -> dict[str, Any]:
     """Check the selected independent E-chain D04 fit and advance to draft.
@@ -372,10 +374,25 @@ def apply_optimize_d04_reference_gate(
         "observable.support.unit": "a_t m_pi",
         "method.name": "candidate_blind_joint_PP_A4P_two_state_fit",
     }
-    if require_source_bytes is False and source_root is None and source_paths is None:
+    if (require_source_bytes is False and source_root is None and source_paths is None
+            and source_snapshot is None):
         return apply_evidence_gate(
             run_state, stage, envelope, receipt, expected=expected,
             required_source_hashes=hashes,
+        )
+    if source_snapshot is not None:
+        if source_root is not None or source_paths is not None:
+            result = _abstain(
+                run_state, stage,
+                ["D04 pass a source snapshot or source_root/source_paths, not both"],
+                "ABSTAIN_OPTIMIZE_D04_REFERENCE",
+            )
+            result["source_verification"] = _missing_source_byte_receipt(hashes)
+            return result
+        return apply_evidence_gate_with_source_bytes(
+            run_state, stage, envelope, receipt,
+            source_snapshot=source_snapshot,
+            expected=expected, required_source_hashes=hashes,
         )
     if source_root is None or source_paths is None:
         result = _abstain(
@@ -401,6 +418,7 @@ def apply_optimize_d11_operator_gate(
     required_source_hashes: object,
     source_root: str | Path | None = None,
     source_paths: dict[str, str] | None = None,
+    source_snapshot: SourceByteSnapshot | None = None,
     require_source_bytes: bool = True,
 ) -> dict[str, Any]:
     """Bind D11 production-link/operator receipts; success remains draft-only."""
@@ -475,10 +493,25 @@ def apply_optimize_d11_operator_gate(
         "method.name": "degree4_bernstein_chebyshev_clenshaw",
         "dependence.mode": "deterministic",
     }
-    if require_source_bytes is False and source_root is None and source_paths is None:
+    if (require_source_bytes is False and source_root is None and source_paths is None
+            and source_snapshot is None):
         return apply_evidence_gate(
             run_state, stage, envelope, receipt, expected=expected,
             required_source_hashes=hashes,
+        )
+    if source_snapshot is not None:
+        if source_root is not None or source_paths is not None:
+            result = _abstain(
+                run_state, stage,
+                ["D11 pass a source snapshot or source_root/source_paths, not both"],
+                "ABSTAIN_OPTIMIZE_D11_OPERATOR",
+            )
+            result["source_verification"] = _missing_source_byte_receipt(hashes)
+            return result
+        return apply_evidence_gate_with_source_bytes(
+            run_state, stage, envelope, receipt,
+            source_snapshot=source_snapshot,
+            expected=expected, required_source_hashes=hashes,
         )
     if source_root is None or source_paths is None:
         result = _abstain(
@@ -503,6 +536,7 @@ def apply_optimize_bounded_block_risk_gate(
     required_source_hashes_by_envelope: object,
     source_root: str | Path | None = None,
     source_paths_by_envelope: dict[str, dict[str, str]] | None = None,
+    source_snapshots_by_envelope: dict[str, SourceByteSnapshot] | None = None,
     require_source_bytes: bool = True,
 ) -> dict[str, Any]:
     """Atomically gate both bounded-risk contrasts and their shared denominator.
@@ -620,9 +654,25 @@ def apply_optimize_bounded_block_risk_gate(
 
     if reasons:
         return _abstain(run_state, stage, reasons, "ABSTAIN_OPTIMIZE_D06_BOUNDED_RISK")
-    if require_source_bytes is False and source_root is None and source_paths_by_envelope is None:
+    if (require_source_bytes is False and source_root is None
+            and source_paths_by_envelope is None and source_snapshots_by_envelope is None):
         return apply_evidence_bundle_gate(
             run_state, stage, envelopes, receipt,
+            expected_by_envelope=expected_by_route,
+            required_source_hashes_by_envelope=source_routes,
+        )
+    if source_snapshots_by_envelope is not None:
+        if source_root is not None or source_paths_by_envelope is not None:
+            result = _abstain(
+                run_state, stage,
+                ["D06 pass per-envelope snapshots or source_root/source_paths, not both"],
+                "ABSTAIN_OPTIMIZE_D06_BOUNDED_RISK",
+            )
+            result["source_verification"] = _missing_source_byte_receipt(source_routes)
+            return result
+        return apply_evidence_bundle_gate_with_source_bytes(
+            run_state, stage, envelopes, receipt,
+            source_snapshots_by_envelope=source_snapshots_by_envelope,
             expected_by_envelope=expected_by_route,
             required_source_hashes_by_envelope=source_routes,
         )

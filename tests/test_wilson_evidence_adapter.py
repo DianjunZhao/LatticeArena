@@ -6,6 +6,7 @@ import json
 
 from core.evidence import evidence_envelope
 from core.receipts import denominator, run_receipt, scenario_spec
+from core.source_integrity import capture_source_snapshot
 from core.state import RunState
 from tasks.wilson_loop.evidence_adapter import (
     CONTRACT_PATH,
@@ -304,6 +305,18 @@ def test_creutz_lane_verifies_explicit_source_bytes_before_draft(tmp_path):
         "failed": 0, "abstained": 0, "not_run": 0,
     }
 
+    snapshot = capture_source_snapshot(tmp_path, hashes, source_paths)
+    assert snapshot.read_bytes("loop_map") == map_bytes
+    (tmp_path / "common.bin").write_bytes(b"changed after the lane reader consumed its snapshot")
+    state = _ready_state("operator", "numerical")
+    result = apply_wilson_creutz_gate(
+        state, envelope, receipt, summary,
+        required_source_hashes=hashes,
+        source_snapshot=snapshot,
+    )
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["source_verification"]["denominator"]["valid"] == 8
+
     (tmp_path / "common.bin").write_bytes(b"tampered Wilson C receipt")
     state = _ready_state("operator", "numerical")
     result = apply_wilson_creutz_gate(
@@ -422,6 +435,23 @@ def test_force_lane_verifies_all_route_source_bytes_atomically(tmp_path):
         "unit": "source_file", "planned": 53, "valid": 53,
         "failed": 0, "abstained": 0, "not_run": 0,
     }
+
+    snapshots = {
+        route: capture_source_snapshot(tmp_path, routes[route], source_paths[route])
+        for route in _F_ROUTES
+    }
+    assert json.loads(
+        snapshots["force_interval"].read_bytes("observable_map")
+    )["role"] == "force_interval"
+    (tmp_path / "common.bin").write_bytes(b"changed after the force reader consumed its snapshots")
+    result = apply_wilson_force_gate(
+        _ready_state("operator", "reference", "numerical"),
+        envelopes, receipt, summary,
+        required_source_hashes_by_envelope=routes,
+        source_snapshots_by_envelope=snapshots,
+    )
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["source_verification"]["denominator"]["valid"] == 53
 
     (tmp_path / "common.bin").write_bytes(b"tampered Wilson F receipt")
     state = _ready_state("operator", "reference", "numerical")

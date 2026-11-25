@@ -519,3 +519,13 @@ PR #6 当前的 `apply_evidence_bundle_gate` 把 D06 的 SLSQP、Chebyshev 与 t
 对当前 PR #6 checkout 的只读代码检索确认：`tasks/optimize_gaussian/draft_plan.py` 只生成 `DRAFT_NO_LAUNCH` 的泛型 TaskSpec/RunSpec，`data={}`、`launch_allowed=false`；其内嵌说明明确指出本 checkout 没有 `tasks/optimize_gaussian/runspec_builder.py`、task worker 或 `train.main`。因此当前没有可供 source-byte adapter 接入的 Optimize production reader/evaluator。前述新 adapter 已让 gate API 默认 fail closed，但并未把 envelope 哈希映射绑定到真实输入读取过程。
 
 文字诊断：`当前合同/草案 + 源码 hashes -> 空 data map -> no worker/runner -> no source files opened -> D04/D06/D11 证据 gates remain abstained`。下一软件阶段不是把任意路径传给 adapter，而是先恢复/实现经 review 的 Optimize evaluator 和 RunSpec builder，再让同一个 reader 产出输入 bytes、manifest、逐文件 hashes 与 adapter paths；以 CPU fixtures 覆盖 reader/gate 清单一致、缺文件、内容变化与失败 arm denominator。此盘点只读代码和文件清单，物理读取分母 `0/0/0/0`，没有训练/GPU 或 sealed 数据访问。
+
+### 2026-11-26 同一 source snapshot 供 reader 与 evidence gate 复用
+
+为消除“先 hash 文件、随后 evaluator 再打开路径”之间的竞态，shared [`core/source_integrity.py`](../../core/source_integrity.py) 新增 `capture_source_snapshot` / `SourceByteSnapshot.read_bytes` / `verify_source_snapshot`。它逐个读取显式映射文件一次，只保留匹配 caller digest 的不可变 `bytes`；默认总量上限 64 MiB，超限记 failed，不把大测量数组悄悄复制进内存。Optimize D04、D11 单 envelope 与 D06 三路 bundle gate 现在都可接收这个 snapshot；source verification 显示 `read_mode=immutable_snapshot`，bundle 仍一次性转移或 abstain。
+
+文字流程：`expected source hashes + 显式 root/path -> capture each file once -> task reader parses snapshot.read_bytes(name) -> 同一 snapshot 交给 task gate 重算 byte hashes -> 全匹配最多 draft / 任一缺失、hash mismatch 或超限则 abstain/failed`。CPU 负控在 capture 后覆写原路径，D06 三路仍为 `30/30/0/0`；D04 与 D11 不完整 snapshot 分别 `8/0/0/8`、`7/0/0/7` 并 abstain。Optimize/Wilson adapter 与 shared evidence/source-integrity 聚焦测试 **52 passed**，PR #6 完整 CPU suite **284 passed**；均为合成 byte fixtures，未读真实输入。
+
+范围边界：目前 adapter 仍接受独立传入的 summary，path-only 兼容入口也仍存在；故即使 snapshot gate 通过，也不能单独证明真实 Optimize parser 确实用 `snapshot.read_bytes` 计算了该 summary。此接口降低未来接线的 TOCTOU 风险，但没有补出当前 PR #6 checkout 缺少的生产 reader、D04 E-reference、D06 配对 solver receipts 或 D11 production links。源码调查发现 `fork/dianjun@54f0e97` 的另一个宽范围历史分支包含 `runspec_builder.py`、`worker_runspec.py`、`train.py` 等实现；它与当前 PR #6 分支大量分叉，未直接 cherry-pick，以免一并引入不相关的框架/任务状态。旧段落中“reader 已接到 train.main”的记录指向该分支历史，不代表当前 PR #6 HEAD。
+
+下一步：在当前合同审阅后，按模块审计兼容依赖，只移植最小的 CPU RunSpec/source reader；reader 必须从同一 `SourceByteSnapshot` 解析它实际使用的 manifest、score matrix、solver receipts 和 operator inputs，并由 adapter 测试反向核对解析对象与 snapshot bytes。先补 content mismatch、路径映射/manifest 不一致、snapshot 64 MiB 边界、失败 arm 分母和 no-clobber 测试，再重跑完整 CPU suite。现无授权更改数据访问与 `NOT_READY/UNCERTIFIED`，`physical_score=null`，不读 sealed split、不运行 GPU/QUDA。

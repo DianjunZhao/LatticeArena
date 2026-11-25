@@ -1,5 +1,6 @@
 import copy
 import hashlib
+import json
 
 from core.evidence import (
     EVIDENCE_SCHEMA,
@@ -12,6 +13,7 @@ from core.evidence import (
     inspect_evidence_envelope,
 )
 from core.receipts import denominator, run_receipt, scenario_spec
+from core.source_integrity import capture_source_snapshot
 from core.state import RunState
 
 
@@ -389,6 +391,34 @@ def test_source_byte_gate_verifies_files_before_advancing_to_draft(tmp_path):
     assert result["physical_score"] is None
 
 
+def test_source_snapshot_gate_uses_the_same_bytes_as_the_reader(tmp_path):
+    payload = b'{"calibration_value": 0.25}'
+    (tmp_path / "manifest.json").write_bytes(payload)
+    digest = _sha256_bytes(payload)
+    snapshot = capture_source_snapshot(
+        tmp_path, {"manifest": digest}, {"manifest": "manifest.json"},
+    )
+    # This is the byte sequence the task reader parses before producing its
+    # summary. Replacing the path afterward must not alter gate verification.
+    task_reader_input = snapshot.read_bytes("manifest")
+    task_reader_value = json.loads(task_reader_input)["calibration_value"]
+    (tmp_path / "manifest.json").write_bytes(b"changed after task read")
+    envelope = make_envelope()
+    envelope["source_hashes"]["manifest"] = digest
+
+    result = apply_evidence_gate_with_source_bytes(
+        RunState(), "statistical", envelope, make_run_receipt(),
+        source_snapshot=snapshot,
+        required_source_hashes={"manifest": digest},
+    )
+
+    assert task_reader_input == payload
+    assert task_reader_value == 0.25
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["source_verification"]["denominator"]["valid"] == 1
+    assert result["source_byte_identity_verified"] is True
+
+
 def test_source_byte_gate_abstains_on_hash_mismatch(tmp_path):
     (tmp_path / "manifest.json").write_bytes(b"observed")
     expected = _sha256_bytes(b"expected")
@@ -457,6 +487,53 @@ def test_bundle_source_byte_gate_is_atomic_across_all_routes(tmp_path):
     assert result["source_verification"]["denominator"]["valid"] == 2
     assert result["source_byte_identity_verified"] is True
     assert result["chain_identity_checks"][0]["independence_proven"] is False
+
+
+def test_bundle_source_snapshots_are_verified_atomically_after_path_changes(tmp_path):
+    anchor_bytes = b"anchor bytes consumed by reader"
+    score_bytes = b"score bytes consumed by reader"
+    (tmp_path / "anchor.json").write_bytes(anchor_bytes)
+    (tmp_path / "score.json").write_bytes(score_bytes)
+    anchor_hash = _sha256_bytes(anchor_bytes)
+    score_hash = _sha256_bytes(score_bytes)
+    anchor = make_envelope(kind="anchor_coverage", chain_id="E-anchor",
+                           split_id="anchor", manifest_hash=anchor_hash,
+                           unit="dimensionless anchor scalar")
+    score = make_envelope(kind="score_dependence", chain_id="D-score",
+                          split_id="development", manifest_hash=score_hash,
+                          unit="bounded score")
+    anchor["source_hashes"]["manifest"] = anchor_hash
+    score["source_hashes"]["manifest"] = score_hash
+    snapshots = {
+        "anchor": capture_source_snapshot(
+            tmp_path, {"manifest": anchor_hash}, {"manifest": "anchor.json"},
+        ),
+        "score": capture_source_snapshot(
+            tmp_path, {"manifest": score_hash}, {"manifest": "score.json"},
+        ),
+    }
+    assert snapshots["anchor"].read_bytes("manifest") == anchor_bytes
+    assert snapshots["score"].read_bytes("manifest") == score_bytes
+    (tmp_path / "anchor.json").write_bytes(b"changed after reader")
+    (tmp_path / "score.json").write_bytes(b"changed after reader")
+
+    result = apply_evidence_bundle_gate_with_source_bytes(
+        RunState(), "statistical", {"anchor": anchor, "score": score},
+        make_run_receipt(),
+        source_snapshots_by_envelope=snapshots,
+        expected_by_envelope={
+            "anchor": {"task": "pion_projection", "evidence_kind": "anchor_coverage"},
+            "score": {"task": "pion_projection", "evidence_kind": "score_dependence"},
+        },
+        required_source_hashes_by_envelope={
+            "anchor": {"manifest": anchor_hash},
+            "score": {"manifest": score_hash},
+        },
+        distinct_chain_pairs=[("anchor", "score")],
+    )
+
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["source_verification"]["denominator"]["valid"] == 2
 
 
 def test_bundle_source_byte_gate_abstains_if_any_route_is_missing_or_mismatched(tmp_path):

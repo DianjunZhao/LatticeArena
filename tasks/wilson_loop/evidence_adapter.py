@@ -1,10 +1,11 @@
 """Lane-specific gates for Wilson finite-T Creutz and ground-state force.
 
 The C and F estimands use separate receipts, expected fields, denominators,
-and RunState instances. By default each gate requires explicit source paths and
-checks their bytes before a complete bundle can advance only to ``draft``.
-That check does not authenticate source authority, prove reviewer independence,
-or certify either physical result. Metadata-only mode is for synthetic tests.
+and RunState instances. By default each gate requires explicit source paths or
+immutable snapshots before a complete bundle can advance only to ``draft``.
+A reader can consume and pass the same snapshot to its gate. Neither route
+authenticates source authority, proves reviewer independence, or certifies
+either physical result. Metadata-only mode is for synthetic tests.
 """
 from __future__ import annotations
 
@@ -23,7 +24,7 @@ from core.evidence import (
     apply_evidence_gate_with_source_bytes,
 )
 from core.receipts import RECEIPT_SCHEMA, run_receipt as normalize_run_receipt
-from core.source_integrity import SOURCE_VERIFICATION_SCHEMA
+from core.source_integrity import SOURCE_VERIFICATION_SCHEMA, SourceByteSnapshot
 from .lane_contract import LATTICE_FORCE_UNITS, selected_protocol
 
 
@@ -295,6 +296,7 @@ def apply_wilson_creutz_gate(
     required_source_hashes: object,
     source_root: str | Path | None = None,
     source_paths: dict[str, str] | None = None,
+    source_snapshot: SourceByteSnapshot | None = None,
     require_source_bytes: bool = True,
 ) -> dict[str, Any]:
     """Check the selected finite-T Creutz C lane, keeping it separate from F."""
@@ -402,10 +404,25 @@ def apply_wilson_creutz_gate(
         "confidence.alpha_allocated": _C_ALPHA,
         "confidence.family_size": 2,
     }
-    if require_source_bytes is False and source_root is None and source_paths is None:
+    if (require_source_bytes is False and source_root is None and source_paths is None
+            and source_snapshot is None):
         return apply_evidence_gate(
             run_state, "statistical", envelope, receipt, expected=expected,
             required_source_hashes=required_source_hashes,
+        )
+    if source_snapshot is not None:
+        if source_root is not None or source_paths is not None:
+            result = _abstain(
+                run_state,
+                ["Wilson C pass a source snapshot or source_root/source_paths, not both"],
+                "ABSTAIN_WILSON_C_LANE",
+            )
+            result["source_verification"] = _missing_source_byte_receipt(required_source_hashes)
+            return result
+        return apply_evidence_gate_with_source_bytes(
+            run_state, "statistical", envelope, receipt,
+            source_snapshot=source_snapshot,
+            expected=expected, required_source_hashes=required_source_hashes,
         )
     if source_root is None or source_paths is None:
         result = _abstain(
@@ -467,6 +484,7 @@ def apply_wilson_force_gate(
     required_source_hashes_by_envelope: object,
     source_root: str | Path | None = None,
     source_paths_by_envelope: dict[str, dict[str, str]] | None = None,
+    source_snapshots_by_envelope: dict[str, SourceByteSnapshot] | None = None,
     require_source_bytes: bool = True,
 ) -> dict[str, Any]:
     """Check the F-lane bundle with force-unit propagated bounds.
@@ -659,9 +677,25 @@ def apply_wilson_force_gate(
 
     if reasons:
         return _abstain(run_state, reasons, "ABSTAIN_WILSON_F_LANE")
-    if require_source_bytes is False and source_root is None and source_paths_by_envelope is None:
+    if (require_source_bytes is False and source_root is None
+            and source_paths_by_envelope is None and source_snapshots_by_envelope is None):
         return apply_evidence_bundle_gate(
             run_state, "statistical", envelopes, receipt,
+            expected_by_envelope=expected_by_route,
+            required_source_hashes_by_envelope=source_routes,
+        )
+    if source_snapshots_by_envelope is not None:
+        if source_root is not None or source_paths_by_envelope is not None:
+            result = _abstain(
+                run_state,
+                ["Wilson F pass per-envelope snapshots or source_root/source_paths, not both"],
+                "ABSTAIN_WILSON_F_LANE",
+            )
+            result["source_verification"] = _missing_source_byte_receipt(source_routes)
+            return result
+        return apply_evidence_bundle_gate_with_source_bytes(
+            run_state, "statistical", envelopes, receipt,
+            source_snapshots_by_envelope=source_snapshots_by_envelope,
             expected_by_envelope=expected_by_route,
             required_source_hashes_by_envelope=source_routes,
         )

@@ -6,6 +6,7 @@ import json
 
 from core.evidence import evidence_envelope
 from core.receipts import denominator, run_receipt, scenario_spec
+from core.source_integrity import capture_source_snapshot
 from core.state import RunState
 from tasks.optimize_gaussian.evidence_adapter import (
     _D06_ROUTES,
@@ -250,6 +251,21 @@ def test_d04_reference_gate_requires_explicit_source_bytes_by_default():
     }
 
 
+def test_d04_reference_gate_accepts_an_incomplete_read_snapshot_and_abstains(tmp_path):
+    envelope, receipt, summary, hashes = _d04_fixture()
+    snapshot = capture_source_snapshot(tmp_path, hashes, {})
+    state = RunState()
+    result = apply_optimize_d04_reference_gate(
+        state, envelope, receipt, summary,
+        required_source_hashes=hashes, source_snapshot=snapshot,
+    )
+    assert result["status"] == "ABSTAIN_SOURCE_BYTES"
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 8, "valid": 0,
+        "failed": 0, "abstained": 8, "not_run": 0,
+    }
+
+
 def test_d04_reference_gate_abstains_on_failed_fit_criterion_or_stale_summary():
     envelope, receipt, summary, hashes = _d04_fixture(p_value=0.009)
     state = RunState()
@@ -301,6 +317,20 @@ def test_d11_operator_gate_requires_explicit_source_bytes_by_default():
     assert result["status"] == "ABSTAIN_OPTIMIZE_D11_OPERATOR"
     assert state.status["operator"] == "abstained"
     assert any("source-byte verification requires" in reason for reason in result["reasons"])
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 7, "valid": 0,
+        "failed": 0, "abstained": 7, "not_run": 0,
+    }
+
+
+def test_d11_operator_gate_accepts_snapshot_input_and_keeps_missing_files_abstained(tmp_path):
+    envelope, receipt, summary, hashes = _d11_fixture()
+    snapshot = capture_source_snapshot(tmp_path, hashes, {})
+    result = apply_optimize_d11_operator_gate(
+        RunState(), envelope, receipt, summary,
+        required_source_hashes=hashes, source_snapshot=snapshot,
+    )
+    assert result["status"] == "ABSTAIN_SOURCE_BYTES"
     assert result["source_verification"]["denominator"] == {
         "unit": "source_file", "planned": 7, "valid": 0,
         "failed": 0, "abstained": 7, "not_run": 0,
@@ -438,3 +468,56 @@ def test_bounded_d06_bundle_rejects_unapproved_split_bad_gap_and_missing_arm():
     )
     assert result["status"] == "ABSTAIN_OPTIMIZE_D06_BOUNDED_RISK"
     assert any("bundle must contain" in reason for reason in result["reasons"])
+
+
+def test_bounded_d06_bundle_uses_the_captured_source_snapshots_atomically(tmp_path):
+    envelopes, receipt, routes = _d06_fixtures()
+    common_bytes = b"synthetic shared D06 source receipt"
+    (tmp_path / "common.bin").write_bytes(common_bytes)
+    common_hash = hashlib.sha256(common_bytes).hexdigest()
+    source_paths = {}
+
+    for route in envelopes:
+        role = "trainable_w_mean" if route == "trainable_w" else f"contrast:{route}"
+        support = [0.0, 1.0] if route == "trainable_w" else [-10.0 / 9.0, 1.0]
+        map_bytes = json.dumps({
+            "schema": "optimize-bounded-block-risk-markov-v1",
+            "role": role,
+            "times": [2, 3, 4, 5],
+            "score": "mean_t min((q-1)^2,1); assigned-arm solver failure scores 1",
+            "contrast": None if route == "trainable_w" else "X_comparator - (10/9)*X_trainable_w",
+            "r_star": 10.0 / 9.0,
+            "support": support,
+        }, sort_keys=True, separators=(",", ":")).encode()
+        map_name = f"{route}-score-map.json"
+        (tmp_path / map_name).write_bytes(map_bytes)
+        route_hashes = {
+            name: (bounded_risk_map_sha256(route) if name == "score_map" else common_hash)
+            for name in routes[route]
+        }
+        routes[route] = route_hashes
+        envelopes[route]["chain"]["manifest_sha256"] = common_hash
+        envelopes[route]["source_hashes"] = route_hashes
+        envelopes[route]["review"]["receipt_sha256"] = common_hash
+        source_paths[route] = {
+            name: (map_name if name == "score_map" else "common.bin")
+            for name in route_hashes
+        }
+
+    snapshots = {
+        route: capture_source_snapshot(tmp_path, routes[route], source_paths[route])
+        for route in envelopes
+    }
+    assert json.loads(snapshots["trainable_w"].read_bytes("score_map"))["role"] == "trainable_w_mean"
+    (tmp_path / "common.bin").write_bytes(b"changed after task reader captured bytes")
+    result = apply_optimize_bounded_block_risk_gate(
+        _upstream_ready(), envelopes, receipt,
+        required_source_hashes_by_envelope=routes,
+        source_snapshots_by_envelope=snapshots,
+    )
+
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 30, "valid": 30,
+        "failed": 0, "abstained": 0, "not_run": 0,
+    }
