@@ -199,24 +199,39 @@ def test_build_report_snapshots_source_and_hashes_every_artifact(tmp_path):
     assert "snapshot_lane_contract.py" in manifest
     assert "lane_contract_v2.json" in manifest
     assert "snapshot_core_receipts.py" in manifest
+    assert "snapshot_core_state.py" in manifest
     assert "run_receipt.json" in manifest
     assert summary["physical_score"] is None
+    assert summary["run_state"]["physical_ready"] is False
+    assert summary["run_state"]["score"] is None
+    assert set(summary["run_state"]["status"].values()) == {"abstained"}
     receipt = json.loads((output / "run_receipt.json").read_text())
     assert receipt["schema"] == "latticearena-run-receipt-v1"
     assert receipt["status"] == "complete"
-    assert len(receipt["denominators"]) == 16
-    assert sum(row["planned"] for row in receipt["denominators"].values()) == 16
+    assert len(receipt["denominators"]) == 17
+    assert sum(row["planned"] for row in receipt["denominators"].values()) == 21
     assert sum(row["valid"] for row in receipt["denominators"].values()) == 7
     assert sum(row["failed"] for row in receipt["denominators"].values()) == 9
-    assert sum(row["abstained"] for row in receipt["denominators"].values()) == 0
+    assert sum(row["abstained"] for row in receipt["denominators"].values()) == 5
+    assert receipt["denominators"]["physical_run_state_gates"] == {
+        "unit": "one physical certification stage in core.RunState",
+        "planned": 5, "valid": 0, "failed": 0, "abstained": 5, "not_run": 0,
+    }
     assert sum(row["count"] for row in receipt["reason_rows"]
                if row["state"] == "failed") == 9
+    assert sum(row["count"] for row in receipt["reason_rows"]
+               if row["state"] == "abstained") == 5
     assert "not scientific success" in receipt["scenario"]["description"] or (
         "not scientific success" in receipt["text_flow"]
     )
     report = (output / "README.md").read_text()
     assert "|fixture|lane|planned|valid|failed|abstained|status|" in report
-    assert "complete` means all planned checks are accounted for" in report
+    assert "Current no-data RunState projection" in report
+    assert "planned/valid/failed/abstained=`5/0/0/5`" in report
+    assert "complete` means all planned units are accounted for" in report
+    assert "## Next work after the selected protocol defaults" in report
+    assert "Keep the selected C estimand fixed" in report
+    assert "freeze C's primary rectangle" not in report
     with (output / "lane_summary.csv").open(newline="") as stream:
         denominator_rows = list(csv.DictReader(stream))
     assert sum(int(row["planned"]) for row in denominator_rows) == 16
@@ -246,6 +261,7 @@ def test_build_report_snapshots_source_and_hashes_every_artifact(tmp_path):
         assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected
     for name, expected in receipt["artifact_hashes"].items():
         assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected
+    assert "core/state.py" in receipt["scenario"]["source_hashes"]
 
 
 def test_saved_lane_contract_matches_selected_protocol_template():

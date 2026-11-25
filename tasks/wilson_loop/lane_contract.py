@@ -15,11 +15,12 @@ from pathlib import Path
 from typing import Any
 
 from core.receipts import run_receipt, scenario_spec
+from core.state import RunState
 
 
 SCHEMA = "wilson-two-lane-contract-v2"
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/wilson_loop/lane_contract_diagnostic_20261125_v6")
+               / "results/wilson_loop/lane_contract_diagnostic_20261125_v8")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 CONTRACT_PATH = Path(__file__).with_name("lane_contract_v2.json")
 F_BOUND_COMPONENTS = (
@@ -29,6 +30,21 @@ F_BOUND_COMPONENTS = (
 QHX_TERMS = ("q", "h", "x")
 QHX_UNITS = "dimensionless"
 CREUTZ_UNITS = "dimensionless"
+OPEN_RUN_GATES = {
+    "operator": "selected kernel descriptors lack independent production-link validation",
+    "reference": "F-lane positive reference-force lower-bound receipt is missing",
+    "numerical": "authorized C-loop means and independent F-lane spectrum/thermal receipts are missing",
+    "statistical": "paired C/F interval results and full failed-draw denominators are missing",
+    "comparison": "fresh confirmation IDs and data/resource owner authorization are missing",
+}
+
+
+def open_gate_run_state() -> dict[str, Any]:
+    """Project the current two-lane physical blockers into the generic state model."""
+    state = RunState()
+    for stage, reason in OPEN_RUN_GATES.items():
+        state.abstain(stage, reason)
+    return state.summary()
 
 
 def selected_protocol() -> dict[str, Any]:
@@ -699,9 +715,11 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
                 "physical_score": row["physical_score"],
                 "issue_count": len(row["issues"]),
             })
+    run_state = open_gate_run_state()
     (out / "contract_diagnostics.json").write_text(
         json.dumps({"schema": SCHEMA, "data_access": "none",
                     "physical_score": None, "certified": False,
+                    "run_state": run_state,
                     "selected_protocol": selected_protocol(),
                     "fixtures": results}, indent=2, allow_nan=False) + "\n"
     )
@@ -732,6 +750,18 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "",
         "Structural completeness is not physics validation. Even a fully populated synthetic fixture can only reach `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`; the tool never sets a certified or ready state.",
         "",
+        "## Current no-data RunState projection",
+        "",
+        "The separate generic `RunState` projection records all five overall physical-certification stages as `abstained`; each stage has an explicit reason in `contract_diagnostics.json`. It reports `physical_ready=false`, `score=null`, and planned/valid/failed/abstained=`5/0/0/5`. This is a snapshot of missing receipts/authorization, not five failed Wilson measurements. A future authorized calibration or confirmation must start a fresh run state.",
+        "",
+        "|stage|state|current blocker|",
+        "|---|---|---|",
+    ]
+    for stage in ("operator", "reference", "numerical", "statistical", "comparison"):
+        reason = run_state["evidence"][stage][0]
+        lines.append(f"|{stage}|{run_state['status'][stage]}|{reason}|")
+    lines.extend([
+        "",
         "## Text diagnostic and decision flow",
         "",
         "```text",
@@ -745,13 +775,13 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "  -> physical_score remains null until those gates are independently satisfied",
         "```",
         "",
-        f"`lane_summary.csv` reports planned/valid/failed/abstained counts for each fixture and lane. `run_receipt.json` records the same {len(summary_rows)} fixture-lane checks, source hashes, artifact hashes, and one reason row for every failed schema check; `complete` means all planned checks are accounted for, not that a lane or method succeeded. `artifact_hashes.json` also covers the receipt. The C interval precision target must be labeled `{CREUTZ_UNITS}` because its signed log-Creutz observable is dimensionless. A missing bound is never treated as zero. Bound rows require a scope, hash-shaped evidence receipt and review receipt; those strings are checked only for shape and are not opened or authenticated here. q/h/x receipts are dimensionless spectral inputs; the force-budget check requires their separately propagated `excited_state_force` bound and sums that with thermal/mixed/finite-a/volume/other force-level systematic bounds and the statistical precision target. Familywise alpha allocations must sum to no more than `alpha_total`.",
+        f"`lane_summary.csv` reports planned/valid/failed/abstained counts for each synthetic fixture and lane. `run_receipt.json` records those {len(summary_rows)} structural checks plus a separate five-stage physical `RunState` denominator of `5/0/0/5` (planned/valid/failed/abstained), source and artifact hashes, and exact blocker reasons. `complete` means all planned units are accounted for, not that a lane or method succeeded. `artifact_hashes.json` also covers the receipt. The C interval precision target must be labeled `{CREUTZ_UNITS}` because its signed log-Creutz observable is dimensionless. A missing bound is never treated as zero. Bound rows require a scope, hash-shaped evidence receipt and review receipt; those strings are checked only for shape and are not opened or authenticated here. q/h/x receipts are dimensionless spectral inputs; the force-budget check requires their separately propagated `excited_state_force` bound and sums that with thermal/mixed/finite-a/volume/other force-level systematic bounds and the statistical precision target. Familywise alpha allocations must sum to no more than `alpha_total`.",
         "",
         "## Fixture results",
         "",
         "|fixture|lane|planned|valid|failed|abstained|status|certified|score|blocker count|",
         "|---|---|---:|---:|---:|---:|---|---|---|---:|",
-    ]
+    ])
     for row in summary_rows:
         lines.append(
             f"|{row['fixture']}|{row['lane']}|{row['planned']}|{row['valid']}|{row['failed']}|{row['abstained']}|{row['status']}|{row['certified']}|{row['physical_score']}|{row['issue_count']}|"
@@ -774,11 +804,12 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "- A null shared `kernel_ids` field produces explicit common blockers; the inspector does not crash or mark either lane complete.",
         "- These are synthetic schema mutations. They diagnose contract handling only and do not read Wilson data or estimate a physical uncertainty.",
         "",
-        "## Next work",
+        "## Next work after the selected protocol defaults",
         "",
-        "1. Review the physical definitions and freeze C's primary rectangle, sign convention, kernel family, positive-loop rule, interval and multiplicity design.",
-        "2. Freeze F's discrete-force contrast, then obtain independent per-kernel/per-R q/h/x, finite-temporal, mixed, lattice-spacing and volume evidence with a prospective error budget.",
-        "3. Populate receipts from authorized production provenance; review them independently before any sealed evaluation.",
+        "1. Keep the selected C estimand fixed: obtain an independently authorized calibration manifest for stout `chi(2,5)` and preserve four paired loop means, positive-mean/log checks, failed-draw reasons, the 10,000-draw length-5 bootstrap, and the length-2/10 interval hull. Do not reuse observed D0–99 as confirmation.",
+        "2. Keep the selected F estimand fixed: obtain separate calibration receipts for the R=2,3 three-operator GEVP, two/three-state and time-window diagnostics, matched Nt=32 thermal comparison, mixed-sector bound, and all force-unit propagated error cells. Save spectra/fit residual plots or a complete text diagnostic with planned/valid/failed/abstained counts.",
+        "3. Have an independent reviewer check coverage, force-unit propagation, correlated terms and any double counting; only after calibration passes request separate authorization for fresh, unobserved confirmation IDs and GPU/QUDA resources.",
+        "4. Until these receipts and authorizations exist, retain both lane statuses as `NOT_READY/UNCERTIFIED`, keep the force lane `GROUND_STATE_FORCE_UNCERTIFIED`, do not open sealed data, and leave `physical_score=null`.",
         "",
     ])
     (out / "README.md").write_text("\n".join(lines))
@@ -788,6 +819,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "data_access": "none",
         "physical_score": None,
         "certified": False,
+        "run_state": run_state,
         "selected_protocol": selected_protocol(),
         "lane_estimands": ["finite_T_Creutz",
                            "ground_state_discrete_static_force_difference"],
@@ -809,14 +841,18 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
     source_snapshot.write_bytes(Path(__file__).read_bytes())
     receipt_source = Path(__file__).resolve().parents[2] / "core/receipts.py"
     (out / "snapshot_core_receipts.py").write_bytes(receipt_source.read_bytes())
+    state_source = Path(__file__).resolve().parents[2] / "core/state.py"
+    (out / "snapshot_core_state.py").write_bytes(state_source.read_bytes())
     files = ["README.md", "contract_diagnostics.json", "lane_summary.csv",
              "protocol.json", "lane_contract_v2.json", "snapshot_lane_contract.py",
-             "snapshot_core_receipts.py"]
+             "snapshot_core_receipts.py", "snapshot_core_state.py"]
     source_hashes = {
         "tasks/wilson_loop/lane_contract.py": hashlib.sha256(
             source_snapshot.read_bytes()).hexdigest(),
         "core/receipts.py": hashlib.sha256(
             (out / "snapshot_core_receipts.py").read_bytes()).hexdigest(),
+        "core/state.py": hashlib.sha256(
+            (out / "snapshot_core_state.py").read_bytes()).hexdigest(),
     }
     scenario = scenario_spec(
         "wilson-two-lane-contract-fixtures",
@@ -847,6 +883,19 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
                 "count": row["failed"],
                 "reason": "; ".join(issues) or "structural validation failed",
             })
+    denominators["physical_run_state_gates"] = {
+        "unit": "one physical certification stage in core.RunState",
+        "planned": len(OPEN_RUN_GATES),
+        "valid": 0,
+        "failed": 0,
+        "abstained": len(OPEN_RUN_GATES),
+    }
+    reason_rows.append({
+        "unit": "physical_run_state_gates",
+        "state": "abstained",
+        "count": len(OPEN_RUN_GATES),
+        "reason": "physical certification awaits independent C/F receipts and explicit authorization",
+    })
     receipt_payload_hashes = {
         name: hashlib.sha256((out / name).read_bytes()).hexdigest()
         for name in files
@@ -868,6 +917,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
               for name in files + ["run_receipt.json"]}
     (out / "artifact_hashes.json").write_text(json.dumps(hashes, indent=2) + "\n")
     return {"status": protocol["status"], "physical_score": None,
+            "run_state": run_state,
             "fixtures": results,
             "receipt": receipt,
             "files": files + ["run_receipt.json", "artifact_hashes.json"]}

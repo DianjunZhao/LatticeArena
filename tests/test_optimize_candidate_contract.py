@@ -6,6 +6,7 @@ import pytest
 from tasks.optimize_gaussian.candidate_contract import (
     build_report,
     candidate_spec_for,
+    open_gate_run_state,
     operator_contract_for,
 )
 
@@ -31,6 +32,17 @@ def test_optimize_candidate_contract_rejects_invalid_controls():
         candidate_spec_for([0.0, 0.25, 0.5, 0.75, 0.9])
 
 
+def test_open_physical_gates_project_to_abstained_state_without_score():
+    state = open_gate_run_state()
+
+    assert state["physical_ready"] is False
+    assert state["score"] is None
+    assert set(state["status"].values()) == {"abstained"}
+    assert all(state["evidence"][stage] for stage in state["status"])
+    assert "E-chain" in state["evidence"]["reference"][0]
+    assert "confirmation IDs" in state["evidence"]["comparison"][0]
+
+
 def test_candidate_contract_report_is_hashed_and_has_text_flow(tmp_path):
     output = tmp_path / "candidate-contract"
     report = build_report(output)
@@ -40,14 +52,26 @@ def test_candidate_contract_report_is_hashed_and_has_text_flow(tmp_path):
     assert report["status"] == "DIAGNOSTIC_SCHEMA_ONLY"
     assert report["physical_score"] is None
     assert report["data_access"] == "none"
+    assert report["run_state"]["physical_ready"] is False
+    assert report["run_state"]["score"] is None
+    assert set(report["run_state"]["status"].values()) == {"abstained"}
     assert report["denominators"]["coefficient_fit"]["planned"] == 0
+    assert report["denominators"]["run_state_gates"] == {
+        "planned": 5, "valid": 0, "failed": 0, "abstained": 5,
+        "unit": "one physical certification stage in core.RunState",
+    }
     assert "selected D11 method defaults are recorded" in (output / "README.md").read_text()
     assert receipt["schema"] == "latticearena-run-receipt-v1"
     assert receipt["status"] == "complete"
-    assert receipt["reason_rows"] == []
     assert receipt["denominators"]["schema_fixture"]["not_run"] == 0
     assert receipt["denominators"]["coefficient_fit"]["planned"] == 0
+    assert receipt["denominators"]["run_state_gates"]["abstained"] == 5
+    assert receipt["reason_rows"] == [{
+        "unit": "run_state_gates", "state": "abstained", "count": 5,
+        "reason": "physical certification awaits independent receipts and explicit authorization",
+    }]
     assert "core/receipts.py" in receipt["scenario"]["source_hashes"]
+    assert "core/state.py" in receipt["scenario"]["source_hashes"]
     assert "research_contract_v1.json" in receipt["scenario"]["source_hashes"]
     for name, expected in receipt["artifact_hashes"].items():
         assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected
@@ -56,6 +80,7 @@ def test_candidate_contract_report_is_hashed_and_has_text_flow(tmp_path):
         "run_receipt.json", "snapshot_chebyshev_baseline.py",
         "snapshot_research_contract_v1.json",
         "snapshot_core_receipts.py", "snapshot_core_specs.py",
+        "snapshot_core_state.py",
         "snapshot_kernels.py",
     }
     for name, expected in manifest.items():
