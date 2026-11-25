@@ -1,5 +1,13 @@
 # Pion projection: bounded block-risk calibration handoff
 
+### 2026-11-25 接续复核：anchor-fit 区间桥仍不能安全实现
+
+本轮复核向量 anchor handoff 后，没有读取 D/E、gap、validation 或 shared-holdout 输入。现有 `bounded_block_risk_anchor_vector.py` 只生成固定有界 feature 均值盒；其 diagnostic 把 `target_fit_interval` 与 common-bias `C` 留为 null。可复用的 two-state runner 目前只存在于 D-development archive 的 source snapshot，而任务主路径的 `statistics.py` 是单态拟合；不能把 archive runner 或当前 D-development 协方差自动视作已冻结的 E-anchor estimator。
+
+要实现 sound branch-and-bound，至少还缺：每个 PP/A4P per-state feature 的**事前有限支持证明**、冻结的 feature→channel/time 映射、固定且可验证正定的协方差/regularization 及其误差处理、紧致的 mass/state-order 参数域、双态/三态与窗口 gate 的区间定义，以及从 `m*` 区间到 common-bias `C` 的独立论证。Wilson-like propagator/correlator 不能仅因格点有限或观测样本有限就视作有界；从已见 D 样本取 min/max 也不构成目标分布支持界。缺这些输入时，写 B&B 数值或 fixture 不会闭合物理 estimand，反而可能把假定误报为证书，所以本轮不新增伪通用 solver。
+
+文字流程：`独立 anchor feature 支持与 estimator/covariance receipt -> 同时 feature box -> 冻结 PP/A4P fit 的全局 minimizer enclosure -> m* hull -> 独立 common-bias C bridge -> review/授权 -> 才能进入确认；任何盒未闭合即 ABSTAIN`。本项实现/应用分母为 `0/0/0/0`（没有合格输入计划）；物理 score 仍为 null，TODO 保留。当前 CPU 侧没有能在不造假假设、不重跑已完成 synthetic 网格条件下关闭此证书缺口的合法动作。
+
 ## 2026-11-25 我自行选定的 bounded block-risk 输入
 
 用户已要求我自行给出方法输入。以下是可以直接作为下一版方案默认值的选择，**不是测量结果、收据或外部授权**。本节覆盖前文“等待用户选择 target、R、clipping、delta_star”的候选问题；经验量和状态仍按下文的封存/未认证规则处理。
