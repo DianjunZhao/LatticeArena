@@ -1,5 +1,36 @@
 # optimize_gaussian: trainable-W smear 对照研究 handoff
 
+## 2026-11-25 我自行选定的 D04/D06/D11 输入
+
+用户已要求我自行给出研究输入。下面冻结为可实现的**候选 protocol defaults**，覆盖前文要求研究者选择 D04、D06、D11 的段落。它们是方法选择，不是数据结果、物理授权或 GPU 批准；缺失的 receipt 和资源门仍必须保持打开。
+
+### D04：物理 reference 与风险目标
+
+- **Observable/reference：**S16T16、quenched Wilson、`kappa=0.14`、零动量最低 valence isovector pseudoscalar 的 `a_t m_{pi,0}`；用单独 E-chain 的 candidate-blind 多通道联合谱拟合，通道为 PP `n=0,8,16` 与局域 A4P，共享两态能量、通道振幅独立，PP 偶折、A4P 奇折，主拟合 `t=3..8`，窗口/模型检查 `t_min=2,3,4` 与二态/三态。
+- **优化量：**沿用 Pion fixed-protocol 风险，单位 dimensionless：`q_theta(t)=C_theta(t)/(A_theta f_0(t))`，`R_theta=mean_{t=2..5}[Var_boot(q_theta(t))+|E_boot q_theta(t)-1|^2]`；振幅在 `t=6..8` 拟合，`f_0` 使用独立 anchor 的 `a_t m_{pi,0}`。所有 arms 使用相同时间窗、相关协方差、重采样块和 reference draws。D04 通过门为相对质量误差≤5%、`p>=0.01`、PP/A4P 与窗口/模型位移≤2.5 paired SE、无边界命中；失败则没有 D04 risk，也不以 operator-level synthetic loss 代替。
+- **数据来源：**参考定义可由现有 S16T16 协议确定，但数值只来自独立 E-chain；当前 E correlator/receipt 不存在于可审阅树，现有单-cosh pilot 门失败，所以 D04 measurement gate 仍未通过。
+
+### D06：minimum meaningful effect 与推断
+
+- 两个已选比较保持不变：trainable-W vs same-budget SLSQP；trainable-W vs fixed degree-4 Bernstein/Chebyshev 强谱基线。
+- 定义 `rho_j=R_comparator,j/R_trainableW`，`rho>1` 有利于 trainable-W。**选定 `r_star=1/0.90=1.111111...`**，即至少 10% 的相对风险下降才算有意义；该阈值是考虑学习训练/复杂度成本的事前判据，不从 synthetic `10%` 结果推断。
+- 比较族 `F=2`，总单侧 `alpha=0.05`，Bonferroni 每个对比 `alpha=0.025`。使用相同配置 IDs 的 paired block bootstrap（10,000 draws，length-5 moving blocks；length 2/10 只作预先规定的稳定性诊断），分别给风险比单侧下界；报告三个 block length interval 的 hull `[min(lower),max(upper)]`，只有 hull 的下界也高于 `1.111111...` 才可通过。任一风险在全样本或重采样中为零/无效时，`log(rho)` 不可定义，标 `ABSTAIN_RATIO_UNDEFINED`；不临时加 epsilon 或改绝对差门槛。
+
+### D11：固定强谱 baseline 合同
+
+- 空间平移 `T_i` 使用 `(z,y,x,3,nrhs)` 字段与三个周期方向、等权 unitary 3×3 links。定义负协变拉普拉斯 `H=sum_i[T_i+T_i^dagger-2I]`，故 `H=H^dagger` 且 `spec(H) subset [-12,0]`；`y=I+H/12 in [0,1]`。
+- 强谱核固定为 `P4(y)=sum_{i=0}^4 b_i*C(4,i)*y^i*(1-y)^(4-i)`，`0<=b0<=b1<=b2<=b3<=b4=1`。这给 `0<=P4<=1`、对 `y` 单调不减、`P4(1)=1` 的低模归一化，因而在上述 Hermitian H 下 PSD。拟合只优化 `b0..b3`，无事后 clipping/projection；超域、非 unitary links、错误 shape/boundary、非有限值或不可行系数均 fail closed。
+- 外层 Gaussian sandwich 固定为 `G^2 P4(H) G^2`，`G=I+0.10*sum_i(T_i+T_i^dagger)`，`m=2`、不做每步归一化。其谱位于 `[0.4,1.6]`；raw 零模总因子为 `(1+6*0.10)^(2m)=1.6^4=6.5536`。Pion 风险对共同非零整体振幅不变；报告仍须记录该因子和数值范围。trainable-W 与 SLSQP arms 使用同一固定 sandwich，避免把外层预处理差异混入比较。
+- 强谱基线就是这个固定 degree-4 单调 PSD family；不得在看到 confirmation 后改次数、窗口、约束或 Gaussian 参数。矩阵自由/显式小格矩阵一致性可在 CPU 验证；生产 links、D04 receipt、同预算计时、真实 W 训练和 GPU 资源批准仍未提供。
+
+文字流程：`独立 E reference -> 固定 Pion risk -> fit IDs 上分别训练 W、同预算 SLSQP、degree-4 P4 -> 共同 G^2 sandwich -> 锁定参数与候选 -> 新的 paired confirmation IDs -> 两个 Bonferroni risk-ratio 下界都过 1.1111 才算整体成功`。
+
+**交接规则：**本文件下方 2026-11-24 的“等待研究者冻结 D04/D06/D11”是历史 handoff，现由本节 protocol defaults 覆盖；不要再次向用户问目标/reference、`r_star` 或算符形式。下一位 agent 应将这些 method fields 写进 Optimize 合同与文本诊断，把 E 数据收据、预算实测、独立 review 和 GPU/confirmation 授权留作空门；先做 CPU 合同/小格算符验证并配文字流程或响应图，不重复 synthetic teacher/meta-init 网格。
+
+## 2026-11-25 当前 Optimize 接手点
+
+上文 D04/D06/D11 的目标、风险方向/效应门槛、degree-4 算符与 Gaussian sandwich 已由本轮选定。历史 Astra handoff 仍用于保留当时状态，不再构成“等待用户选择”的理由。接手 agent 先将方法字段写入 machine contract；真实 E reference receipt、数据 split/hash、硬件/cost ledger、independent review 与 GPU/QUDA 授权仍未取得，故保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`，不训练真实 W、不打开 sealed confirmation。
+
 ## 决策状态与问题
 
 - 用户要求同时比较学习型 smear 对同预算 SLSQP 与强谱基线；确认族为 `F=2`。

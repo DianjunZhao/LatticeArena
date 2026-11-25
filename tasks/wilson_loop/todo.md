@@ -1,5 +1,32 @@
 # wilson_loop: finite-T Creutz 与基态离散静态力 handoff
 
+## 2026-11-25 我自行选定的 C/F protocol defaults
+
+用户已要求我自行给出 lane 输入。以下选择替代本文件早先“请研究者在两个候选中选择”的待办；它们是预先规定的研究设计，不是污染测量、owner 授权或物理结论。C 与 F 仍是不同 estimand。
+
+### C lane：primary finite-T Creutz
+
+- **主点与 kernel：**当前 pilot geometry/action `16^3 x 16`、周期边界、Wilson `beta=6.0`，`N_t=16`，`R=2,T=5`，主 kernel `spatial_stout_rho0.10_n5`。APE `alpha=0.4,n=5` 和 identity 只作为预先标明的描述性比较，不扩充 primary family。APE/stout 的弱场参数匹配不表示非微扰 smearing 半径相等。
+- **Estimand：**主报告 `chi_stout(2,5)=-[log Wbar(3,6)+log Wbar(2,5)-log Wbar(3,5)-log Wbar(2,6)]`，无量纲。它是 finite-`T` Creutz observable；不重命名为 ground-state force。每个共同 paired bootstrap draw 先算四个 loop 的 ensemble mean，再对正均值取 log。
+- **推断与精度：**C/F 为两个 co-primary lanes，`alpha_total=0.05`，Bonferroni `alpha_C=alpha_F=0.025`；每 lane 给双侧 97.5% interval，lane familywise coverage 至少 95%。C 的目标 half-width `<=0.02` dimensionless。使用相同配置 IDs 的 10,000 次 paired circular block bootstrap，length 5；length 2/10 作固定敏感性诊断，采用三种长度中最宽的区间。任一必需 loop mean 非正/非有限时保留该 draw 为失败；失败 draws 超过 1% 或未达到 precision gate 则 abstain，不删 draw 或更换主点。
+
+### F lane：基态离散静态力与独立污染预算
+
+- **主点/contrast：**`R=2` stencil，midpoint `R+1/2=2.5`；比较 stout candidate 与 identity reference：`Delta f0=[U0_stout(3)-U0_stout(2)]-[U0_id(3)-U0_id(2)]`。报告单位为 `a_s*a_t*F = Delta_R U0`（dimensionless lattice force），不声称 continuum force。
+- **独立污染 evidence route：**每个 `R=2,3` 用 identity/APE/stout 三算符 static-source basis 做 `t0=1, td=2` 的 3×3 GEVP；两态与三态 finite-`N_t` joint spectral fits 覆盖 `t=3..7`，并比较 `t_min=3,4,5`。热项另需匹配同 action、`a_s/a_t`、空间体积和 kernel 的 `N_t=32` 数据；`x` mixed term 用联合模型的同时上界，不准默认为零。谱/热拟合只能在与最终 F confirmation 不重叠的 calibration IDs 上给界，并需保存每个模型、时间窗、失败、截断与参数相关性的图/文本收据。
+- **预先接受的误差上限：**以正的 reference ground-state force 的同时下置信界 `f_ref,L>0` 为分母；若不成立则 `ABSTAIN_FORCE_SCALE`。在 lattice force units 中，excited-state `q` <= `1.5% |f_ref|`、finite-`N_t` thermal `h` <= `1.5%`、mixed `x` <= `1.0%`、谱模型/截断 `<=1.0%`，传播到双差后线性相加总系统界 `<=5% |f_ref|`。F 的统计区间 half-width `<=5% |f_ref|`；最坏线性总误差预算为 `<=10% |f_ref|`。finite-a 和 finite-volume 不属于这个固定格距/固定体积 estimand；若要报物理 continuum force，必须另开外推与预算。
+- **多重性与传播：**C 占 `alpha=.025`；F 的 `alpha=.025` 分成统计 `.0125` 与污染上界 `.0125`。F statistical alpha 在 `Delta f0` 双侧区间与 `f_ref>0` 下界间各分 `.00625`。将 q/h/x 同时上界覆盖两个 kernels、`R=2,3`、`t=5,6` 的 24 个 kernel×R×t×term cells，另给两个 kernels×两个 R 的 4 个谱模型/截断项；Bonferroni 每项 `alpha=0.0125/28`。用有限 `N_t` 的精确 `log(1+q+h+x)` 四点传播到 `Delta_R Delta_t`，最后才与 force-unit budget 比较。
+
+当前 `lane_contract.py` 的 C `primary.kernel_id` 只能写一个 kernel，适配本次选定的 stout absolute Creutz；F `primary` 记录 integer stencil `R=2` 与 stout/identity IDs。所有数值门槛都是拟议 protocol defaults，q/h/x、GEVP gaps/overlaps、`N_t=32` 数据和独立 receipts 仍不存在，因此继续 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。D0–99 已观察，绝不用于本候选的 confirmation；封存 split 与 GPU/QUDA 仍关闭。
+
+文字流程：`同一新配置/paired blocks -> 4 个 loop means -> C: finite-T chi_stout(2,5) 与 0.02 half-width gate`；`独立 calibration IDs + 3x3 GEVP + Nt16/Nt32 joint spectrum -> 分别给 q/h/x/model force-unit 上界 -> F: Delta_R U0(2) candidate-reference -> 5% systematic + 5% statistical gates -> 缺任一收据即 ABSTAIN`。
+
+**交接规则：**下文所有要求用户在 identity 与 APE/stout、R/T/kernel 或误差预算间选择的段落均为历史记录，现由本节 defaults 覆盖；不要再次要求用户选择这些方法输入。下一位 agent 应将已选 C/F 字段与 alpha/precision/error budget 写入 lane contract，保留独立谱/thermal receipts、paired split plan、审阅与资源授权为空；输出合同 blocker 表和 q/h/x→force 的文字流程/敏感度图，但不读 D0–99 或封存确认数据、不运行 GPU/QUDA。
+
+## 2026-11-25 当前 Wilson 接手点
+
+C 主点固定为 stout absolute `chi(2,5)`；F 主点固定为 stout-minus-identity ground-state discrete force at `R=2.5`。较早关于改选 identity 或 APE/stout primary 的段落属于历史状态。接手 agent 按本节填入合同中的 protocol/budget 字段，只有测量值与独立 q/h/x/GEVP/Nt32 receipts 继续保持空缺；生成的诊断必须明确 `0` 个新物理测量，并附 C/F blocker 表与文字/图示流程。未经授权不读封存数据或运行 GPU/QUDA。
+
 ## 用户已选择的两个独立 estimand
 
 1. **C lane：有限时间 Creutz observable** `chi_k(R,T)`。在 protocol 冻结后，它可作为有限 `T` 的直接观测量报告；不能自动改名为基态精度或改善。
