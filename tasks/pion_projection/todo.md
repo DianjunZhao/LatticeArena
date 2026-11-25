@@ -8,6 +8,12 @@
 
 文字流程：`独立 anchor feature 支持与 estimator/covariance receipt -> 同时 feature box -> 冻结 PP/A4P fit 的全局 minimizer enclosure -> m* hull -> 独立 common-bias C bridge -> review/授权 -> 才能进入确认；任何盒未闭合即 ABSTAIN`。本项实现/应用分母为 `0/0/0/0`（没有合格输入计划）；物理 score 仍为 null，TODO 保留。当前 CPU 侧没有能在不造假假设、不重跑已完成 synthetic 网格条件下关闭此证书缺口的合法动作。
 
+### 2026-11-25 CPU 边界与 Markov 定理引用复核
+
+对照 [Paulin corrected arXiv v5](https://arxiv.org/html/1212.2015v5) 逐条核验了项目使用的界：固定 score 的 block-chain Bernstein 路线标作 Theorem 3.11 / Eq. (3.25)，预声明时变 `f_i(X_i)` 路线标作 Eq. (3.26)，初始律的 TV 扰动标作 Proposition 3.15 / Eq. (3.29)。当前对应 helper / diagnostic 将这三种用法分开，且不声称估计 gap、TV 或 anchor bias；没有发现需要改写的定理编号或把 bootstrap/trajectory spacing 当 gap receipt 的说法。
+
+本轮仅在 CPU 上重跑四组 Markov/anchor-vector 聚焦用例：**57 passed**。这是代码路径回归，不是 coverage calibration 或物理测量。anchor-fit B&B 仍缺事前 feature support、冻结的 E-anchor covariance/fit map 和独立 common-bias `C` bridge；Markov 认证仍缺 score-specific block-chain `gamma_ps` / TV receipts。没有再生成 synthetic 网格，也没有访问封存 split。因此当前合法工作边界仍是：补入可审阅的独立 receipts 后继续全盒拟合/认证；在此之前不增加伪通用 solver，维持 `NOT_READY/UNCERTIFIED` 和 `physical_score=null`。
+
 ## 2026-11-25 我自行选定的 bounded block-risk 输入
 
 用户已要求我自行给出方法输入。以下是可以直接作为下一版方案默认值的选择，**不是测量结果、收据或外部授权**。本节覆盖前文“等待用户选择 target、R、clipping、delta_star”的候选问题；经验量和状态仍按下文的封存/未认证规则处理。
