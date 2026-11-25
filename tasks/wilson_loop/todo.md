@@ -278,3 +278,13 @@ PR #6 提交 [`a22cd23`](https://github.com/Greyyy-HJC/LatticeArena/commit/a22cd
 我核对了 PR #6 的 `results/wilson_loop/` 跟踪文件：当前内容是有限-`N_t` toy、随机正谱压力测试、污染敏感度与 lane-contract 诊断；没有逐配置 loop 数据、C lane paired draws、F lane GEVP 拟合或匹配 `N_t=32` 热对照文件。盘点限于 tracked tree，不搜索 ignored `data/`、本地缓存或外部存储，也不读取 sealed split。
 
 因此没有可直接复用的当前校准样本来生成 C interval 或 F contamination bound。后续需要 owner 提供授权的、与确认 split 隔离的 calibration package 及 manifest；在此之前保留两个 estimand 的独立状态和既定图文交付流程。
+
+## 2026-11-25 继续推进：开放 D 开发样本的 C-lane 回顾性预检
+
+“仅 tracked tree”盘点不覆盖根工作树本机 `.gitignore` 下的开放 Wilson 结果。本轮发现并只读取经提交收据绑定的 S16T16D `development` 交易：`development.npz` 的 split 为 0–99，NPZ SHA-256=`da8cc5d72481475a8cd6d821692db2e21555c0bd5b1849747dc75a946dbd7209`，provenance SHA-256=`082ad7060e776f6e724ee02ac1de9c94e706332eb875019f3b9d1c45d4e9e82b`，loop array SHA-256=`513b67dde074d96c89c82395151a0079ca746be63c7dd5ac5c6ea1ae6d243dcc`。生成与输入 provenance 标记一致，stout rho=0.1、5 steps 的固定 kernel 与冻结 source fingerprints 相符；没有读取 validation、gap、shared holdout 或任何 confirmation 文件。
+
+PR #6 新增 [C-lane 回顾性预检报告、区间图、协议、逐 draw bootstrap 估计与 manifest](https://github.com/DianjunZhao/LatticeArena/blob/ef5e110d4f51032ebea404b1365a93b5f505c2e8/tasks/wilson_loop/c_lane_open_development_diagnostic_20261125_v1/README.md)。在 D0–99 上，absolute finite-T `chi_stout(2,5)=0.10443172`；L=2/5/10 的 97.5% 区间依次为 `[0.095313,0.113508]`、`[0.095885,0.113422]`、`[0.097846,0.111785]`。30,000/30,000 paired circular-block draws 有效、坏 draw 为 0；interval hull half-width=`0.00910 < 0.02`，故**经验数值精度门通过**。图中同时画出三个 block-length intervals、hull、precision 门与 invalid-draw 门。
+
+此处的 `PASS` 仅指已观察开发样本上的合同数值检查：D0–99 已用于开发/可能的主点选择，循环 block bootstrap 不证明覆盖率或有限依赖，因此不是独立 calibration、confirmation 或物理认证。它也不改变 F lane：现有包只有 `N_t=16` loops，没有独立 3×3 GEVP/spectral receipt 或匹配 `N_t=32` 热数据。文字流程：`校验开放 D development hashes/split/kernel -> 四个正 loop means -> 同一 IDs 做 L=2/5/10 paired resampling -> 保留 30,000 个 planned draws 与 invalid denominator -> interval hull 数值预检 -> 回顾性报告；独立校准仍 NOT_READY`。
+
+当前更新后的边界：C 已有一份 D0–99 回顾性 observable 与精度诊断，但仍有 `0` 份独立 calibration/confirmation 收据；F 污染界仍缺。下一步只使用 data owner 批准、与最终 confirmation 隔离且此前未观察的 calibration IDs；F 仍需独立 GEVP、多态窗口、匹配 `N_t=32`、q/h/x 同时界及 force-unit 误差预算。保留 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 与 sealed data closed；不运行 GPU/QUDA。

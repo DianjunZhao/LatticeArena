@@ -338,3 +338,9 @@ v14 文本表格逐项列出 blocker；`physical_score=null`、`NOT_READY/UNCERT
 我核对了 PR #5 工作树中 `tasks/pion_projection/` 与 `results/pion_projection/` 的 Git 跟踪文件名。匹配 `.csv/.npz` 的文件属于 coverage、敏感度和合同诊断包；没有发现作为新输入的逐配置 correlator、独立 E-chain reference 或 anchor-chain receipt。任务 README 提到被 `.gitignore` 排除的 `.cache/pion_projection/propagators/`，本轮没有检查该缓存，因此本盘点不代表缓存或外部存储中不存在可用配置。
 
 当前下一步仍是由数据 owner 提供可访问且身份/分割清楚的独立 E-chain 与 anchor receipts，再审核有限支持、gap/TV、协方差、common-bias `C` 和 score-chain 独立性；没有这些输入时，不运行区间拟合映射或 confirmation，保留 `NOT_READY/UNCERTIFIED`。
+
+## 2026-11-25 继续推进：现有 D-chain reuse audit 的边界
+
+本轮只读了本机已存在的 Optimize D-chain adapter/reuse audit 摘要，没有打开 `.cache/pion_projection/propagators/` 文件。该摘要记载 D0–99 point propagators 的 byte-hash 检查为 100/100、最大记录 residual 为 `9.997510675285575e-11`；同时明确 Pion reference gate 为 `False`。这些是已有本地 ignored-results 报告中的开发输入审计记录，不是本轮新测量，也没有随 PR #5 打包。
+
+该结果只能支持“开发 split 的缓存身份与 residual receipt 可供后续 RunSpec 检查”，不能提供独立 E-chain reference、anchor feature 的有限支持、Markov `gamma_ps`/TV、common-bias `C` 或 target/score 覆盖。文字流程：`D0–99 propagator hashes/residual receipt -> Pion reference gate 仍失败 -> 不得据此生成 m* / anchor coverage -> 继续等待独立 E/anchor receipts`。不读取可能包含其他 split 的 cache，不读取封存输入，也不把该 adapter receipt 当作物理 reference。

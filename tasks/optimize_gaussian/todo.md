@@ -327,3 +327,11 @@ PR #6 提交 [`a22cd23`](https://github.com/Greyyy-HJC/LatticeArena/commit/a22cd
 我核对了 PR #6 工作树中 Optimize 的跟踪输入包：现有 `.npz` 输入均为 `synthetic_inputs.npz`，位于 CPU replay、stress 和 meta-init 诊断目录；跟踪到的 paired-risk/solver CSV 是这些诊断的汇总。没有发现 production gauge-link 输入、独立 D04 reference receipt、共同 fit/eval ID manifest 或实测 total-cost ledger。盘点只覆盖 Git 跟踪内容，不包含 ignored cache 或外部存储。
 
 下一步须取得独立 E-chain reference receipt、冻结 split/seed/hash 与可比成本收据，再按固定合同对 trainable-W、同预算 SLSQP、degree-4 Bernstein/Chebyshev 强基线做配对测量；生产 links review 与 GPU/QUDA 资源授权仍分别是独立门。
+
+## 2026-11-25 继续推进：D-chain 数据可复用线索与剩余门
+
+本轮只读本机已存在的 `d_chain_propagator_adapter_20261120/README.md` 与 `d_chain_propagator_reuse_audit_20261120/README.md` 摘要，没有打开 raw propagator cache。已有报告记载 D0–99 point propagators 的 hash 为 100/100 匹配、最大 residual `9.997510675285575e-11`，且在 Optimize 专属 RunSpec 绑定 solver settings、cache hashes、objective、代码后，可复用 fit IDs 0–59 与 development IDs 60–99，避免重复 point-source inversion。相同报告明确 Pion reference gate=`False`，并不等价于 Optimize 独立 D04 reference；真实 Optimize scoring 仍为 diagnostic。
+
+本机 `cpu_next_package_b` 报告另记三折内选择均落在 `H^32`，trainable/SLSQP 比值为 `1.719, 2.014, 0.810`；fold 数小、reference gate 失败且没有 inner CV，因此这些只是探索性条件结果。它们不能替代选定合同下 trainable-W、同预算 SLSQP、固定 degree-4 Chebyshev 强基线的同 ID/同 objective 配对风险与总成本账本。上述本机 audit/package 结果位于 ignored `results/`，未随 PR #5 打包；本轮没有重新打开 cache、训练真实 W 或读取任何封存 split。
+
+文字数据流：`旧 D0–99 hash/residual receipt -> Optimize RunSpec 绑定并复用 -> 先解决 candidate-blind reference 与 fit/eval split -> 三臂统一 objective/precision/call cap -> paired risk + 全成本 -> D11 production-link review -> 独立审阅/授权`。当前 RunSpec、独立 reference、成本/失败 ledger、真实 W 训练结果及授权仍缺；Optimize TODO 保留，状态继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
