@@ -24,7 +24,20 @@ DELTA_PER_BOUND = ALPHA_TOTAL / BOUND_EVENTS
 LOSS_CAP = 1.0
 
 
-def bounded_block_scores(q_by_block_arm_time: object) -> np.ndarray:
+def _failure_mask(value: object | None, n_blocks: int) -> np.ndarray:
+    if value is None:
+        return np.zeros((n_blocks, len(ARMS)), dtype=bool)
+    mask = np.asarray(value)
+    if mask.dtype.kind != "b" or mask.shape != (n_blocks, len(ARMS)):
+        raise ValueError("arm_failure_mask must be boolean with shape (blocks, 3 arms)")
+    return mask
+
+
+def bounded_block_scores(
+    q_by_block_arm_time: object,
+    *,
+    arm_failure_mask: object | None = None,
+) -> np.ndarray:
     """Map q[b, arm, t] into block scores in [0, 1].
 
     Each block is one inferential unit.  The four time points are averaged
@@ -38,13 +51,20 @@ def bounded_block_scores(q_by_block_arm_time: object) -> np.ndarray:
     if not np.isrealobj(raw):
         raise ValueError("q input must be real-valued")
     values = np.asarray(raw, dtype=np.float64)
-    if not np.isfinite(values).all():
-        raise ValueError("q input contains a non-finite value")
+    failures = _failure_mask(arm_failure_mask, int(values.shape[0]))
+    finite = np.isfinite(values)
+    # Missing/nonfinite q is tolerated only when that entire assigned arm's
+    # optimization failed.  The failure outcome itself is scored below as 1.
+    if np.any(~finite & ~failures[:, :, None]):
+        raise ValueError("q input contains a non-finite value outside a failed arm")
+    values = np.where(finite, values, 1.0)
     # Clip the deviation before squaring so even very large finite q values
     # cannot overflow.  This is exactly min((q-1)^2, 1).
     deviation = np.minimum(np.abs(values - 1.0), 1.0)
     losses = deviation * deviation
-    return np.mean(losses, axis=2)
+    scores = np.mean(losses, axis=2)
+    scores[failures] = LOSS_CAP
+    return scores
 
 
 def _one_sided_lower(
@@ -95,6 +115,7 @@ def bounded_block_risk_decision(
     block_scores: object,
     *,
     method: str = "empirical_bernstein",
+    arm_failure_mask: object | None = None,
 ) -> dict[str, Any]:
     """Test both fixed D06 effects for the bounded block-risk estimand.
 
@@ -110,6 +131,19 @@ def bounded_block_risk_decision(
     if not np.isfinite(scores).all() or np.any(scores < 0.0) or np.any(scores > LOSS_CAP):
         raise ValueError("block scores must be finite and lie in [0, 1]")
     n = int(scores.shape[0])
+    failures = _failure_mask(arm_failure_mask, n)
+    if np.any(scores[failures] != LOSS_CAP):
+        raise ValueError("failed arm blocks must carry the maximum loss score 1")
+    failure_counts = {
+        arm: int(np.count_nonzero(failures[:, index]))
+        for index, arm in enumerate(ARMS)
+    }
+    failure_summary = {
+        "arm_failure_counts": failure_counts,
+        "algorithm_failure_blocks_any_arm": int(np.count_nonzero(np.any(failures, axis=1))),
+        "scored_blocks": n,
+        "failure_score_rule": "an assigned arm optimization failure sets that arm's whole block score to 1; the block remains in n",
+    }
     if n < 2:
         return {
             "schema": "optimize-bounded-block-risk-decision-v1",
@@ -121,6 +155,7 @@ def bounded_block_risk_decision(
             "valid_blocks": 0,
             "failed_blocks": 0,
             "abstained_blocks": n,
+            **failure_summary,
             "physical_score": None,
         }
 
@@ -167,6 +202,7 @@ def bounded_block_risk_decision(
         "valid_blocks": valid_blocks,
         "failed_blocks": 0,
         "abstained_blocks": abstained_blocks,
+        **failure_summary,
         "trainable_w": {
             "empirical_risk": float(np.mean(scores[:, 0])),
             "positive_lower_bound": w_lower,
@@ -177,6 +213,8 @@ def bounded_block_risk_decision(
         "assumptions": [
             "macroblocks are independent draws from a fixed target distribution",
             "all three arms and four time points are paired inside each block",
+            "optimizer failure is a scored arm outcome with maximum loss, not a dropped block",
+            "missing/corrupt inputs outside a declared arm failure cause the run to abstain rather than being imputed",
             "candidate arms and the q-to-loss map are frozen before confirmation",
             "reference-fit uncertainty is handled separately and is not included here",
         ],

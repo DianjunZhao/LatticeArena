@@ -32,6 +32,43 @@ def test_block_score_rejects_bad_shape_nonfinite_complex_and_handles_huge_finite
     assert np.all(bounded_block_scores(huge) == 1.0)
 
 
+def test_failed_assigned_arm_is_scored_at_one_and_keeps_the_block():
+    q = np.full((10, 3, 4), 1.2)
+    failures = np.zeros((10, 3), dtype=bool)
+    failures[0, 1] = True
+    q[0, 1] = np.nan  # a failed solver has no q result
+    scores = bounded_block_scores(q, arm_failure_mask=failures)
+    assert scores[0, 1] == 1.0
+    assert np.all(scores[1:, 1] == pytest.approx(0.04))
+
+    decision = bounded_block_risk_decision(
+        scores, arm_failure_mask=failures,
+    )
+    assert decision["planned_blocks"] == decision["scored_blocks"] == 10
+    assert decision["failed_blocks"] == 0  # no observation was dropped
+    assert decision["arm_failure_counts"]["same_budget_slsqp"] == 1
+    assert decision["algorithm_failure_blocks_any_arm"] == 1
+    assert decision["comparisons"]["same_budget_slsqp"]["empirical_risk"] == pytest.approx(0.136)
+
+
+def test_missing_q_without_declared_algorithm_failure_abstains_by_rejection():
+    q = np.full((2, 3, 4), 1.2)
+    q[0, 1, 0] = np.nan
+    with pytest.raises(ValueError, match="outside a failed arm"):
+        bounded_block_scores(q)
+
+
+def test_failure_mask_shape_and_dropped_failure_score_are_rejected():
+    q = np.full((4, 3, 4), 1.2)
+    with pytest.raises(ValueError, match="boolean with shape"):
+        bounded_block_scores(q, arm_failure_mask=np.ones((4, 3), dtype=int))
+    failures = np.zeros((4, 3), dtype=bool)
+    failures[0, 2] = True
+    scores = bounded_block_scores(q)  # does not carry the failure penalty
+    with pytest.raises(ValueError, match="maximum loss score 1"):
+        bounded_block_risk_decision(scores, arm_failure_mask=failures)
+
+
 def test_alpha_split_covers_two_contrasts_and_shared_positive_denominator():
     assert BOUND_EVENTS == 3
     assert DELTA_PER_BOUND == pytest.approx(ALPHA_TOTAL / 3)

@@ -419,3 +419,13 @@ IID 校准设计覆盖 3 个已知真值有界 DGP、低于/恰在/高于最小�
 新增 bounded-risk 专项测试 **9 passed**；本 checkout 的完整 `tests/test_optimize*.py` 为 **97 passed**。当前只交付了候选统计规则和 synthetic calibration，不改写 `research_contract_v1.json` 的 D04 主风险，不接入 production evaluator，不读取 gauge/reference/sealed split，不产生 `physical_score`。
 
 后续顺序：先由独立统计 reviewer 复核“配对对比 + 分母正性 + 三界 Bonferroni”的覆盖逻辑和代码；再正式决定是否将 clipped block-risk 作为新版本 estimand（需保留旧 D04 结果并行报告）。无论该决定如何，真实执行前都需要可审计的独立宏块证明，或另推导并校准适用于 Markov/依赖宏块的修正界；否则 fail closed 为 `ABSTAIN`。之后还要冻结 block 构造、`q` 的 reference-fit uncertainty 传播与 confirmation split，再用独立授权的开发数据接 evaluator。文字流程：`frozen reference/candidates -> paired block q -> bounded score -> simultaneous contrast and positive-denominator bounds -> dependency receipt check -> release or abstain`。
+
+### 2026-11-26：Optimize bounded block-risk 的 optimizer failure 计分与分母
+
+合同已要求每臂失败 run 留在 assigned-arm 分母，但此前 bounded-risk helper 没有定义缺失 `q` 如何与真实 solver failure 区分。现将候选规则补为：若冻结的 optimizer 流程在某个配对宏块中对某臂没有返回 accepted finite candidate（包括预算耗尽或 frozen residual gate 失败），该臂整个宏块记 `X=1`，其它臂照常评分，宏块仍在 `n`；无法归类为 optimizer failure 的非有限/损坏输入不填补、不记作优化损失，runner 必须 `ABSTAIN`。因此 `failed_blocks=0` 表示没有丢弃不可评分观测；已发生的算法失败另按臂计数并作为最大 bounded loss 纳入风险。
+
+[`bounded_block_risk.py`](bounded_block_risk.py) 的 `bounded_block_scores(..., arm_failure_mask=...)` 现在只允许在明确标记失败的整个 arm-block 上接受缺失 `q`，并强制分数为 1；`bounded_block_risk_decision` 报告每臂算法失败数、含任一算法失败的宏块数及仍参与统计的 scored denominator。无失败掩码的 NaN、错误 mask shape/type、或把失败标记为低于 1 的分数都 fail closed。定向代码回归 `17 passed`（包含该 helper 与 bounded-risk diagnostic tests）。
+
+[精确混合敏感度图文](../../results/optimize_gaussian/d06_failure_penalty_cpu_20261126_v1/README.md)用成功风险 `(.04,.08,.075)` 和 303 组 failure-probability × pattern 公式格（planned/valid/failed/abstained=`303/303/0/0`）说明它如何改变两项主比较；公式为 `mu_a=p_fail,a+(1-p_fail,a)*mu_success,a`。例如 trainable-W 独有 `5%` 失败时，两个期望风险比为 `0.909/0.852`；两 comparator 独有 `5%` 失败时为 `3.150/3.031`；三臂同为 `5%` 时为 `1.432/1.378`。这些风险与概率都是图中声明的示意输入，不是训练测得的失败率或统计覆盖结论。此评分仍在 `[0,1]`，但只有独立配对宏块假设成立时才能套用当前浓缩界；HMC 依赖校正、D04 reference uncertainty 与 trainable-arm selection 仍未解决。
+
+文字流程：`预分配 arm + paired macroblock -> solver accepted: four-time clipped loss; solver failed: score=1 -> 保留全臂/全 block denominator -> missing/corrupt source not explained by solver status: ABSTAIN -> apply calibrated bound only after dependence and reference receipts`。当前没有 production solver receipt，主 D04 不变，`physical_score=null`；进入 evaluator 前仍须冻结 residual/timeout 的 failure 判定并校准真实失败过程。
