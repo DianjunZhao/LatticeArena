@@ -236,3 +236,15 @@ def test_pion_statistical_adapter_abstains_on_incomplete_source_hash_map():
     result = _apply(_ready_state(), envelopes, bad_hashes)
     assert result["status"] == "ABSTAIN_PION_STATISTICAL_ADAPTER"
     assert any("common_bias_receipt" in item for item in result["reasons"])
+
+    result = apply_pion_statistical_evidence_gate(
+        _ready_state(),
+        envelopes,
+        _receipt(),
+        anchor_scalar_map_id=ANCHOR_MAP_ID,
+        anchor_scalar_map_sha256=ANCHOR_MAP_HASH,
+        common_bias_bound_over_R=0.01,
+        required_source_hashes_by_envelope={"score": hashes["score"]},
+    )
+    assert result["status"] == "ABSTAIN_PION_STATISTICAL_ADAPTER"
+    assert any("exactly score and anchor routes" in item for item in result["reasons"])

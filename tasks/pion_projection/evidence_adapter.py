@@ -166,6 +166,8 @@ def _validate_source_hash_links(envelopes: object,
         return []
     reasons: list[str] = []
     for route in ("score", "anchor"):
+        if route not in required_hashes:
+            continue
         result = inspect_evidence_envelope(envelopes.get(route), require_review=True)
         if result["status"] != "SCHEMA_COMPLETE_NOT_CERTIFIED":
             continue
