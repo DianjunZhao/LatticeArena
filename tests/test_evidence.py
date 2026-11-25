@@ -18,10 +18,17 @@ HASH_C = "c" * 64
 
 def make_envelope(*, task="pion_projection", kind="score_dependence",
                   chain_id="score-chain", split_id="development",
-                  manifest_hash=HASH_A, unit="bounded score", review="reviewed"):
+                  manifest_hash=HASH_A, unit="bounded score", review="reviewed",
+                  reviewer_role_claim="independent"):
     review_record = (
         {"status": "pending"} if review == "pending" else
-        {"status": "reviewed", "receipt_sha256": HASH_B, "scope_sha256": HASH_C}
+        {
+            "status": "reviewed",
+            "receipt_sha256": HASH_B,
+            "scope_sha256": HASH_C,
+            "reviewer_role_claim": reviewer_role_claim,
+            "independence_claim_sha256": HASH_A,
+        }
     )
     return evidence_envelope(
         task,
@@ -178,6 +185,10 @@ def test_family_confidence_and_review_hashes_are_validated():
     malformed["review"]["receipt_sha256"] = "stale"
     assert inspect_evidence_envelope(malformed)["status"] == "ABSTAIN_INVALID_EVIDENCE_ENVELOPE"
 
+    malformed = copy.deepcopy(envelope)
+    malformed["review"]["independence_claim_sha256"] = "stale"
+    assert inspect_evidence_envelope(malformed)["status"] == "ABSTAIN_INVALID_EVIDENCE_ENVELOPE"
+
     with pytest.raises(ValueError, match="support.upper must exceed lower"):
         evidence_envelope(
             "fixture", "bad-support",
@@ -191,6 +202,36 @@ def test_family_confidence_and_review_hashes_are_validated():
                         "alpha_allocated": 0.01, "family_size": 1},
             source_hashes={"source": HASH_A},
         )
+
+
+def test_review_requires_an_explicit_independence_claim_but_does_not_authenticate_it():
+    no_independence_claim = make_envelope()
+    del no_independence_claim["review"]["independence_claim_sha256"]
+    invalid = inspect_evidence_envelope(no_independence_claim)
+    assert invalid["status"] == "ABSTAIN_INVALID_EVIDENCE_ENVELOPE"
+    assert "independence_claim_sha256" in invalid["reasons"][0]
+
+    non_independent = make_envelope(reviewer_role_claim="author")
+    result = inspect_evidence_envelope(non_independent)
+    assert result["status"] == "ABSTAIN_EVIDENCE_MISMATCH"
+    assert "reviewer role claim is not independent" in result["reasons"]
+    assert result["certified"] is False
+    assert result["physical_score"] is None
+
+    state = RunState()
+    gated = apply_evidence_gate(
+        state, "statistical", non_independent, make_run_receipt(),
+    )
+    assert gated["status"] == "ABSTAIN_EVIDENCE_GATE"
+    assert gated["run_state"]["status"]["statistical"] == "abstained"
+
+
+def test_dependence_assumptions_must_be_a_sequence_not_a_string():
+    envelope = make_envelope()
+    envelope["dependence"]["assumptions"] = "assume independent draws"
+    result = inspect_evidence_envelope(envelope)
+    assert result["status"] == "ABSTAIN_INVALID_EVIDENCE_ENVELOPE"
+    assert "sequence of nonempty strings" in result["reasons"][0]
 
 
 def test_runstate_gate_only_advances_to_draft_when_envelope_and_denominator_are_complete():

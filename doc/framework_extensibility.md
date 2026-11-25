@@ -156,14 +156,20 @@ The shared schema is implemented in [`core/evidence.py`](../core/evidence.py).
 and manifest hash; observable-map ID/hash and support with units; method/version
 and assumptions; IID, finite-dependence, Markov, spectral or deterministic
 route; confidence family/allocation; source hashes; and a hash-bound review
-receipt. For Markov evidence it requires `gamma_ps_lower`, burn-in unit/count,
-and a post-burn-in TV bound. A Wilson F-lane bound can carry the propagated
-force unit such as `a_s*a_t*F`, rather than an upstream loop's dimensionless
-unit.
+receipt. Review metadata includes `reviewer_role_claim`, a hash of the declared
+independence claim, and the reviewed scope. These fields are assertions carried
+by the envelope; they do not authenticate reviewer identity, conflicts or
+independence. For Markov evidence it requires `gamma_ps_lower`, burn-in
+unit/count, and a post-burn-in TV bound. A Wilson F-lane bound can carry the
+propagated force unit such as `a_s*a_t*F`, rather than an upstream loop's
+dimensionless unit.
 
 `inspect_evidence_envelope` returns `SCHEMA_COMPLETE_NOT_CERTIFIED` only when
-the envelope matches caller-frozen identity/unit/source expectations and review
-receipt; malformed, stale, mismatched or unreviewed inputs return `ABSTAIN`.
+the envelope matches caller-frozen identity/unit/source expectations and a
+review record claims an independent role with a hashed independence statement;
+malformed, stale, mismatched, non-independent or unreviewed inputs return
+`ABSTAIN`. This is a schema-v2 metadata check, not authentication of the
+reviewer or the statement.
 `inspect_distinct_chain_identities` rejects a reused chain ID or manifest while
 always returning `independence_proven=false`: unique labels and hashes cannot
 establish independent sampling. Consumers must still hash actual source bytes,
@@ -173,17 +179,18 @@ shared `RunReceipt`: missing/unrun denominator units or envelope errors send the
 requested `RunState` stage to `abstained`; a complete schema plus complete
 planned denominator advances only to `draft`, never `validated`.
 
-Eight fixtures cover Pion anchor/dependence, Optimize bounded-risk, and Wilson
+Fixtures cover Pion anchor/dependence, Optimize bounded-risk, and Wilson
 force-bound metadata. They explicitly exercise missing Markov gap, wrong chain,
-wrong force unit, stale source hash, missing review and reused chain identity;
-all invalid cases abstain. The focused run `python -B -m pytest -q
-tests/test_evidence.py tests/test_receipts.py` reports **16 passed**. This is a
-schema/fixture check only; no production receipt was supplied and no task
+wrong force unit, stale source hash, missing review, a non-independent reviewer
+role claim, a missing independence-claim hash and reused chain identity; all
+invalid cases abstain. The focused run `python -B -m pytest -q
+tests/test_evidence.py tests/test_receipts.py` now reports **18 passed**. The
+combined `tests/test_pion*.py tests/test_evidence.py tests/test_framework.py
+tests/test_receipts.py` run reports **213 passed**. This is a schema/fixture
+check only; no production receipt was supplied and no task
 evaluator currently consumes the envelope. The next implementation is to add
 task-owned adapters that map frozen contracts to expected dotted fields and
 source hashes, then use `apply_evidence_gate` from each task's `RunState` path.
-The combined `tests/test_pion*.py tests/test_evidence.py tests/test_framework.py
-tests/test_receipts.py` run reports **211 passed** after adding this core gate.
 
 ## Practical implementation order for a new task
 

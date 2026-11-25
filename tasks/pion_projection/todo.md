@@ -2,7 +2,7 @@
 
 ### 当前控制状态（2026-11-26）
 
-`F=3`、bounded block-risk、score/anchor 错误预算和 Markov 备选路线均已有明确方案及图文敏感度诊断；通用 `core/evidence.py` 现可校验证据元数据与 source/reviewer hash 字段，并对缺项/错配 fail closed。`apply_evidence_gate` 会把 envelope/RunReceipt 缺项写成 RunState `abstained`，完整元数据与完整 denominator 也只到 `draft`；尚未接入 Pion evaluator，且不证明 hash 对应字节、独立性或物理有效性。真实链的 `gamma_ps`/TV、E-reference、anchor scalar map、支持域/协方差或 common-bias `C` 收据仍缺。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`；按用户要求，E/gap/validation/shared holdout/confirmation 保持封存，不启动 GPU/QUDA。当前只可在收到身份绑定、获准的 receipts 后接 evaluator 和检查 fail-closed 路径；历史章节里的缺省输入表以新方案为准。
+`F=3`、bounded block-risk、score/anchor 错误预算和 Markov 备选路线均已有明确方案及图文敏感度诊断；通用 `core/evidence.py` 的 schema v2 校验 evidence/source hashes、reviewer role claim 与 independence-claim hash，并对缺项/错配 fail closed。`apply_evidence_gate` 会把 envelope/RunReceipt 缺项写成 RunState `abstained`，完整元数据与完整 denominator 也只到 `draft`；声明字段不认证 reviewer 身份、source bytes、统计独立性或物理有效性，且尚未接入 Pion evaluator。真实链的 `gamma_ps`/TV、E-reference、anchor scalar map、支持域/协方差或 common-bias `C` 收据仍缺。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`；按用户要求，E/gap/validation/shared holdout/confirmation 保持封存，不启动 GPU/QUDA。当前只可在收到身份绑定、获准的 receipts 后接 evaluator 和检查 fail-closed 路径；历史章节里的缺省输入表以新方案为准。
 
 ### 2026-11-25 接续复核：anchor-fit 区间桥仍不能安全实现
 
@@ -425,7 +425,7 @@ Q_prof(m;x) = x^T W x
 
 ### 2026-11-26 框架扩展点同步
 
-已把本轮 `F=3` score-Markov 与独立 anchor-Markov 两条条件路线、各自的错误预算和未认证边界同步到 [`framework_extensibility.md`](../../doc/framework_extensibility.md)。框架文档新增跨任务 typed evidence-envelope 的扩展提案：chain/state 单位、observable/block-map hash、support/units、依赖定理及假设、burn-in/TV、confidence allocation、来源与 reviewer receipt；另用文字流程区分 Pion score-chain 与 anchor-chain。它是设计建议，**尚未实现为 shared runtime**，不得把 task-local helper 的存在当作通用 receipt 已接线。
+已把本轮 `F=3` score-Markov 与独立 anchor-Markov 两条条件路线、各自的错误预算和未认证边界同步到 [`framework_extensibility.md`](../../doc/framework_extensibility.md)。该段最初只提出跨任务 typed evidence-envelope 设计；后续已在下文实现共享元数据合同与 RunState gate，task-local helper 和真实物理 receipt 仍未接线。
 
 Pion 侧可继续做的本地软件工作，仅限收到实际 scalar anchor map 与独立 receipt 后，将 `bounded_block_risk_anchor_markov.py` 的单态区间、目标映射和 `C` bridge 接到 task evaluator，并用 `wrong-chain / wrong-support / stale-hash / missing-TV / incomplete-denominator` 负例让它 fail closed。当前 map、E reference、独立性、`gamma_ps`/TV 与 `C/R<=0.01` 仍未具备；不得用 schema 例子、D0–99 或 synthetic coverage 补填。维持 `NOT_READY/UNCERTIFIED`、`physical_score=null` 和封存输入 closed；图文流程及 planned/valid/failed/abstained 分母要求继续适用。
 
@@ -436,3 +436,11 @@ Pion 侧可继续做的本地软件工作，仅限收到实际 scalar anchor map
 测试夹具覆盖 Pion anchor/dependence、Optimize bounded-risk、Wilson force-bound 三类元数据；missing Markov gap、wrong chain、wrong force unit、stale source hash、missing reviewer receipt、reused chain identity、incomplete denominator 均触发弃权。聚焦的 `test_evidence.py + test_receipts.py` 为 **16 passed**；再与全部 Pion、framework 文件合跑后为 **211 passed**。所有新样例均是 synthetic schema fixtures，`certified=false`、`physical_score=null`。文本流程：`冻结 task expectations -> 校验 typed envelope/单位/hash/review + RunReceipt denominator -> 缺项或错配即 RunState ABSTAIN -> 合同齐全最多到 draft -> task adapter 另行验证来源字节和数学/物理声明`。
 
 本项关闭的是跨任务元数据校验能力，不是 Pion evaluator 接线或 anchor 证书。下一步若要在 Pion 接线，必须先由实际合同提供 scalar map、chain/split IDs、source hashes 和 error budget；adapter 还要将 run-receipt denominator 完整性与 distinct-chain 身份检查连接到 `RunState`。在这些真实 receipt 和独立审阅到位前，不能把 envelope schema-complete 升格为 anchor coverage、common-bias `C` 或 bounded-score pass；E/封存输入继续关闭。
+
+### 2026-11-26 共享 evidence schema v2 复核
+
+复核发现 v1 仅凭 `review.status=reviewed` 和 receipt/scope 两个哈希就能满足独立审阅字段门，无法区分自审、作者审阅和独立审阅；同时依赖假设若误传成单个字符串，会被旧规范化逻辑拆成字符后接受。PR #5 已将 schema 升为 v2：显式要求 `reviewer_role_claim` 和 `independence_claim_sha256`，`require_review` 仅在角色声明为 `independent` 时通过；字符串形式的 dependence assumptions 现在拒绝。此字段只记录声明与声明文件哈希，不能认证审阅者身份、利益冲突或声明真实性；真实独立性仍需外部核验。
+
+验证：`tests/test_evidence.py tests/test_receipts.py` **18 passed**；`tests/test_pion*.py tests/test_evidence.py tests/test_framework.py tests/test_receipts.py` **213 passed**。负例涵盖缺 independence claim、role=`author`、错误声明 hash、依赖假设字符串、错链/单位/来源和 incomplete denominator；所有结果仍 `certified=false`、`physical_score=null`。文字流程：`schema v2 结构检查 -> 声明为 independent 且 review scope/hash 齐全 -> 外部核验实际声明与源字节 -> task adapter/RunState -> 最多 draft；任一步缺证据则 ABSTAIN`。
+
+此项修复不关闭 Pion 的物理 TODO。后续仍需真实 scalar anchor map/support、独立 E reference、score/anchor stationarity 与 gap/TV receipts、`C/R<=0.01` 论证及独立审阅；不打开封存 split，不把声明字段或合成夹具当成物理证明。

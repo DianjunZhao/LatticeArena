@@ -1,8 +1,9 @@
 """Typed, fail-closed metadata contracts for scientific evidence receipts.
 
 These helpers verify that a receipt names the expected chain, observable,
-support, method, confidence allocation, sources and review artifact. They do
-not authenticate those artifacts or certify the underlying physics claim.
+support, method, confidence allocation, sources and review artifact. Review
+role and independence are recorded as claims; the schema does not authenticate
+those claims or certify the underlying physics.
 """
 from __future__ import annotations
 
@@ -14,7 +15,7 @@ from typing import Any
 from .receipts import RECEIPT_SCHEMA, run_receipt as normalize_run_receipt
 
 
-EVIDENCE_SCHEMA = "latticearena-evidence-envelope-v1"
+EVIDENCE_SCHEMA = "latticearena-evidence-envelope-v2"
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _DEPENDENCE_MODES = frozenset(("iid", "finite_dependence", "markov", "spectral", "deterministic"))
 
@@ -111,9 +112,13 @@ def evidence_envelope(
     mode = dependence.get("mode")
     if mode not in _DEPENDENCE_MODES:
         raise ValueError(f"dependence.mode must be one of {sorted(_DEPENDENCE_MODES)}")
+    dependence_assumptions = dependence.get("assumptions")
+    if (isinstance(dependence_assumptions, str)
+            or not isinstance(dependence_assumptions, (list, tuple))):
+        raise ValueError("dependence.assumptions must be a sequence of nonempty strings")
     normalized_dependence: dict[str, Any] = {
         "mode": mode,
-        "assumptions": list(dependence.get("assumptions", ())),
+        "assumptions": list(dependence_assumptions),
     }
     if not normalized_dependence["assumptions"]:
         raise ValueError("dependence.assumptions must be nonempty")
@@ -182,6 +187,13 @@ def evidence_envelope(
         normalized_review.update({
             "receipt_sha256": _sha(review.get("receipt_sha256"), "review.receipt_sha256"),
             "scope_sha256": _sha(review.get("scope_sha256"), "review.scope_sha256"),
+            "reviewer_role_claim": _text(
+                review.get("reviewer_role_claim"), "review.reviewer_role_claim"
+            ),
+            "independence_claim_sha256": _sha(
+                review.get("independence_claim_sha256"),
+                "review.independence_claim_sha256",
+            ),
         })
 
     return {
@@ -211,7 +223,8 @@ def inspect_evidence_envelope(
 
     A successful result is only ``SCHEMA_COMPLETE_NOT_CERTIFIED``. External
     hashes must still be checked against their actual bytes by the receipt
-    consumer, and scientific assumptions still require independent review.
+    consumer. A role and independence claim in the review record are metadata,
+    not proof of reviewer identity, conflict status or scientific correctness.
     """
     try:
         if not isinstance(envelope, dict) or envelope.get("schema") != EVIDENCE_SCHEMA:
@@ -251,8 +264,12 @@ def inspect_evidence_envelope(
             actual = normalized["source_hashes"].get(name)
             if actual != digest:
                 reasons.append(f"source hash mismatch {name!r}: expected {digest}, observed {actual!r}")
-    if require_review and normalized["review"]["status"] != "reviewed":
-        reasons.append("independent review receipt is missing")
+    if require_review:
+        review = normalized["review"]
+        if review["status"] != "reviewed":
+            reasons.append("independent review receipt is missing")
+        elif review["reviewer_role_claim"] != "independent":
+            reasons.append("reviewer role claim is not independent")
     return {
         "status": "ABSTAIN_EVIDENCE_MISMATCH" if reasons else "SCHEMA_COMPLETE_NOT_CERTIFIED",
         "reasons": reasons,
