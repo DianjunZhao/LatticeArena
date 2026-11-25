@@ -6,6 +6,10 @@
 
 要实现 sound branch-and-bound，至少还缺：每个 PP/A4P per-state feature 的**事前有限支持证明**、冻结的 feature→channel/time 映射、固定且可验证正定的协方差/regularization 及其误差处理、紧致的 mass/state-order 参数域、双态/三态与窗口 gate 的区间定义，以及从 `m*` 区间到 common-bias `C` 的独立论证。Wilson-like propagator/correlator 不能仅因格点有限或观测样本有限就视作有界；从已见 D 样本取 min/max 也不构成目标分布支持界。缺这些输入时，写 B&B 数值或 fixture 不会闭合物理 estimand，反而可能把假定误报为证书，所以本轮不新增伪通用 solver。
 
+**支持界需要什么（解析判据，非测量）：**若某个固定 anchor feature 可写成 `f_j(U)=Re〈η_j,D_W(U)^{-1}ξ〉`，则有 `|f_j(U)|≤||η_j||·||ξ||/σ_min(D_W(U))`；若是 propagator 双线性 contraction `f_j(U)=Re[(D_W^{-1}ξ)†Γ_j(D_W^{-1}ξ)]`，则 `|f_j(U)|≤||Γ_j||·||ξ||²/σ_min(D_W(U))²`。所以一个足够条件是对合同允许的**整个 gauge-support** 证明统一的 `σ_min(D_W(U))≥δ>0`，再把 source/operator norm 和所有归一化分母的正下界一并纳入；也可直接给每个 feature 的更紧确定性包络。有限矩阵维数与 compact link 域本身不保证 `δ>0`：如果允许域闭包内可逼近奇异矩阵，逆算子就无统一上界。这里不声称本项目 `κ=0.14` 算符必有奇异配置，只指出当前没有此 uniform-gap theorem/receipt；观测样本的经验极值不能代替它。对协方差估计与拟合器，还需另证全盒内 eigenvalue floor、目标函数连续/紧致、全局 minimizer 集合与所有 gate 的区间稳定性，算法设置的 `1e-10` floor 不能自动界定 anchor sampling error。
+
+具体流程仍为：`算符/源范数 + 全支持 σ_min 下界或直接 feature 包络 + 归一化分母下界 -> 每个 feature 的事前有限区间 -> 同时 anchor mean box -> 对冻结协方差/双态 PP+A4P 目标做全局区间传播 -> 所有 admissible minimizer 的 m* hull -> 独立 C bridge`。任一环没有来源或区间 solver 不能闭合，就在该环 `ABSTAIN`。这条推导是对“为何不能安全补一个 B&B solver”的可审查文字诊断，没有给项目数据添加数值。
+
 文字流程：`独立 anchor feature 支持与 estimator/covariance receipt -> 同时 feature box -> 冻结 PP/A4P fit 的全局 minimizer enclosure -> m* hull -> 独立 common-bias C bridge -> review/授权 -> 才能进入确认；任何盒未闭合即 ABSTAIN`。本项实现/应用分母为 `0/0/0/0`（没有合格输入计划）；物理 score 仍为 null，TODO 保留。当前 CPU 侧没有能在不造假假设、不重跑已完成 synthetic 网格条件下关闭此证书缺口的合法动作。
 
 ### 2026-11-25 CPU 边界与 Markov 定理引用复核
@@ -13,6 +17,8 @@
 对照 [Paulin corrected arXiv v5](https://arxiv.org/html/1212.2015v5) 逐条核验了项目使用的界：固定 score 的 block-chain Bernstein 路线标作 Theorem 3.11 / Eq. (3.25)，预声明时变 `f_i(X_i)` 路线标作 Eq. (3.26)，初始律的 TV 扰动标作 Proposition 3.15 / Eq. (3.29)。当前对应 helper / diagnostic 将这三种用法分开，且不声称估计 gap、TV 或 anchor bias；没有发现需要改写的定理编号或把 bootstrap/trajectory spacing 当 gap receipt 的说法。
 
 本轮仅在 CPU 上重跑四组 Markov/anchor-vector 聚焦用例：**57 passed**。这是代码路径回归，不是 coverage calibration 或物理测量。anchor-fit B&B 仍缺事前 feature support、冻结的 E-anchor covariance/fit map 和独立 common-bias `C` bridge；Markov 认证仍缺 score-specific block-chain `gamma_ps` / TV receipts。没有再生成 synthetic 网格，也没有访问封存 split。因此当前合法工作边界仍是：补入可审阅的独立 receipts 后继续全盒拟合/认证；在此之前不增加伪通用 solver，维持 `NOT_READY/UNCERTIFIED` 和 `physical_score=null`。
+
+本次后续复核补入上段的统一 resolvent 支持判据后，重新执行当前 checkout 的完整 Pion 测试文件集 `tests/test_pion*.py`：**180 passed**。这是 helper/schema 回归，不是 Markov 覆盖率、feature 有界性或 anchor-fit 证书；代码与物理状态未因此升级。
 
 ## 2026-11-25 我自行选定的 bounded block-risk 输入
 
