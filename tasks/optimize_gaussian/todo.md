@@ -4,7 +4,7 @@
 
 新增 [`draft_plan.py`](draft_plan.py) 将已选 D04/D06/D11 默认值传入 `core.specs.task_spec` 和 `core.specs.run_spec`，生成了[数据-free 草案和文字数据流](../../results/optimize_gaussian/draft_plan_20261125_v1/README.md)。合同及源码 SHA-256 已绑定；只登记已开放的 D0–59 fit 与 D60–99 development-selection 元数据，没有读取配置字节、生成输入 hash、启动训练或连接 evaluator。schema 计划分母 `1/1/0/0`；五个物理认证阶段 `5/0/0/5`，`launch_allowed=false`、`physical_score=null`。
 
-**重要的分支核验：**本 PR #6 当前 checkout 中不存在 TODO 历史段落所称的 `runspec_builder.py`、`train.main`、Optimize worker 或相应测试源码（报告仍记录过去的 synthetic CPU 结果，但当前分支没有可审阅/调用的入口文件）。因此新模块只完成通用 schema 的计划层接线，不是生产 RunSpec、也不关闭 worker 集成项。后续要么恢复匹配历史 receipt 的完整源文件，要么重做 task-specific runner 与 hard-timeout/产物回执接线；执行前仍须有独立 E-chain reference、生产 evaluator/operator review、完整且已授权的输入 manifest。不要把本草案的 `validation` 键误读成最终 blind confirmation。
+**重要的分支核验：**上述 builder/runner 源码并非丢失；它们在另一条本地 `dianjun` 分支（快照 `54f0e97`），但没有进入 PR #6 checkout。只读检查发现那条分支的 `train.py::main` 用 `model_space(p, seed)` 生成固定随机 `W`，训练/优化的是 `theta`，所以并非当前 primary 的 trainable-W；其旧 `protocol.json` 还硬编码旧单态 `m0`，并采用已观察的旧 `fit/dev_val/test` 切分。直接复制它会把旧 estimator/reference 和非 trainable-W runner 带入新合同。故本轮不整支合并、不启动它；新模块只完成通用 schema 的计划层接线，不是生产 RunSpec，也不关闭 worker 集成项。后续若继续接线，应从 `trainable_w.py` 与当前 D04/D06/D11 出发，选择性复用经审查的 worker/hard-timeout 基础设施，重做 task-specific runner 和产物回执，再用独立 CPU fixture 验证。执行前仍须有独立 E-chain reference、production evaluator/operator review、完整且已授权的输入 manifest。不要把本草案的 `validation` 键误读成最终 blind confirmation。
 
 文字流程：`research_contract + 源码 -> SHA-256 -> 通用 TaskSpec/RunSpec -> 空数据 hash + 无 runner + 无授权 -> launch_allowed=false -> 五个物理阶段 abstained`。
 
