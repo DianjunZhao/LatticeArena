@@ -12,6 +12,8 @@
 
 文字流程：`normalized bounded loop traces + saved-chain gamma_ps receipt -> four simultaneous mean boxes -> positivity check -> monotone Creutz interval -> 0.02 precision gate or ABSTAIN`。来源：[Paulin corrected arXiv v5](https://arxiv.org/html/1212.2015v5)。
 
+实现回归：[Markov support-bound 单元测试](../../tests/test_wilson_c_lane_markov_bound.py)加当前 lane-contract 测试共 **26 passed**；图文报告的 hash 清单 **6/6 匹配**。这些检查覆盖公式、支撑域映射、对数传播、非正下界弃权和 no-data 报告身份，不检验实际链的 gap 或区间覆盖。
+
 ### 2026-11-25：C/F canonical mapping 与误差合同审计
 
 `empty_contract()` 现在把已选的 C/F primary、显式四角 stencil、alpha allocation、精度目标或相对精度提案和谱计划映入 canonical `common` / `lanes`。proposal action/source descriptors 以 `_proposed` 标识；split、paired-block、独立 review、q/h/x、传播后的力误差和实际数据 receipt 仍为 null。检查器结果是 C lane `planned/valid/failed/abstained=1/0/1/0`、F lane `1/0/1/0`；C 留 3 个结构缺项，F 留 26 个，精确原因见 v9 JSON/README。另有 5 个物理运行阶段均 abstain (`5/0/0/5`)。完整的 8-fixture 结构表与分母为 `16/7/9/0`；没有新增 Wilson measurement。
