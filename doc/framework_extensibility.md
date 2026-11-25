@@ -38,7 +38,7 @@ contracts; declaring a schema alone does not create an evaluator.
 | Plan diagnostics and retain denominators | [`core/receipts.py`](../core/receipts.py) adds versioned `ScenarioSpec`, stage-specific denominators and `RunReceipt` with source/output SHA-256 references and exact reason accounting. Optimize candidate-contract, Wilson lane-contract and Pion bounded-risk contract reports are consumers; a saved Pion known-graph coverage report also binds its cell, replicate, paired-block-event and family-score denominators without rerunning MC | Extend receipts to remaining task-specific statistical units (panel, replicate, block, optimizer fit, stencil or contract check). Keep cap-stop/non-success, failure, abstention and not-run counts distinct; receipt hashes identify bytes but do not prove provenance, independence or scientific validity |
 | Track evidence readiness | [`core/state.py`](../core/state.py): operator, reference, numerical, statistical and comparison states; validation observation is permanent; a score is available only when all states have hash-bound validation; `abstained` is a terminal no-certificate state | PR #5 carries Pion's atomic score/anchor adapter. This PR binds Optimize D04, bounded D06 and D11 metadata and Wilson C/F lane metadata separately. These adapters stop at `draft` or `abstained`; task evaluators must still verify source bytes and physics before validation |
 | Compare learned/iterative methods fairly | `core/ledger.py` has generic setup/solve/residual phases; the Optimize stress report keeps call cap, optimizer seconds, fit selection and postchecks separate | Add `BudgetSpec` fields for objective/gradient calls, setup, training, inference, I/O, recovery and amortization count. Enforce shared fit/heldout IDs, initialization policy and restart count; report call-budget and total-walltime estimands separately |
-| Preserve artifacts | [`core/io.py`](../core/io.py): content digest, canonical fingerprint and JSON writing; [`core/receipts.py`](../core/receipts.py) binds declared source/output hash maps and reason-accounted denominators; CPU diagnostics retain text/figure explanations and snapshots | Extend receipts with environment and authorized input provenance only when a task defines those fields. Use no-clobber run directories and retain failure receipts. A manifest proves byte identity, not scientific validity or input independence |
+| Preserve artifacts | [`core/io.py`](../core/io.py): content digest, canonical fingerprint and JSON writing; [`core/receipts.py`](../core/receipts.py) binds declared source/output hash maps and reason-accounted denominators; [`core/source_integrity.py`](../core/source_integrity.py) hashes only explicitly mapped files beneath a caller-supplied root and returns planned/valid/failed/abstained counts | Extend receipts with environment and authorized input provenance only when a task defines those fields. Use no-clobber run directories and retain failure receipts. A matching digest proves only the bytes read at that moment; it does not prove provenance, immutability, scientific validity or input independence |
 
 `agents/operator_search.py` illustrates repeated agent proposals against the
 Pion development evaluator. `agents/optimization_benchmark.py` illustrates
@@ -219,6 +219,14 @@ chain-identity pairs before making one stage transition. Pion uses it for
 separate anchor/score evidence; Optimize uses it for bounded D06's two
 contrasts and common denominator. Wilson C and F each use a separate lane
 bundle. Identity checks still report `independence_proven=false`.
+
+`verify_source_bytes` is a separate byte-identity preflight. It accepts an
+explicit logical-name-to-relative-path map and caller-supplied root; absolute,
+parent-traversal, unexpected and root-escaping paths never reach file hashing.
+Missing paths/files count as abstentions and digest mismatches/read failures as
+failures. This utility is not yet wired to production task readers; even a
+complete digest receipt does not authenticate its expected-hash authority or
+freeze the underlying file after the read.
 
 This PR's fixtures cover Optimize D04/D06/D11 and Wilson C/F metadata. They
 exercise missing Markov gap, wrong chain, wrong force unit, stale source hash,

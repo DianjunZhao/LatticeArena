@@ -456,7 +456,7 @@ IID 校准设计覆盖 3 个已知真值有界 DGP、低于/恰在/高于最小�
 - **D06 主比较：**保留 `F=2`，trainable-$W$ 分别对同预算 SLSQP 和固定 degree-4 Chebyshev；`r_star=10/9`。新增 bounded block-risk 是另一个并列 estimand，用户已接受其不同于 D04；它不能替换 D04，也无需再次询问是否保留。Markov 界只在其 paired-block chain、score map、`gamma_ps` 与 burn-in/TV 收据被独立审阅后才可使用。
 - **D11 强谱对照：**合同已记录三维周期空间 `H=sum_i(T_i+T_i^dagger-2I)`、`[-12,0]` 谱域、degree-4 Bernstein controls 到 Chebyshev 的固定映射、`0<=b0<=...<=b4=1`、共同未归一化 `G^2 P4(H) G^2` sandwich；CPU helper 的 U(3) 数学条件与生产 SU(3) identity receipt 分开。该 adapter 仍是 diagnostic schema；生产 links、独立 operator review 和 evaluator 均未闭合。
 
-因此下一位不再让用户重复选择上述默认方法，也不把它们标成已认证。PR #5 合并后，先加 Optimize adapter，把 D04 E-reference 与 D06 paired-block score 分别绑定 chain/split/observable/source hashes 和 review scope；D06 的 SLSQP 与 Chebyshev envelopes 应由 `apply_evidence_bundle_gate` 原子检查，D04/D11 仍走各自 stage。缺字段/未运行 denominator 必须进入 `abstained`，完整 schema 最多进入 `draft`。之后才由独立 reviewer 逐项复核公式/单位/失败规则，并由 owner 提供身份绑定、获授权的 E-reference 与 paired solver receipts；通过 D04 gate 后，才可用固定 RunSpec 做配对训练与确认。160 objective/gradient-call cap、一次预设起点和所有训练/setup 成本计入单任务 walltime 已写入合同；真实硬件时间、设备回收和总成本仍待授权运行。框架层可复用设计见 [framework extensibility map in PR #5](https://github.com/Greyyy-HJC/LatticeArena/blob/c7a4c9b2c8858d1fdf3499966a2223c45427bbc6/doc/framework_extensibility.md)，其 [core/evidence.py](https://github.com/Greyyy-HJC/LatticeArena/blob/c7a4c9b2c8858d1fdf3499966a2223c45427bbc6/core/evidence.py) 提供单 envelope / bundle RunState fail-closed gate；同一 PR 的 [Pion adapter](https://github.com/Greyyy-HJC/LatticeArena/blob/c7a4c9b2c8858d1fdf3499966a2223c45427bbc6/tasks/pion_projection/evidence_adapter.py) 可作为接口样例，但 Optimize adapter 仍未接入，且 PR #5 尚未合并到本分支。成功结果仍不认证任何数据或物理 claim。所有下一步图文都应分开报告诊断单位的 planned/valid/failed/abstained 与物理 lane 状态，保持 `NOT_READY/UNCERTIFIED`、`physical_score=null` 和封存 split closed。
+因此不再让用户重复选择上述默认方法，也不把它们标成已认证。Optimize adapter 已在 PR #6 接入独立 D04/D11 stages 与原子 D06 bundle；为保持该 PR 基于 `main` 可检查，它携带共享 gate 的最小实现，Pion adapter/诊断仍单独在 PR #5。`core/source_integrity.py` 已提供只检查显式路径映射的通用 byte-hash preflight，但尚未连到 Optimize RunSpec/source reader。下一步由独立 reviewer 复核公式、单位与失败规则；owner 仍需提供身份绑定、获授权的 E-reference 与 paired solver receipts。通过 D04 gate 后，才可用固定 RunSpec 做配对训练与确认。160 objective/gradient-call cap、一次预设起点和所有训练/setup 成本计入单任务 walltime 已写入合同；真实硬件时间、设备回收和总成本仍待授权运行。方法和接口细节见[框架扩展图](../../doc/framework_extensibility.md)与本 TODO 文末的 adapter handoff。成功的 metadata gate 不认证任何数据或物理 claim。所有下一步图文都应分开报告诊断单位的 planned/valid/failed/abstained 与物理 lane 状态，保持 `NOT_READY/UNCERTIFIED`、`physical_score=null` 和 sealed split closed。
 
 ### 2026-11-26 D06 bounded-risk Markov 校准扩展：非可逆多态链
 
@@ -470,7 +470,7 @@ IID 校准设计覆盖 3 个已知真值有界 DGP、低于/恰在/高于最小�
 
 ### 2026-11-26 共享 evidence schema v2 的 Optimize 接线要求
 
-PR #5 的共享 gate 已升级到 evidence-envelope v2：review 必须同时带 `reviewer_role_claim="independent"`、review scope/receipt hash 和 `independence_claim_sha256`。这些是可审计声明的索引，不验证 reviewer 身份或独立性；Optimize adapter 仍须在 task 层核验 review artifact 与 source bytes。PR #5 尚未合入本分支，因此这里记录合并后的接线合同，不在本 PR 复制第二份 core gate。
+PR #5 的共享 gate 已升级到 evidence-envelope v2：review 必须同时带 `reviewer_role_claim="independent"`、review scope/receipt hash 和 `independence_claim_sha256`。这些是可审计声明的索引，不验证 reviewer 身份或独立性；Optimize adapter 仍须在 task 层核验 review artifact 与 source bytes。为使 PR #6 能基于 `main` 单独检查，本 PR 携带该 shared gate 的最小 runtime 和 schema tests；PR #5 仍保留 Pion task adapter/诊断。PR #5 合并后应核对共享文件一致性，不能重复解释成两份不同 gate。
 
 适配器应至少构造并分别检查两类 envelope：
 
@@ -484,7 +484,7 @@ PR #5 的共享 gate 已升级到 evidence-envelope v2：review 必须同时带 
 
 本轮联合复跑 `tests/test_optimize*.py tests/test_wilson*.py`：**184 passed**。仅为 CPU 软件/合同回归；不证明 E reference、真实 Markov gap/TV、GPU 成本或物理 score。
 
-PR #5 现另有 `apply_evidence_bundle_gate`：合并后可把 D06 的 SLSQP 与 Chebyshev 两项 comparison envelopes 作为一个 statistical bundle 原子校验；D04 reference 与 D11 operator 仍走各自 stage，避免其中一项通过后误表示全合同通过。只有合同规定不同链时才要求 chain identity 不碰撞；这仍不证明统计独立。
+PR #6 当前的 `apply_evidence_bundle_gate` 把 D06 的 SLSQP、Chebyshev 与 trainable-W envelopes 及共同正分母作为一个 statistical bundle 原子校验；D04 reference 与 D11 operator 仍走各自 stage，避免一项通过后误表示全合同通过。只有合同规定不同链时才要求 chain identity 不碰撞；这仍不证明统计独立。
 
 ### 2026-11-26 Optimize task adapter 接线与剩余边界
 
@@ -498,4 +498,6 @@ PR #5 现另有 `apply_evidence_bundle_gate`：合并后可把 D06 的 SLSQP 与
 
 本轮 task-adapter fixtures：D04 `reference_fit_variants=6/6/0/0`；D11 `operator_cases=2/2/0/0`；D06 `paired_macroblocks=4/4/0/0`、`assigned_arm_runs=12/12/0/0`。另有 p 值阈值、摘要 hash、缺 SU(3)、封存 split、TV 超 alpha、缺 comparison route 等 fail-closed 负例。`tests/test_optimize_evidence_adapter.py` 为 **5 passed**。这些是合成 schema/摘要 fixtures，数字不是 E-chain 拟合、真实 D06 样本或生产 link 测量。
 
-**继续工作：**独立统计/物理 reviewer 需复核 D04 六项 fit gating、D06 paired state + pseudo-gap/TV union bound、D11 operator 维度/边界/舍入与 SU(3) 证据范围。随后需要经过授权的真实 E-reference、paired solver/失败/成本 receipts、实际 `train.main` RunSpec/evaluator 接线及 source-byte 校验。D04 reference、D06 Markov gap/TV 与真实 solver 输入均未提供；当前不训练 W、不测 GPU、不打开 sealed IDs，保持 `NOT_READY/UNCERTIFIED` 和 `physical_score=null`。所有后续报告继续保留 planned/valid/failed/abstained 分母，并提供图或文字数据流/决策流程。
+通用字节身份前置现在由 [`core/source_integrity.py`](../../core/source_integrity.py) 的 `verify_source_bytes` 提供：只散列调用方明确映射、位于指定 root 下的相对路径；planned denominator 保留未映射/缺文件为 abstained、hash mismatch/越界路径为 failed。专项临时文件测试 **6 passed**。它只证明本次读到的字节与给定 hash 一致，不证明 hash 的授权来源、数据独立性，也不锁定文件后续不变；尚未接入 Optimize RunSpec/真实 source reader，本轮未打开任何物理输入。
+
+**继续工作：**独立统计/物理 reviewer 需复核 D04 六项 fit gating、D06 paired state + pseudo-gap/TV union bound、D11 operator 维度/边界/舍入与 SU(3) 证据范围；软件侧将通用 verifier 接到实际 RunSpec/source reader，并验证 receipt 指向的 bytes 与文件清单一一对应。随后仍需经过授权的真实 E-reference、paired solver/失败/成本 receipts、实际 `train.main` evaluator 接线。D04 reference、D06 Markov gap/TV 与真实 solver 输入均未提供；当前不训练 W、不测 GPU、不打开 sealed IDs，保持 `NOT_READY/UNCERTIFIED` 和 `physical_score=null`。所有后续报告继续保留 planned/valid/failed/abstained 分母，并提供图或文字数据流/决策流程。
