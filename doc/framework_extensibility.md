@@ -182,6 +182,8 @@ schema/fixture check only; no production receipt was supplied and no task
 evaluator currently consumes the envelope. The next implementation is to add
 task-owned adapters that map frozen contracts to expected dotted fields and
 source hashes, then use `apply_evidence_gate` from each task's `RunState` path.
+The combined `tests/test_pion*.py tests/test_evidence.py tests/test_framework.py
+tests/test_receipts.py` run reports **211 passed** after adding this core gate.
 
 ## Practical implementation order for a new task
 
