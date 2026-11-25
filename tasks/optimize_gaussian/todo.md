@@ -512,3 +512,10 @@ PR #6 当前的 `apply_evidence_bundle_gate` 把 D06 的 SLSQP、Chebyshev 与 t
 新增三项默认拒绝测试分别覆盖 D04、D11、D06；缺路径时对应 source-file P/V/F/A 分别为 D04 `8/0/0/8`、D11 `7/0/0/7`、D06 `30/0/0/30`。另有 D06 三路 bundle 的正向字节映射，30/30 通过；篡改共用文件后为 `30/3/27/0` 并原子 abstain。Optimize adapter suite 为 **9 passed**，与 Wilson adapter suite、共享 evidence 和 source-integrity suite合计 **44 passed**；整个 checkout CPU suite **276 passed**，Optimize/Wilson test 文件组合 **202 passed**。这些 task-level source 文件均为临时 synthetic bytes，不是实际 source-map 或生产收据。任何完整 byte map 也仅证明本次读取字节与调用方提供 digest 一致，不验证 hash authority、reviewer 身份/独立性、物理内容或读取后的不可变性。
 
 仍未把实际 RunSpec/source reader 接到这些参数，因此当前不能声明 receipt 与程序真正读取的输入文件一一对应。下一步软件工作是由 task evaluator 在同一读取事务中导出真实文件清单、hash 和相对路径映射，再对新增接线做正例、丢失文件、hash mismatch、root escape 和 receipt/reader 不一致测试。独立 reviewer 还需复核 D04/D06/D11 的物理与统计门；E-reference、paired solver、Markov gap/TV、SU(3) production links 与授权成本 receipts 未到位前，不运行真实训练或 GPU、不读 sealed split。`NOT_READY/UNCERTIFIED`、`physical_score=null` 保持不变。
+
+
+### 2026-11-26 实际读入器目标盘点
+
+对当前 PR #6 checkout 的只读代码检索确认：`tasks/optimize_gaussian/draft_plan.py` 只生成 `DRAFT_NO_LAUNCH` 的泛型 TaskSpec/RunSpec，`data={}`、`launch_allowed=false`；其内嵌说明明确指出本 checkout 没有 `tasks/optimize_gaussian/runspec_builder.py`、task worker 或 `train.main`。因此当前没有可供 source-byte adapter 接入的 Optimize production reader/evaluator。前述新 adapter 已让 gate API 默认 fail closed，但并未把 envelope 哈希映射绑定到真实输入读取过程。
+
+文字诊断：`当前合同/草案 + 源码 hashes -> 空 data map -> no worker/runner -> no source files opened -> D04/D06/D11 证据 gates remain abstained`。下一软件阶段不是把任意路径传给 adapter，而是先恢复/实现经 review 的 Optimize evaluator 和 RunSpec builder，再让同一个 reader 产出输入 bytes、manifest、逐文件 hashes 与 adapter paths；以 CPU fixtures 覆盖 reader/gate 清单一致、缺文件、内容变化与失败 arm denominator。此盘点只读代码和文件清单，物理读取分母 `0/0/0/0`，没有训练/GPU 或 sealed 数据访问。

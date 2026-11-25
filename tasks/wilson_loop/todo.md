@@ -363,3 +363,10 @@ PR #6 当前的 `apply_evidence_bundle_gate`：C lane 可将四个 loop/source/c
 新增 C 与 F 默认缺路径拒绝测试；缺路径时 source-file P/V/F/A 为 C `8/0/0/8`、F `53/0/0/53`。C 正向映射 8/8 文件有效，篡改 common receipt 后为 `8/1/7/0` 并 abstain；F 六路正向映射 53/53 文件有效，篡改 common receipt 后为 `53/6/47/0` 并原子 abstain。Wilson adapter suite 为 **9 passed**，Optimize/Wilson adapters 与 shared evidence/source-integrity tests 合计 **44 passed**；整个 checkout CPU suite **276 passed**，Optimize/Wilson test 文件组合 **202 passed**。目前没有真实 Wilson 路径映射，task adapter 的可用 C/F source 包仍未提交，因此这些 CPU fixtures 不是 production receipt。SHA-256 一致不认证 digest 来源、物理语义或审阅独立性，也不锁定读完后的文件。
 
 下一步接线应让 C loop reader 与 F GEVP/thermal/force reader 在同一输入清单上产出其真正读取的路径和 hashes，再验证每个 receipt 文件与 reader 文件完全一致，保留 planned/valid/failed/abstained 和失败原因。独立 reviewer 仍需确认 C 依赖与 coverage、Creutz 符号/index、F 的谱/热污染定义和角点 force-unit 传播。没有获授权的真实 calibration files、独立 dependence/coverage receipts、matched-`N_t=32`/GEVP 污染界及 positive reference-force 时，不测 GPU/QUDA、不打开 sealed/confirmation 数据；状态仍为 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+
+
+### 2026-11-26 Wilson 生产读入器目标盘点
+
+只读检索当前 PR #6 checkout 后，没有找到 `tasks/wilson_loop/measure.py`、Wilson `protocol_d_*.json` 或 `measurement_input_manifest` 实现；当前 task-owned 实现是 lane contract、结构/诊断脚本和 C/F evidence adapter，没有接入所选 C/F measurement 的 live reader。历史 TODO/归档记录中的 reader、RunSpec 或远端任务不能据此视为当前 checkout 可调用的入口。故 source-byte API 目前只接受调用方显式给的路径，尚不能证明这些路径就是 C loop、F force、GEVP/thermal 计算真正读取的文件。
+
+文字诊断：`当前 checkout: protocol/lane contract + archived diagnostics + adapter -> no selected-lane reader -> no production file map -> C/F remain abstained`。后续先补一个冻结、可审查的 C/F source reader/RunSpec：在读取前做 split、hash、geometry/action/kernel 和授权 preflight；同一 read transaction 产出所读文件清单、manifest/receipt hashes 与 source paths；随后才调用 task adapter，并以 CPU fixture 测试 reader/gate 清单一致、缺文件、篡改、split 拒绝和完整分母。当前代码盘点没有读取任何 gauge/loop/GEVP/thermal 数据，物理文件分母 `0/0/0/0`；没有启动 GPU/QUDA。该软件入口完成也不会补出独立 coverage、q/h/x bounds、正 reference-force 或 physics review，状态继续保持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
