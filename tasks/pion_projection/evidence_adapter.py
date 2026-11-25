@@ -1,10 +1,11 @@
-"""Pion-specific metadata gate for the selected bounded block-risk protocol.
+"""Pion gate for the selected bounded block-risk protocol.
 
 The adapter binds the shared evidence schema to the frozen F=3 score/anchor
-defaults and the task's planned denominators. It does not read receipt files,
-authenticate their hashes, prove independence, compute an LCB, or certify a
-physical score. A passing result is only a draft for a separate task evaluator
-and external review.
+defaults and planned denominators. By default it verifies bytes for explicit
+source-root/path mappings before a complete bundle can reach ``draft``. This
+matches supplied digests only; it does not authenticate digest authority,
+reviewer identity, independence, or physical validity, and it does not compute
+an LCB or certify a physical score. A passing result is still draft-only.
 """
 from __future__ import annotations
 

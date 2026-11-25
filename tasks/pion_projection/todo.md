@@ -2,7 +2,7 @@
 
 ### 当前控制状态（2026-11-26）
 
-`F=3`、bounded block-risk、score/anchor 错误预算和 Markov 备选路线均已有明确方案及图文敏感度诊断；通用 `core/evidence.py` 的 schema v2 校验 evidence/source hashes、reviewer role claim 与 independence-claim hash，并对缺项/错配 fail closed。新增的 Pion task adapter 将选定方法 defaults 和分母接到 `apply_evidence_bundle_gate`，使 statistical stage 最多到 `draft`；adapter 只检查声明/哈希一致性，不认证 reviewer、source bytes、统计独立性或物理有效性，也不计算物理 score。真实链的 `gamma_ps`/TV、E-reference、anchor scalar map、支持域/协方差或 common-bias `C` 收据仍缺。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`；按用户要求，E/gap/validation/shared holdout/confirmation 保持封存，不启动 GPU/QUDA。当前只可在收到身份绑定、获准的 receipts 后接 evaluator 和检查 fail-closed 路径；历史章节里的缺省输入表以新方案为准。
+`F=3`、bounded block-risk、score/anchor 错误预算和 Markov 备选路线均已有明确方案及图文敏感度诊断；通用 `core/evidence.py` 的 schema v2 校验 evidence/source hashes、reviewer role claim 与 independence-claim hash，并对缺项/错配 fail closed。Pion task adapter 将选定方法 defaults 和分母接到原子 bundle gate，默认要求显式 source root/path maps 并逐项核验当前读取字节，因此完整 statistical stage 最多到 `draft`。它只验证当前 bytes 与调用方 digest 一致，不认证 digest authority、reviewer 身份、统计独立性或物理有效性，也不计算物理 score。真实链的 `gamma_ps`/TV、E-reference、anchor scalar map、支持域/协方差或 common-bias `C` 收据仍缺。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`；按用户要求，E/gap/validation/shared holdout/confirmation 保持封存，不启动 GPU/QUDA。当前只可在收到身份绑定、获准的 receipts 后接 evaluator 和检查 fail-closed 路径；历史章节里的缺省输入表以新方案为准。
 
 ### 2026-11-25 接续复核：anchor-fit 区间桥仍不能安全实现
 
