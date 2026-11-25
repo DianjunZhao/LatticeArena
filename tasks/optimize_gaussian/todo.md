@@ -485,3 +485,17 @@ PR #5 的共享 gate 已升级到 evidence-envelope v2：review 必须同时带 
 本轮联合复跑 `tests/test_optimize*.py tests/test_wilson*.py`：**184 passed**。仅为 CPU 软件/合同回归；不证明 E reference、真实 Markov gap/TV、GPU 成本或物理 score。
 
 PR #5 现另有 `apply_evidence_bundle_gate`：合并后可把 D06 的 SLSQP 与 Chebyshev 两项 comparison envelopes 作为一个 statistical bundle 原子校验；D04 reference 与 D11 operator 仍走各自 stage，避免其中一项通过后误表示全合同通过。只有合同规定不同链时才要求 chain identity 不碰撞；这仍不证明统计独立。
+
+### 2026-11-26 Optimize task adapter 接线与剩余边界
+
+当前 PR #6 携带共享 evidence schema v2 的最小实现，使本 PR 可直接从 `main` 检查；完整 Pion task adapter/诊断仍单独留在 PR #5。本任务新增 [`evidence_adapter.py`](evidence_adapter.py)：
+
+- `apply_optimize_d04_reference_gate` 绑定独立 E-chain、D04 joint PP/A4P map、固定来源/审阅/授权收据与 6 个 planned fit variants（3 个 `tmin` × 2/3-state）。它逐项检查相对质量误差 `<=0.05`、最小 GOF `p>=0.01`、最大 channel/window/model shift `<=2.5` paired SE、无 boundary hit；任一未运行、失败或摘要 hash 不符即 abstain。
+- `apply_optimize_bounded_block_risk_gate` 仅接收用户接受的**并列 bounded estimand**，原子绑定 SLSQP、degree-4 Chebyshev、trainable-W 三 envelopes 与一个 paired chain。它检查 clipped-score/contrast maps、共享预算计划/成本账本 hash、共享 `gamma_ps`、burn-in/TV、`F=2` 两个 contrast 加共享正分母的三项 alpha、宏块分母 `N` 和 assigned-arm 分母 `3N`。`N` 不在 adapter 中预填；统计结果仍只到 draft，D04 原风险比没有被它替换或宣称已校准。
+- `apply_optimize_d11_operator_gate` 绑定生产 link manifest、SU(3) provenance、以单调 Bernstein controls 经固定 exact dyadic transform 表示的 degree-4 Chebyshev operator、`[-12,0]` support 与逐例 operator summary。只有 CPU U(3) fixture 或 synthetic split 会拒绝；metadata 完整仍只到 draft。
+
+文字流程：`D04 E-chain manifest -> 六种预定 joint-fit variant + reference summary gate -> reference draft/abstain`；`D11 production link/SU(3) receipt -> operator cases + spectral/Clenshaw checks -> operator draft/abstain`；`D06 paired macroblock score matrix -> SLSQP/Chebyshev 对照 + trainable-W 分母 -> gamma_ps/TV 校正后的三项 Markov lower bounds -> statistical draft/abstain`。每条通过都不等于 source bytes 已验证、reviewer 身份已认证或物理 score 已通过。
+
+本轮 task-adapter fixtures：D04 `reference_fit_variants=6/6/0/0`；D11 `operator_cases=2/2/0/0`；D06 `paired_macroblocks=4/4/0/0`、`assigned_arm_runs=12/12/0/0`。另有 p 值阈值、摘要 hash、缺 SU(3)、封存 split、TV 超 alpha、缺 comparison route 等 fail-closed 负例。`tests/test_optimize_evidence_adapter.py` 为 **5 passed**。这些是合成 schema/摘要 fixtures，数字不是 E-chain 拟合、真实 D06 样本或生产 link 测量。
+
+**继续工作：**独立统计/物理 reviewer 需复核 D04 六项 fit gating、D06 paired state + pseudo-gap/TV union bound、D11 operator 维度/边界/舍入与 SU(3) 证据范围。随后需要经过授权的真实 E-reference、paired solver/失败/成本 receipts、实际 `train.main` RunSpec/evaluator 接线及 source-byte 校验。D04 reference、D06 Markov gap/TV 与真实 solver 输入均未提供；当前不训练 W、不测 GPU、不打开 sealed IDs，保持 `NOT_READY/UNCERTIFIED` 和 `physical_score=null`。所有后续报告继续保留 planned/valid/failed/abstained 分母，并提供图或文字数据流/决策流程。

@@ -337,3 +337,16 @@ PR #5 的共享 gate 已使用 evidence-envelope v2。review 元数据要求 `re
 本轮与 Optimize 一起复跑 `tests/test_optimize*.py tests/test_wilson*.py`：**184 passed**。这是 CPU 软件/合同回归，不覆盖 C/F 生产测量、独立污染界、确认区间或 physical score。
 
 PR #5 现另有 `apply_evidence_bundle_gate`：合并后 C lane 可将四个 loop/source/coverage receipts 组成一个原子 bundle；F lane 可将 GEVP、reference-force 与 q/h/x/thermal/spectral receipts 组成另一 bundle。C、F 是 co-primary estimands，task adapter 应维护 lane-specific RunState/denominators，不能让一条 lane 的 draft 代替另一条；链身份不同仍不构成独立性证明。
+
+### 2026-11-26 Wilson C/F task adapter 接线与剩余边界
+
+当前 PR #6 携带共享 evidence schema v2 的最小实现，并将 gate 接到 [`evidence_adapter.py`](evidence_adapter.py)；C 与 F 各自使用独立 envelope、receipt、统计预算和 RunState。Pion task-specific adapter/诊断仍单独留在 PR #5：
+
+- `apply_wilson_creutz_gate` 固定 C 为有限温 `chi_stout(R=2,T=5)`。它绑定四个 paired loop means、`R/T/kernel/sign` map、coverage/dependence/authorization/review hashes；检验 3×10,000 = 30,000 个 length-2/5/10 bootstrap draws、invalid draw 比例 `<=1%` 及 dimensionless hull half-width `<=0.02`。数值 precision 通过仍只到 draft，不证明 coverage。
+- `apply_wilson_force_gate` 固定 F 为 midpoint `R=2.5` 的 stout-minus-identity 基态力。它将 force interval 与正 reference-force 下界绑定在同一 paired chain；另外绑定 3×3 GEVP、excited `q`、matched `N_t=32` thermal `h`、mixed `x`、spectral-model truncation 与 8-corner propagation。分母要求 30,000 个 force interval draws、30,000 个 reference draws、36 个 GEVP fit variants、28 个 simultaneous systematic cells 和 1 个 matched-`N_t=32` receipt。四个 force-unit 系统项分别受 1.5%、1.5%、1.0%、1.0% 上限；系统合计 `<=5%`、统计 half-width `<=5%`、合计线性误差 `<=10%`，且 reference-force simultaneous lower bound 必须为正。
+
+文字流程：`C calibration split -> 四个 loop means -> paired 30k bootstrap / L=2,5,10 hull -> 1% invalid + 0.02 precision 检查 -> C draft/abstain`；`F calibration inputs -> 3x3 GEVP + Nt32 thermal -> q/h/x/model 28 cells -> 每个角点传播到 a_s*a_t*F -> reference positivity + 5/5/10% budget -> F draft/abstain`。两个 lane 的 samples 可以相关，adapter 不从不同 chain ID 推断独立，也不让 C 的有限温 Creutz 结果替代基态力。
+
+本轮 synthetic positive fixture 的可复查分母为：C `four_required_loop_means=4/4/0/0`、`paired_bootstrap_draws=30000/30000/0/0`；示例 hull `[0.09,0.11]`、half-width `0.01`、invalid `0`。F `force_interval_draws=30000/30000/0/0`、`positive_reference_draws=30000/30000/0/0`、`gevp_fit_variants=36/36/0/0`、`force_systematic_cells=28/28/0/0`、`matched_nt32_thermal_receipts=1/1/0/0`；示例正 reference lower bound `1.0`，四项 propagated force bounds 为 `.01/.01/.005/.005`，statistical half-width `.03`。这些全是 metadata/summary fixtures，非 Wilson measurement 或物理污染界。C/F adapter 专项 `5 passed`，与 Optimize adapter 合计 `10 passed`。
+
+**继续工作：**独立 reviewer 仍须复核 C 依赖/coverage 方法、四 loop 符号与 paired inference，以及 F 的 `q/h/x` 物理定义、GEVP/热态适用条件、角点传播和系统项相关性/重复计数。实际 manifest、loop/GEVP/thermal 原始 bytes、独立 coverage 与 contamination receipts、授权收据尚未提供；task adapter 不认证 hash 对应字节或授权人的身份。故当前不重跑 Wilson 测量、不打开 gap/validation/holdout/confirmation、不做 GPU/QUDA，维持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。真实诊断仍须附图或可复查文字，并按 lane 报告 planned/valid/failed/abstained 与失败原因。
