@@ -467,3 +467,15 @@ IID 校准设计覆盖 3 个已知真值有界 DGP、低于/恰在/高于最小�
 这不是对真实 HMC 的校准证明，也不能给生产链填入 `gamma_ps` 或 TV；全支持界仍非常保守，高覆盖可以伴随低放行力。该结果只扩大了 bounded-risk 路线在一种新的非可逆多态合成族上的诊断覆盖，不替代 D04、candidate-selection 不确定度或独立统计 review。
 
 **接下来的具体工作：**不再复跑两态或这组 19 态生成器的 seed/网格。由未参与实现的统计 reviewer 独立复核 pseudo-gap 推导、Paulin bound 反演、TV 并集校正及 boundary fixture；然后接收身份绑定的 paired-macroblock state/score map、生产链 `gamma_ps` lower-bound 与 burn-in/TV receipts、E-chain reference receipt 和配对 SLSQP/Chebyshev solver receipts。只有这些来源/分割/哈希均通过合同后，才固定真实数据 RunSpec、运行授权的 GPU dry-run 与比较。交付需继续包含风险下界图、calls/time 与成本分解、residual/KKT、failure/abstention 表和完整 denominator。任何输入缺失时保留 `NOT_READY/UNCERTIFIED`、`physical_score=null`，不读取 sealed IDs。
+
+### 2026-11-26 共享 evidence schema v2 的 Optimize 接线要求
+
+PR #5 的共享 gate 已升级到 evidence-envelope v2：review 必须同时带 `reviewer_role_claim="independent"`、review scope/receipt hash 和 `independence_claim_sha256`。这些是可审计声明的索引，不验证 reviewer 身份或独立性；Optimize adapter 仍须在 task 层核验 review artifact 与 source bytes。PR #5 尚未合入本分支，因此这里记录合并后的接线合同，不在本 PR 复制第二份 core gate。
+
+适配器应至少构造并分别检查两类 envelope：
+
+1. `D04_reference`：绑定独立 candidate-blind E-chain、PP-even/A4P-odd 两态主拟合与预定窗口/model checks、固定 covariance 规则、reference source/receipt hashes、失败分母和独立审阅 scope。未通过参考门不能生成风险比较的物理解释。
+2. `D06_paired_block_risk`：绑定 D-chain 的 paired macroblock state/map、bounded estimand 与 `r_star=10/9`，分别保留 trainable-W vs same-budget SLSQP、trainable-W vs degree-4 Chebyshev 两项对照及各自 multiplicity allocation；训练/优化失败留在 assigned-arm denominator。D06 envelope 不可代替 D04 reference envelope。
+3. `D11_operator`：绑定 degree-4 Bernstein-to-Chebyshev controls、生产 SU(3) link provenance、共同 `G^2 P4(H) G^2` 实现和 operator-review scope；CPU U(3) fixture 不满足生产 SU(3) gate。
+
+负例必须覆盖 D04/D06 chain 或 split 串用、reference/score-map/source hash 过期、仅有 self-review、缺独立性声明 hash、160-call denominator 未闭合、任一 comparison 缺项以及 production link 仅有 U(3) unitary 而无 SU(3) receipt。每个 task gate 仍须由 `RunReceipt` 记录 planned/valid/failed/abstained；schema+分母完整最多到 `draft`，缺项进入 `abstained`。当前 E reference、paired solver/Markov receipts、独立审阅及获授权硬件成本均缺，因此本项不生成 score，不开放 sealed split，也不执行真实 W/GPU 工作。
