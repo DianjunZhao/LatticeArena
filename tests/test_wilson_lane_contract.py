@@ -7,6 +7,7 @@ from tasks.wilson_loop.lane_contract import (
     build,
     empty_contract,
     inspect_contract,
+    selected_protocol,
 )
 
 
@@ -20,6 +21,25 @@ def test_null_draft_stays_not_ready_with_two_separate_estimands():
         "finite_T_Creutz", "ground_state_discrete_static_force",
     }
     assert all(row["status"] == "NOT_READY" for row in result["lanes"].values())
+    protocol = empty_contract()["selected_protocol"]
+    assert protocol == selected_protocol()
+    assert protocol["finite_T_Creutz"]["R"] == 2
+    assert protocol["finite_T_Creutz"]["T"] == 5
+    assert protocol["finite_T_Creutz"]["data_receipt_sha256"] is None
+    assert protocol["ground_state_discrete_static_force"]["midpoint_R"] == 2.5
+    assert protocol["ground_state_discrete_static_force"]["evidence_receipts"][
+        "thermal_h_Nt32"] is None
+
+
+def test_changed_protocol_defaults_fail_closed_without_certifying_evidence():
+    contract = empty_contract()
+    contract["selected_protocol"]["finite_T_Creutz"]["precision_halfwidth_target"] = 0.5
+    result = inspect_contract(contract)
+    assert result["status"] == "DRAFT_NOT_READY"
+    assert all(row["status"] == "NOT_READY" for row in result["lanes"].values())
+    assert any("selected_protocol: differs" in message
+               for message in result["common_issues"])
+    assert result["physical_score"] is None
 
 
 def test_c_complete_does_not_make_f_ready_and_complete_fixture_is_not_certified():
@@ -160,6 +180,7 @@ def test_build_report_snapshots_source_and_hashes_every_artifact(tmp_path):
     summary = build(output)
     manifest = json.loads((output / "artifact_hashes.json").read_text())
     assert "snapshot_lane_contract.py" in manifest
+    assert "lane_contract_v2.json" in manifest
     assert "snapshot_core_receipts.py" in manifest
     assert "run_receipt.json" in manifest
     assert summary["physical_score"] is None
@@ -208,3 +229,10 @@ def test_build_report_snapshots_source_and_hashes_every_artifact(tmp_path):
         assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected
     for name, expected in receipt["artifact_hashes"].items():
         assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected
+
+
+def test_saved_lane_contract_matches_selected_protocol_template():
+    from pathlib import Path
+
+    path = Path(__file__).parents[1] / "tasks/wilson_loop/lane_contract_v2.json"
+    assert json.loads(path.read_text()) == empty_contract()

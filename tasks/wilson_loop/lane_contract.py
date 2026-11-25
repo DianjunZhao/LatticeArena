@@ -19,8 +19,9 @@ from core.receipts import run_receipt, scenario_spec
 
 SCHEMA = "wilson-two-lane-contract-v2"
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/wilson_loop/lane_contract_diagnostic_20261124_v5")
+               / "results/wilson_loop/lane_contract_diagnostic_20261125_v6")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+CONTRACT_PATH = Path(__file__).with_name("lane_contract_v2.json")
 F_BOUND_COMPONENTS = (
     "excited_state_force", "finite_T_thermal", "mixed", "finite_a",
     "finite_volume", "other_systematic",
@@ -30,13 +31,99 @@ QHX_UNITS = "dimensionless"
 CREUTZ_UNITS = "dimensionless"
 
 
+def selected_protocol() -> dict[str, Any]:
+    """Return selected C/F method defaults without inventing evidence receipts."""
+    return {
+        "protocol_id": "wilson-two-lane-selected-v1",
+        "status": "METHOD_DEFAULTS_SELECTED_EVIDENCE_NOT_READY",
+        "ensemble_design": {
+            "geometry": [16, 16, 16, 16],
+            "action": "Wilson gauge action, beta=6",
+            "boundary_conditions": {"spatial": "periodic", "temporal": "periodic"},
+            "temporal_extent_Nt": 16,
+            "primary_kernel": "spatial_stout_rho0.10_n5",
+            "descriptive_kernel": "ape_alpha0.4_n5",
+            "kernel_pair_interpretation": "weak-field matched candidate pair only; no nonperturbative radius equivalence asserted",
+        },
+        "familywise_inference": {
+            "alpha_total": 0.05,
+            "co_primary_lanes": ["finite_T_Creutz", "ground_state_discrete_static_force"],
+            "alpha_each_lane": 0.025,
+            "block_bootstrap_draws": 10000,
+            "primary_circular_block_length": 5,
+            "sensitivity_block_lengths": [2, 10],
+            "interval_rule": "hull of the required block-length intervals",
+            "failed_draw_rule": "invalid required loop mean invalidates the paired draw; abstain if >1% invalid draws or precision gate fails",
+        },
+        "finite_T_Creutz": {
+            "estimand": "absolute finite-T chi_stout(R=2,T=5), not a ground-state force",
+            "R": 2, "T": 5,
+            "kernel_id": "spatial_stout_rho0.10_n5",
+            "formula": "-[log Wbar(3,6)+log Wbar(2,5)-log Wbar(3,5)-log Wbar(2,6)]",
+            "loop_mean_rule": "compute paired ensemble means first; take logs only for positive means",
+            "precision_halfwidth_target": 0.02,
+            "precision_units": "dimensionless",
+            "data_receipt_sha256": None,
+            "paired_split_manifest_sha256": None,
+        },
+        "ground_state_discrete_static_force": {
+            "estimand": "stout-minus-identity ground-state discrete static force at midpoint R=2.5",
+            "stencil_R": 2,
+            "midpoint_R": 2.5,
+            "candidate_kernel_id": "spatial_stout_rho0.10_n5",
+            "reference_kernel_id": "identity",
+            "formula": "[U0_stout(3)-U0_stout(2)]-[U0_identity(3)-U0_identity(2)]",
+            "units": "dimensionless lattice force a_s*a_t*F",
+            "spectral_evidence_plan": {
+                "basis": ["identity", "APE", "stout"],
+                "gevp_dimension": 3,
+                "t0": 1, "td": 2,
+                "R_values": [2, 3],
+                "joint_finite_Nt_state_count_checks": [2, 3],
+                "fit_window": [3, 7],
+                "tmin_checks": [3, 4, 5],
+                "matched_thermal_Nt": 32,
+            },
+            "relative_error_budget": {
+                "reference": "positive simultaneous lower confidence bound for f_reference is required; otherwise abstain",
+                "excited_state_q_max_fraction": 0.015,
+                "thermal_h_max_fraction": 0.015,
+                "mixed_x_max_fraction": 0.01,
+                "spectral_model_truncation_max_fraction": 0.01,
+                "systematic_total_max_fraction": 0.05,
+                "statistical_halfwidth_max_fraction": 0.05,
+                "linear_total_max_fraction": 0.10,
+                "q_h_x_cells": 24,
+                "model_truncation_cells": 4,
+                "systematic_cell_alpha": 0.0125 / 28,
+            },
+            "error_propagation": "use log(1+q+h+x) at all four stencil points, then apply Delta_R Delta_t before force-unit gate",
+            "evidence_receipts": {
+                "gevp_and_overlap": None, "excited_state_q": None,
+                "thermal_h_Nt32": None, "mixed_x": None,
+                "spectral_model_truncation": None,
+                "independent_physics_review": None,
+            },
+        },
+        "gates": {
+            "production_data_authorized": False,
+            "gpu_quda_authorized": False,
+            "sealed_confirmation_open": False,
+            "finite_T_Creutz_certified": False,
+            "ground_state_force_certified": False,
+            "physical_score": None,
+        },
+    }
+
+
 def empty_contract() -> dict[str, Any]:
-    """Return a draft that preserves all unfrozen scientific choices as null."""
+    """Return selected C/F method defaults while leaving measurement evidence null."""
     return {
         "schema": SCHEMA,
         "status": "DRAFT_NOT_READY",
         "physical_score": None,
         "certified": False,
+        "selected_protocol": selected_protocol(),
         "common": {
             "action_id": None,
             "static_source_action_id": None,
@@ -427,6 +514,13 @@ def inspect_contract(contract: Any) -> dict[str, Any]:
         }
     common = contract.get("common")
     common_issues = _check_common(common)
+    protocol = contract.get("selected_protocol")
+    if not _mapping(protocol):
+        common_issues.append("selected_protocol: missing selected C/F method defaults")
+    elif protocol != selected_protocol():
+        common_issues.append(
+            "selected_protocol: differs from frozen C/F defaults or evidence-open fields"
+        )
     if contract.get("schema") != SCHEMA:
         common_issues.append(f"contract.schema: expected {SCHEMA}")
     raw_lanes = contract.get("lanes")
@@ -562,8 +656,9 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
     c_inference["precision_units"] = "SYNTHETIC_ONLY_GeV"
     null_kernels = _synthetic_contract(complete_creutz=True, complete_force=True)
     null_kernels["common"]["kernel_ids"] = None
+    current_contract = json.loads(CONTRACT_PATH.read_text())
     fixtures = {
-        "current_null_draft": empty_contract(),
+        "current_selected_method_draft": current_contract,
         "synthetic_C_only_complete": _synthetic_contract(
             complete_creutz=True, complete_force=False,
         ),
@@ -596,6 +691,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
     (out / "contract_diagnostics.json").write_text(
         json.dumps({"schema": SCHEMA, "data_access": "none",
                     "physical_score": None, "certified": False,
+                    "selected_protocol": selected_protocol(),
                     "fixtures": results}, indent=2, allow_nan=False) + "\n"
     )
     with (out / "lane_summary.csv").open("w", newline="") as stream:
@@ -608,15 +704,30 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "",
         "**STRUCTURE CHECK ONLY. `physical_score=null`; no Wilson measurements, sealed data, GPU, or QUDA inputs were accessed.**",
         "",
-        "The contract preserves the user-selected lanes separately: finite-`T` Creutz as its own observable and the ground-state discrete static-force difference as a distinct target. Structural completeness is not physics validation. Even a fully populated synthetic fixture can only reach `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`; the tool never sets a certified or ready state.",
+        "The selected protocol is recorded in `selected_protocol()`: Lane C is absolute stout `chi(2,5)` on periodic 16^3x16 Wilson beta=6 data, with dimensionless halfwidth 0.02; Lane F is stout-minus-identity ground-state force at midpoint R=2.5, with separate q/h/x, spectral-model, and statistical budgets. Each lane receives alpha=0.025 from the total 0.05 family budget. Both remain distinct estimands. These are design choices; measurement, spectrum, thermal, split, paired-block and review receipts remain absent.",
+        "",
+        "## Selected C/F decision flow",
+        "",
+        "```text",
+        "paired loop IDs and 10,000 circular block-bootstrap draws (length 5; lengths 2/10 sensitivity)",
+        "  -> C: positive ensemble means -> logs -> finite-T stout chi(2,5) -> dimensionless halfwidth <=0.02",
+        "  -> F: independent 3x3 GEVP + Nt16/Nt32 joint spectrum -> q/h/x and model bounds",
+        "  -> propagate log(1+q+h+x) through Delta_R Delta_t -> compare force-unit systematic/statistical budget",
+        "  -> missing receipt, nonpositive reference-force lower bound, >1% invalid draws, or failed precision => lane-specific ABSTAIN",
+        "  -> independent review and data/GPU authorization remain separate; physical_score stays null",
+        "```",
+        "",
+        "For Lane F, the four-point force-unit propagation must precede comparison with the 5% systematic budget. The q/h/x limits are relative to a positive simultaneous lower confidence bound for the reference force; they are not themselves force units. The 28 simultaneous systematic/model cells each receive alpha=0.0125/28. Statistical alpha=0.0125 is split equally between the force contrast interval and the positive-reference lower-bound gate.",
+        "",
+        "Structural completeness is not physics validation. Even a fully populated synthetic fixture can only reach `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`; the tool never sets a certified or ready state.",
         "",
         "## Text diagnostic and decision flow",
         "",
         "```text",
-        "CURRENT NULL DRAFT",
-        "  -> identify shared action, geometry, boundaries, units, kernels, split and paired-block receipts",
-        "  -> Lane C: chi = -[log W(R+1,T+1)+log W(R,T)-log W(R+1,T)-log W(R,T+1)]; require dimensionless precision units and freeze primary R/T/kernel and remaining inference rules",
-        "  -> Lane F: freeze candidate-minus-reference force stencil and units, q/h/x receipts, thermal/mixed/cutoff/volume bounds, alpha allocation and total error budget",
+        "selected protocol defaults -> acquire shared action, geometry, boundary, split and paired-block receipts",
+        "  -> Lane C: stout chi(2,5), positive-mean logs, 0.02 dimensionless precision, 97.5% interval",
+        "  -> Lane F: ground-state stout-minus-identity force at R=2.5, 3x3 GEVP and matched Nt=32 thermal check",
+        "  -> populate independently reviewed q/h/x/model bounds and their force-unit propagation",
         "  -> schema-complete? no: remain NOT_READY and list blockers",
         "  -> schema-complete? yes: CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW only",
         "  -> independent physics review + authorized measurements + sealed confirmation are separate later gates",
@@ -641,7 +752,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "- The current draft stays `NOT_READY` and exposes unset values as blockers.",
         "- A schema-complete synthetic C lane does not make Lane F ready.",
         "- Synthetic C+F completeness validates stencil and budget bookkeeping only; it does not provide real Q/H/X spectra, independent bounds, action receipts, uncertainty calibration, or physics certification.",
-        "- The accepted primary `R/T/kernel`, precision/multiplicity choices and physical contamination limits remain unfrozen, so production `NOT_READY/UNCERTIFIED` is unchanged.",
+        "- Selected R/T/kernel, alpha, precision and contamination budgets are method defaults; their data, spectral and independent-review receipts remain missing, so both production lanes remain `NOT_READY/UNCERTIFIED` and the ground-state force stays uncertified.",
         "",
         "### Fail-closed regression diagnostics",
         "",
@@ -666,6 +777,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "data_access": "none",
         "physical_score": None,
         "certified": False,
+        "selected_protocol": selected_protocol(),
         "lane_estimands": ["finite_T_Creutz",
                            "ground_state_discrete_static_force_difference"],
         "fixed_sign_conventions": {
@@ -681,12 +793,13 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         },
     }
     (out / "protocol.json").write_text(json.dumps(protocol, indent=2) + "\n")
+    (out / "lane_contract_v2.json").write_bytes(CONTRACT_PATH.read_bytes())
     source_snapshot = out / "snapshot_lane_contract.py"
     source_snapshot.write_bytes(Path(__file__).read_bytes())
     receipt_source = Path(__file__).resolve().parents[2] / "core/receipts.py"
     (out / "snapshot_core_receipts.py").write_bytes(receipt_source.read_bytes())
     files = ["README.md", "contract_diagnostics.json", "lane_summary.csv",
-             "protocol.json", "snapshot_lane_contract.py",
+             "protocol.json", "lane_contract_v2.json", "snapshot_lane_contract.py",
              "snapshot_core_receipts.py"]
     source_hashes = {
         "tasks/wilson_loop/lane_contract.py": hashlib.sha256(
