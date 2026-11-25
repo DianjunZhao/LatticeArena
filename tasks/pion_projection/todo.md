@@ -261,4 +261,13 @@ v9 合同诊断为 15 个结构 fixture，planned/valid/failed/abstained=`15/5/1
 
 ## 2026-11-25 当前 Pion 接手点
 
-前文关于目标、单位、`R`、clipping、`delta_star`、family 与 alpha 的提问已由本轮选定默认值覆盖；不得再次向用户询问这些方法选择。下一位 agent 按顶部 defaults 实现合同字段，并重画 `F=3` 下 `N/gamma_ps/TV` 半径图。实际 gap/TV、独立 anchor 与 common-bias/reference receipts 仍未提供，故只可产出条件式公式诊断；不解封数据、不申领/假设授权、不输出物理分数。
+前文关于目标、单位、`R`、clipping、`delta_star`、family 与 alpha 的提问已由本轮选定默认值覆盖；不得再次向用户询问这些方法选择。后续合同和 `F=3` 敏感度诊断见本文件末尾 2026-11-25 续记。实际 gap/TV、独立 anchor 与 common-bias/reference receipts 仍未提供，故不得输出物理分数或解封数据。
+
+## 2026-11-25 自选输入后的 CPU 合同与 F=3 诊断
+
+- [`bounded_block_risk_contract_v1.json`](bounded_block_risk_contract_v1.json) 现包含方法选择：目标与参考拟合协议、`R=2.9`、`delta_star/R^2=0.05`、`F=3`/alpha 分配、length-5 与 `N=4000` 计划、`gamma_ps>=0.20`/burn-in 8/TV `<=0.001` 要求，以及 1000 个 bounded-IID anchor 单位和 `C/R<=0.01` 设计门。**测量/独立审阅 receipts 仍为 null**；不得把规划阈值理解成已测 gap、TV 或 anchor 证据。
+- [`bounded_block_risk_f3_plan.py`](bounded_block_risk_f3_plan.py) 生成的 [`F=3` 诊断包](F3_markov_sensitivity_v1/README.md) 展示 `N/gamma_ps/TV` 半径及最佳情形 LCB，并附 CSV、SVG、protocol 与 SHA-256。公式网格分母 planned/valid/failed/abstained=`245/140/0/105`，全部是解析情景；新的物理 block/anchor 测量分母是 `0/0/0/0`。在所选演示点 `N=4000, gamma_ps=0.20, TV=0.001`，epsilon=`0.386316`，扣除 TV 与 anchor 修正后的最大可能 LCB=`0.488744`。这只说明在所有设计假设成立且样本均值达到理论最大 1 时，阈值 0.05 可达；并未估计项目 gap/TV、coverage 或效应。
+- 文字流程：`独立 E-chain reference gate -> 固定 bounded score/F=3 -> 审阅 block-chain/gamma/TV receipts -> 独立 anchor coverage+C -> 全 planned N 的 LCB -> >0.05 才能进入另行授权的 confirmation；缺 receipt 则 ABSTAIN`。
+- Pion bounded-risk 与依赖图专项回归：`tests/test_pion_bounded_block_risk_*.py tests/test_pion_dependency_graph_bound.py` **139 passed**；其中新 contract/F=3 模块 **37 passed**。未运行 Pion 全仓测试；未读取 E/gap/validation/holdout，未做物理测量或 GPU/QUDA 运算，`physical_score=null` 与 `NOT_READY/UNCERTIFIED` 保持不变。
+
+**下一位 Pion agent：**不要再重跑合成网格或把上述最佳情形当项目效应。只接收并独立审核 score-specific block-chain/gamma 与 post-burn-in TV receipts、1000 个独立 anchor 的 coverage 和 common-bias `C` receipts，以及 candidate-blind E-chain reference 拟合结果。任何缺项都保留 `ABSTAIN/NOT_READY`；只有新的未封存 confirmation 输入和数据 owner 授权到位后才能计算物理 bounded block-risk。GPU/QUDA 仍需单独资源授权。

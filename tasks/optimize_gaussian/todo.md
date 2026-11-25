@@ -25,11 +25,21 @@
 
 文字流程：`独立 E reference -> 固定 Pion risk -> fit IDs 上分别训练 W、同预算 SLSQP、degree-4 P4 -> 共同 G^2 sandwich -> 锁定参数与候选 -> 新的 paired confirmation IDs -> 两个 Bonferroni risk-ratio 下界都过 1.1111 才算整体成功`。
 
-**交接规则：**本文件下方 2026-11-24 的“等待研究者冻结 D04/D06/D11”是历史 handoff，现由本节 protocol defaults 覆盖；不要再次向用户问目标/reference、`r_star` 或算符形式。下一位 agent 应将这些 method fields 写进 Optimize 合同与文本诊断，把 E 数据收据、预算实测、独立 review 和 GPU/confirmation 授权留作空门；先做 CPU 合同/小格算符验证并配文字流程或响应图，不重复 synthetic teacher/meta-init 网格。
+**交接规则：**本文件下方 2026-11-24 的“等待研究者冻结 D04/D06/D11”是历史 handoff，现由本节 protocol defaults 覆盖；不要再次向用户问目标/reference、`r_star` 或算符形式。合同、检查器和小格算符测试在[PR #6 head `37bb2c2`](https://github.com/Greyyy-HJC/LatticeArena/tree/37bb2c2/tasks/optimize_gaussian)及[对应 CPU 测试](https://github.com/Greyyy-HJC/LatticeArena/blob/37bb2c2/tests/test_optimize_chebyshev_baseline.py)。证据字段与成本金额仍为空门；后续 agent 不要重复 synthetic teacher/meta-init 网格，先补 E reference、共同 split/seed/cost receipts 与独立审阅，再按权限运行三个 arm。
 
 ## 2026-11-25 当前 Optimize 接手点
 
-上文 D04/D06/D11 的目标、风险方向/效应门槛、degree-4 算符与 Gaussian sandwich 已由本轮选定。历史 Astra handoff 仍用于保留当时状态，不再构成“等待用户选择”的理由。接手 agent 先将方法字段写入 machine contract；真实 E reference receipt、数据 split/hash、硬件/cost ledger、independent review 与 GPU/QUDA 授权仍未取得，故保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`，不训练真实 W、不打开 sealed confirmation。
+上文 D04/D06/D11 的目标、风险方向/效应门槛、degree-4 算符与 Gaussian sandwich 已由本轮选定，machine contract 已写入 PR #6。历史 Astra handoff 仍用于记录其时状态，不再构成“等待用户选择”的理由。真实 E reference receipt、数据 split/hash、实测 cost ledger、independent review 与 GPU/QUDA 授权仍未取得，故保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`，不训练真实 W、不打开 sealed confirmation。
+
+## 2026-11-25 自选输入后的 machine contract 与比较规程
+
+- PR #6 的[机器合同](https://github.com/Greyyy-HJC/LatticeArena/blob/37bb2c2/tasks/optimize_gaussian/research_contract_v1.json)与[检查器](https://github.com/Greyyy-HJC/LatticeArena/blob/37bb2c2/tasks/optimize_gaussian/contract.py)已记录 D04 的独立 candidate-blind 联合谱 reference/risk 目标、D06 的风险比方向和 `r_star=1.111111...`，以及 D11 的 degree-4 positive monotone spectral family、`H` 区间、Chebyshev 转换和共同 `G^2 P4(H) G^2` sandwich。未把任何 synthetic 指标写入物理 reference。
+- 比较族保留两项：trainable-W vs 同预算 SLSQP；trainable-W vs 固定强 degree-4 spectral baseline。计划 `F=2`、单侧总 alpha=.05、每项 .025，10,000 paired block draws、length-5 primary、length-2/10 稳健性 hull；只有两个 ratio hull lower bounds 都超过 `1.111111...` 才算整体通过。风险无效/为零则 `ABSTAIN_RATIO_UNDEFINED`。
+- 调用预算采用已有 CPU operator 对照的已执行上限 160 次 objective-oracle invocation/arm；这是调用上限，不是 walltime 相等的证明。梯度/函数 evaluator 的实现差异、setup、training、fit、solve、inference、I/O 和失败恢复仍须分项计时；`amortization_task_count=1`，不预先给训练摊销优惠。真实成本金额、hardware、fit/eval/split/seed hashes 均为空门。
+- 文字流程：`独立 E-chain reference -> 冻结同一 D04 risk -> 在共同 fit IDs 上训练 W/SLSQP/degree-4 spectral -> 160-call cap 与完整成本账本 -> 冻结候选 -> 新 paired confirmation IDs -> 两项 Bonferroni 风险比下界都过 r_star；缺 reference、receipt 或授权即 NOT_READY`。
+- Optimize/Wilson 任务专项回归 `tests/test_optimize* tests/test_wilson*` **96 passed**，其中 Optimize contract 7 项、Wilson contract 13 项；同时包含选定 degree-4 operator 与有限温 Wilson 代数测试。这只验证 CPU 软件/公式，不证明 D04 reference、真实风险或 GPU 性能。
+
+**下一位 Optimize agent：**从独立 E-chain fit 开始补真实 reference 和哈希，然后在授权的未封存数据上用三个 arm 执行共同 objective/precision 和 split。记录各自 training/setup/solve/inference/I/O/failure-recovery/total walltime；报风险比 paired interval hull 与 planned/valid/failed/abstained 分母及图/文字诊断。未有数据和资源授权时停止在 `NOT_READY/UNCERTIFIED`，不要重跑已有 synthetic 网格或解封 confirmation。
 
 ## 决策状态与问题
 
@@ -238,3 +248,7 @@ Astra 只读复核已结束，没有产生外部授权或可直接冻结的 D04/
 用户对上一轮研究输入/外部授权问题的答复是：保持当前 `NOT_READY/UNCERTIFIED` 与数据封存状态。Astra 候选卡仅供以后审阅，不等于冻结 D04/D06/D11 或批准数据/GPU；因此本轮不把候选值写入 machine-readable contract，也不重复已有 synthetic teacher/meta-init 网格。Optimize TODO **保留**，因为任务仍未完成。
 
 下一位 agent 只有在用户/研究负责人明确更新输入后，才继续依赖这些输入的工作：D04 target/reference、单位与独立 fit/eval IDs；D06 paired-risk estimand、方向、失败和低分母规则、同时置信区间及 `r_star`；D11 degree-4 算符的自变量/方向/权重、边界、归一化、零模和 PSD/单调合同。届时先更新合同和 CPU 诊断，再按共同 objective/precision/call 与总时长预算比较 trainable-W、同预算 SLSQP、强谱基线。诊断至少给 paired-risk/成本图或完整文字数据流、训练/fit/求解/推理/I/O/失败恢复/heldout 分层分母；封存 split 与生产 GPU 仍需独立授权。
+
+## 2026-11-25 最新接手说明
+
+上面 2026-11-24 的“等待研究者冻结 D04/D06/D11”已由用户要求助手自行选择输入的指示取代。选定方法、机器合同、160 次/臂的 objective-oracle 规划上限、文字数据流和 96 项 Optimize/Wilson CPU 回归结果见前面的 2026-11-25 更新；合同已在[PR #6 head `37bb2c2`](https://github.com/Greyyy-HJC/LatticeArena/blob/37bb2c2/tasks/optimize_gaussian/research_contract_v1.json)。当前仍未取得独立 E-chain reference、split/hash、实测 cost ledger、独立审阅或生产/GPU 授权；下一步是补这些证据并按授权执行三臂对照，不能把方法选择当成确认结果。

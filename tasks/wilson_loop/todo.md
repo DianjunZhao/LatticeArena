@@ -21,11 +21,19 @@
 
 文字流程：`同一新配置/paired blocks -> 4 个 loop means -> C: finite-T chi_stout(2,5) 与 0.02 half-width gate`；`独立 calibration IDs + 3x3 GEVP + Nt16/Nt32 joint spectrum -> 分别给 q/h/x/model force-unit 上界 -> F: Delta_R U0(2) candidate-reference -> 5% systematic + 5% statistical gates -> 缺任一收据即 ABSTAIN`。
 
-**交接规则：**下文所有要求用户在 identity 与 APE/stout、R/T/kernel 或误差预算间选择的段落均为历史记录，现由本节 defaults 覆盖；不要再次要求用户选择这些方法输入。下一位 agent 应将已选 C/F 字段与 alpha/precision/error budget 写入 lane contract，保留独立谱/thermal receipts、paired split plan、审阅与资源授权为空；输出合同 blocker 表和 q/h/x→force 的文字流程/敏感度图，但不读 D0–99 或封存确认数据、不运行 GPU/QUDA。
+**交接规则：**下文所有要求用户在 identity 与 APE/stout、R/T/kernel 或误差预算间选择的段落均为历史记录，现由本节 defaults 覆盖；不要再次要求用户选择这些方法输入。合同和 `lane_contract.py` 诊断在[PR #6 head `37bb2c2`](https://github.com/Greyyy-HJC/LatticeArena/tree/37bb2c2/tasks/wilson_loop)，其中保留 C/F blocker 与 q/h/x→force 文字流程；独立谱/thermal receipts、paired split plan、审阅与资源授权仍为空。不读 D0–99 或封存确认数据、不运行 GPU/QUDA。
 
 ## 2026-11-25 当前 Wilson 接手点
 
-C 主点固定为 stout absolute `chi(2,5)`；F 主点固定为 stout-minus-identity ground-state discrete force at `R=2.5`。较早关于改选 identity 或 APE/stout primary 的段落属于历史状态。接手 agent 按本节填入合同中的 protocol/budget 字段，只有测量值与独立 q/h/x/GEVP/Nt32 receipts 继续保持空缺；生成的诊断必须明确 `0` 个新物理测量，并附 C/F blocker 表与文字/图示流程。未经授权不读封存数据或运行 GPU/QUDA。
+C 主点固定为 stout absolute `chi(2,5)`；F 主点固定为 stout-minus-identity ground-state discrete force at `R=2.5`。较早关于改选 identity 或 APE/stout primary 的段落属于历史状态。lane contract 已写入 PR #6；测量值、paired split、独立 q/h/x/GEVP/Nt32 receipts 和 owner authorization 仍为空，因此继续标明 `0` 个新物理测量、保留 `NOT_READY/UNCERTIFIED`，不读封存数据或运行 GPU/QUDA。
+
+## 2026-11-25 自选输入后的 C/F machine contract 与证据流程
+
+- [PR #6 的机器合同](https://github.com/Greyyy-HJC/LatticeArena/blob/37bb2c2/tasks/wilson_loop/lane_contract_v2.json)记录固定方法：C=`chi_stout(2,5)`、`N_t=16`、positive-ensemble-mean log、dimensionless halfwidth 0.02；F=`stout-identity` 基态力差、midpoint `R=2.5`、独立 `3x3 GEVP` 与匹配 `N_t=32` thermal route。C/F 各分 alpha=.025；q/h/x、spectral truncation 和 force-unit propagation 门槛均已明确。
+- C/F 文字数据流：`paired loops -> C positive means/logs -> finite-T chi and precision gate`；`independent spectra + matched Nt32 -> q/h/x/model simultaneous bounds -> log(1+q+h+x) at four stencil points -> Delta_R Delta_t force-unit propagation -> total systematic/statistical budget`。关键 receipt 缺失、reference-force lower bound 不为正、无效 draw 比例>1%或精度失败时按 lane abstain。
+- Optimize/Wilson 任务专项回归 `tests/test_optimize* tests/test_wilson*` **96 passed**，其中 Wilson contract 13 项；同时包含 Wilson finite-Nt algebra/toy 及随机正谱实现检查。该结果只确认 CPU 软件/公式与合同结构、单位、alpha 记账和 fail-closed fixture；物理测量分母仍为 `0/0/0/0`，q/h/x 与谱证据仍未提供，ground-state force 仍 `GROUND_STATE_FORCE_UNCERTIFIED`。
+
+**下一位 Wilson agent：**只在独立 calibration IDs 获批后生成 GEVP/多态 joint fit、匹配 `N_t=32` thermal 与 mixed-sector receipts；每个 q/h/x 及模型项附拟合图/残差或文字谱诊断和同时上界。随后独立审阅单位换算与四点 force propagation，再申请未观察 confirmation 输入与 GPU/QUDA 资源授权。D0–99 不能作为确认数据，不能用 toy/随机正谱范围填污染值；无 receipts 时两条 lane 均不升级。
 
 ## 用户已选择的两个独立 estimand
 
@@ -215,3 +223,7 @@ PR #6 提交 [`f9be949`](https://github.com/Greyyy-HJC/LatticeArena/commit/f9be9
 用户对研究输入/外部授权问题的答复是：维持当前 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED` 与封存状态。Astra 给出的 C/F 候选是审阅材料，不是用户选定的 C primary、F 污染上界或测量授权；因此本轮不再重复同一批 synthetic contract/toy 诊断。Wilson TODO **保留**，因为两个 lane 都仍有未闭合的科学输入。
 
 下一位 agent 在得到新的研究者决定后再推进：C lane 须先明确选择单 kernel 绝对 `chi(2,5)` 或 matched APE/stout `delta-chi(2,5)`，并冻结 `N_t`/边界、loop mean/log 失败策略、paired block、precision、置信与 multiplicity；F lane 须给出独立的谱/GEVP 或 matched-`N_t` 证据，逐项约束激发态、热/绕回、mixed-sector、谱截断和总 force-unit 误差预算。输出保留 C/F 分开的 planned/valid/failed/abstained 表、污染/误差图或文字数据流。D0–99 不得转为确认样本；任何未观察 confirmation 输入与 GPU/QUDA 仍需相应 owner 单独授权。
+
+## 2026-11-25 最新接手说明
+
+上面 2026-11-24 的“等待用户选择 C estimand、primary 与预算”已由用户要求助手自行选择输入的指示取代。选定的两条 lane、机器合同、q/h/x→force 文字流程和 96 项 Optimize/Wilson CPU 回归结果见前面的 2026-11-25 更新；合同已在[PR #6 head `37bb2c2`](https://github.com/Greyyy-HJC/LatticeArena/blob/37bb2c2/tasks/wilson_loop/lane_contract_v2.json)。当前仍没有新物理测量或独立 GEVP/q/h/x/Nt32 receipts，confirmation 和 GPU/QUDA 授权仍关闭；下一步仅在独立 calibration IDs 与对应 owner 授权到位后开展污染测量与 review。

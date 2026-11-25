@@ -20,7 +20,7 @@ from core.receipts import run_receipt, scenario_spec
 
 SCHEMA = "pion-bounded-block-risk-contract-v1"
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v11")
+               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261125_v12")
 CONTRACT_PATH = Path(__file__).with_name("bounded_block_risk_contract_v1.json")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 DEPENDENCE_METHODS = {
@@ -33,8 +33,93 @@ ANCHOR_METHODS = {"known_sigma_normal_interval", "bounded_iid_hoeffding"}
 FAILURE_POLICY = "failed_block=-1; all_failed_comparison=abstain"
 
 
+def selected_protocol() -> dict[str, Any]:
+    """Return the selected method defaults, keeping every empirical receipt open."""
+    return {
+        "protocol_id": "pion-bounded-block-risk-selected-v1",
+        "status": "METHOD_DEFAULTS_SELECTED_EVIDENCE_NOT_READY",
+        "target": {
+            "observable": "lowest zero-momentum valence isovector pseudoscalar energy",
+            "units": "a_t m_pi",
+            "ensemble": "S16T16 quenched Wilson, kappa=0.14",
+            "m_star_measurement": None,
+        },
+        "reference_fit": {
+            "channels": ["PP_n0", "PP_n8", "PP_n16", "local_A4P"],
+            "candidate_blind": True,
+            "shared_states": 2,
+            "fit_window": [3, 8],
+            "tmin_checks": [2, 3, 4],
+            "state_count_checks": [2, 3],
+            "covariance_diagonal_shrinkage": 0.25,
+            "covariance_eigenvalue_floor": 1e-10,
+            "folding": {"PP": "even", "A4P": "odd"},
+            "pass_gates": {
+                "relative_mass_error_max": 0.05,
+                "p_value_min": 0.01,
+                "window_model_shift_max_paired_se": 2.5,
+                "require_PP_A4P_compatibility": True,
+                "forbid_parameter_boundary_hits": True,
+            },
+            "measurement_receipt_sha256": None,
+            "independent_review_receipt_sha256": None,
+        },
+        "score": {
+            "prediction_domain": [0.1, 3.0],
+            "units": "a_t m_pi",
+            "R": 2.9,
+            "prediction_difference_abs_bound": 2.9,
+            "formula": "clip(((A-y_ref)^2-(A-y_candidate)^2)/R^2, -1, 1)",
+            "clipping_interval": [-1, 1],
+            "failure_policy": FAILURE_POLICY,
+            "delta_star": 0.4205,
+            "delta_star_units": "(a_t m_pi)^2",
+            "normalized_effect_threshold": 0.05,
+        },
+        "comparison_family": {
+            "ids": ["candidate_vs_local_identity", "candidate_vs_tuned_H32",
+                    "candidate_vs_frozen_signed_SLSQP"],
+            "F": 3,
+            "alpha_total": 0.05,
+            "alpha_score": 0.04,
+            "alpha_anchor": 0.01,
+        },
+        "dependence_design": {
+            "method": "markov_pseudo_gap_bernstein",
+            "fixed_score_map_across_blocks": True,
+            "block_length_configurations": 5,
+            "planned_scored_blocks": 4000,
+            "gamma_ps_lower_bound_requirement": 0.20,
+            "burn_in_blocks": 8,
+            "post_burn_in_tv_bound_per_comparison": 0.001,
+            "evidence_receipt_sha256": None,
+            "block_chain_receipt_sha256": None,
+            "gamma_ps_receipt_sha256": None,
+            "initial_law_tv_receipt_sha256": None,
+        },
+        "anchor_design": {
+            "method": "bounded_iid_hoeffding",
+            "independent_stationary_units_required": 1000,
+            "support_interval": [0.1, 3.0],
+            "alpha": 0.01,
+            "coverage_radius_formula": "(3.0-0.1)*sqrt(log(2/0.01)/(2*1000))",
+            "common_bias_bound_C_max_over_R": 0.01,
+            "total_error_B_over_R_formula": "sqrt(log(2/0.01)/(2*1000))+0.01",
+            "coverage_receipt_sha256": None,
+            "common_bias_receipt_sha256": None,
+            "score_anchor_independence_receipt_sha256": None,
+        },
+        "gates": {
+            "production_data_authorized": False,
+            "gpu_quda_authorized": False,
+            "sealed_confirmation_open": False,
+            "physical_score": None,
+        },
+    }
+
+
 def empty_contract() -> dict[str, Any]:
-    """Return a draft with every study-specific input unset."""
+    """Return a draft with selected method defaults and no empirical receipts."""
     return {
         "schema": SCHEMA,
         "status": "DRAFT_NOT_READY",
@@ -42,6 +127,7 @@ def empty_contract() -> dict[str, Any]:
         "certified": False,
         "data_access": "none",
         "authorization": {"production_data": False, "gpu_quda": False},
+        "selected_protocol": selected_protocol(),
         "estimand": {
             "name": "bounded_block_risk",
             "target": {
@@ -506,6 +592,12 @@ def inspect_contract(contract: Any) -> dict[str, Any]:
         }
     issues: list[str] = []
     schema_valid = contract.get("schema") == SCHEMA
+    protocol = contract.get("selected_protocol")
+    if not _mapping(protocol):
+        issues.append("selected_protocol: missing selected method defaults")
+    else:
+        if protocol != selected_protocol():
+            issues.append("selected_protocol: differs from the frozen method defaults or evidence-open fields")
     if not schema_valid:
         issues.append(f"schema: expected {SCHEMA}")
     if contract.get("status") != "DRAFT_NOT_READY":
@@ -788,6 +880,18 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "",
         "**STRUCTURE CHECK ONLY. `physical_score=null`; no correlator, anchor, gap, validation, holdout, GPU, or QUDA inputs were read.**",
         "",
+        "The selected method defaults are recorded in `bounded_block_risk_contract_v1.json`: target `a_t m_pi`, `R=2.9`, `delta_star/R^2=0.05`, three comparisons with `alpha_score=0.04` and `alpha_anchor=0.01`, length-5 blocks with `N=4000`, required `gamma_ps>=0.20`, burn-in 8 and per-comparison TV `<=0.001`; the anchor design requires 1000 bounded iid stationary units and a separately evidenced common-bias limit. These are planning choices, not measurements or receipts.",
+        "",
+        "## Selected protocol flow",
+        "",
+        "```text",
+        "independent candidate-blind E-chain joint fit -> pass mass/model/folding gates -> freeze bounded score and F=3 family",
+        "  -> review score-specific length-5 block-chain, gamma_ps lower bound, and burn-in/TV receipts",
+        "  -> review independent 1000-unit bounded-IID anchor coverage and common-bias C receipt",
+        "  -> only then evaluate the full N=4000 planned-block LCB; retain failed slots as -1",
+        "  -> require normalized LCB > 0.05; otherwise ABSTAIN; physical_score remains null until all gates are separately authorized",
+        "```",
+        "",
         "The inspector checks whether a future contract contains the fields required by the v1 estimand: bounded paired squared-error scores, a score-specific dependence route, anchor coverage/common-bias evidence, preallocated alpha, and a separate physical reference gate.",
         "",
         "The fixed-score Markov route follows Paulin arXiv v5 Theorem 3.11 / Eq. (3.25). The optional time-varying routes follow Eq. (3.26) for predeclared `f_i(X_i)` and `theta_N=N^-1 sum_i E_pi[f_i(X_i)]`; a human must review whether this schedule preserves the accepted target. The exact-`k_ps` route requires the smallest maximizing `k_ps`, a receipt for that choice, positive upper bounds for every residue-class variance sum, a variance receipt, and a score-schedule receipt. A second support-only route uses `Var_pi(f_i)<=1` for scores in `[-1,1]` plus a separately receipted positive pseudo-gap lower bound; it removes the exact-`k_ps` and per-class variance receipts by using `V_sum<=N+ceil(1/gamma_ps_lower)-1` and `M/k_ps=1` after uniform residue-bound inflation. This may be conservative and does not validate the gap or chain assumptions. Both routes require review of the schedule-specific finite-plan estimand. See [Paulin, arXiv:1212.2015v5](https://arxiv.org/html/1212.2015v5).",
@@ -848,6 +952,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "data_access": "none",
         "physical_score": None,
         "certified": False,
+        "selected_protocol": selected_protocol(),
         "fixtures": list(fixtures),
         "synthetic_fixture_values_are_physical": False,
         "receipt": {

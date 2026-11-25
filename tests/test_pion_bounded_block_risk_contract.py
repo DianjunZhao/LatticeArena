@@ -8,7 +8,9 @@ from tasks.pion_projection.bounded_block_risk_contract import (
     build_report,
     empty_contract,
     inspect_contract,
+    selected_protocol,
 )
+from tasks.pion_projection.bounded_block_risk_f3_plan import build as build_f3_plan
 
 
 def test_current_null_contract_is_not_ready_and_keeps_physical_score_null():
@@ -21,6 +23,22 @@ def test_current_null_contract_is_not_ready_and_keeps_physical_score_null():
     assert any("dependence.method" in issue for issue in result["issues"])
     assert any("anchor.estimate_receipt_sha256" in issue for issue in result["issues"])
     assert any("estimand.reference_gate" in issue for issue in result["issues"])
+    assert empty_contract()["selected_protocol"] == selected_protocol()
+    assert empty_contract()["selected_protocol"]["gates"]["physical_score"] is None
+
+
+def test_selected_method_defaults_cannot_be_confused_with_empirical_receipts():
+    contract = empty_contract()
+    assert contract["selected_protocol"]["comparison_family"]["F"] == 3
+    assert contract["selected_protocol"]["dependence_design"]["planned_scored_blocks"] == 4000
+    assert contract["selected_protocol"]["dependence_design"]["gamma_ps_lower_bound_requirement"] == 0.2
+    assert contract["selected_protocol"]["dependence_design"]["gamma_ps_receipt_sha256"] is None
+    assert contract["selected_protocol"]["anchor_design"]["coverage_receipt_sha256"] is None
+    contract["selected_protocol"]["dependence_design"]["planned_scored_blocks"] = 20
+    result = inspect_contract(contract)
+    assert result["status"] == "NOT_READY"
+    assert any("differs from the frozen method defaults" in issue
+               for issue in result["issues"])
 
 
 @pytest.mark.parametrize(
@@ -330,6 +348,22 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
     assert "physical_score remains null" in report
     assert "run_receipt.json" in report
     assert "not that any dependence, anchor, reference, coverage or physical claim succeeded" in report
+
+
+def test_f3_sensitivity_is_analytic_only_and_reports_full_denominators(tmp_path):
+    result = build_f3_plan(tmp_path / "pion-f3")
+    assert result["denominators"]["formula_scenarios"]["planned"] == 245
+    assert result["denominators"]["formula_scenarios"]["failed"] == 0
+    assert result["denominators"]["formula_scenarios"]["abstained"] > 0
+    assert result["denominators"]["physical_measurements"]["planned"] == 0
+    assert result["denominators"]["physical_measurements"]["valid"] == 0
+    protocol = json.loads((tmp_path / "pion-f3" / "protocol.json").read_text())
+    assert protocol["status"] == "ANALYTIC_ONLY_NOT_READY"
+    assert protocol["physical_score"] is None
+    assert (tmp_path / "pion-f3" / "sensitivity.svg").is_file()
+    readme = (tmp_path / "pion-f3" / "README.md").read_text()
+    assert "no score blocks" in readme.lower()
+    assert "physical measurement denominators are 0/0/0/0" in readme.lower()
 
 
 def test_contract_json_and_python_draft_are_identical():
