@@ -1,6 +1,6 @@
 # Pion bounded block-risk score contract v1
 
-**Status: `DRAFT_NOT_READY`.** This is a versioned estimand/calibration draft, not a frozen physical scoring protocol. All study-specific quantities below remain unset. It reads no correlator, anchor, gap, validation, or holdout data; it never emits `physical_score`.
+**Status: `DRAFT_NOT_READY`.** Method defaults have been selected and are recorded below and in the machine contract. The physical estimate, chain/anchor receipts, independent review and confirmation authorization remain unset. This is not a physical result or release; it reads no correlator, anchor, gap, validation or holdout data and never emits `physical_score`.
 
 ## Estimand and score map
 
@@ -12,7 +12,7 @@ Z_i    = clip(D_i(A) / R^2, -1, 1)
 theta_N = (1/N) sum_i E[Z_i | frozen protocol, shared anchor]
 ```
 
-Positive `theta_N` favors the candidate on this **finite planned-block bounded estimand**. It is distinct from the original ensemble-risk and is not itself a physical score. The proposed clipping and failure policy are the current helper's behavior; both still require protocol freeze before confirmation data are examined.
+Positive `theta_N` favors the candidate on this **finite planned-block bounded estimand**. It is distinct from the original ensemble-risk and is not itself a physical score. The selected protocol uses `R=2.9`, clipping `[-1,1]`, and failure score `-1`; these method choices do not fill the still-missing physical or chain evidence.
 
 Every planned block remains in `N`. A valid block uses its clipped `Z_i`; a failed block is assigned `-1`, the worst normalized improvement. With failure fraction `phi_hat`, the coded planned mean is `(1-phi_hat)*Zbar_valid - phi_hat`. An all-failed panel returns `ABSTAIN_NO_VALID_BLOCKS`; it has no lower bound.
 
@@ -38,6 +38,12 @@ The alternative Markov pseudo-gap route uses Paulin's corrected non-reversible B
 
 For a nonstationary start, the accepted input mode is either (a) a stationary initial block law with `burn_in_blocks=0`, `delta=0`, and an initial-law receipt, or (b) an audited bound `delta >= d_TV(q P^t0, pi)` after the declared burn-in, also with a receipt. Paulin Proposition 3.15 / Eq. (3.29) adds at most `delta` to each comparison's event probability. The inspector checks that `F*delta < alpha_s`, leaving `alpha_s-F*delta` for the stationary two-sided Bernstein radius; for the operational finite-plan target it also subtracts the conservative `2*delta` mean shift allowed by the score range `[-1,1]`. It cannot verify the receipt itself.
 
+### Optional Markov-aware anchor coverage
+
+If the bounded-IID anchor assumption cannot be demonstrated, a separate optional route applies the same corrected Bernstein theorem to a **fixed bounded scalar emitted by each state of an independent anchor chain**. For support `[L,U]`, use `Var(f)<= (U-L)^2/4` and centered bound `U-L`; require an independently reviewed `gamma_ps` lower bound for the anchor chain itself. If the post-burn-in path law is within TV `delta_A` of stationarity, Proposition 3.15 / Eq. (3.29) spends `delta_A` from the one shared anchor alpha, so the stationary radius uses `alpha_A-delta_A`. The anchor interval is shared across the three candidate comparisons and therefore has family size one. The score correction remains `2B/R`, where `B` includes this random radius and the common-bias bound `C`.
+
+This route does **not** make the existing global joint PP/A4P fit into a scalar per-configuration observable. A future implementation must provide a fixed state-to-scalar mapping, show how its stationary mean estimates the selected `m*`, and quantify any gap with `C`; otherwise the Markov anchor route is invalid. Score-chain and anchor-chain gap/TV receipts must remain separate.
+
 The optional time-varying route follows Paulin Eq. (3.26) for `S'=sum_i f_i(X_i)` and the finite-plan estimand `theta_N=N^{-1}sum_i E_pi[f_i(X_i)]`. It does not automatically equal the fixed-score estimand above: the full `f_i` schedule and its target equivalence must be frozen and human-reviewed. It requires a receipt for the smallest maximizing `k_ps`, a strictly positive upper bound for every residue-class variance sum `V'_r>=V_r`, a variance receipt, a schedule receipt, and an externally supported normalized-score anchor-shift bound with receipt. For the existing paired-squared-error component, the inspector requires that shift bound to be at least `2B/R`; a larger schedule-specific Lipschitz correction may be needed. The implementation computes `V'_sum=sum_r V'_r`, `M'=(sum_r sqrt(V'_r))/min_r sqrt(V'_r)`, and retains `M'/k_ps`; Paulin's Remark 3.12 says it is unknown whether that factor can be replaced by 1. Receipts are checked for shape only, and a complete fixture still requires human review.
 
 The anchor input `B` in the lower bound is the **total** bound on `|A-m*|`, including any common-mode bias. The receipt must state the random-coverage component, an explicit common-bias bound `C`, and a justified rule that combines them into `B`; the v1 conservative rule checked here requires `B >= random_coverage_radius + C`, with `B` and `C` in target units; merely hashing the same shared anchor or listing its standard error is insufficient. The selected coverage route must also expose its assumptions: known variance and a justified normal model for a normal interval, or a predeclared finite support and iid anchor units for Hoeffding. The structural inspector checks that these fields are present and numerically consistent; it does not verify the receipts or assumptions.
@@ -54,17 +60,17 @@ If `A` is covered only with probability at least `1-alpha_A`, require `alpha_s +
 
 |Field|Current value|Required decision/evidence|
 |---|---|---|
-|Target `m*`, observable, physical units and interpretation|`null`|Give the target value/definition, matched E-anchor observable, units and physical interpretation|
-|Scale `R` and prediction-difference bound|`null`|Give units, range and a reason that `|y_candidate-y_reference| <= R` holds for every included score|
-|Clipping interval and score components|candidate `[-1,1]`; not frozen|Confirm clipping before confirmation; enumerate all terms and their individual bounds|
-|Failure coding|candidate `-1`; not frozen|Confirm which failures receive worst score and which invalidate/abstain a whole panel|
-|Planned block count `N` and block identities|`null`|Specify the planned unit and preserve all planned/valid/failed/abstained denominators|
+|Target `m*`, observable, physical units and interpretation|`a_t m_pi` for the lowest zero-momentum valence isovector pseudoscalar; measured value `null`|Provide the candidate-blind E-chain joint-fit receipt and independently reviewed reference/model gate|
+|Scale `R` and prediction-difference bound|`R=2.9 a_t m_pi`; selected domain `[0.1,3.0]`|Provide the receipt that all included prediction pairs remain in-domain and satisfy `|y_candidate-y_reference|<=R`|
+|Clipping interval and score components|selected `[-1,1]`; paired squared-error contrast only|Preserve this estimand or version any added score terms with their own range/Lipschitz bounds|
+|Failure coding|selected failed-block score `-1`; all-failed comparison abstains|Receipt the failure reasons and preserve planned, valid, failed and abstained denominators|
+|Planned block count `N` and block identities|selected `N=4000`, length-5 blocks; IDs/receipt `null`|Provide score-specific block identities and complete per-comparison denominators|
 |Result unit and panel-level denominator|one candidate-reference comparison|Count an all-failed comparison as abstained while retaining its failed blocks in the block denominator|
-|Dependence graph and `chi`, or Markov pseudo-gap route|`null`|Supply graph/color independence evidence, or fixed-score block-chain assumptions, `gamma_ps`, initial-law mode/burn-in/TV bound and receipts; for nonstationary starts ensure `F*delta < alpha_s`. The optional Eq. (3.26) route also requires a frozen/reviewed `f_i` schedule, `k_ps` receipt, positive residue-class variance-sum upper bounds and receipts, and an anchor-shift bound in normalized score units|
-|Candidate family `F`|`null`|Freeze every comparison entering simultaneous inference|
-|Anchor estimate `A`, bound `B`, coverage and independence|`null`|Provide matched E-correlator receipt, total `B` bound, explicit common-bias sub-bound `C <= B`, the rule combining them, coverage model and its assumptions, shared-anchor dependence and conditional-independence evidence|
-|`alpha_total`, `alpha_s`, `alpha_A`|`null`|Choose in advance and enforce `alpha_s+alpha_A<=alpha_total`|
-|Minimum effect `delta_star` and reference gate|`null`|State units, physical interpretation, threshold rationale and independent reference/model-identification pass rule|
+|Dependence route|selected fixed-score Markov pseudo-gap Bernstein; required `gamma_ps>=0.20`, burn-in 8 blocks, post-burn-in `TV<=0.001`; receipts `null`|Supply score-block chain assumptions, independent gamma lower-bound and TV receipts; for nonstationary starts ensure `F*delta < alpha_s`. Eq. (3.26) remains an optional distinct route requiring schedule/variance/`k_ps` receipts|
+|Candidate family `F`|selected three comparisons: candidate vs local identity, tuned `H^32`, and frozen signed-SLSQP|Preserve all three comparison IDs in simultaneous inference|
+|Anchor estimate `A`, bound `B`, coverage and independence|primary selected route: bounded-IID Hoeffding, `n_A=1000`, support `[0.1,3.0]`, `alpha_A=0.01`, `C/R<=0.01`; receipts `null`. Optional Markov fallback: `n_A=4000`, `gamma_A>=0.20`, burn-in 8, `TV_A<=0.001`|Provide matched E-correlator receipt, total `B`, explicit common-bias `C<=B`, coverage and independence receipts. Markov fallback additionally needs one bounded scalar per anchor-chain state, its target-map receipt, separate anchor-chain/gamma/TV receipts, and reviewed bias bridge to the global fit|
+|`alpha_total`, `alpha_s`, `alpha_A`|selected `0.05`, `0.04`, `0.01`|Preserve `alpha_s+alpha_A<=alpha_total` and the shared-anchor interval allocation|
+|Minimum effect `delta_star` and reference gate|selected `delta_star=0.05 R^2=0.4205 (a_t m_pi)^2`; reference gate receipts `null`|Maintain the independent reference/model-identification gate; do not treat threshold selection as observed effect|
 
 ## Text decision flow
 
@@ -72,7 +78,7 @@ If `A` is covered only with probability at least `1-alpha_A`, require `alpha_s +
 freeze score and planned blocks
   -> verify graph-color evidence, fixed-score Markov assumptions, or the optional Eq. (3.26) schedule/variance/k_ps contract
   -> for Markov TV mode, require F*delta < alpha_s before computing the radius
-  -> verify anchor coverage/bias bound
+  -> verify IID anchor coverage/bias bound, or the separate Markov-anchor scalar-map/gap/TV/bias contract
   -> compute coded planned mean - graph penalty - anchor correction
   -> compare LCB with delta_star / R^2
   -> separately require the physical reference/model-identification gate

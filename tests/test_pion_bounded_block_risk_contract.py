@@ -11,6 +11,10 @@ from tasks.pion_projection.bounded_block_risk_contract import (
     selected_protocol,
 )
 from tasks.pion_projection.bounded_block_risk_f3_plan import build as build_f3_plan
+from tasks.pion_projection.bounded_block_risk_anchor_markov import (
+    build_report as build_markov_anchor_report,
+    markov_anchor_bound,
+)
 
 
 def test_current_null_contract_is_not_ready_and_keeps_physical_score_null():
@@ -34,6 +38,7 @@ def test_selected_method_defaults_cannot_be_confused_with_empirical_receipts():
     assert contract["selected_protocol"]["dependence_design"]["gamma_ps_lower_bound_requirement"] == 0.2
     assert contract["selected_protocol"]["dependence_design"]["gamma_ps_receipt_sha256"] is None
     assert contract["selected_protocol"]["anchor_design"]["coverage_receipt_sha256"] is None
+    assert contract["selected_protocol"]["anchor_design"]["markov_fallback"]["planned_anchor_units"] == 4000
     contract["selected_protocol"]["dependence_design"]["planned_scored_blocks"] = 20
     result = inspect_contract(contract)
     assert result["status"] == "NOT_READY"
@@ -288,6 +293,85 @@ def test_sampling_coverage_methods_require_positive_anchor_alpha():
     assert any("alpha_anchor must be positive" in issue
                for issue in result["issues"])
 
+
+def _synthetic_markov_anchor_contract():
+    contract = _synthetic_complete_contract()
+    contract["anchor"].update({
+        "total_error_bound_B": 0.30,
+        "coverage_method": "markov_pseudo_gap_bernstein",
+        "coverage_parameters": {
+            "sample_count_n_A": 4000,
+            "support_interval": [-0.5, 0.5],
+            "gamma_ps_lower_bound": 0.25,
+            "initial_law_mode": "stationary",
+            "burn_in_units": 0,
+            "initial_law_tv_bound": 0.0,
+            "anchor_scalar_map_statement": "SYNTHETIC_ONLY one fixed bounded scalar per anchor-chain state",
+            "anchor_chain_assumptions": "SYNTHETIC_ONLY homogeneous chain with unique stationary law",
+            "support_receipt_sha256": "1" * 64,
+            "anchor_scalar_map_receipt_sha256": "2" * 64,
+            "anchor_chain_receipt_sha256": "3" * 64,
+            "gamma_ps_lower_receipt_sha256": "4" * 64,
+            "initial_law_receipt_sha256": "5" * 64,
+        },
+    })
+    return contract
+
+
+def test_markov_anchor_contract_is_conditional_and_requires_scalar_map_receipt():
+    contract = _synthetic_markov_anchor_contract()
+    result = inspect_contract(contract)
+    assert result["status"] == "CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW"
+    assert result["certified"] is False
+    assert result["physical_score"] is None
+
+    contract["anchor"]["coverage_parameters"]["anchor_scalar_map_receipt_sha256"] = None
+    result = inspect_contract(contract)
+    assert result["status"] == "NOT_READY"
+    assert any("anchor_scalar_map_receipt_sha256" in issue
+               for issue in result["issues"])
+
+
+def test_markov_anchor_tv_spends_anchor_alpha_and_supports_only_scalar_state_map():
+    kwargs = {
+        "sample_count": 4000,
+        "gamma_ps_lower": 0.20,
+        "alpha_anchor": 0.01,
+        "support": (0.1, 3.0),
+        "common_bias_bound": 0.029,
+        "score_scale_R": 2.9,
+    }
+    stationary = markov_anchor_bound(**kwargs)
+    post_burn = markov_anchor_bound(
+        **kwargs, initial_law_tv_bound=0.001, burn_in_units=8,
+        stationary_start=False,
+    )
+    assert post_burn["stationary_alpha_after_tv"] == pytest.approx(0.009)
+    assert post_burn["coverage_probability_lower_bound"] == pytest.approx(0.99)
+    assert post_burn["random_coverage_radius"] >= stationary["random_coverage_radius"]
+    assert post_burn["normalized_score_shift_2B_over_R"] >= 0
+    assert post_burn["certified"] is False
+    assert post_burn["physical_score"] is None
+    with pytest.raises(ValueError, match="in \\[0, alpha_anchor\\)"):
+        markov_anchor_bound(
+            **kwargs, initial_law_tv_bound=0.01, burn_in_units=8,
+            stationary_start=False,
+        )
+
+
+def test_markov_anchor_sensitivity_report_accounts_for_alpha_and_keeps_physics_null(tmp_path):
+    output = tmp_path / "markov-anchor"
+    summary = build_markov_anchor_report(output)
+    assert summary["scenario_denominators"] == {
+        "planned": 175, "valid": 140, "failed": 0, "abstained": 35,
+    }
+    assert summary["physical_anchor_units"] == 0
+    assert summary["physical_score_units"] == 0
+    assert summary["physical_score"] is None
+    assert (output / "anchor_markov_sensitivity.png").is_file()
+    assert (output / "anchor_markov_sensitivity.svg").is_file()
+    assert (output / "run_receipt.json").is_file()
+
 def test_invalid_top_level_contract_returns_not_ready_without_raising():
     result = inspect_contract(None)
 
@@ -306,32 +390,33 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
     summary = build_report(output)
 
     assert summary["denominators"] == {
-        "planned": 16, "valid": 5, "failed": 11, "abstained": 0,
+        "planned": 19, "valid": 6, "failed": 13, "abstained": 0,
     }
     assert summary["physical_score"] is None
     receipt = json.loads((output / "run_receipt.json").read_text())
     assert receipt["schema"] == "latticearena-run-receipt-v1"
     assert receipt["status"] == "complete"
-    assert len(receipt["denominators"]) == 16
-    assert sum(row["planned"] for row in receipt["denominators"].values()) == 16
-    assert sum(row["valid"] for row in receipt["denominators"].values()) == 5
-    assert sum(row["failed"] for row in receipt["denominators"].values()) == 11
+    assert len(receipt["denominators"]) == 19
+    assert sum(row["planned"] for row in receipt["denominators"].values()) == 19
+    assert sum(row["valid"] for row in receipt["denominators"].values()) == 6
+    assert sum(row["failed"] for row in receipt["denominators"].values()) == 13
     assert sum(row["abstained"] for row in receipt["denominators"].values()) == 0
     assert sum(row["not_run"] for row in receipt["denominators"].values()) == 0
     assert sum(row["count"] for row in receipt["reason_rows"]
-               if row["state"] == "failed") == 11
+               if row["state"] == "failed") == 13
     assert "not scientific success" in receipt["text_flow"]
     assert set(receipt["scenario"]["source_hashes"]) == {
         "tasks/pion_projection/bounded_block_risk_contract.py",
         "tasks/pion_projection/bounded_block_risk_contract_v1.json",
         "tasks/pion_projection/bounded_block_risk_score.py",
         "tasks/pion_projection/bounded_block_risk_markov_varying.py",
+        "tasks/pion_projection/bounded_block_risk_anchor_markov.py",
         "core/receipts.py",
     }
-    assert len(receipt["artifact_hashes"]) == 9
+    assert len(receipt["artifact_hashes"]) == 10
     manifest = json.loads((output / "artifact_hashes.json").read_text())
     assert manifest["algorithm"] == "sha256"
-    assert len(manifest["files"]) == 10
+    assert len(manifest["files"]) == 11
     for name, expected in manifest["files"].items():
         actual = hashlib.sha256((output / name).read_bytes()).hexdigest()
         assert actual == expected

@@ -16,11 +16,12 @@ from pathlib import Path
 from typing import Any
 
 from core.receipts import run_receipt, scenario_spec
+from .bounded_block_risk_anchor_markov import markov_anchor_bound
 
 
 SCHEMA = "pion-bounded-block-risk-contract-v1"
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261125_v12")
+               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261125_v13")
 CONTRACT_PATH = Path(__file__).with_name("bounded_block_risk_contract_v1.json")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 DEPENDENCE_METHODS = {
@@ -29,7 +30,11 @@ DEPENDENCE_METHODS = {
     "markov_time_varying_bernstein",
     "markov_time_varying_support_gap_bernstein",
 }
-ANCHOR_METHODS = {"known_sigma_normal_interval", "bounded_iid_hoeffding"}
+ANCHOR_METHODS = {
+    "known_sigma_normal_interval",
+    "bounded_iid_hoeffding",
+    "markov_pseudo_gap_bernstein",
+}
 FAILURE_POLICY = "failed_block=-1; all_failed_comparison=abstain"
 
 
@@ -108,6 +113,26 @@ def selected_protocol() -> dict[str, Any]:
             "coverage_receipt_sha256": None,
             "common_bias_receipt_sha256": None,
             "score_anchor_independence_receipt_sha256": None,
+            "markov_fallback": {
+                "method": "markov_pseudo_gap_bernstein",
+                "planned_anchor_units": 4000,
+                "gamma_ps_lower_bound_requirement": 0.20,
+                "burn_in_units": 8,
+                "post_burn_in_tv_bound": 0.001,
+                "alpha_anchor": 0.01,
+                "shared_anchor_interval_family": 1,
+                "common_bias_C_max_over_R": 0.01,
+                "support_interval": [0.1, 3.0],
+                "state_map": "fixed bounded scalar from each anchor chain state; the ensemble-averaged nonlinear fit is not this scalar by default",
+                "receipts_required": [
+                    "anchor_scalar_map_receipt_sha256",
+                    "anchor_chain_receipt_sha256",
+                    "gamma_ps_lower_receipt_sha256",
+                    "initial_law_tv_receipt_sha256",
+                    "common_bias_coverage_receipt_sha256",
+                    "conditional_independence_receipt_sha256",
+                ],
+            },
         },
         "gates": {
             "production_data_authorized": False,
@@ -523,6 +548,73 @@ def _check_anchor(anchor: Any, *, target_units: Any,
                 (support[1] - support[0])
                 * math.sqrt(math.log(2.0 / alpha_anchor) / (2.0 * sample_count))
             )
+    elif method == "markov_pseudo_gap_bernstein":
+        sample_count = parameters.get("sample_count_n_A")
+        if not _positive_int(sample_count):
+            issues.append(f"{label}.coverage_parameters.sample_count_n_A: expected a positive integer")
+        support = parameters.get("support_interval")
+        support_valid = (isinstance(support, list) and len(support) == 2
+                         and all(_finite_number(value) for value in support)
+                         and support[0] < support[1])
+        if not support_valid:
+            issues.append(f"{label}.coverage_parameters.support_interval: expected finite increasing bounds")
+        gamma = parameters.get("gamma_ps_lower_bound")
+        if not _finite_number(gamma) or not 0 < gamma <= 1:
+            issues.append(f"{label}.coverage_parameters.gamma_ps_lower_bound: expected a value in (0, 1]")
+        if not _nonempty(parameters.get("anchor_scalar_map_statement")):
+            issues.append(f"{label}.coverage_parameters.anchor_scalar_map_statement: define one fixed bounded scalar per chain state")
+        if not _nonempty(parameters.get("anchor_chain_assumptions")):
+            issues.append(f"{label}.coverage_parameters.anchor_chain_assumptions: missing Markov-chain assumptions")
+        for field in (
+            "support_receipt_sha256",
+            "anchor_scalar_map_receipt_sha256",
+            "anchor_chain_receipt_sha256",
+            "gamma_ps_lower_receipt_sha256",
+            "initial_law_receipt_sha256",
+        ):
+            if not _sha256(parameters.get(field)):
+                issues.append(f"{label}.coverage_parameters.{field}: expected a SHA-256 receipt")
+        burn_in = parameters.get("burn_in_units")
+        if (isinstance(burn_in, bool) or not isinstance(burn_in, int) or burn_in < 0):
+            issues.append(f"{label}.coverage_parameters.burn_in_units: expected a nonnegative integer")
+        initial_mode = parameters.get("initial_law_mode")
+        if initial_mode not in {"stationary", "post_burn_in_tv"}:
+            issues.append(f"{label}.coverage_parameters.initial_law_mode: expected 'stationary' or 'post_burn_in_tv'")
+        tv_bound = parameters.get("initial_law_tv_bound")
+        if not _finite_number(tv_bound) or not 0 <= tv_bound <= 1:
+            issues.append(f"{label}.coverage_parameters.initial_law_tv_bound: expected a value in [0, 1]")
+        if initial_mode == "stationary":
+            if isinstance(burn_in, int) and not isinstance(burn_in, bool) and burn_in != 0:
+                issues.append(f"{label}.coverage_parameters.burn_in_units: stationary mode requires zero burn-in")
+            if _finite_number(tv_bound) and tv_bound != 0:
+                issues.append(f"{label}.coverage_parameters.initial_law_tv_bound: stationary mode requires zero TV")
+        elif initial_mode == "post_burn_in_tv":
+            if isinstance(burn_in, int) and not isinstance(burn_in, bool) and burn_in < 1:
+                issues.append(f"{label}.coverage_parameters.burn_in_units: post-burn-in mode requires positive burn-in")
+            if (not _finite_number(alpha_anchor) or not _finite_number(tv_bound)
+                    or tv_bound >= alpha_anchor):
+                issues.append(f"{label}.coverage_parameters.initial_law_tv_bound: must be smaller than alpha_anchor")
+        if (not _finite_number(alpha_anchor) or alpha_anchor <= 0):
+            issues.append(f"{label}.coverage_parameters: alpha_anchor must be positive for a sampling interval")
+        elif (_positive_int(sample_count) and support_valid
+              and _finite_number(gamma) and 0 < gamma <= 1
+              and _finite_number(tv_bound) and 0 <= tv_bound < alpha_anchor
+              and _finite_number(common_bias) and common_bias >= 0):
+            try:
+                bound = markov_anchor_bound(
+                    sample_count=sample_count,
+                    gamma_ps_lower=gamma,
+                    alpha_anchor=alpha_anchor,
+                    support=(float(support[0]), float(support[1])),
+                    common_bias_bound=float(common_bias),
+                    initial_law_tv_bound=float(tv_bound),
+                    burn_in_units=burn_in,
+                    stationary_start=initial_mode == "stationary",
+                    score_scale_R=float(score_scale_R),
+                )
+                random_coverage_radius = bound["random_coverage_radius"]
+            except (TypeError, ValueError, OverflowError):
+                issues.append(f"{label}.coverage_parameters: invalid Markov anchor-bound inputs")
     coverage = anchor.get("coverage_probability_lower_bound")
     if not _finite_number(coverage) or not 0 < coverage <= 1:
         issues.append(f"{label}.coverage_probability_lower_bound: expected a value in (0, 1]")
@@ -795,6 +887,34 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
     valid_markov_support_gap = _synthetic_complete_contract(
         "markov_time_varying_support_gap_bernstein",
     )
+    valid_markov_anchor = _synthetic_complete_contract()
+    valid_markov_anchor["anchor"].update({
+        "total_error_bound_B": 0.30,
+        "coverage_method": "markov_pseudo_gap_bernstein",
+        "coverage_parameters": {
+            "sample_count_n_A": 4000,
+            "support_interval": [-0.5, 0.5],
+            "gamma_ps_lower_bound": 0.25,
+            "initial_law_mode": "stationary",
+            "burn_in_units": 0,
+            "initial_law_tv_bound": 0.0,
+            "anchor_scalar_map_statement": "SYNTHETIC_ONLY one fixed bounded scalar per anchor Markov state",
+            "anchor_chain_assumptions": "SYNTHETIC_ONLY homogeneous chain with unique stationary law",
+            "support_receipt_sha256": _synthetic_receipt("markov-anchor-support"),
+            "anchor_scalar_map_receipt_sha256": _synthetic_receipt("markov-anchor-scalar-map"),
+            "anchor_chain_receipt_sha256": _synthetic_receipt("markov-anchor-chain"),
+            "gamma_ps_lower_receipt_sha256": _synthetic_receipt("markov-anchor-gap"),
+            "initial_law_receipt_sha256": _synthetic_receipt("markov-anchor-stationary-law"),
+        },
+    })
+    missing_anchor_map = json.loads(json.dumps(valid_markov_anchor))
+    missing_anchor_map["anchor"]["coverage_parameters"]["anchor_scalar_map_receipt_sha256"] = None
+    anchor_alpha_spent = json.loads(json.dumps(valid_markov_anchor))
+    anchor_alpha_spent["anchor"]["coverage_parameters"].update({
+        "initial_law_mode": "post_burn_in_tv",
+        "burn_in_units": 8,
+        "initial_law_tv_bound": 0.01,
+    })
     valid_markov_tv = _synthetic_complete_contract("markov_pseudo_gap_bernstein")
     valid_markov_tv["dependence"].update({
         "block_chain_assumptions": "SYNTHETIC_ONLY homogeneous Markov block chain with unique stationary law",
@@ -836,6 +956,9 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "synthetic_markov_gap_complete": valid_markov,
         "synthetic_markov_time_varying_complete": valid_markov_varying,
         "synthetic_markov_time_varying_support_gap_complete": valid_markov_support_gap,
+        "synthetic_markov_anchor_complete": valid_markov_anchor,
+        "synthetic_markov_anchor_missing_scalar_map_receipt": missing_anchor_map,
+        "synthetic_markov_anchor_tv_spends_alpha": anchor_alpha_spent,
         "synthetic_markov_post_burn_in_tv_complete": valid_markov_tv,
         "synthetic_alpha_over_budget": alpha_over,
         "synthetic_prediction_bound_over_R": bound_over,
@@ -880,7 +1003,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "",
         "**STRUCTURE CHECK ONLY. `physical_score=null`; no correlator, anchor, gap, validation, holdout, GPU, or QUDA inputs were read.**",
         "",
-        "The selected method defaults are recorded in `bounded_block_risk_contract_v1.json`: target `a_t m_pi`, `R=2.9`, `delta_star/R^2=0.05`, three comparisons with `alpha_score=0.04` and `alpha_anchor=0.01`, length-5 blocks with `N=4000`, required `gamma_ps>=0.20`, burn-in 8 and per-comparison TV `<=0.001`; the anchor design requires 1000 bounded iid stationary units and a separately evidenced common-bias limit. These are planning choices, not measurements or receipts.",
+        "The selected method defaults are recorded in `bounded_block_risk_contract_v1.json`: target `a_t m_pi`, `R=2.9`, `delta_star/R^2=0.05`, three comparisons with `alpha_score=0.04` and `alpha_anchor=0.01`, length-5 blocks with `N=4000`, required score-chain `gamma_ps>=0.20`, burn-in 8 and per-comparison TV `<=0.001`; the primary anchor route requires 1000 bounded iid stationary units and a separately evidenced common-bias limit. The contract also defines a conditional Markov-anchor fallback with separate chain/gap/TV and bounded scalar-map receipts. All are planning choices, not measurements or receipts.",
         "",
         "## Selected protocol flow",
         "",
@@ -888,6 +1011,8 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "independent candidate-blind E-chain joint fit -> pass mass/model/folding gates -> freeze bounded score and F=3 family",
         "  -> review score-specific length-5 block-chain, gamma_ps lower bound, and burn-in/TV receipts",
         "  -> review independent 1000-unit bounded-IID anchor coverage and common-bias C receipt",
+        "  -> if IID is unproven, require an independent Markov anchor scalar map, its own gamma_ps/TV receipts, and target-bias bridge",
+        "  -> if IID is not evidenced, use only a separately receipted Markov anchor scalar-map/gap/TV route",
         "  -> only then evaluate the full N=4000 planned-block LCB; retain failed slots as -1",
         "  -> require normalized LCB > 0.05; otherwise ABSTAIN; physical_score remains null until all gates are separately authorized",
         "```",
@@ -918,7 +1043,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "  -> physical_score remains null throughout",
         "```",
         "",
-        "For the two-sided known-sigma normal route, the random radius is `z_(1-alpha_A/2) * sigma / sqrt(n_A)`; for bounded iid Hoeffding it is `(U-L) * sqrt(log(2/alpha_A) / (2*n_A))`. The v1 conservative combination requires total `B >= random_coverage_radius + C`, where `C` bounds common bias.",
+        "For the two-sided known-sigma normal route, the random radius is `z_(1-alpha_A/2) * sigma / sqrt(n_A)`; for bounded iid Hoeffding it is `(U-L) * sqrt(log(2/alpha_A) / (2*n_A))`. The Markov anchor route applies corrected Theorem 3.11 to one fixed scalar per anchor-chain state, with worst-case variance `(U-L)^2/4`, centered bound `U-L`, and that anchor chain's own pseudo-gap. A post-burn-in TV bound spends `delta_A` from the single shared anchor alpha, so the stationary Bernstein radius uses `alpha_A-delta_A`. Each route requires total `B >= random_coverage_radius + C`, where `C` bounds common bias.",
         "",
         "Receipts are checked for presence and SHA-256 syntax only; their scientific contents and independence are not verified. `valid` below means structurally complete, not evidence-valid, measured, or certified. Each row counts one contract check; it is not a score block or physical sample.",
         "",
@@ -940,6 +1065,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "- For time-varying scores, predeclare and receipt the full `f_i` schedule and an anchor-induced score-shift bound in normalized units. The exact-`k_ps` route needs class-variance receipts and keeps its actual `M/k_ps`; the support-only route uses the coded `[-1,1]` range and the conservative `N+ceil(1/gamma_ps_lower)-1` variance-sum bound. Neither route proves its chain/gap assumptions.",
         "- For the Markov route, document a stationary initial block law (`burn_in_blocks=0`, `delta=0`) or an audited post-burn-in TV bound and receipt; require `F*delta < alpha_score`.",
         "- Matched E-anchor receipt, total anchor-error bound `B`, explicit common-bias sub-bound `C <= B`, a justified combination rule, method-specific coverage assumptions, score/anchor conditional-independence evidence, and the preallocated alpha split. For the v1 conservative combination, the inspector also checks `B >= random_coverage_radius + C`.",
+        "- Markov-anchor fallback: one fixed measurable bounded scalar per anchor-chain state, a receipt bridging its stationary mean to the chosen `m_star`, separate anchor-chain and `gamma_ps` receipts, stationary-start or post-burn-in TV receipt, and the same `B >= random_coverage_radius + C` check. The selected global multichannel fit is not automatically a per-state scalar map.",
         "- Minimum effect `delta_star` with units and rationale, plus an independently reviewed physical reference/model-identification gate.",
         "- Even a structurally complete contract remains subject to human evidence review and separate data/GPU authorization. No fixture changes readiness or emits a score.",
         "",
@@ -965,6 +1091,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
             "nonstationary": "Proposition 3.15 / Eq. (3.29), requires d_TV(q P^t0, pi) <= delta",
             "time_varying_scores_exact_k": "Eq. (3.26), requires k_ps maximizer receipt, positive variance upper bound per residue, score schedule receipt, and explicit M/k_ps factor",
             "time_varying_scores_support_gap": "Eq. (3.26) with f_i in [-1,1], gamma_ps lower-bound receipt, uniform V'_r=ceil(N/k_ps), M/k_ps=1, and V_sum<=N+ceil(1/gamma_ps_lower)-1",
+            "markov_anchor": "Theorem 3.11 / Eq. (3.25) for a fixed bounded scalar per anchor-chain state; Proposition 3.15 / Eq. (3.29) spends post-burn-in TV from the shared anchor alpha",
         },
     }
     (out / "protocol.json").write_text(json.dumps(protocol, indent=2) + "\n")
@@ -973,6 +1100,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "snapshot_bounded_block_risk_contract_v1.json": CONTRACT_PATH,
         "snapshot_bounded_block_risk_score.py": Path(__file__).with_name("bounded_block_risk_score.py"),
         "snapshot_bounded_block_risk_markov_varying.py": Path(__file__).with_name("bounded_block_risk_markov_varying.py"),
+        "snapshot_bounded_block_risk_anchor_markov.py": Path(__file__).with_name("bounded_block_risk_anchor_markov.py"),
         "snapshot_core_receipts.py": Path(__file__).resolve().parents[2] / "core/receipts.py",
     }
     for name, source in snapshots.items():
@@ -990,6 +1118,8 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
             out / "snapshot_bounded_block_risk_score.py"),
         "tasks/pion_projection/bounded_block_risk_markov_varying.py": _sha256_file(
             out / "snapshot_bounded_block_risk_markov_varying.py"),
+        "tasks/pion_projection/bounded_block_risk_anchor_markov.py": _sha256_file(
+            out / "snapshot_bounded_block_risk_anchor_markov.py"),
         "core/receipts.py": _sha256_file(out / "snapshot_core_receipts.py"),
     }
     scenario = scenario_spec(

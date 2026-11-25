@@ -281,3 +281,17 @@ v9 合同诊断为 15 个结构 fixture，planned/valid/failed/abstained=`15/5/1
 - Pion bounded-risk 与依赖图专项回归：`tests/test_pion_bounded_block_risk_*.py tests/test_pion_dependency_graph_bound.py` **139 passed**；其中新 contract/F=3 模块 **37 passed**。未运行 Pion 全仓测试；未读取 E/gap/validation/holdout，未做物理测量或 GPU/QUDA 运算，`physical_score=null` 与 `NOT_READY/UNCERTIFIED` 保持不变。
 
 **下一位 Pion agent：**不要再重跑合成网格或把上述最佳情形当项目效应。只接收并独立审核 score-specific block-chain/gamma 与 post-burn-in TV receipts、1000 个独立 anchor 的 coverage 和 common-bias `C` receipts，以及 candidate-blind E-chain reference 拟合结果。任何缺项都保留 `ABSTAIN/NOT_READY`；只有新的未封存 confirmation 输入和数据 owner 授权到位后才能计算物理 bounded block-risk。GPU/QUDA 仍需单独资源授权。
+
+## 2026-11-25 Markov-aware anchor fallback 完成（条件式软件/公式）
+
+- 由于 `n_A=1000` 的 Hoeffding route 只有在 1000 个真正独立、平稳 anchor 单位时才成立，本次新增 [`bounded_block_risk_anchor_markov.py`](bounded_block_risk_anchor_markov.py)：固定有界 anchor scalar 的 pseudo-gap Bernstein 覆盖半径，支持独立 anchor-chain `gamma_ps` 下界、burn-in 后 TV 预算、support cap、common-bias `C` 及 `2B/R` score 修正。anchor 区间被三项比较共享，因此 anchor coverage 用 family size 1；post-burn-in TV 按 Paulin Prop. 3.15 Eq. (3.29) 从 `alpha_anchor` 中扣除。它不把 score-chain 的 TV mean-shift 重复加到 anchor CI。
+- [`bounded_block_risk_contract.py`](bounded_block_risk_contract.py) 与 null 合同现允许 `markov_pseudo_gap_bernstein` anchor route，并 fail closed 要求：每个 anchor-chain state 的固定有界 scalar map、其目标 `m*` 对应/bias 桥接、独立 anchor-chain 和 gap 收据、stationary 或 post-burn-in TV 收据、support/common-bias/score-independence 收据。结构完整也只到 `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`。
+- 新增 [`bounded_block_risk_anchor_markov_20261125_v1`](../../results/pion_projection/bounded_block_risk_anchor_markov_20261125_v1/README.md) 分析包，含 175 个 `n_A/gamma_ps/TV` 公式情景的分母表、敏感度图、文字流程、协议和哈希。情景分母 planned/valid/failed/abstained=`175/140/0/35`；TV=`0.01` 的 35 格因耗尽 `alpha_anchor` 而弃权。所选备选点 `n_A=4000, gamma_A=0.20, TV_A=0.001` 仅为条件规划算术：random radius/R=`0.202040`、B/R=`0.212040`、`2B/R=0.424079`；在 score mean 假设为理论最大 1 且使用当前 score-chain 计划时，最佳 LCB=`0.187605`。它比 IID n_A=1000 规划惩罚 `0.122940` 更保守，不能当作更高功效方案。真实物理 anchor 与 score 测量分母仍为 `0/0`。
+- **关键适用性限制：**该定理要求每个链状态有固定 scalar `f(X_i)`。当前 candidate-blind PP/A4P ensemble-level nonlinear fit 不自动构成这种逐态 scalar；必须另行定义/审核状态映射，并用有证据的 `C` 桥接到全局拟合 `m*`。因此这条 fallback 尚不能用于当前 E-chain 拟合；没有 mapping/gap/TV/bias receipts 时继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`，不触碰封存数据。
+- 理论依据：[Paulin corrected arXiv v5, Theorem 3.11 Eq. (3.25), Proposition 3.15 Eq. (3.29)](https://arxiv.org/html/1212.2015v5)。独立标量函数、Markov gap、TV 和 bias 这些条件都必须真实成立；解析图只展示假设变化如何改变覆盖半径，不做覆盖率 Monte Carlo。
+- Markov fallback 是为依赖结构可被证明时提供覆盖路线，并非自动优于 IID Hoeffding；当前最关键的未解方法点是从全局联合拟合输出到逐 anchor-chain state 有界 scalar 的合法映射及其 `C` 界。
+- [`contract_diagnostic_20261125_v13`](../../results/pion_projection/bounded_block_risk_contract_diagnostic_20261125_v13/README.md) 增加 Markov anchor complete/missing-map/alpha-exhausted 三类合同 fixture；结构检查分母 `19/6/13/0`，所有物理字段仍保持 null。两个新报告的 payload/outer manifests 与 receipt payload hashes 均逐项匹配；Pion bounded-risk/dependency 全部 13 个专项模块 **142 passed**，`git diff --check` 通过。
+
+文字流程：`IID receipt 有效 -> bounded-IID Hoeffding；否则 -> 固定 scalar-per-anchor-state 映射 + 独立 anchor gamma/TV 收据 + target-bias bridge -> Markov Bernstein CI(alpha_A-delta_A) -> 加 C 得 B -> 减去 2B/R；任一输入缺失 -> ABSTAIN/NOT_READY`。
+
+**后续只剩实证门：**独立 reviewer 需审阅 scalar map 是否估计同一 `m*` 及其 `C` 界；owner 需提供真实 anchor chain、其独立 `gamma_ps` 与 stationarity/post-burn-in TV receipts，以及与 score chain 的条件独立证据。不得把本分析点的 `gamma_A`、TV 或单位数当实测输入，也不要将 Markov route 当作 IID route 已成立。
