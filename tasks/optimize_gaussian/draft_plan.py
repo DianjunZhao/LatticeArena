@@ -45,6 +45,7 @@ def build_plan() -> dict[str, Any]:
         "candidate_contract.py": TASK_DIR / "candidate_contract.py",
         "chebyshev_baseline.py": TASK_DIR / "chebyshev_baseline.py",
         "risk_statistics.py": TASK_DIR / "risk_statistics.py",
+        "source_reader.py": TASK_DIR / "source_reader.py",
         "kernels.py": TASK_DIR / "kernels.py",
         "core/specs.py": ROOT / "core/specs.py",
         "core/state.py": ROOT / "core/state.py",
@@ -153,6 +154,7 @@ def build_plan() -> dict[str, Any]:
         "text_flow": [
             "research_contract_v1.json + source files -> SHA-256 dependency map",
             "selected D04/D06/D11 defaults -> generic TaskSpec + draft RunSpec",
+            "source_reader.py -> immutable D06 q-matrix bytes -> paired block scores with assigned-failure penalty",
             "risk_statistics.py -> fail-closed D04/D06 array reducers; no draw generation or fitting",
             "no data hashes / no runner entrypoint / no authorization -> launch_allowed=false",
             "five physical certification stages remain abstained; physical_score=null",
@@ -182,6 +184,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict:
         "core_state.py": ROOT / "core/state.py",
         "candidate_contract.py": TASK_DIR / "candidate_contract.py",
         "risk_statistics.py": TASK_DIR / "risk_statistics.py",
+        "source_reader.py": TASK_DIR / "source_reader.py",
     }
     for name, source in shutil_snapshot.items():
         (out / f"snapshot_{name}").write_bytes(source.read_bytes())
@@ -195,14 +198,15 @@ The selected research contract is now represented in LatticeArena's generic `cor
 
 The generic `validation` range is explicitly limited to the already-open D60-D99 **development-selection** role. It is not final confirmation. Sealed roles are not included in the plan. The ranges are metadata only; no data bytes, manifests, anchor chain, gap, validation or holdout files were opened.
 
-The source hash map also binds `risk_statistics.py`, which implements pure-array D04/D06 reducers with fixed selected constants, paired draw-ID checks, full planned denominators, no epsilon repair, and abstention on incomplete or invalid draws. These helpers consume prepared arrays only; they do not generate the paired outer block-bootstrap or inner D04 bootstrap draws, fit a reference, or establish coverage for the percentile-quantile convention.
+The source hash map also binds `risk_statistics.py` and `source_reader.py`. The former implements pure-array D04/D06 reducers with fixed selected constants, paired draw-ID checks, full planned denominators, no epsilon repair, and abstention on incomplete or invalid draws. The latter consumes one explicitly captured D06 calibration NPZ, checks its schema, split, ordered arms/times, and macroblock IDs, then derives the three-arm bounded score matrix; a declared optimizer failure receives the preselected loss 1 while remaining in the assigned-arm denominator. This CPU reader has no path fallback, rejects closed split names, and reports an `immutable_snapshot` source hash. Neither module launches solvers or establishes macroblock independence.
 
 ## Text flow
 
 ```text
 selected research contract + source files -> SHA-256 dependency map
   -> generic TaskSpec (D0-D59 fit; D60-D99 development selection)
-  -> D04/D06 array reducers are source-bound, but no production draw generator is wired
+  -> D06 snapshot NPZ -> fixed arm/time/ID checks -> bounded paired block scores
+  -> D04/D06 array reducers remain source-bound; production draw generation is not wired
   -> generic RunSpec with empty data-hash map
   -> missing reference/input/runner receipts => launch_allowed=false
   -> five physical RunState stages abstained => physical_score=null
@@ -212,7 +216,7 @@ The schema-plan denominator is planned/valid/failed/abstained=`1/1/0/0`: one in-
 
 ## Remaining implementation and evidence
 
-This checkout does not contain `tasks/optimize_gaussian/runspec_builder.py`, a task-specific worker, or `train.main`; the plan therefore does not point to a child command and cannot become a production RunSpec. This corrects broad historical TODO wording that described those components as present. The next software change requires restoring or implementing the actual Optimize entrypoint and binding an authorized, unsealed input manifest to its hash. The open physical gates separately require the E-chain reference, D11 production-link review, D06 paired outcomes/cost ledger, and explicit data/GPU authorization. No gate is inferred from schema validity.
+This checkout does not contain `tasks/optimize_gaussian/runspec_builder.py`, a task-specific worker, or `train.main`; the plan therefore does not point to a child command and cannot become a production RunSpec. The new D06 reader is a bounded-array reader, not a solver/evaluator and not the missing task runner. The next software change requires integrating this array contract with a reviewed paired-results producer and RunSpec while preserving the closed-split preflight. The open physical gates separately require the E-chain reference, D11 production-link review, D06 paired solver/cost receipts, and explicit data/GPU authorization. No gate is inferred from schema validity.
 """
     (out / "README.md").write_text(readme)
     payloads = sorted(path for path in out.iterdir() if path.is_file())

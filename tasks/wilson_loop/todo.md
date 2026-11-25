@@ -380,3 +380,15 @@ shared [`core/source_integrity.py`](../../core/source_integrity.py) 现提供有
 此次 Git 核验还发现另一条本地历史分支 `fork/dianjun@54f0e97` 有 `tasks/wilson_loop/measure.py` 与 `protocol_d_20261120.json`；当前 PR #6 HEAD 不含它们，而且该分支携带大量与本 PR 无关的代码和结果差异。故“当前 checkout 没有 reader”仍准确，但不能写成“本地 Git 中从未存在 reader”；也不把整条分支或 D protocol 直接并入已选定的有限-$T$ Creutz / 基态力 lane，因为其中测量窗与方法未逐项对齐当前合同。
 
 仍未完成的具体软件工作：审计是否能最小移植 `measure.py` 所依赖的 NERSC/identity/kernel 模块；不得绕开新 lane contract，且要把当前 C 的 `(R=2,T=5,stout)` 与 F 的 `R_mid=2.5` stencil 映射到同一 snapshot reader。加入 reader 实际解析对象与 receipt summary 的一致性测试、split/hash/action/kernel 拒绝、C/F planned denominator 和 route 原子失败图文，再由 reviewer 独立核验 Creutz 符号与 F 的谱/热污染定义。没有独立 coverage、matched-$N_t=32$、正 reference-force 与 q/h/x receipts 前不重测/不解封数据；保持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+
+### 2026-11-26 C-development 读入器接入 immutable snapshot
+
+现有 [`c_lane_open_development_diagnostic.py`](c_lane_open_development_diagnostic.py) 的 pinned D-development 读入器现在将验证逻辑拆为“路径捕获 / snapshot 捕获 + 同一 bytes parser”两层。snapshot 模式只接受 `development.npz`、`development_provenance.json`、`development.commit.json` 三项显式命名输入；复核固定 D0–99 generation、NPZ/provenance/loop hashes、R/T 轴、周期边界、`stout_rho0.1_n5` 参数、依赖指纹、轨迹 ID 和数组有限性。`run(..., source_snapshot=...)` 可将这份 snapshot 直接交给原 diagnostic 与出图流程，且输出 protocol 记录 `read_mode=immutable_snapshot`，捕获后改写磁盘原文件不会改动分析输入。
+
+文字流程：`三项已开放 D-development transaction bytes -> pinned hash/generation/split/kernel/action preflight -> 解析 loop[ID,kernel,R,T] -> 选 stout kernel -> 四 loop paired Creutz + block-length hull -> CSV/PNG/README，仍标记 RETROSPECTIVE_DEVELOPMENT_ONLY_NOT_CONFIRMATION`。新增 synthetic tests 覆盖完整解析、原路径覆写、额外 split 拒绝、交易项缺失、图文产物和 no-clobber；Wilson C/reader/lane 聚焦 suite **29 passed**。end-to-end fixture 的输入分母是 source-file `3/3/0/0` 与 synthetic configuration `100/100/0/0`；小型测试用 `24×3=72` 个 bootstrap draws，仅检查代码流和 artifact，不代表已校准的生产精度。当前真实物理输入读取分母仍为 `0/0/0/0`，没有运行这份历史 D0–99 data bundle，也没有 GPU/QUDA。
+
+这关闭的是**开放 development diagnostic 的 same-bytes reader**，不是 C-lane evidence adapter 的 calibration reader：pinned D0–99 是已观察的 retrospective development，不满足 adapter 的 calibration split 和独立 coverage 证据要求。F lane 仍无对应 force/GEVP/thermal snapshot reader；两条真实 lane 与统计 envelope 也尚未从 reader 输出派生。后续先把 source hash/reader 输出映射到 route-specific evidence envelope 并加入 summary 反算一致性、缺项/错 hash/失败 denominator 测试，再由独立 reviewer 审 Creutz 约定和谱/热污染合同。不得把此 diagnostic 升为 confirmation；继续保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，gap/validation/holdout/confirmation 数据封存。
+
+本次在同一 bytes parser 中又补了两项 preflight：NPZ 内 `protocol_hash` 必须等于捕获 provenance protocol 的 canonical fingerprint，选取 C-lane loop 前要求整个 loop tensor 有限。此前只验证 transaction 中记录的 source hash 和 loop-array hash；现在再显式检查 provenance 与测量载荷的协议关联以及非有限值。对应 synthetic snapshot regression 已包含路径覆写、协议/transaction 拒绝、绘图产物和 no-clobber；它仍是 fixture，真实 D measurement 本轮未读取，生产 C/F adapter 仍不接收此 retrospective reader 输出。
+
+随 PR #6 更新重跑的完整 CPU suite 为 **294 passed**；其中 Wilson source-snapshot reader regression 只使用测试构造的 bytes/合成 loop tensor，不读取归档的实际 D0–99 NPZ。此数是软件回归证据，不关闭 C coverage/calibration 或 F ground-state-force 证据门。

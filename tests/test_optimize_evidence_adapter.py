@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import hashlib
+from io import BytesIO
 import json
+
+import numpy as np
 
 from core.evidence import evidence_envelope
 from core.receipts import denominator, run_receipt, scenario_spec
@@ -16,6 +19,10 @@ from tasks.optimize_gaussian.evidence_adapter import (
     bounded_risk_map_sha256,
     d04_reference_map_sha256,
     d11_operator_map_sha256,
+)
+from tasks.optimize_gaussian.source_reader import (
+    SCHEMA as D06_SCORE_SCHEMA,
+    apply_bounded_block_risk_snapshot_gate,
 )
 
 
@@ -213,6 +220,115 @@ def _d06_fixtures(*, split="D06-calibration-open", gamma=0.2, tv=0.001):
         },
     )
     return envelopes, receipt, routes
+
+
+def _d06_score_matrix_payload(split_id="D06-calibration-open", n_blocks=2000,
+                              release_signal=True):
+    from tasks.optimize_gaussian.bounded_block_risk import ARMS, TIMES
+
+    q = np.full((n_blocks, len(ARMS), len(TIMES)), 0.8, dtype=np.float64)
+    if release_signal:
+        q[:, 0, :] = 1.0 - np.sqrt(0.60)
+        q[:, 1, :] = 1.0 - np.sqrt(0.90)
+        q[:, 2, :] = 1.0 - np.sqrt(0.95)
+    else:
+        q[:, :, :] = 1.0 - np.sqrt(0.60)
+    failures = np.zeros((n_blocks, len(ARMS)), dtype=bool)
+    failures[0, 1] = True
+    q[0, 1, :] = np.nan
+    stream = BytesIO()
+    np.savez_compressed(
+        stream,
+        schema=np.asarray(D06_SCORE_SCHEMA),
+        split_id=np.asarray(split_id),
+        block_ids=np.arange(200, 200 + n_blocks, dtype=np.int64),
+        arm_order=np.asarray(ARMS),
+        times=np.asarray(TIMES, dtype=np.int64),
+        q_by_block_arm_time=q,
+        arm_failure_mask=failures,
+    )
+    return stream.getvalue()
+
+
+def _d06_score_map_bytes(route):
+    role = "trainable_w_mean" if route == "trainable_w" else f"contrast:{route}"
+    support = [0.0, 1.0] if route == "trainable_w" else [-10.0 / 9.0, 1.0]
+    payload = {
+        "schema": "optimize-bounded-block-risk-markov-v1",
+        "role": role,
+        "times": [2, 3, 4, 5],
+        "score": "mean_t min((q-1)^2,1); assigned-arm solver failure scores 1",
+        "contrast": None if route == "trainable_w" else "X_comparator - (10/9)*X_trainable_w",
+        "r_star": 10.0 / 9.0,
+        "support": support,
+    }
+    return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+
+
+def _d06_snapshot_bundle(tmp_path, *, release_signal=True):
+    envelopes, _, _ = _d06_fixtures(gamma=1.0, tv=0.001)
+    n_blocks = 2000
+    score_matrix_bytes = _d06_score_matrix_payload(n_blocks=n_blocks,
+                                                    release_signal=release_signal)
+    routes = {}
+    snapshots = {}
+    shared_payloads = {
+        "manifest": b"synthetic shared manifest",
+        "score_matrix": score_matrix_bytes,
+        "block_chain_receipt": b"synthetic block-chain receipt",
+        "gamma_ps_receipt": b"synthetic gamma receipt",
+        "initial_law_tv_receipt": b"synthetic initial-law TV receipt",
+        "budget_receipt": b"synthetic shared budget receipt",
+        "review_receipt": b"synthetic independent-review declaration",
+        "authorization_receipt": b"synthetic authorization declaration",
+    }
+    for route in _D06_ROUTES:
+        route_payloads = {
+            **shared_payloads,
+            "score_map": _d06_score_map_bytes(route),
+            "cost_ledger": f"synthetic cost ledger for {route}".encode(),
+        }
+        hashes = {name: hashlib.sha256(payload).hexdigest()
+                  for name, payload in route_payloads.items()}
+        assert hashes["score_map"] == bounded_risk_map_sha256(route)
+        routes[route] = hashes
+        envelope = envelopes[route]
+        envelope["chain"]["manifest_sha256"] = hashes["manifest"]
+        envelope["source_hashes"] = hashes
+        envelope["review"]["receipt_sha256"] = hashes["review_receipt"]
+
+        route_root = tmp_path / route
+        route_root.mkdir()
+        paths = {}
+        for name, payload in route_payloads.items():
+            suffix = ".npz" if name == "score_matrix" else ".json" if name == "score_map" else ".bin"
+            filename = f"{name}{suffix}"
+            (route_root / filename).write_bytes(payload)
+            paths[name] = filename
+        snapshots[route] = capture_source_snapshot(route_root, hashes, paths)
+
+    receipt = run_receipt(
+        scenario_spec(
+            "optimize-d06-bounded-block-risk",
+            "planned CPU adapter contract unit",
+            "synthetic q-matrix snapshot-reader integration fixture",
+        ),
+        {
+            "paired_macroblocks": denominator("paired macroblock", planned=n_blocks,
+                                                valid=n_blocks),
+            "assigned_arm_runs": denominator(
+                "assigned optimizer arm run", planned=n_blocks * 3,
+                valid=n_blocks * 3 - 1, failed=1,
+            ),
+        },
+        artifact_hashes={"fixture": H[22]},
+        text_flow="captured q matrix -> paired score reader -> D06 source-byte gate -> draft or abstain",
+        reason_rows=[{
+            "unit": "assigned_arm_runs", "state": "failed", "count": 1,
+            "reason": "synthetic declared optimizer arm failure scored as loss 1",
+        }],
+    )
+    return envelopes, receipt, routes, snapshots
 
 
 def _upstream_ready():
@@ -521,3 +637,79 @@ def test_bounded_d06_bundle_uses_the_captured_source_snapshots_atomically(tmp_pa
         "unit": "source_file", "planned": 30, "valid": 30,
         "failed": 0, "abstained": 0, "not_run": 0,
     }
+
+
+def test_d06_snapshot_reader_reconciles_arrays_receipt_and_atomic_byte_gate(tmp_path):
+    envelopes, receipt, routes, snapshots = _d06_snapshot_bundle(tmp_path)
+    state = _upstream_ready()
+    result = apply_bounded_block_risk_snapshot_gate(
+        state, envelopes, receipt,
+        required_source_hashes_by_envelope=routes,
+        source_snapshots_by_envelope=snapshots,
+    )
+
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert state.status["statistical"] == "draft"
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 30, "valid": 30,
+        "failed": 0, "abstained": 0, "not_run": 0,
+    }
+    assert set(result["reader_summary"]) == set(_D06_ROUTES)
+    assert all(row["source_read_mode"] == "immutable_snapshot"
+               for row in result["reader_summary"].values())
+    assert all(row["block_denominator"]["planned"] == 2000
+               for row in result["reader_summary"].values())
+    assert all(row["assigned_arm_run_denominator"]["failed"] == 1
+               for row in result["reader_summary"].values())
+    assert result["reader_decision"]["dependence_method"] == "corrected_markov_pseudo_gap_bernstein_support_only"
+    assert result["reader_decision"]["status"] == "CONDITIONAL_MARKOV_PASS_BOTH_COMPARISONS"
+    assert result["reader_summary"]["trainable_w"]["gamma_ps_lower_assumed"] == 1.0
+    assert result["reader_summary"]["trainable_w"]["trainable_w_lower_bound"] > 0.0
+    assert all(value > 0.0 for value in result["reader_summary"]["trainable_w"]["comparison_lower_bounds"].values())
+    assert result["physical_score"] is None and result["certified"] is False
+
+
+def test_d06_snapshot_reader_abstains_when_receipt_denominator_disagrees(tmp_path):
+    envelopes, receipt, routes, snapshots = _d06_snapshot_bundle(tmp_path)
+    receipt["denominators"]["paired_macroblocks"]["planned"] = 11
+    receipt["denominators"]["paired_macroblocks"]["valid"] = 11
+    state = _upstream_ready()
+    result = apply_bounded_block_risk_snapshot_gate(
+        state, envelopes, receipt,
+        required_source_hashes_by_envelope=routes,
+        source_snapshots_by_envelope=snapshots,
+    )
+    assert result["status"] == "ABSTAIN_OPTIMIZE_D06_SNAPSHOT_READER"
+    assert state.status["statistical"] == "abstained"
+    assert any("receipt denominators" in reason for reason in result["reasons"])
+    assert result["physical_score"] is None
+
+
+def test_d06_snapshot_reader_abstains_when_observed_effect_thresholds_fail(tmp_path):
+    envelopes, receipt, routes, snapshots = _d06_snapshot_bundle(
+        tmp_path, release_signal=False,
+    )
+    state = _upstream_ready()
+    result = apply_bounded_block_risk_snapshot_gate(
+        state, envelopes, receipt,
+        required_source_hashes_by_envelope=routes,
+        source_snapshots_by_envelope=snapshots,
+    )
+    assert result["status"] == "ABSTAIN_OPTIMIZE_D06_SNAPSHOT_READER"
+    assert state.status["statistical"] == "abstained"
+    assert result["reader_decision"]["status"] == "CONDITIONAL_NO_FAMILYWISE_RELEASE"
+    assert result["physical_score"] is None and result["certified"] is False
+
+
+def test_d06_snapshot_reader_rejects_route_specific_markov_inputs(tmp_path):
+    envelopes, receipt, routes, snapshots = _d06_snapshot_bundle(tmp_path)
+    envelopes["degree4_chebyshev"]["dependence"]["gamma_ps_lower"] = 0.5
+    state = _upstream_ready()
+    result = apply_bounded_block_risk_snapshot_gate(
+        state, envelopes, receipt,
+        required_source_hashes_by_envelope=routes,
+        source_snapshots_by_envelope=snapshots,
+    )
+    assert result["status"] == "ABSTAIN_OPTIMIZE_D06_SNAPSHOT_READER"
+    assert state.status["statistical"] == "abstained"
+    assert any("shared Markov gap" in reason for reason in result["reasons"])

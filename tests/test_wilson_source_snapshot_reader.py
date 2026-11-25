@@ -1,0 +1,182 @@
+from __future__ import annotations
+
+from hashlib import sha256
+from io import BytesIO
+import json
+
+import numpy as np
+import pytest
+
+from core.io import fingerprint
+from core.source_integrity import capture_source_snapshot
+from tasks.wilson_loop import c_lane_open_development_diagnostic as diagnostic
+
+
+def _synthetic_transaction():
+    generation = "d" * 64
+    loops = np.linspace(0.15, 0.45, 100 * 4 * 5, dtype=np.float64).reshape(100, 1, 4, 5)
+    source_hashes = {name: (str(i + 1) * 64) for i, name in enumerate((
+        "measure.py", "kernels.py", "stout.py", "statistics.py", "common.py", "identity.py",
+    ))}
+    protocol = {
+        "development": [0, 99],
+        "geometry": [16, 16, 16, 16],
+        "beta": 6.0,
+        "boundary_conditions": "periodic_all_directions",
+        "r_values": [1, 2, 3, 4],
+        "t_values": [4, 5, 6, 7, 8],
+        "source_hashes": source_hashes,
+        "kernels": [{"name": "stout_rho0.1_n5", "kind": "stout", "rho": 0.1, "steps": 5}],
+    }
+    protocol_hash = fingerprint(protocol)
+    npz_stream = BytesIO()
+    np.savez_compressed(
+        npz_stream,
+        ids=np.arange(100, dtype=np.int64),
+        loops=loops,
+        generation=np.asarray(generation),
+        protocol_hash=np.asarray(protocol_hash),
+    )
+    npz_bytes = npz_stream.getvalue()
+    dependencies = {name: digest for name, digest in source_hashes.items() if name != "stout.py"}
+    provenance_bytes = json.dumps({
+        "generation": generation,
+        "protocol": protocol,
+        "dependencies": dependencies,
+        "records": [{"id": i, "hmc_trajectory": 10 * i} for i in range(100)],
+    }, sort_keys=True, separators=(",", ":")).encode()
+    npz_sha = sha256(npz_bytes).hexdigest()
+    provenance_sha = sha256(provenance_bytes).hexdigest()
+    loops_sha = sha256(np.ascontiguousarray(loops).tobytes()).hexdigest()
+    commit_bytes = json.dumps({
+        "split": "development",
+        "generation": generation,
+        "npz_sha256": npz_sha,
+        "provenance_sha256": provenance_sha,
+        "loops_sha256": loops_sha,
+    }, sort_keys=True, separators=(",", ":")).encode()
+    return generation, protocol_hash, loops, npz_bytes, provenance_bytes, commit_bytes
+
+
+def _pin_synthetic_transaction(monkeypatch, transaction):
+    generation, _, loops, npz_bytes, provenance_bytes, _ = transaction
+    monkeypatch.setattr(diagnostic, "GENERATION", generation)
+    monkeypatch.setattr(diagnostic, "EXPECTED_NPZ_SHA256", sha256(npz_bytes).hexdigest())
+    monkeypatch.setattr(diagnostic, "EXPECTED_PROVENANCE_SHA256", sha256(provenance_bytes).hexdigest())
+    monkeypatch.setattr(diagnostic, "EXPECTED_LOOPS_SHA256", sha256(
+        np.ascontiguousarray(loops).tobytes()
+    ).hexdigest())
+    monkeypatch.setattr(diagnostic, "EXPECTED_SOURCE_SHA256", {
+        name: (str(i + 1) * 64) for i, name in enumerate((
+            "measure.py", "kernels.py", "stout.py", "statistics.py", "common.py", "identity.py",
+        ))
+    })
+
+
+def test_wilson_development_reader_uses_the_captured_transaction_bytes(tmp_path, monkeypatch):
+    transaction = _synthetic_transaction()
+    _pin_synthetic_transaction(monkeypatch, transaction)
+    _, protocol_hash, expected_loops, npz_bytes, provenance_bytes, commit_bytes = transaction
+    contents = {
+        "development_npz": ("development.npz", npz_bytes),
+        "development_provenance": ("development_provenance.json", provenance_bytes),
+        "development_commit": ("development.commit.json", commit_bytes),
+    }
+    for filename, payload in contents.values():
+        (tmp_path / filename).write_bytes(payload)
+    snapshot = capture_source_snapshot(
+        tmp_path,
+        {role: sha256(payload).hexdigest() for role, (_, payload) in contents.items()},
+        {role: filename for role, (filename, _) in contents.items()},
+    )
+
+    for filename, _ in contents.values():
+        (tmp_path / filename).write_bytes(b"changed after capture")
+    ids, observed, observed_protocol_hash, trajectories, hashes = diagnostic.load_transaction(
+        source_snapshot=snapshot,
+        source_names={role: role for role in contents},
+    )
+
+    np.testing.assert_array_equal(ids, np.arange(100))
+    np.testing.assert_array_equal(observed, expected_loops[:, 0])
+    assert observed_protocol_hash == protocol_hash
+    assert trajectories == [10 * i for i in range(100)]
+    assert hashes["read_mode"] == "immutable_snapshot"
+    assert hashes["development_npz_sha256"] == sha256(npz_bytes).hexdigest()
+    assert hashes["development_provenance_sha256"] == sha256(provenance_bytes).hexdigest()
+    assert hashes["development_commit_sha256"] == sha256(commit_bytes).hexdigest()
+
+
+def test_wilson_development_reader_rejects_extra_split_or_missing_snapshot_entry(tmp_path, monkeypatch):
+    transaction = _synthetic_transaction()
+    _pin_synthetic_transaction(monkeypatch, transaction)
+    _, _, _, npz_bytes, provenance_bytes, commit_bytes = transaction
+    contents = {
+        "development_npz": ("development.npz", npz_bytes),
+        "development_provenance": ("development_provenance.json", provenance_bytes),
+        "development_commit": ("development.commit.json", commit_bytes),
+    }
+    for filename, payload in contents.values():
+        (tmp_path / filename).write_bytes(payload)
+    expected = {role: sha256(payload).hexdigest() for role, (_, payload) in contents.items()}
+    paths = {role: filename for role, (filename, _) in contents.items()}
+    snapshot = capture_source_snapshot(tmp_path, expected, paths)
+    with pytest.raises(ValueError, match="exactly the three development"):
+        diagnostic.load_transaction(
+            source_snapshot=snapshot,
+            source_names={**{role: role for role in contents}, "validation_npz": "validation"},
+        )
+
+    incomplete = capture_source_snapshot(
+        tmp_path,
+        expected,
+        {"development_npz": "development.npz", "development_provenance": "development_provenance.json"},
+    )
+    with pytest.raises(ValueError, match="incomplete captured development transaction"):
+        diagnostic.load_transaction(
+            source_snapshot=incomplete,
+            source_names={role: role for role in contents},
+        )
+
+
+def test_wilson_diagnostic_run_reuses_snapshot_and_writes_text_and_figure(tmp_path, monkeypatch):
+    transaction = _synthetic_transaction()
+    _pin_synthetic_transaction(monkeypatch, transaction)
+    monkeypatch.setattr(diagnostic, "N_DRAWS", 24)
+    source_copy = tmp_path / "reader_source.py"
+    source_copy.write_text("# isolated synthetic-test source identity\n")
+    monkeypatch.setattr(diagnostic, "__file__", str(source_copy))
+    _, _, _, npz_bytes, provenance_bytes, commit_bytes = transaction
+    payloads = {
+        "development_npz": ("development.npz", npz_bytes),
+        "development_provenance": ("development_provenance.json", provenance_bytes),
+        "development_commit": ("development.commit.json", commit_bytes),
+    }
+    for filename, payload in payloads.values():
+        (tmp_path / filename).write_bytes(payload)
+    snapshot = capture_source_snapshot(
+        tmp_path,
+        {role: sha256(payload).hexdigest() for role, (_, payload) in payloads.items()},
+        {role: filename for role, (filename, _) in payloads.items()},
+    )
+    for filename, _ in payloads.values():
+        (tmp_path / filename).write_bytes(b"replacement after capture")
+
+    output = tmp_path / "diagnostic"
+    diagnostic.run(
+        None, output, source_snapshot=snapshot,
+        source_names={role: role for role in payloads},
+    )
+    protocol = json.loads((output / "protocol.json").read_text())
+    summary = json.loads((output / "summary.json").read_text())
+    assert protocol["input_hashes"]["read_mode"] == "immutable_snapshot"
+    assert summary["status"] == "RETROSPECTIVE_DEVELOPMENT_ONLY_NOT_CONFIRMATION"
+    assert summary["physical_score"] is None and summary["certified"] is False
+    assert summary["invalid_draws"]["planned"] == 3 * 24
+    assert (output / "c_lane_bootstrap_intervals.png").is_file()
+    assert (output / "README.md").is_file()
+    with pytest.raises(FileExistsError, match="refusing to overwrite"):
+        diagnostic.run(
+            None, output, source_snapshot=snapshot,
+            source_names={role: role for role in payloads},
+        )

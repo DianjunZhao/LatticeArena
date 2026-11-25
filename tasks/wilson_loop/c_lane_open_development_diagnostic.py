@@ -12,12 +12,16 @@ import csv
 import hashlib
 import json
 import math
+from io import BytesIO
 from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+
+from core.io import fingerprint
+from core.source_integrity import SourceByteSnapshot
 
 
 GENERATION = "dd38c39f21982307c5abc2d5093b93c2aa12ef8848d6f9136519b1f8054b619e"
@@ -52,24 +56,21 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def load_transaction(input_dir: Path):
-    """Read only the development NPZ and its two adjacent transaction records."""
-    npz_path = input_dir / "development.npz"
-    provenance_path = input_dir / "development_provenance.json"
-    commit_path = input_dir / "development.commit.json"
-    for path in (npz_path, provenance_path, commit_path):
-        if not path.is_file():
-            raise ValueError(f"required development transaction file is missing: {path.name}")
-
-    npz_sha = sha256_file(npz_path)
-    provenance_sha = sha256_file(provenance_path)
+def _parse_transaction_bytes(npz_bytes: bytes, provenance_bytes: bytes,
+                             commit_bytes: bytes, *, read_mode: str):
+    """Validate the pinned open-development transaction from retained bytes."""
+    npz_sha = hashlib.sha256(npz_bytes).hexdigest()
+    provenance_sha = hashlib.sha256(provenance_bytes).hexdigest()
     if npz_sha != EXPECTED_NPZ_SHA256:
         raise ValueError("development.npz hash differs from the pinned open D transaction")
     if provenance_sha != EXPECTED_PROVENANCE_SHA256:
         raise ValueError("provenance hash differs from the pinned open D transaction")
 
-    commit = json.loads(commit_path.read_text())
-    provenance = json.loads(provenance_path.read_text())
+    try:
+        commit = json.loads(commit_bytes)
+        provenance = json.loads(provenance_bytes)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("development transaction metadata is not valid JSON") from exc
     if commit.get("split") != "development" or commit.get("generation") != GENERATION:
         raise ValueError("transaction marker is not the pinned development generation")
     if commit.get("npz_sha256") != npz_sha or commit.get("provenance_sha256") != provenance_sha:
@@ -102,18 +103,22 @@ def load_transaction(input_dir: Path):
     if (kernel.get("kind"), kernel.get("rho"), kernel.get("steps")) != ("stout", 0.1, 5):
         raise ValueError("kernel parameters do not match the selected stout C lane")
 
-    with np.load(npz_path, allow_pickle=False) as archive:
+    with np.load(BytesIO(npz_bytes), allow_pickle=False) as archive:
         ids = np.array(archive["ids"], copy=True)
         loops = np.array(archive["loops"], copy=True)
         archive_generation = str(archive["generation"].item())
         protocol_hash = str(archive["protocol_hash"].item())
     if archive_generation != GENERATION:
         raise ValueError("NPZ generation does not match the transaction marker")
+    if protocol_hash != fingerprint(protocol):
+        raise ValueError("NPZ protocol fingerprint differs from its captured provenance")
     expected_ids = np.arange(100, dtype=np.int64)
     if not np.array_equal(ids, expected_ids):
         raise ValueError("the open development NPZ must contain exactly IDs 0--99")
     if loops.shape != (100, len(kernels), len(R_VALUES), len(T_VALUES)):
         raise ValueError(f"unexpected loop array shape {loops.shape}")
+    if not np.all(np.isfinite(loops)):
+        raise ValueError("development loop array contains nonfinite values")
     loops_sha = hashlib.sha256(np.ascontiguousarray(loops).tobytes()).hexdigest()
     if loops_sha != EXPECTED_LOOPS_SHA256:
         raise ValueError("loop-array fingerprint differs from the transaction marker")
@@ -128,10 +133,66 @@ def load_transaction(input_dir: Path):
     data_hashes = {
         "development_npz_sha256": npz_sha,
         "development_provenance_sha256": provenance_sha,
-        "development_commit_sha256": sha256_file(commit_path),
+        "development_commit_sha256": hashlib.sha256(commit_bytes).hexdigest(),
         "loops_array_sha256": loops_sha,
+        "read_mode": read_mode,
     }
     return ids, loops[:, matches[0], :, :], protocol_hash, trajectories, data_hashes
+
+
+def load_transaction(input_dir: Path | None = None, *,
+                     source_snapshot: SourceByteSnapshot | None = None,
+                     source_names: dict[str, str] | None = None):
+    """Load the open D-development transaction from paths or captured bytes.
+
+    Snapshot mode reads exactly the three named development files and has no
+    path fallback. Validation, gap, holdout, and confirmation are not valid
+    inputs to this reader.
+    """
+    expected_names = {
+        "development_npz", "development_provenance", "development_commit",
+    }
+    if source_snapshot is not None:
+        if input_dir is not None:
+            raise ValueError("snapshot mode does not accept an input directory")
+        if not isinstance(source_snapshot, SourceByteSnapshot):
+            raise ValueError("source_snapshot must be a verified SourceByteSnapshot")
+        if not isinstance(source_names, dict) or set(source_names) != expected_names:
+            raise ValueError("source_names must map exactly the three development transaction files")
+        try:
+            payloads = {
+                role: source_snapshot.read_bytes(name)
+                for role, name in source_names.items()
+            }
+        except ValueError as exc:
+            raise ValueError(f"incomplete captured development transaction: {exc}") from exc
+        return _parse_transaction_bytes(
+            payloads["development_npz"], payloads["development_provenance"],
+            payloads["development_commit"], read_mode="immutable_snapshot",
+        )
+
+    if source_names is not None:
+        raise ValueError("source_names is only valid together with source_snapshot")
+    if input_dir is None:
+        raise ValueError("input_dir is required unless source_snapshot is supplied")
+    input_dir = Path(input_dir)
+    path_by_role = {
+        "development_npz": input_dir / "development.npz",
+        "development_provenance": input_dir / "development_provenance.json",
+        "development_commit": input_dir / "development.commit.json",
+    }
+    payloads = {}
+    for role, path in path_by_role.items():
+        try:
+            payloads[role] = path.read_bytes()
+        except FileNotFoundError as exc:
+            raise ValueError(
+                f"required development transaction file is missing: {path.name}"
+            ) from exc
+    return _parse_transaction_bytes(
+        payloads["development_npz"], payloads["development_provenance"],
+        payloads["development_commit"], read_mode="path",
+    )
 
 
 def creutz(samples: np.ndarray) -> np.ndarray:
@@ -270,10 +331,14 @@ def make_plot(path: Path, point, point_valid, rows, hull_low, hull_high, hull_ha
     plt.close(fig)
 
 
-def run(input_dir: Path, output_dir: Path):
+def run(input_dir: Path | None, output_dir: Path, *,
+        source_snapshot: SourceByteSnapshot | None = None,
+        source_names: dict[str, str] | None = None):
     if output_dir.exists():
         raise FileExistsError(f"refusing to overwrite existing output directory: {output_dir}")
-    ids, loops, protocol_hash, trajectories, hashes = load_transaction(input_dir)
+    ids, loops, protocol_hash, trajectories, hashes = load_transaction(
+        input_dir, source_snapshot=source_snapshot, source_names=source_names
+    )
     means, point, point_valid, rows, draws, hull_low, hull_high, hull_halfwidth, gate_pass = analyze(loops)
     output_dir.mkdir(parents=True, exist_ok=False)
     source_path = Path(__file__).resolve()
