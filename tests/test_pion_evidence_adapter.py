@@ -1,4 +1,6 @@
 import copy
+import hashlib
+import json
 
 from core.evidence import evidence_envelope
 from core.receipts import denominator, run_receipt, scenario_spec
@@ -7,6 +9,7 @@ from tasks.pion_projection.evidence_adapter import (
     apply_pion_statistical_evidence_gate,
     score_map_sha256,
 )
+from tasks.pion_projection.bounded_block_risk_contract import selected_protocol
 
 
 H = [f"{i:064x}" for i in range(1, 20)]
@@ -151,15 +154,70 @@ def _ready_state():
     return state
 
 
-def _apply(state, envelopes, hashes, receipt=None, *, common_bias=0.01):
+def _score_map_bytes():
+    protocol = selected_protocol()
+    score = protocol["score"]
+    payload = {
+        "protocol_id": protocol["protocol_id"],
+        "prediction_domain": score["prediction_domain"],
+        "units": score["units"],
+        "R": score["R"],
+        "formula": score["formula"],
+        "clipping_interval": score["clipping_interval"],
+        "failure_policy": score["failure_policy"],
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    assert hashlib.sha256(encoded).hexdigest() == score_map_sha256()
+    return encoded
+
+
+def _materialize_source_bytes(root, envelopes, hashes):
+    paths = {}
+    anchor_map_hash = None
+    for route in ("score", "anchor"):
+        route_paths = {}
+        for name in tuple(hashes[route]):
+            payload = (
+                _score_map_bytes()
+                if route == "score" and name == "score_map"
+                else f"synthetic:{route}:{name}".encode()
+            )
+            digest = hashlib.sha256(payload).hexdigest()
+            relative_path = f"{route}-{name}.bin"
+            (root / relative_path).write_bytes(payload)
+            route_paths[name] = relative_path
+            hashes[route][name] = digest
+            envelopes[route]["source_hashes"][name] = digest
+            if name == "manifest":
+                envelopes[route]["chain"]["manifest_sha256"] = digest
+            elif name == "review_receipt":
+                envelopes[route]["review"]["receipt_sha256"] = digest
+            elif route == "score" and name == "score_map":
+                envelopes[route]["observable"]["map_sha256"] = digest
+            elif route == "anchor" and name == "scalar_map":
+                envelopes[route]["observable"]["map_sha256"] = digest
+                anchor_map_hash = digest
+            elif route == "anchor" and name == "independence_receipt":
+                envelopes[route]["dependence"]["independence_receipt_sha256"] = digest
+        paths[route] = route_paths
+    assert anchor_map_hash is not None
+    return paths, anchor_map_hash
+
+
+def _apply(state, envelopes, hashes, receipt=None, *, common_bias=0.01,
+           anchor_map_hash=ANCHOR_MAP_HASH, source_root=None,
+           source_paths_by_envelope=None, require_source_bytes=False):
     return apply_pion_statistical_evidence_gate(
         state,
         envelopes,
         _receipt() if receipt is None else receipt,
         anchor_scalar_map_id=ANCHOR_MAP_ID,
-        anchor_scalar_map_sha256=ANCHOR_MAP_HASH,
+        anchor_scalar_map_sha256=anchor_map_hash,
         common_bias_bound_over_R=common_bias,
         required_source_hashes_by_envelope=hashes,
+        source_root=source_root,
+        source_paths_by_envelope=source_paths_by_envelope,
+        require_source_bytes=require_source_bytes,
     )
 
 
@@ -248,3 +306,63 @@ def test_pion_statistical_adapter_abstains_on_incomplete_source_hash_map():
     )
     assert result["status"] == "ABSTAIN_PION_STATISTICAL_ADAPTER"
     assert any("exactly score and anchor routes" in item for item in result["reasons"])
+
+
+def test_pion_source_byte_gate_is_required_and_verified_bundle_stops_at_draft(tmp_path):
+    envelopes, hashes = _envelopes()
+    missing_paths_state = _ready_state()
+    missing_paths = _apply(missing_paths_state, envelopes, hashes,
+                           require_source_bytes=True)
+    assert missing_paths["status"] == "ABSTAIN_PION_STATISTICAL_ADAPTER"
+    assert missing_paths_state.status["statistical"] == "abstained"
+    assert any("requires both source_root" in item for item in missing_paths["reasons"])
+
+    envelopes, hashes = _envelopes()
+    paths, anchor_map_hash = _materialize_source_bytes(tmp_path, envelopes, hashes)
+    state = _ready_state()
+    result = _apply(
+        state,
+        envelopes,
+        hashes,
+        anchor_map_hash=anchor_map_hash,
+        source_root=tmp_path,
+        source_paths_by_envelope=paths,
+        require_source_bytes=True,
+    )
+
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["source_byte_identity_verified"] is True
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file",
+        "planned": 13,
+        "valid": 13,
+        "failed": 0,
+        "abstained": 0,
+        "not_run": 0,
+    }
+    assert result["run_state"]["status"]["statistical"] == "draft"
+    assert result["physical_score"] is None
+
+
+def test_pion_source_byte_gate_abstains_if_one_receipt_file_is_tampered(tmp_path):
+    envelopes, hashes = _envelopes()
+    paths, anchor_map_hash = _materialize_source_bytes(tmp_path, envelopes, hashes)
+    tampered_path = tmp_path / paths["anchor"]["common_bias_receipt"]
+    tampered_path.write_bytes(b"tampered after receipt creation")
+
+    state = _ready_state()
+    result = _apply(
+        state,
+        envelopes,
+        hashes,
+        anchor_map_hash=anchor_map_hash,
+        source_root=tmp_path,
+        source_paths_by_envelope=paths,
+        require_source_bytes=True,
+    )
+
+    assert result["status"] == "ABSTAIN_SOURCE_BYTES"
+    assert result["source_verification"]["denominator"]["planned"] == 13
+    assert result["source_verification"]["denominator"]["valid"] == 12
+    assert result["source_verification"]["denominator"]["failed"] == 1
+    assert state.status["statistical"] == "abstained"

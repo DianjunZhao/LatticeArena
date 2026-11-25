@@ -12,9 +12,14 @@ import hashlib
 import json
 import math
 import re
+from pathlib import Path
 from typing import Any
 
-from core.evidence import apply_evidence_bundle_gate, inspect_evidence_envelope
+from core.evidence import (
+    apply_evidence_bundle_gate,
+    apply_evidence_bundle_gate_with_source_bytes,
+    inspect_evidence_envelope,
+)
 from core.receipts import RECEIPT_SCHEMA, run_receipt as normalize_run_receipt
 from .bounded_block_risk_contract import selected_protocol
 
@@ -231,12 +236,17 @@ def apply_pion_statistical_evidence_gate(
     anchor_scalar_map_sha256: str,
     common_bias_bound_over_R: float,
     required_source_hashes_by_envelope: object,
+    source_root: str | Path | None = None,
+    source_paths_by_envelope: object = None,
+    require_source_bytes: bool = True,
 ) -> dict[str, Any]:
-    """Apply the Pion statistical metadata gate without reading source files.
+    """Apply the Pion statistical metadata gate and optionally verify bytes.
 
     The anchor map and evidence source hashes must come from externally reviewed
-    receipts. Their presence here only binds metadata; this function cannot
-    authenticate the bytes or scientific claims. It requires the operator,
+    receipts. Production use requires an explicit root and per-envelope relative
+    path map; synthetic metadata fixtures may opt out. Byte verification only
+    checks the currently read bytes and does not authenticate their authority or
+    scientific claims. The adapter requires the operator,
     reference and numerical stages to be validated first and accepts only the
     selected 12,000 family-block scores plus 1,000 anchor units. A complete
     result advances ``statistical`` to ``draft`` only.
@@ -250,6 +260,16 @@ def apply_pion_statistical_evidence_gate(
         return {
             "status": "ABSTAIN_RUNSTATE_STAGE_ALREADY_USED",
             "reasons": [f"{STAGE} is already {run_state.status[STAGE]}"],
+            "run_state": run_state.summary(),
+            "certified": False,
+            "physical_score": None,
+        }
+    if not isinstance(require_source_bytes, bool):
+        reason = "require_source_bytes must be an explicit boolean"
+        run_state.abstain(STAGE, reason)
+        return {
+            "status": "ABSTAIN_PION_STATISTICAL_ADAPTER",
+            "reasons": [reason],
             "run_state": run_state.summary(),
             "certified": False,
             "physical_score": None,
@@ -306,6 +326,30 @@ def apply_pion_statistical_evidence_gate(
             "certified": False,
             "physical_score": None,
         }
+
+    paths_supplied = source_root is not None or source_paths_by_envelope is not None
+    if require_source_bytes or paths_supplied:
+        if source_root is None or source_paths_by_envelope is None:
+            reason = "source-byte gate requires both source_root and source_paths_by_envelope"
+            run_state.abstain(STAGE, reason)
+            return {
+                "status": "ABSTAIN_PION_STATISTICAL_ADAPTER",
+                "reasons": [reason],
+                "run_state": run_state.summary(),
+                "certified": False,
+                "physical_score": None,
+            }
+        return apply_evidence_bundle_gate_with_source_bytes(
+            run_state,
+            STAGE,
+            envelopes,
+            receipt,
+            source_root=source_root,
+            source_paths_by_envelope=source_paths_by_envelope,
+            expected_by_envelope=expected,
+            required_source_hashes_by_envelope=source_hashes,
+            distinct_chain_pairs=(("anchor", "score"),),
+        )
 
     return apply_evidence_bundle_gate(
         run_state,

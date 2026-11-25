@@ -13,6 +13,7 @@ from numbers import Real
 from typing import Any
 
 from .receipts import RECEIPT_SCHEMA, run_receipt as normalize_run_receipt
+from .source_integrity import SOURCE_VERIFICATION_SCHEMA, verify_source_bytes
 
 
 EVIDENCE_SCHEMA = "latticearena-evidence-envelope-v2"
@@ -524,3 +525,215 @@ def apply_evidence_bundle_gate(
         "certified": False,
         "physical_score": None,
     }
+
+
+def _source_verification_reasons(receipt: object) -> list[str]:
+    if not isinstance(receipt, dict) or receipt.get("status") != "verified":
+        if isinstance(receipt, dict) and isinstance(receipt.get("entries"), dict):
+            reasons = [
+                f"{name}: {entry.get('reason') or entry.get('status')}"
+                for name, entry in receipt["entries"].items()
+                if not isinstance(entry, dict) or entry.get("status") != "valid"
+            ]
+            if reasons:
+                return reasons
+        return ["source bytes are not fully verified"]
+    return []
+
+
+def _abstain_source_bytes(
+    run_state: object,
+    stage: str,
+    reasons: list[str],
+    verification: dict[str, Any],
+) -> dict[str, Any]:
+    run_state.abstain(stage, "; ".join(reasons))
+    return {
+        "status": "ABSTAIN_SOURCE_BYTES",
+        "reasons": reasons,
+        "source_verification": verification,
+        "run_state": run_state.summary(),
+        "certified": False,
+        "physical_score": None,
+    }
+
+
+def apply_evidence_gate_with_source_bytes(
+    run_state: object,
+    stage: str,
+    envelope: object,
+    receipt: object,
+    *,
+    source_root: str,
+    source_paths: dict[str, str],
+    expected: dict[str, Any] | None = None,
+    required_source_hashes: dict[str, str],
+) -> dict[str, Any]:
+    """Verify explicit source bytes before applying the metadata-only gate.
+
+    A successful call still advances at most to ``draft``. The verified hash
+    receipt does not authenticate its expected-hash authority or validate the
+    scientific content.
+    """
+    if (not hasattr(run_state, "status") or not hasattr(run_state, "set")
+            or not hasattr(run_state, "abstain")):
+        raise ValueError("run_state must provide status, set and abstain")
+    if stage not in run_state.status:
+        raise ValueError(f"unknown RunState stage {stage!r}")
+    if run_state.status[stage] != "not_run":
+        return {
+            "status": "ABSTAIN_RUNSTATE_STAGE_ALREADY_USED",
+            "reasons": [f"{stage} is already {run_state.status[stage]}"],
+            "run_state": run_state.summary(),
+            "certified": False,
+            "physical_score": None,
+        }
+
+    metadata = inspect_evidence_envelope(
+        envelope,
+        expected=expected,
+        required_source_hashes=required_source_hashes,
+        require_review=True,
+    )
+    if metadata["status"] != "SCHEMA_COMPLETE_NOT_CERTIFIED":
+        result = apply_evidence_gate(
+            run_state,
+            stage,
+            envelope,
+            receipt,
+            expected=expected,
+            required_source_hashes=required_source_hashes,
+        )
+        result["source_verification"] = None
+        return result
+
+    try:
+        verification = verify_source_bytes(
+            source_root, required_source_hashes, source_paths,
+        )
+    except (TypeError, ValueError) as exc:
+        verification = {
+            "schema": SOURCE_VERIFICATION_SCHEMA,
+            "status": "invalid",
+            "reasons": [str(exc)],
+        }
+        return _abstain_source_bytes(
+            run_state, stage, [f"source-byte preflight is invalid: {exc}"], verification,
+        )
+
+    source_reasons = _source_verification_reasons(verification)
+    if source_reasons:
+        return _abstain_source_bytes(run_state, stage, source_reasons, verification)
+
+    result = apply_evidence_gate(
+        run_state,
+        stage,
+        envelope,
+        receipt,
+        expected=expected,
+        required_source_hashes=required_source_hashes,
+    )
+    result["source_verification"] = verification
+    result["source_byte_identity_verified"] = True
+    return result
+
+
+def apply_evidence_bundle_gate_with_source_bytes(
+    run_state: object,
+    stage: str,
+    envelopes: dict[str, object],
+    receipt: object,
+    *,
+    source_root: str,
+    source_paths_by_envelope: dict[str, dict[str, str]],
+    expected_by_envelope: dict[str, dict[str, Any]],
+    required_source_hashes_by_envelope: dict[str, dict[str, str]],
+    distinct_chain_pairs: list[tuple[str, str]] | tuple[tuple[str, str], ...] = (),
+) -> dict[str, Any]:
+    """Verify every named source bundle before one atomic metadata transition."""
+    if (not hasattr(run_state, "status") or not hasattr(run_state, "set")
+            or not hasattr(run_state, "abstain")):
+        raise ValueError("run_state must provide status, set and abstain")
+    if stage not in run_state.status:
+        raise ValueError(f"unknown RunState stage {stage!r}")
+    if run_state.status[stage] != "not_run":
+        return {
+            "status": "ABSTAIN_RUNSTATE_STAGE_ALREADY_USED",
+            "reasons": [f"{stage} is already {run_state.status[stage]}"],
+            "run_state": run_state.summary(),
+            "certified": False,
+            "physical_score": None,
+        }
+
+    routes = set(envelopes) if isinstance(envelopes, dict) else set()
+    if (not routes or not isinstance(expected_by_envelope, dict)
+            or set(expected_by_envelope) != routes
+            or not isinstance(required_source_hashes_by_envelope, dict)
+            or set(required_source_hashes_by_envelope) != routes
+            or not isinstance(source_paths_by_envelope, dict)
+            or not set(source_paths_by_envelope).issubset(routes)):
+        verification = {
+            "schema": SOURCE_VERIFICATION_SCHEMA,
+            "status": "invalid",
+            "reasons": ["bundle route maps must cover the evidence envelopes exactly"],
+        }
+        return _abstain_source_bytes(
+            run_state, stage, verification["reasons"], verification,
+        )
+
+    flattened_hashes: dict[str, str] = {}
+    flattened_paths: dict[str, str] = {}
+    try:
+        for route in envelopes:
+            route_hashes = required_source_hashes_by_envelope[route]
+            route_paths = source_paths_by_envelope.get(route, {})
+            if not isinstance(route_hashes, dict) or not route_hashes:
+                raise ValueError(f"{route}: required source hashes must be nonempty")
+            if not isinstance(route_paths, dict):
+                raise ValueError(f"{route}: source paths must be a mapping")
+            unexpected_paths = set(route_paths) - set(route_hashes)
+            if unexpected_paths:
+                raise ValueError(f"{route}: source paths contain unregistered names")
+            for name, digest in route_hashes.items():
+                flattened_name = f"{route}::{name}"
+                flattened_hashes[flattened_name] = digest
+                if name in route_paths:
+                    flattened_paths[flattened_name] = route_paths[name]
+    except (TypeError, ValueError) as exc:
+        verification = {
+            "schema": SOURCE_VERIFICATION_SCHEMA,
+            "status": "invalid",
+            "reasons": [str(exc)],
+        }
+        return _abstain_source_bytes(
+            run_state, stage, [f"source-byte bundle is invalid: {exc}"], verification,
+        )
+
+    try:
+        verification = verify_source_bytes(source_root, flattened_hashes, flattened_paths)
+    except (TypeError, ValueError) as exc:
+        verification = {
+            "schema": SOURCE_VERIFICATION_SCHEMA,
+            "status": "invalid",
+            "reasons": [str(exc)],
+        }
+        return _abstain_source_bytes(
+            run_state, stage, [f"source-byte preflight is invalid: {exc}"], verification,
+        )
+
+    source_reasons = _source_verification_reasons(verification)
+    if source_reasons:
+        return _abstain_source_bytes(run_state, stage, source_reasons, verification)
+
+    result = apply_evidence_bundle_gate(
+        run_state,
+        stage,
+        envelopes,
+        receipt,
+        expected_by_envelope=expected_by_envelope,
+        required_source_hashes_by_envelope=required_source_hashes_by_envelope,
+        distinct_chain_pairs=distinct_chain_pairs,
+    )
+    result["source_verification"] = verification
+    result["source_byte_identity_verified"] = True
+    return result

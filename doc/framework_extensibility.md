@@ -38,7 +38,7 @@ contracts; declaring a schema alone does not create an evaluator.
 | Plan diagnostics and retain denominators | [`core/receipts.py`](../core/receipts.py) adds versioned `ScenarioSpec`, stage-specific denominators and `RunReceipt` with source/output SHA-256 references and exact reason accounting. Optimize candidate-contract, Wilson lane-contract and Pion bounded-risk contract reports are consumers; a saved Pion known-graph coverage report also binds its cell, replicate, paired-block-event and family-score denominators without rerunning MC | Extend receipts to remaining task-specific statistical units (panel, replicate, block, optimizer fit, stencil or contract check). Keep cap-stop/non-success, failure, abstention and not-run counts distinct; receipt hashes identify bytes but do not prove provenance, independence or scientific validity |
 | Track evidence readiness | [`core/state.py`](../core/state.py): operator, reference, numerical, statistical and comparison states; validation observation is permanent; a score is available only when all states have hash-bound validation; `abstained` is a terminal no-certificate state | Bind task receipts and evidence hashes to these states. Keep diagnostic/physical labels explicit; Pion, Optimize and Wilson task evaluators still need to connect their task-specific abstention rules to this generic state |
 | Compare learned/iterative methods fairly | `core/ledger.py` has generic setup/solve/residual phases; the Optimize stress report keeps call cap, optimizer seconds, fit selection and postchecks separate | Add `BudgetSpec` fields for objective/gradient calls, setup, training, inference, I/O, recovery and amortization count. Enforce shared fit/heldout IDs, initialization policy and restart count; report call-budget and total-walltime estimands separately |
-| Preserve artifacts | [`core/io.py`](../core/io.py): content digest, canonical fingerprint and JSON writing; [`core/receipts.py`](../core/receipts.py) binds declared source/output hash maps and reason-accounted denominators; CPU diagnostics retain text/figure explanations and snapshots | Extend receipts with environment and authorized input provenance only when a task defines those fields. Use no-clobber run directories and retain failure receipts. A manifest proves byte identity, not scientific validity or input independence |
+| Preserve artifacts | [`core/io.py`](../core/io.py): content digest, canonical fingerprint and JSON writing; [`core/receipts.py`](../core/receipts.py) binds declared source/output hash maps and reason-accounted denominators; [`core/source_integrity.py`](../core/source_integrity.py) hashes only explicitly mapped files under a caller-supplied root | Extend receipts with environment and authorized input provenance only when a task defines those fields. Use no-clobber run directories and retain failure receipts. A matching digest proves only the bytes read in that call, not source authority, immutability, scientific validity or input independence |
 
 `agents/operator_search.py` illustrates repeated agent proposals against the
 Pion development evaluator. `agents/optimization_benchmark.py` illustrates
@@ -89,9 +89,10 @@ The generic split preflight is `split name + inclusive integer [start,end] -> va
   observable/block-map hash, method assumptions, support/units, confidence
   allocation, burn-in/TV, source hashes and reviewer receipt. Its identity
   comparison rejects reused anchor/score chain IDs but explicitly does not prove
-  statistical independence. A Pion-owned adapter must still bind the frozen
-  anchor scalar map, target-chain score and common-bias receipt before physical
-  evaluation. Clipping changes the estimand and must be frozen before
+  statistical independence. The Pion-owned adapter now binds the frozen anchor
+  scalar map, target-chain score and common-bias receipt; it can additionally
+  verify explicitly mapped source bytes before a draft. Physical evaluation is
+  still open. Clipping changes the estimand and must be frozen before
   confirmation data.
 - **Optimize Gaussian:** the versioned research contract now records selected
   method defaults: candidate-blind independent E-chain PP/A4P reference fit,
@@ -172,9 +173,13 @@ malformed, stale, mismatched, non-independent or unreviewed inputs return
 reviewer or the statement.
 `inspect_distinct_chain_identities` rejects a reused chain ID or manifest while
 always returning `independence_proven=false`: unique labels and hashes cannot
-establish independent sampling. Consumers must still hash actual source bytes,
-review theorem assumptions and connect the result to a task-specific gate; the
-schema itself never sets a physical score. `apply_evidence_gate` revalidates a
+establish independent sampling. Consumers must still review theorem assumptions
+and connect results to task-specific gates; the schema itself never sets a
+physical score. `verify_source_bytes` hashes only the declared files beneath a
+caller-supplied root and accounts for missing/mismatched files. The
+`apply_evidence_gate_with_source_bytes` and bundle variant run that check before
+the metadata gate; a complete result still advances only to `draft`.
+`apply_evidence_gate` revalidates a
 shared `RunReceipt`: missing/unrun denominator units or envelope errors send the
 requested `RunState` stage to `abstained`; a complete schema plus complete
 planned denominator advances only to `draft`, never `validated`.
@@ -190,14 +195,12 @@ role claim, a missing independence-claim hash, bundle-member mismatch, chain
 collision and null required-hash mapping; all invalid cases abstain. The Pion
 task metadata adapter now maps its selected F=3 score and bounded-IID anchor
 defaults, exact planned denominators, common-bias cap, required source hashes
-and chain identity into the bundle gate. It advances only to `draft` and does
-not authenticate receipt bytes or certify the statistical/physical claims.
-Focused adapter/evidence/receipt tests report **28 passed**; the combined
-Pion/evidence/framework/receipt suite reports **223 passed**; the full CPU
-suite reports **227 passed**. No production receipt was supplied. Optimize and
-Wilson task adapters and the source-reading task evaluators are still future
-work; they must map each task's frozen contracts into the single- or
-multi-envelope gate and verify actual source bytes before any validation.
+and chain identity into the bundle gate. Production use requires explicit
+source-root/path maps; all mapped bytes must match before the adapter can reach
+`draft`, and no result becomes validated. Temporary byte fixtures are not
+production receipts. Optimize and Wilson task adapters are described in PR #6;
+all production source readers still need authorized file maps and independent
+review before any validation.
 
 ## Practical implementation order for a new task
 
@@ -222,11 +225,12 @@ failures and protocol abstentions are distinct states and should stay visible.
 
 ## Current integration boundary
 
-The current `main` has a Pion pilot, but the three task additions remain
-analytic, synthetic or structural CPU work; none closes a production physics
-measurement pipeline. Shared receipts cover several contract and diagnostic
-consumers, and the generic typed evidence metadata validator now exists, but no
-task evaluator consumes it and it does not authenticate source bytes or claims.
+The current `main` has a Pion pilot, but these task additions remain analytic,
+synthetic or structural CPU work; none closes a production physics measurement
+pipeline. Shared receipts cover several contract and diagnostic consumers.
+The Pion metadata adapter now consumes the typed evidence and source-byte gates,
+but does not authenticate the authority of expected hashes or physical claims;
+its estimator/evaluator remains incomplete.
 Pion's current evidence set includes the selected `F=3` Markov score sensitivity,
 a separate Markov-anchor sensitivity, known-graph and anchor coverage
 simulations, and the common-bias feasibility analysis. Optimize now has two
