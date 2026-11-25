@@ -217,6 +217,10 @@ def test_develop_uses_only_snapshot_bytes_and_labels_snapshot_submission(tmp_pat
     }
     assert not (output / "validation.npz").exists()
     assert (input_root / "validation.npz").read_bytes() == sealed_sentinel
+    from tasks.pion_projection.candidate import run_candidate
+
+    with pytest.raises(ValueError, match="Snapshot-only development"):
+        run_candidate(output, "unused-definition.json", split="development")
     with pytest.raises(ValueError, match="Snapshot-only development"):
         experiment.evaluate(output)
 
