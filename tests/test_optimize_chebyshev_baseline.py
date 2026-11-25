@@ -52,6 +52,19 @@ def test_chebyshev_conversion_reproduces_bernstein_polynomial():
     np.testing.assert_allclose(from_chebyshev, from_bernstein, rtol=2e-13, atol=2e-13)
 
 
+def test_fixed_rational_basis_map_has_expected_constant_and_endpoint_columns():
+    # These exact dyadic coefficients come from expanding the Bernstein basis
+    # after y=(x+1)/2 and converting monomials to Chebyshev polynomials.
+    np.testing.assert_array_equal(
+        bernstein_to_chebyshev(np.ones(5)),
+        np.array([1.0, 0.0, 0.0, 0.0, 0.0]),
+    )
+    np.testing.assert_array_equal(
+        bernstein_to_chebyshev(np.array([0.0, 0.0, 0.0, 0.0, 1.0])),
+        np.array([35.0, 56.0, 28.0, 8.0, 1.0]) / 128.0,
+    )
+
+
 def test_matrix_application_matches_spectral_function_and_is_contractive():
     eigenvalues = np.linspace(-12.0, 0.0, 11)
     h = np.diag(eigenvalues).astype(complex)

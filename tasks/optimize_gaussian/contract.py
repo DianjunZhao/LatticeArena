@@ -102,7 +102,7 @@ def empty_contract() -> dict[str, Any]:
         "D11_strong_spectral_operator": {
             "family": "Chebyshev",
             "degree": 4,
-            "basis_parameterization": "monotone Bernstein controls converted exactly to a degree-4 Chebyshev series for Clenshaw application",
+            "basis_parameterization": "monotone Bernstein controls mapped by a fixed exact dyadic rational degree-4 transform, evaluated in float64, to a Chebyshev series for Clenshaw application",
             "H_definition": "H=sum_i(T_i+T_i^dagger-2I), three periodic spatial directions, equal-weight unitary 3x3 links",
             "spectral_interval": [-12.0, 0.0],
             "spectral_mapping": "y=I+H/12 in [0,1]; x=2y-1 in [-1,1]",

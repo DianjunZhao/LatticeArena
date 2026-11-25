@@ -22,6 +22,19 @@ DEFAULT_OUT = ROOT / "results/optimize_gaussian/chebyshev_constrained_baseline_2
 DEGREE = 4
 LAPLACIAN_MAX = 12.0
 
+# Rows are Chebyshev coefficients a_k; columns are Bernstein controls b_i.
+# This fixed rational map follows from y=(x+1)/2 and
+# P(y)=sum_i b_i * C(4,i) * y**i * (1-y)**(4-i).
+# The denominator is a power of two, so each entry is exactly representable
+# in float64 and no node selection or numerical linear solve is involved.
+_BERNSTEIN_TO_CHEBYSHEV = np.asarray([
+    [35, 20, 18, 20, 35],
+    [-56, -16, 0, 16, 56],
+    [28, -16, -24, -16, 28],
+    [-8, 16, 0, -16, 8],
+    [1, -4, 6, -4, 1],
+], dtype=np.float64) / 128.0
+
 
 def validate_control_points(control_points) -> np.ndarray:
     """Require monotone Bernstein controls 0<=b0<=...<=b4=1.
@@ -65,13 +78,14 @@ def _comb4(k):
 
 
 def bernstein_to_chebyshev(control_points) -> np.ndarray:
-    """Return a[0:5] such that P4(x)=sum_k a[k] T_k(x), x in [-1,1]."""
+    """Apply the fixed rational degree-4 basis map in float64.
+
+    The symbolic transform is exact; this implementation performs the final
+    5-by-5 matrix-vector product in floating point. Its entries are dyadic
+    rationals exactly representable by float64.
+    """
     b = validate_control_points(control_points)
-    nodes = np.cos(np.pi * (np.arange(DEGREE + 1) + 0.5) / (DEGREE + 1))
-    laplacian_fraction = (1.0 - nodes) / 2.0
-    values = evaluate_scaled_laplacian(b, laplacian_fraction)
-    vandermonde = np.polynomial.chebyshev.chebvander(nodes, DEGREE)
-    return np.linalg.solve(vandermonde, values)
+    return _BERNSTEIN_TO_CHEBYSHEV @ b
 
 
 def apply_filter(control_points, hopping_operator, field, *, hermitian_tolerance=1e-10,
