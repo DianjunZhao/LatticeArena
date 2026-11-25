@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 
 from core.evidence import evidence_envelope
 from core.receipts import denominator, run_receipt, scenario_spec
@@ -18,6 +19,9 @@ from tasks.wilson_loop.evidence_adapter import (
     force_map_sha256,
 )
 from tasks.wilson_loop.lane_contract import selected_protocol
+from tasks.wilson_loop.force_summary_reader import (
+    apply_wilson_force_snapshot_gate,
+)
 
 
 H = [f"{i:064x}" for i in range(1, 60)]
@@ -234,6 +238,73 @@ def _force_fixture():
         "summary_sha256": summary_hash,
     }
     return envelopes, receipt, summary, routes
+
+
+def _force_summary_snapshot_bundle(tmp_path, *, summary_override=None):
+    envelopes, receipt, _summary, routes = _force_fixture()
+    protocol = selected_protocol()
+    raw_summary = {
+        "schema": "wilson-f-force-summary-input-v1",
+        "units": "dimensionless lattice force a_s*a_t*F",
+        "positive_reference_force_lower": 1.0,
+        "statistical_halfwidth": 0.03,
+        "model_truncation_bound": 0.005,
+        "invalid_force_interval_draws": 0,
+        "invalid_reference_force_draws": 0,
+        "qhx_corner_bounds": {
+            "q": [[0.001] * 4 for _ in range(2)],
+            "h": [[0.001] * 4 for _ in range(2)],
+            "x": [[0.0005] * 4 for _ in range(2)],
+        },
+    }
+    if summary_override is not None:
+        raw_summary = summary_override
+    summary_bytes = json.dumps(
+        raw_summary, sort_keys=True, separators=(",", ":"), allow_nan=False
+    ).encode()
+    (tmp_path / "force-summary.json").write_bytes(summary_bytes)
+    common_bytes = b"synthetic shared Wilson F evidence receipts"
+    (tmp_path / "common.bin").write_bytes(common_bytes)
+    summary_hash = hashlib.sha256(summary_bytes).hexdigest()
+    common_hash = hashlib.sha256(common_bytes).hexdigest()
+    source_paths = {}
+
+    for route in _F_ROUTES:
+        force = protocol["ground_state_discrete_static_force"]
+        map_bytes = json.dumps({
+            "protocol_id": protocol["protocol_id"],
+            "estimand": force["estimand"],
+            "formula": force["formula"],
+            "units": force["units"],
+            "error_propagation": force["error_propagation"],
+            "spectral_evidence_plan": force["spectral_evidence_plan"],
+            "role": route,
+            "support_unit": _F_UNITS[route],
+        }, sort_keys=True, separators=(",", ":")).encode()
+        assert hashlib.sha256(map_bytes).hexdigest() == force_map_sha256(route)
+        map_name = f"{route}-map.json"
+        (tmp_path / map_name).write_bytes(map_bytes)
+        route_hashes = {
+            name: (force_map_sha256(route) if name == "observable_map"
+                   else summary_hash if name == "force_summary" else common_hash)
+            for name in routes[route]
+        }
+        routes[route] = route_hashes
+        envelopes[route]["chain"]["manifest_sha256"] = common_hash
+        envelopes[route]["source_hashes"] = route_hashes
+        envelopes[route]["review"]["receipt_sha256"] = common_hash
+        source_paths[route] = {
+            name: (map_name if name == "observable_map"
+                   else "force-summary.json" if name == "force_summary"
+                   else "common.bin")
+            for name in route_hashes
+        }
+
+    snapshots = {
+        route: capture_source_snapshot(tmp_path, routes[route], source_paths[route])
+        for route in _F_ROUTES
+    }
+    return envelopes, receipt, routes, snapshots, summary_bytes
 
 
 def test_creutz_lane_checks_frozen_point_precision_and_keeps_score_null():
@@ -466,6 +537,85 @@ def test_force_lane_verifies_all_route_source_bytes_atomically(tmp_path):
         "unit": "source_file", "planned": 53, "valid": 6,
         "failed": 47, "abstained": 0, "not_run": 0,
     }
+
+
+def test_force_snapshot_reader_recomputes_qhx_force_bounds_from_captured_bytes(tmp_path):
+    envelopes, receipt, routes, snapshots, summary_bytes = _force_summary_snapshot_bundle(tmp_path)
+    (tmp_path / "force-summary.json").write_bytes(b"changed after immutable capture")
+
+    result = apply_wilson_force_snapshot_gate(
+        _ready_state("operator", "reference", "numerical"),
+        envelopes, receipt,
+        required_source_hashes_by_envelope=routes,
+        source_snapshots_by_envelope=snapshots,
+    )
+
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["physical_score"] is None and result["certified"] is False
+    reader = result["force_summary_reader"]
+    assert reader["status"] == "F_SUMMARY_READ_NOT_CERTIFIED"
+    assert reader["denominator"] == {
+        "unit": "F force-summary route", "planned": 6,
+        "valid": 6, "failed": 0, "abstained": 0,
+    }
+    assert reader["diagnostic"]["source_sha256"] == hashlib.sha256(summary_bytes).hexdigest()
+    assert reader["diagnostic"]["source_read_mode"] == "immutable_snapshot"
+    components = reader["diagnostic"]["q_h_x_force_unit_bounds"]
+    assert abs(components["excited_state_force"] - 8 * math.log1p(0.001)) < 1e-14
+    assert abs(components["finite_T_thermal"] - 8 * math.log1p(0.001)) < 1e-14
+    assert abs(components["mixed"] - 8 * math.log1p(0.0005)) < 1e-14
+    assert reader["diagnostic"]["force_budget_recalculation"] == {
+        "component_gates_pass": True, "model_gate_pass": True,
+        "statistical_gate_pass": True, "total_gate_pass": True,
+    }
+    assert reader["diagnostic"]["text_flow"]
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 53, "valid": 53,
+        "failed": 0, "abstained": 0, "not_run": 0,
+    }
+
+
+def test_force_snapshot_reader_rejects_mismatched_summary_routes_and_bad_qhx(tmp_path):
+    envelopes, receipt, routes, snapshots, _summary_bytes = _force_summary_snapshot_bundle(tmp_path)
+    routes["q_excited"]["force_summary"] = H[50]
+    state = _ready_state("operator", "reference", "numerical")
+    result = apply_wilson_force_snapshot_gate(
+        state, envelopes, receipt,
+        required_source_hashes_by_envelope=routes,
+        source_snapshots_by_envelope=snapshots,
+    )
+    assert result["status"] == "ABSTAIN_WILSON_F_LANE"
+    assert state.status["statistical"] == "abstained"
+    assert result["force_summary_reader"]["status"] == "ABSTAIN_F_SUMMARY_SOURCE"
+    assert result["physical_score"] is None
+
+    bad_root = tmp_path / "bad"
+    bad_root.mkdir()
+    bad_summary = {
+        "schema": "wilson-f-force-summary-input-v1",
+        "units": "dimensionless lattice force a_s*a_t*F",
+        "positive_reference_force_lower": 1.0,
+        "statistical_halfwidth": 0.03,
+        "model_truncation_bound": 0.005,
+        "invalid_force_interval_draws": 0,
+        "invalid_reference_force_draws": 0,
+        "qhx_corner_bounds": {"q": None, "h": [[0.001] * 4],
+                              "x": [[0.0005] * 4]},
+    }
+    envelopes, receipt, routes, snapshots, _summary_bytes = _force_summary_snapshot_bundle(
+        bad_root, summary_override=bad_summary,
+    )
+    state = _ready_state("operator", "reference", "numerical")
+    result = apply_wilson_force_snapshot_gate(
+        state, envelopes, receipt,
+        required_source_hashes_by_envelope=routes,
+        source_snapshots_by_envelope=snapshots,
+    )
+    assert result["status"] == "ABSTAIN_WILSON_F_LANE"
+    assert state.status["statistical"] == "abstained"
+    assert result["force_summary_reader"]["status"] == "ABSTAIN_F_SUMMARY_CONTENT"
+    assert "q/h/x corner inputs are invalid" in result["force_summary_reader"]["reason"]
+    assert result["physical_score"] is None
 
 
 def test_force_lane_abstains_without_positive_reference_or_with_overbudget_bounds():

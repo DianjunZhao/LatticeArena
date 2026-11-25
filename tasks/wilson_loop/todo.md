@@ -392,3 +392,14 @@ shared [`core/source_integrity.py`](../../core/source_integrity.py) 现提供有
 本次在同一 bytes parser 中又补了两项 preflight：NPZ 内 `protocol_hash` 必须等于捕获 provenance protocol 的 canonical fingerprint，选取 C-lane loop 前要求整个 loop tensor 有限。此前只验证 transaction 中记录的 source hash 和 loop-array hash；现在再显式检查 provenance 与测量载荷的协议关联以及非有限值。对应 synthetic snapshot regression 已包含路径覆写、协议/transaction 拒绝、绘图产物和 no-clobber；它仍是 fixture，真实 D measurement 本轮未读取，生产 C/F adapter 仍不接收此 retrospective reader 输出。
 
 随 PR #6 更新重跑的完整 CPU suite 当前为 **295 passed**；其中 Wilson source-snapshot reader regression 只使用测试构造的 bytes/合成 loop tensor，不读取归档的实际 D0–99 NPZ。此数是软件回归证据，不关闭 C coverage/calibration 或 F ground-state-force 证据门。
+
+
+### 2026-11-26 F force summary 的 immutable-snapshot 代数读入器
+
+新增 [`force_summary_reader.py`](force_summary_reader.py)，把旧 F gate 中“调用方提供 `force_summary` 数字、gate 另行查同名 SHA”的间接关系收紧为一条可复核数据流。reader 只接受同一份 `wilson-f-force-summary-input-v1` JSON，必须在六个 F route 的 `SourceByteSnapshot` 中都以 `force_summary` 名称捕获、哈希相同且内容逐字节相同；解析时拒绝重复键、NaN/Inf、额外/缺失字段、错误单位、负值和错误 corner 形状。其输入给出 `q/h/x` 各自 2 kernels × 4 corners 的非负 dimensionless bound，以及外部提供的正 reference-force 下界、statistical halfwidth、model-truncation bound 和无效 draw 计数。reader 用现有 [`force_budget.py`](force_budget.py) 重新计算 `Σ log(1+q)`, `Σ log(1+h)`, `Σ log(1+x)`、四项 systematic 总和与 statistical + systematic 总界，再把这份派生 summary 与同一 snapshots 一起送入 F evidence gate。
+
+文字流程：`六路 immutable snapshots -> 6/6 同一 force-summary bytes -> strict schema/unit/shape check -> 2×4 q/h/x -> force-unit log1p propagation 重算 -> 对照现有 F gate thresholds/receipts/source hashes -> draft 或 abstain`。新增测试用合成 summary 确认 snapshot 捕获后磁盘文件被覆写仍使用原字节；source-file denominator=`53/53/0/0`，summary-route denominator=`6/6/0/0`，`physical_score=null`。q/h/x 单项、model、statistical 和总界都从 fixture 明确的输入重新计算；错配一个 route 的 summary hash会 `ABSTAIN`，错误 corner 维度也会 `ABSTAIN`。Wilson evidence adapter suite **11 passed**，PR #6 全仓 CPU suite **297 passed**。
+
+此 reader 只校验确定性的角点到 force-unit 传播；并未从 raw Wilson loops 重建 force interval 或 positive reference，也未从 3×3 GEVP/overlap、matched-`N_t=32` 或 mixed-sector 数据推导 q/h/x。输入中的谱界、正 reference、statistical halfwidth 和 model truncation 仍是待独立来源支持的假设/摘要；成功最多到 `draft`，不认证摘要来源、reviewer 独立性或物理 bound。当前实际输入 planned/valid/failed/abstained=`0/0/0/0`，没有读 gauge/loop/GEVP/thermal bytes，没有 GPU/QUDA。
+
+下一软件阶段应让 reviewed GEVP/thermal parsers从同一 snapshot 产出可追溯的谱、overlap、finite-`N_t` 和 mixed-sector quantities，再由明确的物理公式推导 q/h/x corners；对 force/reference bootstrap draws 也要从固定 `R=2,3`、`Rmid=2.5` stencil 同源重算 summary，而非接受调用方 summary 数字。需配 spectra/residual 与污染边界图或完整文字诊断，并逐项报告 planned/valid/failed/abstained。没有这些真实 calibration receipts、独立物理 review、positive reference-force 和数据授权前，继续保持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED` 与 `physical_score=null`；C finite-T Creutz lane仍独立。
