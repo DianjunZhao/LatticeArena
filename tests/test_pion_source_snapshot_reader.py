@@ -149,6 +149,9 @@ def test_develop_uses_only_snapshot_bytes_and_labels_snapshot_submission(tmp_pat
     rng = np.random.default_rng(73)
     raw = rng.normal(loc=1.0, scale=0.1,
                      size=(len(ids), len(protocol["powers"]), protocol["geometry"][3]))
+    expected_blocks = experiment.blocks(
+        experiment.fold(raw), protocol["block_length"],
+    )
     npz_stream = BytesIO()
     np.savez_compressed(
         npz_stream, ids=ids, protocol_hash=np.asarray(fingerprint(protocol)),
@@ -175,6 +178,8 @@ def test_develop_uses_only_snapshot_bytes_and_labels_snapshot_submission(tmp_pat
 
     class FakeReferenceFit:
         def __init__(self, data, config, window):
+            np.testing.assert_array_equal(data, expected_blocks)
+            assert config == protocol
             self.window = list(window)
 
         def bootstrap(self, index):
@@ -183,21 +188,31 @@ def test_develop_uses_only_snapshot_bytes_and_labels_snapshot_submission(tmp_pat
                      "window": self.window}, draws)
 
     monkeypatch.setattr(experiment, "ReferenceFit", FakeReferenceFit)
-    monkeypatch.setattr(
-        experiment, "risk",
-        lambda data, weights, mass, boot_masses, index, config: {
-            "risk": 0.1, "amplitude": 1.0,
-        },
-    )
-    monkeypatch.setattr(
-        experiment, "optimize_mixture",
-        lambda data, scales, mass, boot_masses, index, config: (
+    def fake_risk(data, weights, mass, boot_masses, index, config):
+        np.testing.assert_array_equal(data, expected_blocks)
+        assert config == protocol
+        return {"risk": 0.1, "amplitude": 1.0}
+
+    monkeypatch.setattr(experiment, "risk", fake_risk)
+
+    def fake_optimize_mixture(data, scales, mass, boot_masses, index, config):
+        np.testing.assert_array_equal(data, expected_blocks)
+        assert config == protocol
+        return (
             SimpleNamespace(x=np.full(len(scales), 1.0 / len(scales)), fun=0.1,
                             nit=1),
             1, 1,
-        ),
+        )
+
+    monkeypatch.setattr(
+        experiment, "optimize_mixture", fake_optimize_mixture,
     )
-    monkeypatch.setattr(experiment, "late_metric", lambda data, weights, p: np.eye(3))
+
+    def fake_late_metric(data, weights, p):
+        np.testing.assert_array_equal(data, expected_blocks)
+        return np.eye(3)
+
+    monkeypatch.setattr(experiment, "late_metric", fake_late_metric)
 
     output = tmp_path / "new-snapshot-run"
     experiment.develop(
@@ -215,6 +230,7 @@ def test_develop_uses_only_snapshot_bytes_and_labels_snapshot_submission(tmp_pat
         "development_provenance": sha256(provenance_bytes).hexdigest(),
         "development_measurements": sha256(measurement_bytes).hexdigest(),
     }
+    assert frozen["calibration"]["n_development_blocks"] == len(expected_blocks)
     assert not (output / "validation.npz").exists()
     assert (input_root / "validation.npz").read_bytes() == sealed_sentinel
     from tasks.pion_projection.candidate import run_candidate
