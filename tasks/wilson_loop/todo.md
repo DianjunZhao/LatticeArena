@@ -288,3 +288,9 @@ PR #6 新增 [C-lane 回顾性预检报告、区间图、协议、逐 draw boots
 此处的 `PASS` 仅指已观察开发样本上的合同数值检查：D0–99 已用于开发/可能的主点选择，循环 block bootstrap 不证明覆盖率或有限依赖，因此不是独立 calibration、confirmation 或物理认证。它也不改变 F lane：现有包只有 `N_t=16` loops，没有独立 3×3 GEVP/spectral receipt 或匹配 `N_t=32` 热数据。文字流程：`校验开放 D development hashes/split/kernel -> 四个正 loop means -> 同一 IDs 做 L=2/5/10 paired resampling -> 保留 30,000 个 planned draws 与 invalid denominator -> interval hull 数值预检 -> 回顾性报告；独立校准仍 NOT_READY`。
 
 当前更新后的边界：C 已有一份 D0–99 回顾性 observable 与精度诊断，但仍有 `0` 份独立 calibration/confirmation 收据；F 污染界仍缺。下一步只使用 data owner 批准、与最终 confirmation 隔离且此前未观察的 calibration IDs；F 仍需独立 GEVP、多态窗口、匹配 `N_t=32`、q/h/x 同时界及 force-unit 误差预算。保留 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 与 sealed data closed；不运行 GPU/QUDA。
+
+## 2026-11-25 继续推进：D0–99 reference-window proposal 复核
+
+本机 ignored report `results/wilson_loop/reference_gate_d_development_20261121/REFERENCE_REPORT.md` 使用同一个 development generation（IDs 0–99，20 个长度 5 的连续块、5,000 个 shared bootstrap draws）；其三张图为 `reference_windows.png`、`reference_window_z.png`、`reference_joint_max.png`。proposal 中 A nominal-point-max 和 B all-pair-point-max 的统计量均为 `2.0965152`，低于当时未冻结的 `2.5` 阈值；C centered joint-q95 为 `2.7408156`、uncentered joint-q95 为 `4.0843804`，均触发 `REJECT_WINDOW_INSTABILITY`。这些只是开发样本的 proposal 诊断，阈值没有 family-wise calibration，不能据 A/B 的 `PROPOSAL_DIAGNOSTIC_PASS` 认证 ground state 或选确认规则。
+
+该报告还明确指出：所有窗口同时偏移时，window-spread 检查可能看不见 common shift；有限 `N_t=16` 和单一 development split 不能提供独立谱/热污染上界。文字数据流：`同一 D0–99 -> 三个 T 窗口的配对差 -> A/B 点最大 proposal 通过、C 联合 q95 proposal 拒绝 -> 规则未冻结且共同偏差仍可隐藏 -> 不认证 E0 / F lane`。报告与图保留在本机 ignored `results/`，未作为 PR payload；这些数值只用于限制当前解释，不构成新的 calibration 或 confirmation。
