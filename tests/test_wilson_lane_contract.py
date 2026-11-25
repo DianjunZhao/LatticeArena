@@ -31,6 +31,46 @@ def test_null_draft_stays_not_ready_with_two_separate_estimands():
         "thermal_h_Nt32"] is None
 
 
+def test_selected_lattice_force_draft_does_not_require_physical_scale_conversion():
+    contract = empty_contract()
+    result = inspect_contract(contract)
+    assert contract["common"]["lattice_spacing"]["scale_status"] == (
+        "not_required_for_dimensionless_lattice_estimands"
+    )
+    assert not any("common.lattice_spacing" in issue
+                   for issue in result["common_issues"])
+    assert result["physical_score"] is None
+    assert not result["lanes"]["ground_state_discrete_static_force"][
+        "structurally_complete"
+    ]
+
+
+def test_force_error_budget_requires_model_truncation_instead_of_extrapolations():
+    contract = _synthetic_contract(complete_creutz=True, complete_force=True)
+    force = contract["lanes"]["ground_state_discrete_static_force"]
+    names = {row["component"] for row in force["systematic_bounds"]}
+    assert names == {
+        "excited_state_force", "finite_T_thermal", "mixed",
+        "spectral_model_truncation",
+    }
+
+    force["systematic_bounds"] = [
+        row for row in force["systematic_bounds"]
+        if row["component"] != "spectral_model_truncation"
+    ]
+    force["systematic_bounds"].append({
+        "component": "finite_a", "bound": 0.0,
+        "units": force["units"], "evidence_sha256": "c" * 64,
+        "scope": "SYNTHETIC_ONLY outside fixed-lattice estimand",
+        "independent_review_receipt": "SYNTHETIC_ONLY_review",
+    })
+    result = inspect_contract(contract)
+    issues = result["lanes"]["ground_state_discrete_static_force"]["issues"]
+    assert any("spectral_model_truncation: missing required evidence" in issue
+               for issue in issues)
+    assert not any("finite_a: missing required evidence" in issue for issue in issues)
+
+
 def test_selected_lane_alpha_allocation_closes_the_familywise_budget():
     protocol = selected_protocol()
     allocation = protocol["familywise_alpha_allocation"]

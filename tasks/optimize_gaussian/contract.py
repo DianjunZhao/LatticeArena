@@ -21,7 +21,7 @@ COMPARISONS = (
     "trainable_W_vs_fixed_degree4_Chebyshev",
 )
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/optimize_gaussian/contract_diagnostic_20261125_v2")
+               / "results/optimize_gaussian/contract_diagnostic_20261125_v3")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 CONTRACT_PATH = Path(__file__).with_name("research_contract_v1.json")
 REFERENCE_FIELDS = (
@@ -29,8 +29,8 @@ REFERENCE_FIELDS = (
     "data_source", "pass_rule", "failure_rule", "independent_review_receipt",
 )
 OPERATOR_FIELDS = (
-    "H_definition", "spectral_interval", "spectral_mapping",
-    "identity_normalization", "coefficient_constraints",
+    "H_definition", "mathematical_link_domain", "physical_link_gate",
+    "spectral_interval", "spectral_mapping", "identity_normalization", "coefficient_constraints",
     "positivity_projection_constraints", "failure_rule",
     "independent_review_receipt",
 )
@@ -103,17 +103,21 @@ def empty_contract() -> dict[str, Any]:
             "family": "Chebyshev",
             "degree": 4,
             "basis_parameterization": "monotone Bernstein controls mapped by a fixed exact dyadic rational degree-4 transform, evaluated in float64, to a Chebyshev series for Clenshaw application",
-            "H_definition": "H=sum_i(T_i+T_i^dagger-2I), three periodic spatial directions, equal-weight unitary 3x3 links",
+            "H_definition": "H=sum_i(T_i+T_i^dagger-2I), three periodic spatial directions, equal-weight unitary 3x3 links; U(3) unitarity suffices for the stated spectral bound",
+            "mathematical_link_domain": "unitary U(3) links suffice for the Hermitian spectral bound",
+            "physical_link_gate": "production QCD inputs must carry an SU(3) provenance or determinant-unitarity receipt; the CPU helper checks U-dagger-U only",
             "spectral_interval": [-12.0, 0.0],
             "spectral_mapping": "y=I+H/12 in [0,1]; x=2y-1 in [-1,1]",
-            "identity_normalization": "P4(1)=b4=1 at the zero mode; outer unnormalized G^2 P4(H) G^2 is common to all arms",
+            "identity_normalization": "P4(y=1)=b4=1 at the upper spectral endpoint; this is an H=0 eigenmode normalization only when such a mode exists; outer unnormalized G^2 P4(H) G^2 is common to all arms",
             "coefficient_constraints": "P4(y)=sum_i b_i*C(4,i)*y^i*(1-y)^(4-i), 0<=b0<=b1<=b2<=b3<=b4=1",
             "positivity_projection_constraints": "Bernstein basis gives 0<=P4<=1; monotone controls imply dP4/dy>=0; no post-fit clipping or projection",
             "outer_gaussian_sandwich": {"G": "I+0.10*sum_i(T_i+T_i^dagger)", "power_m": 2,
+                                         "G_relation": "G=1.6I+0.1H",
                                          "G_spectrum": [0.4, 1.6],
                                          "raw_zero_mode_factor": 6.5536,
+                                         "raw_zero_mode_factor_condition": "conditional on an H=0 eigenmode; not guaranteed for a general gauge field",
                                          "per_step_normalization": False},
-            "failure_rule": "reject nonunitary links, wrong shape/boundary, nonfinite values, or infeasible controls; never repair by clipping",
+            "failure_rule": "reject nonunitary links, wrong shape/boundary, nonfinite values, or infeasible controls; never repair by clipping; physical production also requires independently checked SU(3) link provenance",
             "independent_review_receipt": None,
         },
         "fair_budget": {

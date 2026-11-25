@@ -18,7 +18,7 @@ from .kernels import apply_kernel
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUT = ROOT / "results/optimize_gaussian/chebyshev_constrained_baseline_20261125_v3"
+DEFAULT_OUT = ROOT / "results/optimize_gaussian/chebyshev_constrained_baseline_20261125_v4"
 DEGREE = 4
 LAPLACIAN_MAX = 12.0
 
@@ -452,15 +452,15 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "",
         "## Operator and spectrum map",
         "",
-        "For unitary SU(3) spatial links and periodic spatial boundaries, use `H psi(x)=sum_i[U_i(x)psi(x+i)+U_i(x-i)^dagger psi(x-i)-2psi(x)]`. Its quadratic form obeys `0 <= -H <= 12 I`: `-H` is the sum over directions of link-covariant nearest-neighbor differences, and each difference norm is bounded by twice the two endpoint norms. Thus `H` is Hermitian with spectrum in `[-12,0]`; `X=I+H/6` lies in `[-1,1]`; and `y=I+H/12` lies in `[0,1]`.",
+        "For unitary 3x3 links and periodic spatial boundaries, use `H psi(x)=sum_i[U_i(x)psi(x+i)+U_i(x-i)^dagger psi(x-i)-2psi(x)]`. U(3) unitarity is sufficient for this mathematical bound; physical QCD production still requires SU(3) link provenance, which the CPU helper does not check. The quadratic form obeys `0 <= -H <= 12 I`: `-H` is the sum over directions of link-covariant nearest-neighbor differences, and each difference norm is bounded by twice the two endpoint norms. Thus `H` is Hermitian with spectrum in `[-12,0]`; `X=I+H/6` lies in `[-1,1]`; and `y=I+H/12` lies in `[0,1]`.",
         "",
         "## Constrained degree-4 polynomial",
         "",
-        "Define `P4(y)=sum_{i=0}^4 b_i * binom(4,i) * y^i * (1-y)^(4-i)`, with `0<=b0<=b1<=b2<=b3<=b4=1`. Since Bernstein basis functions are nonnegative and sum to one, `P4` is in `[0,1]`; since `b_i` are nondecreasing, `P4'(y)=4*sum_{i=0}^3 (b_{i+1}-b_i) B_{i,3}(y)>=0`. At zero Laplacian `y=1`, so `P4(1)=b4=1`. In `x=2y-1=I+H/6`, the same unique polynomial is `sum_{k=0}^4 a_k T_k(x)`. The exact symbolic basis transform has dyadic rational entries; its final matrix-vector product is evaluated in float64 and applied by Clenshaw.",
+        "Define `P4(y)=sum_{i=0}^4 b_i * binom(4,i) * y^i * (1-y)^(4-i)`, with `0<=b0<=b1<=b2<=b3<=b4=1`. Since Bernstein basis functions are nonnegative and sum to one, `P4` is in `[0,1]`; since `b_i` are nondecreasing, `P4'(y)=4*sum_{i=0}^3 (b_{i+1}-b_i) B_{i,3}(y)>=0`. At the upper spectral endpoint `y=1`, `P4(1)=b4=1`; this does not assert that every gauge field has a zero eigenmode. In `x=2y-1=I+H/6`, the same unique polynomial is `sum_{k=0}^4 a_k T_k(x)`. The exact symbolic basis transform has dyadic rational entries; its final matrix-vector product is evaluated in float64 and applied by Clenshaw.",
         "",
         "![Admissible degree-4 spectral response examples](spectral_response.png)",
         "",
-        "The identity, linear, and fourth-power cutoff curves are hand-chosen valid control vectors to show the allowed response shape. They are not fit results or selected physics kernels. A degree cap of four is fixed; it is not changed after development or blind inspection. The response plot's horizontal axis is the normalized Laplacian eigenvalue: zero is the low mode normalized to one, one is the maximum eigenvalue where suppression is strongest.",
+        "The identity, linear, and fourth-power cutoff curves are hand-chosen valid control vectors to show the allowed response shape. They are not fit results or selected physics kernels. A degree cap of four is fixed; it is not changed after development or blind inspection. The response plot's horizontal axis is the normalized Laplacian spectral coordinate: endpoint zero maps to y=1 and response one, but a general gauge field need not have an H=0 eigenmode; endpoint one is the maximum eigenvalue where suppression is strongest.",
         "",
         "The three illustrative curves are the only planned items in this report: planned/valid/failed/abstained = `3/3/0/0`. These counts do not represent optimizer fits, ensemble measurements, or physical samples.",
         "",
@@ -482,7 +482,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "       apply the same objective-call cap and a separate matched total walltime cap",
         "```",
         "",
-        "The spectral arm has four free controls, while the current hidden-width-2 trainable-W prototype has seven W/v/c scalars. They are different function classes, so equal parameter count is not required; both contrasts use a common objective and report parameter count, range, and full cost. The matrix-free helper is checked against an explicitly assembled small periodic lattice operator, including the uniform Gaussian-step affine identity, Hermiticity, and dense-versus-matrix-free Gaussian-sandwich action. The sandwich helper preserves the selected raw zero-mode factor `1.6^4=6.5536`. The polynomial's positivity and monotonicity follow from its Bernstein constraints under the stated H spectrum; this is not evidence of physical superiority or a rounding-level PSD certificate for production links.",
+        "The spectral arm has four free controls, while the current hidden-width-2 trainable-W prototype has seven W/v/c scalars. They are different function classes, so equal parameter count is not required; both contrasts use a common objective and report parameter count, range, and full cost. The matrix-free helper is checked against an explicitly assembled small periodic lattice operator, including the uniform Gaussian-step affine identity, Hermiticity, and dense-versus-matrix-free Gaussian-sandwich action. Since `G=1.6I+0.1H`, `G` and `P4(H)` commute and the unnormalized sandwich has eigenresponse `(1.6+0.1lambda)^4 P4(1+lambda/12)`. Its `6.5536=1.6^4` value applies at `lambda=0` only if `H` actually has a zero eigenmode; it is not a general gauge-field normalization. The polynomial's positivity and monotonicity follow from its Bernstein constraints under the stated H spectrum; this is not evidence of physical superiority or a rounding-level PSD certificate for production links.",
         "",
         "This implements the selected D11 method defaults, not a certified strongest production baseline. The current heat-kernel operator toy used unconstrained least-squares Chebyshev coefficients and cannot validate this constrained family. Do not reuse its performance numbers as baseline evidence. `train.main` remains fixed-W; this module is not integrated into production training. D04 E-chain measurements/receipts, D06 empirical risk and cost receipts, independent D11 production-link review, and data/GPU authorization remain open. Keep both selected F=2 contrasts, `NOT_READY/UNCERTIFIED`, `physical_score=null`, and all sealed data closed.",
         "",

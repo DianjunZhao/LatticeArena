@@ -24,7 +24,7 @@ from .candidate_contract import (
 
 ROOT = Path(__file__).resolve().parents[2]
 TASK_DIR = Path(__file__).resolve().parent
-DEFAULT_OUT = ROOT / "results/optimize_gaussian/draft_plan_20261125_v1"
+DEFAULT_OUT = ROOT / "results/optimize_gaussian/draft_plan_20261125_v2"
 CONTRACT_PATH = TASK_DIR / "research_contract_v1.json"
 
 

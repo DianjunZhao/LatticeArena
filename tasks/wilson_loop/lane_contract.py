@@ -20,12 +20,13 @@ from core.state import RunState
 
 SCHEMA = "wilson-two-lane-contract-v2"
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/wilson_loop/lane_contract_diagnostic_20261125_v8")
+               / "results/wilson_loop/lane_contract_diagnostic_20261125_v9")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 CONTRACT_PATH = Path(__file__).with_name("lane_contract_v2.json")
+LATTICE_FORCE_UNITS = "dimensionless lattice force a_s*a_t*F"
 F_BOUND_COMPONENTS = (
-    "excited_state_force", "finite_T_thermal", "mixed", "finite_a",
-    "finite_volume", "other_systematic",
+    "excited_state_force", "finite_T_thermal", "mixed",
+    "spectral_model_truncation",
 )
 QHX_TERMS = ("q", "h", "x")
 QHX_UNITS = "dimensionless"
@@ -100,7 +101,7 @@ def selected_protocol() -> dict[str, Any]:
             "candidate_kernel_id": "spatial_stout_rho0.10_n5",
             "reference_kernel_id": "identity",
             "formula": "[U0_stout(3)-U0_stout(2)]-[U0_identity(3)-U0_identity(2)]",
-            "units": "dimensionless lattice force a_s*a_t*F",
+            "units": LATTICE_FORCE_UNITS,
             "spectral_evidence_plan": {
                 "basis": ["identity", "APE", "stout"],
                 "gevp_dimension": 3,
@@ -144,7 +145,7 @@ def selected_protocol() -> dict[str, Any]:
 
 
 def empty_contract() -> dict[str, Any]:
-    """Return selected C/F method defaults while leaving measurement evidence null."""
+    """Return a selected C/F plan with all production evidence left null."""
     return {
         "schema": SCHEMA,
         "status": "DRAFT_NOT_READY",
@@ -152,13 +153,19 @@ def empty_contract() -> dict[str, Any]:
         "certified": False,
         "selected_protocol": selected_protocol(),
         "common": {
-            "action_id": None,
-            "static_source_action_id": None,
-            "geometry": {"spatial_extents": None, "temporal_extent": None},
-            "boundary_conditions": {"spatial": None, "temporal": None},
-            "lattice_spacing": {"a_s": None, "a_t": None,
-                                "length_unit": None, "energy_unit": None},
-            "kernel_ids": None,
+            "metadata_status": "PROPOSED_METHOD_METADATA_NO_PRODUCTION_RECEIPT",
+            "action_id": "wilson_gauge_beta6_proposed",
+            "static_source_action_id": "fundamental_rectangular_wilson_loop_proposed",
+            "geometry": {"spatial_extents": [16, 16, 16], "temporal_extent": 16},
+            "boundary_conditions": {"spatial": "periodic", "temporal": "periodic"},
+            "lattice_spacing": {
+                "a_s": None, "a_t": None,
+                "length_unit": None, "energy_unit": None,
+                "scale_status": "not_required_for_dimensionless_lattice_estimands",
+            },
+            "kernel_ids": [
+                "spatial_stout_rho0.10_n5", "ape_alpha0.4_n5", "identity",
+            ],
             "split_manifest_sha256": None,
             "paired_block_plan_sha256": None,
             "independent_review_receipt": None,
@@ -166,34 +173,115 @@ def empty_contract() -> dict[str, Any]:
         "lanes": {
             "finite_T_Creutz": {
                 "estimand": "finite_T_Creutz",
-                "primary": {"R": None, "T": None, "kernel_id": None},
-                "stencil": None,
-                "log_rule": None,
-                "invalid_point_rule": None,
-                "comparison_family": None,
+                "primary": {"R": 2, "T": 5,
+                            "kernel_id": "spatial_stout_rho0.10_n5"},
+                "stencil": [
+                    {"R": 2, "T": 5, "coefficient": -1},
+                    {"R": 3, "T": 5, "coefficient": 1},
+                    {"R": 2, "T": 6, "coefficient": 1},
+                    {"R": 3, "T": 6, "coefficient": -1},
+                ],
+                "log_rule": "log_positive_ensemble_mean",
+                "invalid_point_rule": (
+                    "invalidate a paired draw if any required loop mean is nonpositive or nonfinite; "
+                    "abstain if invalid fraction exceeds 0.01 or the precision gate fails"
+                ),
+                "comparison_family": (
+                    "co-primary family with the separate ground_state_discrete_static_force lane; "
+                    "alpha allocated to this lane is 0.025"
+                ),
                 "inference": {
-                    "interval_method": None, "alpha_total": None,
-                    "alpha_allocations": None,
-                    "precision_target": None, "precision_units": None,
-                    "multiplicity_method": None,
+                    "interval_method": (
+                        "paired circular block bootstrap: 10000 draws; primary block length 5; "
+                        "report hull across lengths 2, 5, 10; coverage calibration remains open"
+                    ),
+                    "alpha_total": 0.025,
+                    "alpha_allocations": {"finite_T_Creutz_two_sided_interval": 0.025},
+                    "precision_target": 0.02,
+                    "precision_units": CREUTZ_UNITS,
+                    "multiplicity_method": "Bonferroni allocation across the two co-primary lanes",
                 },
             },
             "ground_state_discrete_static_force": {
                 "estimand": "ground_state_discrete_static_force_difference",
-                "primary": {"R": None, "candidate_kernel_id": None,
-                            "reference_kernel_id": None},
-                "force_stencil": None,
-                "units": None,
-                "spectral_bounds": None,
-                "systematic_bounds": None,
+                "primary": {"R": 2, "midpoint_R": 2.5,
+                            "candidate_kernel_id": "spatial_stout_rho0.10_n5",
+                            "reference_kernel_id": "identity"},
+                "force_stencil": [
+                    {"R": 3, "kernel_id": "spatial_stout_rho0.10_n5", "coefficient": 1},
+                    {"R": 2, "kernel_id": "spatial_stout_rho0.10_n5", "coefficient": -1},
+                    {"R": 3, "kernel_id": "identity", "coefficient": -1},
+                    {"R": 2, "kernel_id": "identity", "coefficient": 1},
+                ],
+                "units": LATTICE_FORCE_UNITS,
+                "spectral_bounds": [
+                    {"component": "q", "bound": None, "units": QHX_UNITS,
+                     "proposed_relative_cap": 0.015, "evidence_sha256": None,
+                     "scope": "proposed excited-state contamination cap at four force-stencil points",
+                     "independent_review_receipt": None},
+                    {"component": "h", "bound": None, "units": QHX_UNITS,
+                     "proposed_relative_cap": 0.015, "evidence_sha256": None,
+                     "scope": "proposed matched-Nt thermal contamination cap at four force-stencil points",
+                     "independent_review_receipt": None},
+                    {"component": "x", "bound": None, "units": QHX_UNITS,
+                     "proposed_relative_cap": 0.01, "evidence_sha256": None,
+                     "scope": "proposed mixed-sector contamination cap at four force-stencil points",
+                     "independent_review_receipt": None},
+                ],
+                "systematic_bounds": [
+                    {"component": "excited_state_force", "bound": None,
+                     "units": LATTICE_FORCE_UNITS, "proposed_relative_cap": 0.015,
+                     "evidence_sha256": None,
+                     "scope": "q bound propagated through log(1+q+h+x) and Delta_R Delta_t",
+                     "independent_review_receipt": None},
+                    {"component": "finite_T_thermal", "bound": None,
+                     "units": LATTICE_FORCE_UNITS, "proposed_relative_cap": 0.015,
+                     "evidence_sha256": None,
+                     "scope": "h bound propagated through log(1+q+h+x) and Delta_R Delta_t",
+                     "independent_review_receipt": None},
+                    {"component": "mixed", "bound": None,
+                     "units": LATTICE_FORCE_UNITS, "proposed_relative_cap": 0.01,
+                     "evidence_sha256": None,
+                     "scope": "x bound propagated through log(1+q+h+x) and Delta_R Delta_t",
+                     "independent_review_receipt": None},
+                    {"component": "spectral_model_truncation", "bound": None,
+                     "units": LATTICE_FORCE_UNITS, "proposed_relative_cap": 0.01,
+                     "evidence_sha256": None,
+                     "scope": "four corner model-truncation bounds combined in force units",
+                     "independent_review_receipt": None},
+                ],
+                "spectral_evidence_plan": {
+                    "basis": ["identity", "APE", "stout"], "gevp_dimension": 3,
+                    "t0": 1, "td": 2, "R_values": [2, 3],
+                    "joint_finite_Nt_state_count_checks": [2, 3],
+                    "fit_window": [3, 7], "tmin_checks": [3, 4, 5],
+                    "matched_thermal_Nt": 32,
+                },
                 "inference": {
-                    "interval_method": None, "alpha_total": None,
-                    "alpha_allocations": None,
+                    "interval_method": (
+                        "paired circular block bootstrap: 10000 draws; primary block length 5; "
+                        "report hull across lengths 2, 5, 10; coverage calibration remains open"
+                    ),
+                    "alpha_total": 0.025,
+                    "alpha_allocations": {
+                        "force_difference_two_sided_interval": 0.00625,
+                        "positive_reference_force_one_sided_lower_bound": 0.00625,
+                        "systematic_family_28_cells": 0.0125,
+                    },
                     "statistical_precision_target": None,
-                    "precision_units": None,
-                    "multiplicity_method": None,
+                    "proposed_relative_statistical_halfwidth_cap": 0.05,
+                    "precision_units": LATTICE_FORCE_UNITS,
+                    "multiplicity_method": (
+                        "Bonferroni: 24 q/h/x cells and 4 spectral-model cells; "
+                        "alpha=0.0125/28 per systematic cell"
+                    ),
                 },
                 "total_tolerance": None,
+                "proposed_relative_total_tolerance": 0.10,
+                "scope": (
+                    "fixed lattice spacing, volume, action, and static-source convention; "
+                    "continuum and infinite-volume extrapolations are outside this estimand"
+                ),
             },
         },
     }
@@ -229,7 +317,7 @@ def _get_path(root: Any, path: str) -> Any:
     return current
 
 
-def _check_common(common: Any) -> list[str]:
+def _check_common(common: Any, *, dimensionless_lattice_force: bool = False) -> list[str]:
     issues: list[str] = []
     if not _mapping(common):
         return ["common: expected an object"]
@@ -258,12 +346,18 @@ def _check_common(common: Any) -> list[str]:
     if not _mapping(spacing):
         issues.append("common.lattice_spacing: expected an object")
     else:
-        for field in ("a_s", "a_t"):
-            if not _is_number(spacing.get(field)) or spacing[field] <= 0:
-                issues.append(f"common.lattice_spacing.{field}: expected a positive finite value")
-        for field in ("length_unit", "energy_unit"):
-            if not _nonempty(spacing.get(field)):
-                issues.append(f"common.lattice_spacing.{field}: missing unit")
+        if (dimensionless_lattice_force
+                and spacing.get("scale_status")
+                == "not_required_for_dimensionless_lattice_estimands"
+                and spacing.get("a_s") is None and spacing.get("a_t") is None):
+            pass
+        else:
+            for field in ("a_s", "a_t"):
+                if not _is_number(spacing.get(field)) or spacing[field] <= 0:
+                    issues.append(f"common.lattice_spacing.{field}: expected a positive finite value")
+            for field in ("length_unit", "energy_unit"):
+                if not _nonempty(spacing.get(field)):
+                    issues.append(f"common.lattice_spacing.{field}: missing unit")
     kernels = common.get("kernel_ids")
     if (not isinstance(kernels, list) or not kernels
             or any(not _nonempty(v) for v in kernels)
@@ -540,7 +634,15 @@ def inspect_contract(contract: Any) -> dict[str, Any]:
             "lanes": {},
         }
     common = contract.get("common")
-    common_issues = _check_common(common)
+    raw_lanes = contract.get("lanes")
+    force_lane = (raw_lanes.get("ground_state_discrete_static_force")
+                  if _mapping(raw_lanes) else None)
+    dimensionless_lattice_force = (
+        _mapping(force_lane) and force_lane.get("units") == LATTICE_FORCE_UNITS
+    )
+    common_issues = _check_common(
+        common, dimensionless_lattice_force=dimensionless_lattice_force,
+    )
     protocol = contract.get("selected_protocol")
     if not _mapping(protocol):
         common_issues.append("selected_protocol: missing selected C/F method defaults")
@@ -550,7 +652,6 @@ def inspect_contract(contract: Any) -> dict[str, Any]:
         )
     if contract.get("schema") != SCHEMA:
         common_issues.append(f"contract.schema: expected {SCHEMA}")
-    raw_lanes = contract.get("lanes")
     if not _mapping(raw_lanes):
         raw_lanes = {}
     c_issues = common_issues + _check_creutz(raw_lanes.get("finite_T_Creutz"), common)
@@ -775,7 +876,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "  -> physical_score remains null until those gates are independently satisfied",
         "```",
         "",
-        f"`lane_summary.csv` reports planned/valid/failed/abstained counts for each synthetic fixture and lane. `run_receipt.json` records those {len(summary_rows)} structural checks plus a separate five-stage physical `RunState` denominator of `5/0/0/5` (planned/valid/failed/abstained), source and artifact hashes, and exact blocker reasons. `complete` means all planned units are accounted for, not that a lane or method succeeded. `artifact_hashes.json` also covers the receipt. The C interval precision target must be labeled `{CREUTZ_UNITS}` because its signed log-Creutz observable is dimensionless. A missing bound is never treated as zero. Bound rows require a scope, hash-shaped evidence receipt and review receipt; those strings are checked only for shape and are not opened or authenticated here. q/h/x receipts are dimensionless spectral inputs; the force-budget check requires their separately propagated `excited_state_force` bound and sums that with thermal/mixed/finite-a/volume/other force-level systematic bounds and the statistical precision target. Familywise alpha allocations must sum to no more than `alpha_total`.",
+        f"`lane_summary.csv` reports planned/valid/failed/abstained counts for each synthetic fixture and lane. `run_receipt.json` records those {len(summary_rows)} structural checks plus a separate five-stage physical `RunState` denominator of `5/0/0/5` (planned/valid/failed/abstained), source and artifact hashes, and exact blocker reasons. `complete` means all planned units are accounted for, not that a lane or method succeeded. `artifact_hashes.json` also covers the receipt. The C interval precision target must be labeled `{CREUTZ_UNITS}` because its signed log-Creutz observable is dimensionless. A missing bound is never treated as zero. Bound rows require a scope, hash-shaped evidence receipt and review receipt; those strings are checked only for shape and are not opened or authenticated here. q/h/x receipts are dimensionless spectral inputs; the force-budget check requires their separately propagated excited-state, thermal, mixed, and spectral-model-truncation bounds in `{LATTICE_FORCE_UNITS}` and the statistical precision target. Since the selected force is itself a fixed-lattice/finite-volume estimand, finite-a and finite-volume extrapolation corrections are outside its scope; any continuum claim needs a separately versioned estimand. Familywise alpha allocations must sum to no more than `alpha_total`.",
         "",
         "## Fixture results",
         "",

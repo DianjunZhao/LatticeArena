@@ -35,6 +35,11 @@ def test_selected_method_defaults_are_explicit_and_receipts_remain_open():
     assert contract["D06_effect_threshold"]["family_size"] == 2
     assert contract["D06_effect_threshold"]["primary_block_length"] == 5
     assert contract["D11_strong_spectral_operator"]["spectral_interval"] == [-12.0, 0.0]
+    assert "U(3)" in contract["D11_strong_spectral_operator"]["mathematical_link_domain"]
+    assert "SU(3)" in contract["D11_strong_spectral_operator"]["physical_link_gate"]
+    assert "only when such a mode exists" in contract["D11_strong_spectral_operator"][
+        "identity_normalization"
+    ]
     assert contract["D11_strong_spectral_operator"]["outer_gaussian_sandwich"][
         "raw_zero_mode_factor"] == 6.5536
     assert contract["fair_budget"]["amortization_task_count"] == 1

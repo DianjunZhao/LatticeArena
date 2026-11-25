@@ -21,7 +21,7 @@ from .chebyshev_baseline import validate_control_points
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUT = ROOT / "results/optimize_gaussian/framework_candidate_contract_20261125_v5"
+DEFAULT_OUT = ROOT / "results/optimize_gaussian/framework_candidate_contract_20261125_v6"
 SCHEMA = "optimize-framework-candidate-diagnostic-v2"
 BUILDER = "tasks.optimize_gaussian.chebyshev_baseline:apply_hopping_filter_cpu"
 EXAMPLE_CONTROLS = [0.0, 0.25, 0.5, 0.75, 1.0]
@@ -64,6 +64,7 @@ def operator_contract_for() -> dict:
                 "field": "(z,y,x,3,nrhs)",
             },
             "spectral_map": "P4(I+H/12), proposed H spectrum [-12,0]",
+            "gaussian_relation": "G=1.6I+0.1H; G^2 P4(H) G^2 is common and unnormalized",
         },
         dependencies={
             "candidate_contract.py": digest(Path(__file__)),
@@ -80,9 +81,9 @@ def operator_contract_for() -> dict:
             "production_evaluator_connected": False,
             "spatial_directions": 3,
             "boundary": "periodic spatial shifts",
-            "link_condition": "unitary SU(3)-like 3x3 matrices checked by CPU helper",
+            "link_condition": "U(3) unitarity suffices for the bound and is checked by the CPU helper; physical production requires an independent SU(3) provenance or determinant-unitarity receipt",
             "control_constraints": "0<=b0<=b1<=b2<=b3<=b4=1",
-            "normalization": "P4(1)=1 for the proposed low-mode endpoint",
+            "normalization": "P4(y=1)=1 at the upper spectral endpoint; it is a zero-mode normalization only when H has a zero eigenmode",
             "unresolved": [
                 "D04 independent E-chain reference and receipt",
                 "D06 empirical paired-risk and full-cost receipts",
@@ -165,7 +166,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict:
 
 **Status: `DIAGNOSTIC_SCHEMA_ONLY`; selected D11 method defaults are recorded, while production review and evidence remain open; `physical_score=null`; no data or GPU access.**
 
-This package registers one degree-4 Bernstein/Chebyshev CPU candidate with the generic LatticeArena operator/candidate schema. The example controls `(0, .25, .5, .75, 1)` are illustrative; they were not fitted to a reference or measurement. The descriptor requires a spatial field with layout `(z,y,x,3,nrhs)`, periodic shifts, and checked unitary 3x3 links. Its proposed response is `P4(I+H/12)` with `0<=b0<=...<=b4=1`.
+This package registers one degree-4 Bernstein/Chebyshev CPU candidate with the generic LatticeArena operator/candidate schema. The example controls `(0, .25, .5, .75, 1)` are illustrative; they were not fitted to a reference or measurement. The descriptor requires a spatial field with layout `(z,y,x,3,nrhs)`, periodic shifts, and checked unitary 3x3 links. U(3) unitarity is enough for the spectral bound; physical production inputs still require an independently checked SU(3) provenance. Its proposed response is `P4(I+H/12)` with `0<=b0<=...<=b4=1`; `y=1` is a spectral endpoint, and need not be an eigenmode for a general gauge field.
 
 The text flow is:
 
