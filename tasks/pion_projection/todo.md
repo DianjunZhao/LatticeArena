@@ -355,7 +355,7 @@ v14 文本表格逐项列出 blocker；`physical_score=null`、`NOT_READY/UNCERT
 
 随后从本地根 checkout 找回四个原分析 runner；四个 SHA-256 均与归档 provenance 一致。只将 D0–99 `development.npz` 和同 generation 的 provenance 复制到临时目录，并从 provenance 重构对应 protocol 后，单态关键点值与历史摘要相差极小，两态质量/误差/p-value/条件数摘要在 `rel_tol=2e-9, abs_tol=2e-12` 下相符，有效质量 point/median/q16/q84 摘要最大绝对差为 0。单态窗口 z 的相对差约 `10^-7`，所有原 gate verdict 不变；JSON/NPZ 字节哈希不同，故不是 bitwise reproduction。具体数值表和路径身份见 [`runner_replay_audit.md`](d_development_reference_archive_20261125_v1/runner_replay_audit.md)。
 
-该重放只证明 recovered local source 对开放 D 样本的数值摘要可复现；PR 包自身没有三支诊断 runner，且 `identity.py`、`reference.py` 缺失、若干依赖源码 hash 不同，尚不能从 PR 独立 rerun。要关闭复现缺口，后续须归档完整精确 runner/dependency source closure，并提供获准分发的 D 输入包；不得因此打开 E/gap/validation/shared holdout。该核对不改变 reference `FAIL`、`NOT_READY/UNCERTIFIED` 或 `physical_score=null`。
+该重放只证明 recovered local source 对开放 D 样本的数值摘要可复现；精确15文件 runner/dependency source closure 已归档在 [`source_snapshot/`](d_development_reference_archive_20261125_v1/source_snapshot/README.md)，逐文件 SHA-256 和源 revision 见 `source_manifest.json`。PR 活动模块本身仍与该快照不同，重放必须显式使用快照；D 输入数组和锁定 runtime 未打包，所以仍不能从 PR 零准备 standalone rerun。后续若有获准分发路径，可单独提供开放 D 输入与 runtime lock；不得因此打开 E/gap/validation/shared holdout。该核对不改变 reference `FAIL`、`NOT_READY/UNCERTIFIED` 或 `physical_score=null`。
 
 ### 向量 anchor `g(box)` 的可验证全局区间映射：后续设计，不是已认证算法
 

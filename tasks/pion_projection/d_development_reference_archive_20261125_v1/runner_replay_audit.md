@@ -15,7 +15,7 @@ The archived provenance source hashes match the recovered runners in the local r
 
 The replay copied only `development.npz` and its matching `development_provenance.json` into a temporary directory. It reconstructed the analysis protocol from the saved development provenance and supplied it through `LATTICEARENA_PROTOCOL`; the current working-tree protocol bytes have a different hash. The temporary directory was removed after the comparison. No anchor, gap, validation, or holdout file was copied or read.
 
-The source closure is not present in this PR worktree. The three diagnostic runners are absent; `identity.py` and `reference.py` are absent; and the available `common.py`, `core/receipts.py`, `core/state.py`, and `core/io.py` hashes differ from the recovered root checkout. Therefore the recorded replay establishes that the recovered sources reproduce the archived numerical summaries locally, not that a reviewer can rerun them from this PR alone.
+The exact 15-file Python source closure is now preserved under [`source_snapshot/`](source_snapshot/README.md), with per-file SHA-256 values and source revision in `source_manifest.json`. The active modules in the PR worktree still differ from that snapshot (the three diagnostic runners, `identity.py`, and `reference.py` are absent there, while several available dependencies have different hashes), so a reviewer must explicitly use the snapshot on `PYTHONPATH` to reproduce the archived code path. This closes the code-provenance gap but not the input/runtime gap.
 
 ## Numerical comparison
 
@@ -41,4 +41,4 @@ single-state reference gate FAIL
 
 ## Reproduction boundary
 
-To make this archive independently rerunnable, add the exact runner and dependency source closure with hashes, and provide the open D-development input bundle under a separately approved distribution path. Until then, retain the report/figures and this audit as reviewable evidence, but do not call the PR archive a standalone reproduction. The replay does not change `NOT_READY/UNCERTIFIED`, `physical_score=null`, or the sealed-data boundary.
+To make this archive independently rerunnable, provide the open D-development input bundle under a separately approved distribution path and pin the Python/NumPy/SciPy/Matplotlib runtime. Until then, retain the report/figures, exact source snapshot, and this audit as reviewable evidence, but do not call the PR archive a standalone reproduction. The replay does not change `NOT_READY/UNCERTIFIED`, `physical_score=null`, or the sealed-data boundary.
