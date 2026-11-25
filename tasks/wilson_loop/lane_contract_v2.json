@@ -39,6 +39,17 @@
       "interval_rule": "hull of the required block-length intervals",
       "failed_draw_rule": "invalid required loop mean invalidates the paired draw; abstain if >1% invalid draws or precision gate fails"
     },
+    "familywise_alpha_allocation": {
+      "alpha_total": 0.05,
+      "alpha_creutz_lane": 0.025,
+      "alpha_force_lane": 0.025,
+      "alpha_force_statistics": 0.0125,
+      "alpha_force_systematics": 0.0125,
+      "alpha_force_difference_interval": 0.00625,
+      "alpha_reference_force_positive_lower_bound": 0.00625,
+      "force_systematic_bound_cells": 28,
+      "alpha_per_force_systematic_cell": 0.00044642857142857147
+    },
     "finite_T_Creutz": {
       "estimand": "absolute finite-T chi_stout(R=2,T=5), not a ground-state force",
       "R": 2,

@@ -31,6 +31,23 @@ def test_null_draft_stays_not_ready_with_two_separate_estimands():
         "thermal_h_Nt32"] is None
 
 
+def test_selected_lane_alpha_allocation_closes_the_familywise_budget():
+    protocol = selected_protocol()
+    allocation = protocol["familywise_alpha_allocation"]
+    assert allocation["alpha_creutz_lane"] + allocation["alpha_force_lane"] == 0.05
+    assert (allocation["alpha_force_statistics"]
+            + allocation["alpha_force_systematics"]
+            == allocation["alpha_force_lane"])
+    assert (allocation["alpha_force_difference_interval"]
+            + allocation["alpha_reference_force_positive_lower_bound"]
+            == allocation["alpha_force_statistics"])
+    budget = protocol["ground_state_discrete_static_force"]["relative_error_budget"]
+    n_cells = budget["q_h_x_cells"] + budget["model_truncation_cells"]
+    assert n_cells == allocation["force_systematic_bound_cells"]
+    assert (n_cells * allocation["alpha_per_force_systematic_cell"]
+            == allocation["alpha_force_systematics"])
+
+
 def test_changed_protocol_defaults_fail_closed_without_certifying_evidence():
     contract = empty_contract()
     contract["selected_protocol"]["finite_T_Creutz"]["precision_halfwidth_target"] = 0.5
