@@ -1,5 +1,13 @@
 # optimize_gaussian：CPU 验收结论与后续研究
 
+### 2026-11-25 本 checkout 的 TaskSpec/RunSpec 接线审计
+
+新增 [`draft_plan.py`](draft_plan.py) 将已选 D04/D06/D11 默认值传入 `core.specs.task_spec` 和 `core.specs.run_spec`，生成了[数据-free 草案和文字数据流](../../results/optimize_gaussian/draft_plan_20261125_v1/README.md)。合同及源码 SHA-256 已绑定；只登记已开放的 D0–59 fit 与 D60–99 development-selection 元数据，没有读取配置字节、生成输入 hash、启动训练或连接 evaluator。schema 计划分母 `1/1/0/0`；五个物理认证阶段 `5/0/0/5`，`launch_allowed=false`、`physical_score=null`。
+
+**重要的分支核验：**本 PR #6 当前 checkout 中不存在 TODO 历史段落所称的 `runspec_builder.py`、`train.main`、Optimize worker 或相应测试源码（报告仍记录过去的 synthetic CPU 结果，但当前分支没有可审阅/调用的入口文件）。因此新模块只完成通用 schema 的计划层接线，不是生产 RunSpec、也不关闭 worker 集成项。后续要么恢复匹配历史 receipt 的完整源文件，要么重做 task-specific runner 与 hard-timeout/产物回执接线；执行前仍须有独立 E-chain reference、生产 evaluator/operator review、完整且已授权的输入 manifest。不要把本草案的 `validation` 键误读成最终 blind confirmation。
+
+文字流程：`research_contract + 源码 -> SHA-256 -> 通用 TaskSpec/RunSpec -> 空数据 hash + 无 runner + 无授权 -> launch_allowed=false -> 五个物理阶段 abstained`。
+
 ### 2026-11-25 最新交接：F=2、D04/D06/D11 默认值已给出；生产证据门仍未通过
 
 用户已确定主比较保留两个 estimand 对照（`F=2`）：trainable-W 对同预算 SLSQP、以及 trainable-W 对固定强谱基。用户随后要求由执行者自行提出缺失规则。以下工作默认已写入 [`research_contract_v1.json`](research_contract_v1.json)，状态仍是 `DRAFT_NOT_READY` / `METHOD_DEFAULTS_SELECTED_EVIDENCE_NOT_READY`；它们是供独立审阅的明确提案，不是外部 reviewer 批准，也不表示 production 或 GPU 授权。旧段落中“等待用户给 D04/D06/D11 数值”的要求均由本节替代。
