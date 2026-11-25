@@ -331,3 +331,10 @@ v14 文本表格逐项列出 blocker；`physical_score=null`、`NOT_READY/UNCERT
 ## 2026-11-25 当前接手结论
 
 本文件开头已冻结研究设计默认值；旧日期段落中“请研究者选择目标、`R`、clipping 或 `delta_star`”均是历史记录，不再是开工要求。现阶段没有证据支持打开 anchor/reference/validation 数据，用户要求维持 `NOT_READY/UNCERTIFIED` 与 sealed data closed，因此本 TODO 保留。下一步是接收独立 E-chain reference 与 anchor-chain 的 feature-support、gap/TV、协方差、`C` 和独立性 receipts，先由独立 reviewer 核准，再实现/运行全盒拟合映射；物理 `m*` 与 bounded score 仍为 `null`，不得由公式 fixture 补值。
+
+
+## 2026-11-25 本轮可用输入盘点（仅 tracked tree）
+
+我核对了 PR #5 工作树中 `tasks/pion_projection/` 与 `results/pion_projection/` 的 Git 跟踪文件名。匹配 `.csv/.npz` 的文件属于 coverage、敏感度和合同诊断包；没有发现作为新输入的逐配置 correlator、独立 E-chain reference 或 anchor-chain receipt。任务 README 提到被 `.gitignore` 排除的 `.cache/pion_projection/propagators/`，本轮没有检查该缓存，因此本盘点不代表缓存或外部存储中不存在可用配置。
+
+当前下一步仍是由数据 owner 提供可访问且身份/分割清楚的独立 E-chain 与 anchor receipts，再审核有限支持、gap/TV、协方差、common-bias `C` 和 score-chain 独立性；没有这些输入时，不运行区间拟合映射或 confirmation，保留 `NOT_READY/UNCERTIFIED`。

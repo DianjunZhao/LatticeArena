@@ -320,3 +320,10 @@ D04/D06/D11 的方法默认值已经自选并写进合同；比较族继续同�
 PR #6 提交 [`a22cd23`](https://github.com/Greyyy-HJC/LatticeArena/commit/a22cd2304735dbd8e86c6210196f47c79dd47976) 将当前五个物理认证阶段接入通用 `core.RunState`。 [候选合同 v5](https://github.com/DianjunZhao/LatticeArena/blob/a22cd2304735dbd8e86c6210196f47c79dd47976/results/optimize_gaussian/framework_candidate_contract_20261125_v5/README.md) 明确 `operator/reference/numerical/statistical/comparison` 都因缺真实收据或授权而 `abstained`，`physical_ready=false`、`score=null`；独立 gate 分母 `5/0/0/5`。Schema 例子仍是 `1/1/0/0`，系数拟合是 `0/0/0/0`，RunReceipt `complete` 只表示这些状态均已记账。
 
 报告保存 `core/state.py` 快照并绑定 source/artifact hashes。Optimize 合同、候选、Wilson lane 与共享框架四个专项模块 **37 passed**；新诊断仍未提供 D04、D06、D11 的实证 receipts、真实 W 结果或物理 score。后续获授权运行必须创建新的 RunState，不能从本次 abstained 状态直接转为 validated。
+
+
+## 2026-11-25 本轮可用输入盘点（仅 tracked tree）
+
+我核对了 PR #6 工作树中 Optimize 的跟踪输入包：现有 `.npz` 输入均为 `synthetic_inputs.npz`，位于 CPU replay、stress 和 meta-init 诊断目录；跟踪到的 paired-risk/solver CSV 是这些诊断的汇总。没有发现 production gauge-link 输入、独立 D04 reference receipt、共同 fit/eval ID manifest 或实测 total-cost ledger。盘点只覆盖 Git 跟踪内容，不包含 ignored cache 或外部存储。
+
+下一步须取得独立 E-chain reference receipt、冻结 split/seed/hash 与可比成本收据，再按固定合同对 trainable-W、同预算 SLSQP、degree-4 Bernstein/Chebyshev 强基线做配对测量；生产 links review 与 GPU/QUDA 资源授权仍分别是独立门。

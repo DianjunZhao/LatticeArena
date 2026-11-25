@@ -271,3 +271,10 @@ Wilson 仍按已选定的有限温 Creutz C lane 与基态离散静态力 F lane
 PR #6 提交 [`a22cd23`](https://github.com/Greyyy-HJC/LatticeArena/commit/a22cd2304735dbd8e86c6210196f47c79dd47976) 将两 lane 当前物理 gate 投影到 `core.RunState`，并修正报告生成器，后续步骤不再要求重选已冻结的 C/F 方法。[Wilson v8 诊断](https://github.com/DianjunZhao/LatticeArena/blob/a22cd2304735dbd8e86c6210196f47c79dd47976/results/wilson_loop/lane_contract_diagnostic_20261125_v8/README.md) 中 C/F synthetic 结构检查仍为 `16/7/9/0`；另列五个整体物理认证阶段 `5/0/0/5`。RunReceipt 合计 planned/valid/failed/abstained=`21/7/9/5`，每个结构失败和物理 abstention 都有独立原因。`complete` 表示分母全部记账；`physical_ready=false` 且 `physical_score=null`。
 
 报告与 `core/state.py` 快照的哈希均已核验。Optimize/Wilson 合同、候选与共享框架四个专项模块 **37 passed**。新报告仍没有读取 Wilson measurements 或 sealed data，也没有产生 C loop interval、F 污染界或 confirmation；C/F 校准输入和 owner 授权继续是下一步的真实门槛。
+
+
+## 2026-11-25 本轮可用输入盘点（仅 tracked tree）
+
+我核对了 PR #6 的 `results/wilson_loop/` 跟踪文件：当前内容是有限-`N_t` toy、随机正谱压力测试、污染敏感度与 lane-contract 诊断；没有逐配置 loop 数据、C lane paired draws、F lane GEVP 拟合或匹配 `N_t=32` 热对照文件。盘点限于 tracked tree，不搜索 ignored `data/`、本地缓存或外部存储，也不读取 sealed split。
+
+因此没有可直接复用的当前校准样本来生成 C interval 或 F contamination bound。后续需要 owner 提供授权的、与确认 split 隔离的 calibration package 及 manifest；在此之前保留两个 estimand 的独立状态和既定图文交付流程。
