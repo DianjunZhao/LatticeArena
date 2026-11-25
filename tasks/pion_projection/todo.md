@@ -449,6 +449,6 @@ Pion 侧可继续做的本地软件工作，仅限收到实际 scalar anchor map
 
 新增 [`apply_evidence_bundle_gate`](../../core/evidence.py)，在一个 RunState stage 上先检查多份 named envelopes、各自的 frozen expectations/source hashes 和选定 chain-identity pairs；只有所有成员通过才调用单 envelope gate 做一次 `draft` 转移。任一 envelope 错配、required hash 映射为空/缺失或 anchor-score chain/manifest 身份冲突，都将该 stage 原子弃权，避免部分链先进入 draft 后留下不一致状态。身份不同只通过 bookkeeping 检查，返回值始终 `independence_proven=false`。
 
-Pion 的未来 adapter 可将 `anchor_coverage` 与 `score_dependence` 两个 envelope 组成一个 bundle，并在 bundle 内要求不同 chain ID 与 manifest；再由 adapter 检查其真实 receipt 和依赖假设。当前 synthetic bundle gate 调用 denominator 为 planned/valid/failed/abstained=`4/1/0/3`（一项 draft 正控、三项身份/合同弃权负控），focused evidence/receipt 测试 **21 passed**，与 Pion/framework/receipt 文件合集跑 **216 passed**。这只是共享门控软件检查，不代表真实 anchor-score 独立、coverage、`gamma_ps`/TV 或 `C`。
+Pion 的未来 adapter 可将 `anchor_coverage` 与 `score_dependence` 两个 envelope 组成一个 bundle，并在 bundle 内要求不同 chain ID 与 manifest；再由 adapter 检查其真实 receipt 和依赖假设。当前 4 次 synthetic gate 调用的输出是 `1 draft / 3 abstain`；每次调用使用的测试 `RunReceipt` 都是 planned/valid/failed/abstained=`2/2/0/0`，这只是 gate fixture 的 denominator，不是物理测量分母。focused evidence/receipt 测试 **21 passed**，与 Pion/framework/receipt 文件合集跑 **216 passed**。这只是共享门控软件检查，不代表真实 anchor-score 独立、coverage、`gamma_ps`/TV 或 `C`。
 
 文字流程：`anchor envelope + score envelope -> 分别核对 schema/unit/source/review -> chain identity collision check -> 任一失败则一次性 RunState ABSTAIN -> 全部元数据和 RunReceipt 完整则最多 DRAFT -> 外部核验独立性与物理假设`。Pion task evaluator 仍未接线，真实 `m*`/anchor map/reference 和 sealed data 状态不变。
