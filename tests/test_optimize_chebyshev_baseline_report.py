@@ -8,7 +8,11 @@ def test_constrained_baseline_report_is_hashed_and_labels_illustration_denominat
     output = tmp_path / "constrained-baseline"
     contract = build(output)
 
-    assert contract["status"] == "REVIEW_DRAFT_NOT_FROZEN"
+    assert contract["status"] == "METHOD_DEFAULTS_SELECTED_EVIDENCE_NOT_READY"
+    assert contract["selected_method_defaults"]["D06_effect_threshold"][
+        "r_star"
+    ] == 1.1111111111111112
+    assert len(contract["open_gates"]) == 5
     assert contract["physical_score"] is None
     assert contract["coefficient_fit_denominators"] == {
         "planned": 0, "valid": 0, "failed": 0, "abstained": 0,
@@ -23,9 +27,11 @@ def test_constrained_baseline_report_is_hashed_and_labels_illustration_denominat
     }
     readme = (output / "README.md").read_text()
     assert "planned/valid/failed/abstained = `3/3/0/0`" in readme
-    assert "no physics objective" in readme
+    assert "No reference or physics objective" in readme
     assert "fitted-run denominator = 0/0/0/0" in readme
     assert "Text flow:" in readme
+    assert "exact symbolic basis transform" in readme
+    assert "float64" in readme
 
     manifest = json.loads((output / "artifact_hashes.json").read_text())
     assert set(manifest) == {

@@ -393,7 +393,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "",
         "**STRUCTURE CHECK ONLY. `physical_score=null`; no measurements, sealed data, GPU or QUDA inputs were read.**",
         "",
-        "The method choices are now frozen in the contract: D04 uses the candidate-blind independent E-chain joint spectrum fit and dimensionless Pion risk; D06 uses comparator/trainable-W risk ratios with `r_star=1.111111...`, `F=2`, Bonferroni one-sided `alpha=0.025`, and paired length-5 bootstrap with lengths 2/10 as sensitivity; D11 uses a positive monotone degree-4 polynomial in Bernstein controls converted exactly to Chebyshev form, with a common unnormalized `G^2 P4(H) G^2` sandwich. The two selected contrasts remain trainable-W versus same-budget SLSQP and trainable-W versus this fixed strong spectral baseline.",
+        "The method defaults are recorded in the contract: D04 uses the candidate-blind independent E-chain joint spectrum fit and dimensionless Pion risk; D06 uses comparator/trainable-W risk ratios with `r_star=1.111111...`, `F=2`, Bonferroni one-sided `alpha=0.025`, and paired length-5 bootstrap with lengths 2/10 as sensitivity; D11 uses a positive monotone degree-4 Bernstein polynomial mapped by a fixed dyadic rational transform (symbolic identity, float64 evaluation) to Chebyshev form, with a common unnormalized `G^2 P4(H) G^2` sandwich. The two selected contrasts remain trainable-W versus same-budget SLSQP and trainable-W versus this fixed strong spectral baseline. Independent data receipts, measured costs, production review and authorization remain open.",
         "",
         "## Text decision flow",
         "",

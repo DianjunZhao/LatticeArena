@@ -1,8 +1,9 @@
-"""Diagnostic-only adapter for Optimize's constrained Chebyshev candidate.
+"""Diagnostic-only adapter for Optimize's selected Chebyshev candidate.
 
 This registers an executable CPU candidate shape with LatticeArena's generic
-candidate contract. It does not freeze D11, supply a D04 objective, read task
-measurements, or certify a physical method.
+candidate contract. Selected method defaults live in the research contract;
+this adapter does not supply D04 data, read task measurements, or certify a
+physical production method.
 """
 from __future__ import annotations
 
@@ -19,7 +20,7 @@ from .chebyshev_baseline import validate_control_points
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUT = ROOT / "results/optimize_gaussian/framework_candidate_contract_20261124_v3"
+DEFAULT_OUT = ROOT / "results/optimize_gaussian/framework_candidate_contract_20261125_v4"
 SCHEMA = "optimize-framework-candidate-diagnostic-v1"
 BUILDER = "tasks.optimize_gaussian.chebyshev_baseline:apply_hopping_filter_cpu"
 EXAMPLE_CONTROLS = [0.0, 0.25, 0.5, 0.75, 1.0]
@@ -31,6 +32,7 @@ def operator_contract_for() -> dict:
     kernels = Path(__file__).with_name("kernels.py")
     core_specs = ROOT / "core/specs.py"
     core_receipts = ROOT / "core/receipts.py"
+    research_contract = Path(__file__).with_name("research_contract_v1.json")
     return operator_contract(
         name="optimize-chebyshev-diagnostic-v1",
         axes="(z,y,x,3,nrhs)",
@@ -38,7 +40,7 @@ def operator_contract_for() -> dict:
         transformation="gauge_covariant",
         support="time_slice",
         parameters={
-            "role": "diagnostic candidate schema; not a frozen production operator",
+            "role": "diagnostic candidate schema for selected D11 method defaults; production review remains open",
             "builder_parameters": {
                 "control_points": "five finite real Bernstein controls, 0<=b0<=...<=b4=1",
                 "links": "three periodic spatial directions of unitary 3x3 links",
@@ -49,19 +51,26 @@ def operator_contract_for() -> dict:
         dependencies={
             "candidate_contract.py": digest(Path(__file__)),
             "chebyshev_baseline.py": digest(baseline),
+            "research_contract_v1.json": digest(research_contract),
             "core/receipts.py": digest(core_receipts),
             "core/specs.py": digest(core_specs),
             "kernels.py": digest(kernels),
         },
         constraints={
             "physical_contract_frozen": False,
+            "selected_method_defaults_recorded": True,
             "production_evaluator_connected": False,
             "spatial_directions": 3,
             "boundary": "periodic spatial shifts",
             "link_condition": "unitary SU(3)-like 3x3 matrices checked by CPU helper",
             "control_constraints": "0<=b0<=b1<=b2<=b3<=b4=1",
             "normalization": "P4(1)=1 for the proposed low-mode endpoint",
-            "unresolved": ["D04 objective", "D06 r_star", "D11 production review"],
+            "unresolved": [
+                "D04 independent E-chain reference and receipt",
+                "D06 empirical paired-risk and full-cost receipts",
+                "D11 independent production-link/operator review",
+                "data-owner and GPU/QUDA authorization",
+            ],
         },
     )
 
@@ -91,6 +100,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict:
     source_paths = {
         "snapshot_candidate_contract.py": Path(__file__),
         "snapshot_chebyshev_baseline.py": Path(__file__).with_name("chebyshev_baseline.py"),
+        "snapshot_research_contract_v1.json": Path(__file__).with_name("research_contract_v1.json"),
         "snapshot_kernels.py": Path(__file__).with_name("kernels.py"),
         "snapshot_core_receipts.py": ROOT / "core/receipts.py",
         "snapshot_core_specs.py": ROOT / "core/specs.py",
@@ -117,38 +127,42 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict:
                 "unit": "no D04 objective supplied",
             },
         },
-        "not_frozen": ["D04 objective", "D06 r_star", "D11 production contract",
-                        "measurement evaluator", "production data/GPU authorization"],
+        "open_gates": [
+            "D04 independent reference and data receipts",
+            "D06 empirical paired-risk and full-cost receipts",
+            "D11 independent production-link/operator review",
+            "measurement evaluator and production authorization",
+        ],
     }
     _json(out / "contract.json", report)
     readme = """# Optimize candidate contract: diagnostic registration
 
-**Status: `DIAGNOSTIC_SCHEMA_ONLY`; D11 remains unfrozen; `physical_score=null`; no data or GPU access.**
+**Status: `DIAGNOSTIC_SCHEMA_ONLY`; selected D11 method defaults are recorded, while production review and evidence remain open; `physical_score=null`; no data or GPU access.**
 
 This package registers one degree-4 Bernstein/Chebyshev CPU candidate with the generic LatticeArena operator/candidate schema. The example controls `(0, .25, .5, .75, 1)` are illustrative; they were not fitted to a reference or measurement. The descriptor requires a spatial field with layout `(z,y,x,3,nrhs)`, periodic shifts, and checked unitary 3x3 links. Its proposed response is `P4(I+H/12)` with `0<=b0<=...<=b4=1`.
 
 The text flow is:
 
 ```text
-versioned diagnostic contract -> validate five Bernstein controls -> emit candidate descriptor -> CPU operator helper
+selected research-contract defaults -> validate five Bernstein controls -> emit candidate descriptor -> CPU operator helper
                                       |                                      |
-                                      +-- invalid controls reject            +-- D04/D06/D11/evaluator/auth gates stay open
+                                      +-- invalid controls reject            +-- D04/D06 receipts, D11 review and evaluator/auth gates stay open
 ```
 
-The schema fixture denominator is `planned/valid/failed/abstained = 1/1/0/0`; it counts one illustrative descriptor only. Coefficient-fit denominator is `0/0/0/0`: no D04 callback was supplied. `run_receipt.json` records the scenario assumptions, source hashes, denominator units, text flow and payload hashes. Any failed, abstained or not-run planned units require reason rows whose counts match exactly. Receipt status `complete` means all planned units are accounted for, not that a method succeeded. This adapter does not create an Optimize `TaskSpec`, connect a measurement evaluator, authorize production runs, or establish that the proposed periodic three-dimensional operator matches production conventions. The receipt itself is covered by `artifact_hashes.json` to avoid a recursive self-hash.
+The schema fixture denominator is `planned/valid/failed/abstained = 1/1/0/0`; it counts one illustrative descriptor only. Coefficient-fit denominator is `0/0/0/0`: no D04 callback was supplied. `run_receipt.json` records the scenario assumptions, source hashes (including the selected research contract), denominator units, text flow and payload hashes. Any failed, abstained or not-run planned units require reason rows whose counts match exactly. Receipt status `complete` means all planned units are accounted for, not that a method succeeded. This adapter does not create an Optimize `TaskSpec`, connect a measurement evaluator, authorize production runs, or establish that the proposed periodic three-dimensional operator matches production conventions. The receipt itself is covered by `artifact_hashes.json` to avoid a recursive self-hash.
 """
     (out / "README.md").write_text(readme)
     scenario = scenario_spec(
         "optimize-chebyshev-schema-example",
         "one illustrative candidate descriptor",
         "Schema validation only; no fitted coefficients or measurements.",
-        assumptions=["D11 is not frozen", "the controls are illustrative"],
+        assumptions=["D11 production review and receipts remain open", "the controls are illustrative"],
         source_hashes=contract["dependencies"],
     )
     text_flow = (
-        "versioned diagnostic contract -> validate five Bernstein controls -> "
-        "emit candidate descriptor -> CPU operator helper; missing D04/D06/D11 "
-        "and measurement authorization remain open"
+        "selected research-contract defaults -> validate five Bernstein controls -> "
+        "emit candidate descriptor -> CPU operator helper; D04/D06 empirical receipts, "
+        "D11 production review and measurement authorization remain open"
     )
     receipt_payloads = sorted(path for path in out.iterdir() if path.is_file())
     receipt_hashes = {

@@ -16,6 +16,7 @@ def test_optimize_candidate_contract_is_registered_but_explicitly_diagnostic():
 
     assert operator["name"] == "optimize-chebyshev-diagnostic-v1"
     assert operator["constraints"]["physical_contract_frozen"] is False
+    assert operator["constraints"]["selected_method_defaults_recorded"] is True
     assert operator["constraints"]["production_evaluator_connected"] is False
     assert candidate["builder"] == (
         "tasks.optimize_gaussian.chebyshev_baseline:apply_hopping_filter_cpu"
@@ -40,18 +41,20 @@ def test_candidate_contract_report_is_hashed_and_has_text_flow(tmp_path):
     assert report["physical_score"] is None
     assert report["data_access"] == "none"
     assert report["denominators"]["coefficient_fit"]["planned"] == 0
-    assert "versioned diagnostic contract" in (output / "README.md").read_text()
+    assert "selected D11 method defaults are recorded" in (output / "README.md").read_text()
     assert receipt["schema"] == "latticearena-run-receipt-v1"
     assert receipt["status"] == "complete"
     assert receipt["reason_rows"] == []
     assert receipt["denominators"]["schema_fixture"]["not_run"] == 0
     assert receipt["denominators"]["coefficient_fit"]["planned"] == 0
     assert "core/receipts.py" in receipt["scenario"]["source_hashes"]
+    assert "research_contract_v1.json" in receipt["scenario"]["source_hashes"]
     for name, expected in receipt["artifact_hashes"].items():
         assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected
     assert set(manifest) == {
         "README.md", "contract.json", "snapshot_candidate_contract.py",
         "run_receipt.json", "snapshot_chebyshev_baseline.py",
+        "snapshot_research_contract_v1.json",
         "snapshot_core_receipts.py", "snapshot_core_specs.py",
         "snapshot_kernels.py",
     }

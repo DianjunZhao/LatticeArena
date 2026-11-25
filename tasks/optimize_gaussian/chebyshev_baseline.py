@@ -1,9 +1,9 @@
-"""CPU contract draft for a positive degree-4 spectral smear baseline.
+"""CPU candidate for the selected positive degree-4 spectral smear baseline.
 
-This is a proposal for D11 review, not a frozen production method. It uses a
-Bernstein control-point parameterization of a degree-at-most-four polynomial;
-the resulting polynomial is converted to Chebyshev coefficients for Clenshaw
-application to the scaled covariant hopping operator.
+The method defaults are recorded in ``research_contract_v1.json``; this module
+does not certify production links, connect a physical objective, or close the
+independent review and authorization gates. It uses a Bernstein control-point
+parameterization and a fixed dyadic rational transform to Chebyshev form.
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from .kernels import apply_kernel
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUT = ROOT / "results/optimize_gaussian/chebyshev_constrained_baseline_20261124_v2"
+DEFAULT_OUT = ROOT / "results/optimize_gaussian/chebyshev_constrained_baseline_20261125_v3"
 DEGREE = 4
 LAPLACIAN_MAX = 12.0
 
@@ -345,12 +345,21 @@ def fit_control_points_slsqp(objective, *, max_objective_calls, max_iterations,
     }
 
 def _contract() -> dict:
+    research_path = ROOT / "tasks/optimize_gaussian/research_contract_v1.json"
+    research = json.loads(research_path.read_text())
     return {
-        "schema": "optimize-degree4-chebyshev-baseline-review-v1",
-        "status": "REVIEW_DRAFT_NOT_FROZEN",
+        "schema": "optimize-degree4-chebyshev-baseline-review-v2",
+        "status": "METHOD_DEFAULTS_SELECTED_EVIDENCE_NOT_READY",
         "physical_score": None,
         "certified": False,
         "data_access": "none",
+        "selected_method_defaults": {
+            key: research[key]
+            for key in ("D04_reference", "D06_effect_threshold", "D11_strong_spectral_operator")
+        },
+        "selected_fair_budget_defaults": research["fair_budget"],
+        "research_contract_source": "tasks/optimize_gaussian/research_contract_v1.json",
+        "research_contract_source_sha256": hashlib.sha256(research_path.read_bytes()).hexdigest(),
         "degree_cap": 4,
         "hopping_operator": "H psi(x)=sum_i[U_i(x)psi(x+i)+U_i(x-i)^dagger psi(x-i)-2psi(x)] over three spatial directions",
         "assumptions": ["periodic spatial boundaries", "unitary SU(3) links", "color-position inner product"],
@@ -361,8 +370,14 @@ def _contract() -> dict:
         "application": "five Clenshaw operator matvecs; CPU matrix-free P4 and unnormalized G^m P4(H) G^m candidates use the periodic hopping kernel without an eigensolver; GPU/train.main integration is not implemented",
         "coefficient_fit_helper": "fit_control_points_slsqp accepts a fixed scalar objective callback, constrains four free Bernstein controls with b4=1, enforces a hard objective-call cap, and returns solver status and best feasible controls; it has no D04 objective wired in",
         "coefficient_fit_denominators": {"planned": 0, "valid": 0, "failed": 0, "abstained": 0, "unit": "no D04 callback supplied"},
-        "comparison_contract_proposal": "Use the same outer Gaussian sandwich, objective/reference, fit/development IDs, precision, failure accounting, and paired evaluation as trainable-W; fit the four fixed-basis controls on fit IDs only; charge basis/application, solver calls, walltime, setup, and selection cost to this arm.",
-        "not_frozen": ["D04 reference/objective", "D06 r_star or Delta_star", "alpha/sample-size/family-wise procedure", "whether this positivity/monotonicity constraint is the accepted strong baseline", "outer Gaussian sandwich power and normalization", "calls and walltime budgets"],
+        "comparison_contract": "Use the selected common outer G^2 P4(H) G^2 sandwich, candidate-blind D04 risk/reference, common fit IDs and precision, full failure accounting, and paired evaluation; fit the four Bernstein controls on fit IDs only; charge basis/application, all solver calls, walltime, setup and selection cost to this arm.",
+        "open_gates": [
+            "independent E-chain D04 reference data and receipt",
+            "fit/evaluation ID and hash receipts",
+            "empirical paired-risk and full-cost receipts for the two selected comparisons",
+            "independent production-link/operator review",
+            "data-owner and GPU/QUDA authorization for production runs",
+        ],
     }
 
 
@@ -424,16 +439,16 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
     (out / "contract.json").write_text(json.dumps(contract, indent=2) + "\n")
     _make_plot(out / "spectral_response.png")
     lines = [
-        "# Optimize D11: constrained degree-4 spectral baseline proposal",
+        "# Optimize D11: selected constrained degree-4 spectral baseline",
         "",
-        "**Status: `REVIEW_DRAFT_NOT_FROZEN`; CPU algebra only; no physics objective, reference, production input, GPU, or sealed split. `physical_score=null`.**",
+        "**Status: `METHOD_DEFAULTS_SELECTED_EVIDENCE_NOT_READY`; CPU algebra only; production receipts/review/authorization are open. `physical_score=null`; sealed data remain closed.**",
         "",
         "## Scope",
         "",
         "- Goal: make the user's chosen trainable-W vs strong spectral baseline contrast executable at the operator-contract level.",
         "- Inputs: the current `tasks/optimize_gaussian/kernels.py` hopping kernel, interpreted under the explicitly stated periodic three-dimensional operator contract, and the user-selected F=2 comparison family.",
         "- Deliverable: a mathematically constrained degree-at-most-4 spectral family, dense and matrix-free CPU candidates including the unnormalized Gaussian sandwich, a bounded-call SLSQP coefficient-fitting helper, tests, and response plot.",
-        "- Acceptance: explicit spectrum map, normalization, positivity/monotonicity, solver domain, and a hard boundary that leaves D04/D06 and production authorization unresolved.",
+        "- Acceptance: D04/D06/D11 method defaults are recorded; this report checks the CPU algebra and leaves independent measurements, production review, and authorization open.",
         "",
         "## Operator and spectrum map",
         "",
@@ -441,7 +456,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "",
         "## Constrained degree-4 polynomial",
         "",
-        "Define `P4(y)=sum_{i=0}^4 b_i * binom(4,i) * y^i * (1-y)^(4-i)`, with `0<=b0<=b1<=b2<=b3<=b4=1`. Since Bernstein basis functions are nonnegative and sum to one, `P4` is in `[0,1]`; since `b_i` are nondecreasing, `P4'(y)=4*sum_{i=0}^3 (b_{i+1}-b_i) B_{i,3}(y)>=0`. At zero Laplacian `y=1`, so `P4(1)=b4=1`. In `x=2y-1=I+H/6`, the same unique polynomial is `sum_{k=0}^4 a_k T_k(x)`. The Bernstein controls supply simple linear constraints; the degree-4 Chebyshev coefficients are obtained by an exact-degree basis conversion and applied by Clenshaw.",
+        "Define `P4(y)=sum_{i=0}^4 b_i * binom(4,i) * y^i * (1-y)^(4-i)`, with `0<=b0<=b1<=b2<=b3<=b4=1`. Since Bernstein basis functions are nonnegative and sum to one, `P4` is in `[0,1]`; since `b_i` are nondecreasing, `P4'(y)=4*sum_{i=0}^3 (b_{i+1}-b_i) B_{i,3}(y)>=0`. At zero Laplacian `y=1`, so `P4(1)=b4=1`. In `x=2y-1=I+H/6`, the same unique polynomial is `sum_{k=0}^4 a_k T_k(x)`. The exact symbolic basis transform has dyadic rational entries; its final matrix-vector product is evaluated in float64 and applied by Clenshaw.",
         "",
         "![Admissible degree-4 spectral response examples](spectral_response.png)",
         "",
@@ -467,9 +482,9 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "       apply the same objective-call cap and a separate matched total walltime cap",
         "```",
         "",
-        "The spectral arm has four free controls, while the current hidden-width-2 trainable-W prototype has seven W/v/c scalars. They are different function classes, so equal parameter count is not required; both contrasts use a common objective and report parameter count, range, and full cost. The matrix-free helper is checked against an explicitly assembled small periodic lattice operator, including the uniform Gaussian-step affine identity, Hermiticity, and dense-versus-matrix-free Gaussian-sandwich action. The sandwich helper preserves the raw zero-mode factor `(1+6 alpha)^(2m)`. The polynomial's positivity and monotonicity are mathematical guarantees under the stated H spectrum, not evidence of physical superiority. The Gaussian exponent and normalization remain to be frozen with the objective.",
+        "The spectral arm has four free controls, while the current hidden-width-2 trainable-W prototype has seven W/v/c scalars. They are different function classes, so equal parameter count is not required; both contrasts use a common objective and report parameter count, range, and full cost. The matrix-free helper is checked against an explicitly assembled small periodic lattice operator, including the uniform Gaussian-step affine identity, Hermiticity, and dense-versus-matrix-free Gaussian-sandwich action. The sandwich helper preserves the selected raw zero-mode factor `1.6^4=6.5536`. The polynomial's positivity and monotonicity follow from its Bernstein constraints under the stated H spectrum; this is not evidence of physical superiority or a rounding-level PSD certificate for production links.",
         "",
-        "This provides a concrete D11 candidate for review, not a certified strongest baseline. The current heat-kernel operator toy used unconstrained least-squares Chebyshev coefficients and cannot validate this constrained family. Do not reuse its performance numbers as baseline evidence. `train.main` remains fixed-W; this module is not integrated into production training. D04 reference, D06 minimum effect, alpha/sample size, family-wise method and both budgets remain unresolved. Keep the two user-selected contrasts F=2, `NOT_READY/UNCERTIFIED`, `physical_score=null`, and all sealed data closed.",
+        "This implements the selected D11 method defaults, not a certified strongest production baseline. The current heat-kernel operator toy used unconstrained least-squares Chebyshev coefficients and cannot validate this constrained family. Do not reuse its performance numbers as baseline evidence. `train.main` remains fixed-W; this module is not integrated into production training. D04 E-chain measurements/receipts, D06 empirical risk and cost receipts, independent D11 production-link review, and data/GPU authorization remain open. Keep both selected F=2 contrasts, `NOT_READY/UNCERTIFIED`, `physical_score=null`, and all sealed data closed.",
         "",
         "This CPU helper is not wired into `train.main` and has no GPU/CuPy path. The report includes snapshots of this helper and the periodic hopping kernel; both are SHA-256 listed in its manifest. Rebuild the deterministic response artifact into a fresh directory with `python3 -B -m tasks.optimize_gaussian.chebyshev_baseline --output NEW_DIRECTORY`.",
     ]
