@@ -413,7 +413,7 @@ Q_prof(m;x) = x^T W x
 
 ## 2026-11-26 本轮接手边界复核
 
-本轮用项目虚拟环境复跑 `tests/test_pion*.py`：**183 passed**；当前 PR #5 的远端记录与 Pion 分支 head `578a117` 一致。此处测试只核验现有 bounded-risk、Markov、合同和 runner 边界，不产生新测量或 anchor/reference receipt。
+本轮用项目虚拟环境复跑 `tests/test_pion*.py`：**183 passed**，并把未决证据门与交接说明更新到现有 PR #5。此处测试只核验现有 bounded-risk、Markov、合同和 runner 边界，不产生新测量或 anchor/reference receipt。
 
 依照“sealed data closed”约束，本轮不打开 E、gap、validation、shared holdout 或 confirmation，也不启动 GPU/QUDA。方法默认值已由前文选定；仍缺的真实输入是：(1) 独立、candidate-blind E-chain reference 及拟合 receipt；(2) 可逐 anchor state 计算、与同一 `m*` 目标相连的固定 scalar/feature 映射，含其支持域、协方差与完整拟合门；(3) anchor-chain 和 score-chain 的独立性、stationarity/burn-in、`gamma_ps` 或其它可证明依赖界及 TV receipts；(4) 经独立审阅的 common-bias 上界 `C/R<=0.01`，或承认当前 `C/R` 无法达到该设计门并另行审议 estimand。缺其中任一项，bounded-score 仍为 `ABSTAIN/NOT_READY`，`physical_score=null`。
 
