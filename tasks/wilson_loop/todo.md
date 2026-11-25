@@ -21,7 +21,7 @@
 
 文字流程：`同一新配置/paired blocks -> 4 个 loop means -> C: finite-T chi_stout(2,5) 与 0.02 half-width gate`；`独立 calibration IDs + 3x3 GEVP + Nt16/Nt32 joint spectrum -> 分别给 q/h/x/model force-unit 上界 -> F: Delta_R U0(2) candidate-reference -> 5% systematic + 5% statistical gates -> 缺任一收据即 ABSTAIN`。
 
-**交接规则：**下文所有要求用户在 identity 与 APE/stout、R/T/kernel 或误差预算间选择的段落均为历史记录，现由本节 defaults 覆盖；不要再次要求用户选择这些方法输入。合同和 `lane_contract.py` 诊断在[PR #6 head `37bb2c2`](https://github.com/Greyyy-HJC/LatticeArena/tree/37bb2c2/tasks/wilson_loop)，其中保留 C/F blocker 与 q/h/x→force 文字流程；独立谱/thermal receipts、paired split plan、审阅与资源授权仍为空。不读 D0–99 或封存确认数据、不运行 GPU/QUDA。
+**交接规则：**下文所有要求用户在 identity 与 APE/stout、R/T/kernel 或误差预算间选择的段落均为历史记录，现由本节 defaults 覆盖；不要再次要求用户选择这些方法输入。合同和 `lane_contract.py` 诊断在[PR #6 head `6afedb178f325c15f62b4786c4ed2f075ebcedd8`](https://github.com/Greyyy-HJC/LatticeArena/tree/6afedb178f325c15f62b4786c4ed2f075ebcedd8/tasks/wilson_loop)，其中保留 C/F blocker 与 q/h/x→force 文字流程；独立谱/thermal receipts、paired split plan、审阅与资源授权仍为空。不读 D0–99 或封存确认数据、不运行 GPU/QUDA。
 
 ## 2026-11-25 当前 Wilson 接手点
 
@@ -29,9 +29,9 @@ C 主点固定为 stout absolute `chi(2,5)`；F 主点固定为 stout-minus-iden
 
 ## 2026-11-25 自选输入后的 C/F machine contract 与证据流程
 
-- [PR #6 的机器合同](https://github.com/Greyyy-HJC/LatticeArena/blob/37bb2c2/tasks/wilson_loop/lane_contract_v2.json)记录固定方法：C=`chi_stout(2,5)`、`N_t=16`、positive-ensemble-mean log、dimensionless halfwidth 0.02；F=`stout-identity` 基态力差、midpoint `R=2.5`、独立 `3x3 GEVP` 与匹配 `N_t=32` thermal route。C/F 各分 alpha=.025；q/h/x、spectral truncation 和 force-unit propagation 门槛均已明确。
+- [PR #6 的机器合同](https://github.com/Greyyy-HJC/LatticeArena/blob/6afedb178f325c15f62b4786c4ed2f075ebcedd8/tasks/wilson_loop/lane_contract_v2.json)记录固定方法：C=`chi_stout(2,5)`、`N_t=16`、positive-ensemble-mean log、dimensionless halfwidth 0.02；F=`stout-identity` 基态力差、midpoint `R=2.5`、独立 `3x3 GEVP` 与匹配 `N_t=32` thermal route。合同同时明列 alpha 预算：C/F 各 .025；F 的统计/系统各 .0125，力差区间与正参考力下界各 .00625，28 个系统 bound cells 各 `.0125/28`。q/h/x 与 force-unit 门槛是验收条件，不是测量结果。
 - C/F 文字数据流：`paired loops -> C positive means/logs -> finite-T chi and precision gate`；`independent spectra + matched Nt32 -> q/h/x/model simultaneous bounds -> log(1+q+h+x) at four stencil points -> Delta_R Delta_t force-unit propagation -> total systematic/statistical budget`。关键 receipt 缺失、reference-force lower bound 不为正、无效 draw 比例>1%或精度失败时按 lane abstain。
-- Optimize/Wilson 任务专项回归 `tests/test_optimize* tests/test_wilson*` **96 passed**，其中 Wilson contract 13 项；同时包含 Wilson finite-Nt algebra/toy 及随机正谱实现检查。该结果只确认 CPU 软件/公式与合同结构、单位、alpha 记账和 fail-closed fixture；物理测量分母仍为 `0/0/0/0`，q/h/x 与谱证据仍未提供，ground-state force 仍 `GROUND_STATE_FORCE_UNCERTIFIED`。
+- Optimize/Wilson 任务专项回归 `tests/test_optimize* tests/test_wilson*` **97 passed**，其中 Wilson contract 14 项；同时包含 Wilson finite-Nt algebra/toy、随机正谱实现与 alpha 预算闭合检查。该结果只确认 CPU 软件/公式与合同结构、单位、alpha 记账和 fail-closed fixture；物理测量分母仍为 `0/0/0/0`，q/h/x 与谱证据仍未提供，ground-state force 仍 `GROUND_STATE_FORCE_UNCERTIFIED`。
 
 **下一位 Wilson agent：**只在独立 calibration IDs 获批后生成 GEVP/多态 joint fit、匹配 `N_t=32` thermal 与 mixed-sector receipts；每个 q/h/x 及模型项附拟合图/残差或文字谱诊断和同时上界。随后独立审阅单位换算与四点 force propagation，再申请未观察 confirmation 输入与 GPU/QUDA 资源授权。D0–99 不能作为确认数据，不能用 toy/随机正谱范围填污染值；无 receipts 时两条 lane 均不升级。
 
@@ -108,7 +108,15 @@ W ~ exp[-V0(R)t] * [1 + q(R,t) + h(R,N_t-t) + x(R,t,N_t-t)]
 
 增大 `t` 会压低 `q`，但缩短 `N_t-t`，可能放大 `h`。若每个污染项有可证的 envelope，定义其和的 log 上界 `B_k(R,t)`；保守的单 kernel 力/Creutz bias 界为参与的四个 `B` 之和。只有 `Q/gap` 的数值不能覆盖热迹和 mixed term，partition function 在差分中约去也不会抹掉 numerator 热项。
 
-## 下一位 agent 的工作顺序
+## 当前下一位 Wilson agent 开工顺序（2026-11-25 defaults）
+
+1. **C lane：**不再选择主点。新授权的未观察配置上测 `chi_stout(2,5)`，`N_t=16`；每 draw 先算四个 paired loop mean，仅对正均值取 log。总 familywise `alpha=0.05` 按 C/F 两条 co-primary lane 各 `.025` 分配；C 的双侧 interval half-width 必须 `<=0.02`。使用10,000 paired circular-block draws、length-5主分析及length-2/10敏感性 hull；invalid draw 超过1%或精度未达标则 abstain。结果始终称 finite-T Creutz。
+2. **F lane 的独立 calibration：**与最终 confirmation 不重叠的 IDs 上，按 `R=2,3` 的 identity/APE/stout 3x3 GEVP、`t0=1, td=2`、二/三态 `N_t` 联合拟合和匹配 `N_t=32` 热路径估计 q/h/x/model；交付能隙/overlap、残差/窗口稳定性图、同时界、失败数和 raw receipts。D0–99 已用于 development，不能作为这项 calibration 的确认样本。
+3. **F lane 的误差门：**在 force units `a_s*a_t*F` 中检查 q<=1.5%、h<=1.5%、x<=1%、谱截断<=1%，线性相加系统界<=5%，统计 half-width<=5%，总线性误差<=10%；reference force 的同时正下界必须大于0。将 `log(1+q+h+x)` 在四个 stencil 点逐点传播后再做 `Delta_R Delta_t`。F lane 的 alpha=.025 中统计/系统各 `.0125`，统计再给 force-difference interval 与 reference-force 下界各 `.00625`；28个系统界 cells 各用 `.0125/28`。缺一项独立 receipt 或超预算即 `GROUND_STATE_FORCE_UNCERTIFIED`。
+4. **confirmation与授权：**C/F 的 block计划、split hashes、候选身份和 independent physics review 完成后，仍须数据 owner 授权新未观察数据；GPU/QUDA另须资源 owner 授权。任何一项未授权时不读 sealed data、不提交作业、不计算 physical score。
+5. **诊断交付：**两条 lane 分开列 planned/valid/failed/abstained、原因、paired interval、统计与系统误差；提供 C 的四点 loop/区间图和 F 的 q/h/x/model force-budget 图或完整文字数据流。C 的有限-T精度不能替代 F 的谱/热污染认证。
+
+## 历史开工清单（已由 2026-11-25 自选输入更新替代）
 
 1. **C lane contract：**冻结 primary `R/T/kernel`、有限 `N_t`/边界与空间单位、loop mean 的正值/log 规则、坏点处理、候选族、多重性、配对 block 方案与精度目标。它的结论名称必须保留“finite-T Creutz”。开发数据不得反复用于选择确认点。
 2. **F lane contract：**明确 `U0`、`f0` 的 lattice/physical units 和静态源约定；冻结 force finite-difference stencil、目标 `R`/`T`、谱模型/截断、置信度和总系统预算。给 `Q_k(R), Delta_Q(R), H_k(R), Delta_0, X_k(R)` 的独立来源，或提交有完整失败诊断的多态/变分谱方案。
@@ -226,4 +234,4 @@ PR #6 提交 [`f9be949`](https://github.com/Greyyy-HJC/LatticeArena/commit/f9be9
 
 ## 2026-11-25 最新接手说明
 
-上面 2026-11-24 的“等待用户选择 C estimand、primary 与预算”已由用户要求助手自行选择输入的指示取代。选定的两条 lane、机器合同、q/h/x→force 文字流程和 96 项 Optimize/Wilson CPU 回归结果见前面的 2026-11-25 更新；合同已在[PR #6 head `37bb2c2`](https://github.com/Greyyy-HJC/LatticeArena/blob/37bb2c2/tasks/wilson_loop/lane_contract_v2.json)。当前仍没有新物理测量或独立 GEVP/q/h/x/Nt32 receipts，confirmation 和 GPU/QUDA 授权仍关闭；下一步仅在独立 calibration IDs 与对应 owner 授权到位后开展污染测量与 review。
+上面 2026-11-24 的“等待用户选择 C estimand、primary 与预算”已由用户要求助手自行选择输入的指示取代。选定的两条 lane、机器合同、q/h/x→force 文字流程和 97 项 Optimize/Wilson CPU 回归结果见前面的 2026-11-25 更新；合同已在[PR #6 head `6afedb178f325c15f62b4786c4ed2f075ebcedd8`](https://github.com/Greyyy-HJC/LatticeArena/blob/6afedb178f325c15f62b4786c4ed2f075ebcedd8/tasks/wilson_loop/lane_contract_v2.json)。当前仍没有新物理测量或独立 GEVP/q/h/x/Nt32 receipts，confirmation 和 GPU/QUDA 授权仍关闭；下一步仅在独立 calibration IDs 与对应 owner 授权到位后开展污染测量与 review。

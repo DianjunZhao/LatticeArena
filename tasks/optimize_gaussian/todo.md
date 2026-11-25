@@ -25,7 +25,7 @@
 
 文字流程：`独立 E reference -> 固定 Pion risk -> fit IDs 上分别训练 W、同预算 SLSQP、degree-4 P4 -> 共同 G^2 sandwich -> 锁定参数与候选 -> 新的 paired confirmation IDs -> 两个 Bonferroni risk-ratio 下界都过 1.1111 才算整体成功`。
 
-**交接规则：**本文件下方 2026-11-24 的“等待研究者冻结 D04/D06/D11”是历史 handoff，现由本节 protocol defaults 覆盖；不要再次向用户问目标/reference、`r_star` 或算符形式。合同、检查器和小格算符测试在[PR #6 head `37bb2c2`](https://github.com/Greyyy-HJC/LatticeArena/tree/37bb2c2/tasks/optimize_gaussian)及[对应 CPU 测试](https://github.com/Greyyy-HJC/LatticeArena/blob/37bb2c2/tests/test_optimize_chebyshev_baseline.py)。证据字段与成本金额仍为空门；后续 agent 不要重复 synthetic teacher/meta-init 网格，先补 E reference、共同 split/seed/cost receipts 与独立审阅，再按权限运行三个 arm。
+**交接规则：**本文件下方 2026-11-24 的“等待研究者冻结 D04/D06/D11”是历史 handoff，现由本节 protocol defaults 覆盖；不要再次向用户问目标/reference、`r_star` 或算符形式。合同、检查器和小格算符测试在[PR #6 head `6afedb178f325c15f62b4786c4ed2f075ebcedd8`](https://github.com/Greyyy-HJC/LatticeArena/tree/6afedb178f325c15f62b4786c4ed2f075ebcedd8/tasks/optimize_gaussian)及[对应 CPU 测试](https://github.com/Greyyy-HJC/LatticeArena/blob/6afedb178f325c15f62b4786c4ed2f075ebcedd8/tests/test_optimize_chebyshev_baseline.py)。证据字段与成本金额仍为空门；后续 agent 不要重复 synthetic teacher/meta-init 网格，先补 E reference、共同 split/seed/cost receipts 与独立审阅，再按权限运行三个 arm。
 
 ## 2026-11-25 当前 Optimize 接手点
 
@@ -33,11 +33,11 @@
 
 ## 2026-11-25 自选输入后的 machine contract 与比较规程
 
-- PR #6 的[机器合同](https://github.com/Greyyy-HJC/LatticeArena/blob/37bb2c2/tasks/optimize_gaussian/research_contract_v1.json)与[检查器](https://github.com/Greyyy-HJC/LatticeArena/blob/37bb2c2/tasks/optimize_gaussian/contract.py)已记录 D04 的独立 candidate-blind 联合谱 reference/risk 目标、D06 的风险比方向和 `r_star=1.111111...`，以及 D11 的 degree-4 positive monotone spectral family、`H` 区间、Chebyshev 转换和共同 `G^2 P4(H) G^2` sandwich。未把任何 synthetic 指标写入物理 reference。
+- PR #6 的[机器合同](https://github.com/Greyyy-HJC/LatticeArena/blob/6afedb178f325c15f62b4786c4ed2f075ebcedd8/tasks/optimize_gaussian/research_contract_v1.json)与[检查器](https://github.com/Greyyy-HJC/LatticeArena/blob/6afedb178f325c15f62b4786c4ed2f075ebcedd8/tasks/optimize_gaussian/contract.py)已记录 D04 的独立 candidate-blind 联合谱 reference/risk 目标、D06 的风险比方向和 `r_star=1.111111...`，以及 D11 的 degree-4 positive monotone spectral family、`H` 区间、Chebyshev 转换和共同 `G^2 P4(H) G^2` sandwich。未把任何 synthetic 指标写入物理 reference。
 - 比较族保留两项：trainable-W vs 同预算 SLSQP；trainable-W vs 固定强 degree-4 spectral baseline。计划 `F=2`、单侧总 alpha=.05、每项 .025，10,000 paired block draws、length-5 primary、length-2/10 稳健性 hull；只有两个 ratio hull lower bounds 都超过 `1.111111...` 才算整体通过。风险无效/为零则 `ABSTAIN_RATIO_UNDEFINED`。
 - 调用预算采用已有 CPU operator 对照的已执行上限 160 次 objective-oracle invocation/arm；这是调用上限，不是 walltime 相等的证明。梯度/函数 evaluator 的实现差异、setup、training、fit、solve、inference、I/O 和失败恢复仍须分项计时；`amortization_task_count=1`，不预先给训练摊销优惠。真实成本金额、hardware、fit/eval/split/seed hashes 均为空门。
 - 文字流程：`独立 E-chain reference -> 冻结同一 D04 risk -> 在共同 fit IDs 上训练 W/SLSQP/degree-4 spectral -> 160-call cap 与完整成本账本 -> 冻结候选 -> 新 paired confirmation IDs -> 两项 Bonferroni 风险比下界都过 r_star；缺 reference、receipt 或授权即 NOT_READY`。
-- Optimize/Wilson 任务专项回归 `tests/test_optimize* tests/test_wilson*` **96 passed**，其中 Optimize contract 7 项、Wilson contract 13 项；同时包含选定 degree-4 operator 与有限温 Wilson 代数测试。这只验证 CPU 软件/公式，不证明 D04 reference、真实风险或 GPU 性能。
+- Optimize/Wilson 任务专项回归 `tests/test_optimize* tests/test_wilson*` **97 passed**，其中 Optimize contract 7 项、Wilson contract 14 项；同时包含选定 degree-4 operator 与有限温 Wilson 代数测试。这只验证 CPU 软件/公式，不证明 D04 reference、真实风险或 GPU 性能。
 
 **下一位 Optimize agent：**从独立 E-chain fit 开始补真实 reference 和哈希，然后在授权的未封存数据上用三个 arm 执行共同 objective/precision 和 split。记录各自 training/setup/solve/inference/I/O/failure-recovery/total walltime；报风险比 paired interval hull 与 planned/valid/failed/abstained 分母及图/文字诊断。未有数据和资源授权时停止在 `NOT_READY/UNCERTIFIED`，不要重跑已有 synthetic 网格或解封 confirmation。
 
@@ -93,7 +93,15 @@ planned/valid/failed/abstained 训练 panel=`12/12/0/0`，评估 panel=`12/12/0/
 
 这些是可检验假设。热核合成结果只说明：对谱目标，若不增加谱域/阶数或匹配生产约束，增加同一 synthetic generator 的样本不会改变问题的识别缺口。
 
-## 下一位 agent 的工作顺序
+## 当前下一位 Optimize agent 开工顺序（2026-11-25 defaults）
+
+1. **D04 reference：**只有独立 E-chain 数据 receipt 与授权到位后，按上文 candidate-blind PP(n=0,8,16)+A4P 联合两态方案拟合并做二/三态、`t_min=2,3,4` 稳健性；5%相对误差、`p>=0.01`、位移不超过2.5 paired SE、PP/A4P兼容且无边界命中全部通过，才解锁 D04 risk。旧 single-cosh/reference 失败不能由 synthetic objective 替代。
+2. **共同训练/评估合同：**冻结并 hash objective、fit/dev/test IDs、seed、初始化与 precision；确认三个 arm 使用同一风险定义、输入实例和可比 evaluator。trainable-W、同预算 SLSQP、degree-4 Bernstein/Chebyshev P4 均应用同一 `G^2 P4(H) G^2` 外层 sandwich 对照规则；训练/选型 IDs 与最终 confirmation 不重叠。
+3. **公平预算与失败分母：**每臂最多160次 objective/gradient oracle calls、一个预定起点、不作预算外重启；完整记录 training、setup、fit、solve、inference、I/O、failure recovery 与 total walltime。缺失/无效/失败样本留在 assigned-arm planned 分母，风险比为零或未定义即 `ABSTAIN_RATIO_UNDEFINED`。
+4. **confirmation：**只能使用研究者/数据 owner 授权且此前未观察的 IDs。采用 `rho=R_comparator/R_trainableW`、10,000 paired block draws、length-5 primary、2/10 敏感性区间 hull；F=2、每项单侧 `alpha=0.025`。两项 hull lower bounds 均须严格超过 `r_star=1.111111...`（至少10%相对风险下降），才支持双重优势。
+5. **授权与诊断：**GPU/QUDA 另需资源 owner 授权；当前所有 physical receipts 和 cost ledger 仍空，不启动真实训练或解封 confirmation。每个阶段交付 paired-risk/成本图或完整文字流程，以及 planned/valid/failed/abstained 分母、失败原因和 hashes。
+
+## 历史开工清单（已由 2026-11-25 自选输入更新替代）
 
 1. **D04 reference：**填写 contract 中独立物理目标、单位、关联量、数据来源/receipt、通过与失败门，并完成独立审阅。原有 reference gate 未通过时，所有对照只能写 diagnostic；不能把 proxy loss 改名为物理 improvement。
 2. **D06 `r_star`：**由研究者预先填写最小有意义效应、单位、方向和物理解释；不得根据这三个合成 panel、标准误或 optimizer 残差反推。
@@ -251,4 +259,4 @@ Astra 只读复核已结束，没有产生外部授权或可直接冻结的 D04/
 
 ## 2026-11-25 最新接手说明
 
-上面 2026-11-24 的“等待研究者冻结 D04/D06/D11”已由用户要求助手自行选择输入的指示取代。选定方法、机器合同、160 次/臂的 objective-oracle 规划上限、文字数据流和 96 项 Optimize/Wilson CPU 回归结果见前面的 2026-11-25 更新；合同已在[PR #6 head `37bb2c2`](https://github.com/Greyyy-HJC/LatticeArena/blob/37bb2c2/tasks/optimize_gaussian/research_contract_v1.json)。当前仍未取得独立 E-chain reference、split/hash、实测 cost ledger、独立审阅或生产/GPU 授权；下一步是补这些证据并按授权执行三臂对照，不能把方法选择当成确认结果。
+上面 2026-11-24 的“等待研究者冻结 D04/D06/D11”已由用户要求助手自行选择输入的指示取代。选定方法、机器合同、160 次/臂的 objective-oracle 规划上限、文字数据流和 97 项 Optimize/Wilson CPU 回归结果见前面的 2026-11-25 更新；合同已在[PR #6 head `6afedb178f325c15f62b4786c4ed2f075ebcedd8`](https://github.com/Greyyy-HJC/LatticeArena/blob/6afedb178f325c15f62b4786c4ed2f075ebcedd8/tasks/optimize_gaussian/research_contract_v1.json)。当前仍未取得独立 E-chain reference、split/hash、实测 cost ledger、独立审阅或生产/GPU 授权；下一步是补这些证据并按授权执行三臂对照，不能把方法选择当成确认结果。

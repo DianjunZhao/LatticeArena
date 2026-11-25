@@ -15,13 +15,15 @@
 | score 依赖 | 主路选 fixed-score non-reversible block-Markov pseudo-gap Bernstein；block 是连续 5 个配置，固定同一个 score map。设计门槛：`N=4000` 个 scored blocks、`gamma_ps_lower>=0.20`、burn-in 8 blocks 后 `delta_TV<=0.001` | `F*delta=0.003<alpha_score`；按现有实现与剩余 `alpha=0.037` 计算，浓缩半径约 `0.3863`。这说明该证明路线很保守，旧 D receipt 的 20 个 length-5 blocks 远不足以给出非平凡 LCB。数值是下一版设计要求，不是现有 chain 的估计 |
 | anchor 覆盖 | 选 bounded-IID Hoeffding：`n_A=1000` 个独立 stationary anchor 单位、每个输出限制在 `[0.1,3.0]`、双侧 `alpha_A=0.01` | 随机覆盖半径 `R*sqrt(log(2/alpha_A)/(2*n_A))=0.1493 a_t m_pi=0.05147R`；common-bias 预算定为 `C<=0.01R=0.029`，故 `B=radius+C<=0.1783 a_t m_pi=0.06147R`，score anchor correction `2B/R<=0.12294`。独立性、stationarity 和 C 上界都必须有单独收据；没有这些条件就不能调用 Hoeffding |
 
-已有依赖敏感度和 coverage 模拟固定了 `F=2`，因此仍然只是旧方法的合成诊断；它们不能代替这里选定的 `F=3` 实际比较族。实现下一版时先按 `F=3` 重新生成纯公式敏感度和文字流程，不能把旧 `F=2` 覆盖率数字搬到项目合同。
+既有 `F=2` 依赖/coverage 模拟是历史敏感度诊断；本次已按选定的 `F=3` 比较族完成纯公式敏感度图、CSV 和流程说明，见 [`F3_markov_sensitivity_v1/README.md`](F3_markov_sensitivity_v1/README.md)。图示网格含245个公式情景，其中140个可计算、105个因 alpha/LCB 条件弃权、0个数值失败；物理测量分母仍为0/0/0/0。规划点 `N=4000, gamma_ps=0.20, TV=0.001` 在假设 score mean 达到理论最大1时给出半径0.386316、最佳可能归一化 LCB 0.488744；这些只是条件算术，不是测量或覆盖证据。不要重跑 F=3 网格，也不要把 `F=2` 覆盖率移植到 `F=3` 合同。
+
+![F=3 block-Markov 解析敏感度](F3_markov_sensitivity_v1/sensitivity.svg)
 
 **目前不能由我填造的证据：**实际 `m*` 数值、Markov chain 的 `gamma_ps` 下界、8-block 后 TV 界、1000 个独立 anchor 单位、common-bias `C` 证据和 E-chain correlator receipt。旧的 D0–99 receipt 只对应 20 个长度 5 的候选块，既不证明独立性也不支持上述覆盖。现有 S16T16 reference gate 已失败；所以这些设计数值不能把状态升级为 `READY`，合同的物理数据收据保持缺失，`physical_score=null`，sealed E/gap/validation/holdout 继续关闭。
 
 文字流程：`独立 candidate-blind E 谱拟合 -> 通过 reference/model gate -> 单一 bounded score map 与三比较族 -> 证明 block-Markov gamma/TV -> 独立 anchor 的 99% Hoeffding 半径 + C -> 对完整 N=4000 计划块计算 LCB -> LCB>0.05 且所有门通过才可申请新 confirmation；否则 ABSTAIN`。
 
-**交接规则：**本文件下方较早的“等待用户选择 target/R/clipping/delta_star”均为历史记录，现由本节默认值覆盖；不要再次向用户询问这些方法参数。下一位 agent 应把可冻结的方案字段写入 machine-readable contract，并按 `F=3` 生成新的纯分析半径图/表和文字数据流；`gamma_ps`、TV、anchor、C 与 reference 收据继续留空，合同仍应 `NOT_READY`。不要读取封存 split 或把 synthetic fixture 升格为实测证据。
+**交接规则：**本文件下方较早的“等待用户选择 target/R/clipping/delta_star”均为历史记录，现由本节默认值覆盖；machine-readable contract 与 `F=3` 公式诊断均已完成。后续不再重复合同/模拟工作，只补独立 E-chain reference、score-specific `gamma_ps`/TV 收据、anchor 覆盖与 common-bias `C` 证据、独立审阅和授权。bounded-IID Hoeffding 的1000个 anchor 单位必须真为相互独立且来自目标平稳分布；同一 HMC 链的1000个配置、trajectory gap、ESS 或 bootstrap 次数都不满足此假设。若无法证明 IID，就不能套 Hoeffding，须另行实现并审阅 Markov-aware anchor coverage bound。无这些证据时保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`；不要读封存 split 或把 synthetic fixture 升格为实测证据。
 
 ## 决策状态
 
@@ -37,7 +39,7 @@
 4. [`bounded_block_risk_score.py`](bounded_block_risk_score.py) 将每个计划 block 的配对平方误差差和显式成功掩码映射为 bounded score，失败 block 固定记为 `-1`，并按全部 planned block 计算条件 LCB；它不连物理 evaluator，始终返回 `physical_score=null`。测试见 [`test_pion_bounded_block_risk_score.py`](../../tests/test_pion_bounded_block_risk_score.py)。
 5. [合成校准压力网格](../../results/pion_projection/bounded_block_risk_stress_20261123_v2/README.md) 横扫 `N, chi, alpha_s, alpha_A, B/R, failure_fraction, delta_star/R^2` 的 1,728 个情景，并输出分母表、失败/依赖/anchor 热图和 alpha 分配图。严格边界 `m_required >= 1` 被标成 `ABSTAIN`，没有裁剪成可行；这里的 “valid scenario” 仅指数学上可达，不是观测有效或物理认证。
 6. [框架扩展点地图](../../doc/framework_extensibility.md) 总结 LatticeArena 可复用的 task/operator、measurement capability、search、score、state、ledger、artifact 接口及目前缺少的跨 task 集成层。
-7. [bounded block-risk v1 合同草案](bounded_block_risk_contract_v1.md) 将 estimand、clipping/failure 变换、条件浓缩式、anchor Lipschitz 修正和缺失输入整理为独立版本化 handoff；所有需研究者冻结的物理与推断字段仍为 `null`，不会给出物理分数。
+7. [bounded block-risk v1 合同草案](bounded_block_risk_contract_v1.md) 将 estimand、clipping/failure 变换、条件浓缩式、anchor Lipschitz 修正和缺失输入整理为独立版本化 handoff。当前 [`bounded_block_risk_contract_v1.json`](bounded_block_risk_contract_v1.json) 的 `selected_protocol` 已写入 2026-11-25 选定的方法默认值；实际 `m*`、依赖、anchor、common-bias 与 reference receipts 仍为 `null`。检查器只可给出 `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`，不会认证物理分数。
 8. [v1/v2 Markov pseudo-gap reports](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v1/README.md) are retained as historical artifacts; their displayed Bernstein constants match the corrected statement, but their original theorem citation was stale. The [v3 report](../../results/pion_projection/bounded_block_risk_markov_gap_20261124_v3/README.md) cites Paulin arXiv v5 Theorem 3.11 / Eq. (3.25), flags the author's correction to an incomplete earlier proof, and implements the Proposition 3.15 / Eq. (3.29) initial-law TV correction. It adds a 12-cell burn-in/TV what-if table and three fixed helper fixtures. That v3 implementation supported one fixed score function across blocks; the optional time-varying Eq. (3.26) route is now separately implemented and documented below. No report estimates the actual block-chain gap, post-burn-in TV, coverage, or physical score.
 9. [合同结构检查器与报告](../../results/pion_projection/bounded_block_risk_contract_diagnostic_20261124_v6/README.md) 为当前 `DRAFT_NOT_READY` 评分草案提供 machine-readable JSON 与 fail-closed inspector。它检查图染色 Hoeffding 或固定-score Markov pseudo-gap 路线、stationary 起点或带 receipt 的 post-burn-in TV、`F*delta < alpha_score`、anchor 覆盖方法、总误差界 `B` 与共偏差子界 `C<=B`、`B >= random_coverage_radius + C`、`R` 与预测差界及独立 reference gate。合成的 Markov stationary/TV 形状只返回 `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`；收据内容仍须人工审核。测试见 [`test_pion_bounded_block_risk_contract.py`](../../tests/test_pion_bounded_block_risk_contract.py)。
 
@@ -142,7 +144,15 @@ zbar_valid > (delta_star/R^2 + epsilon + 2B/R + phi_hat) / (1-phi_hat)
 
 块有界可阻止极端观测支配 Hoeffding 项，但剪裁不制造独立性。Paired block bootstrap、HAC/ESS、median-of-means 可作为敏感度检查；如果依赖结构/混合率未获证明，它们不能单独认证有限样本覆盖。trajectory 间距、RHS 数和 bootstrap 重抽样都不能当作独立 block 数。
 
-## 下一位 agent 的工作顺序
+## 当前下一位 agent 开工顺序（2026-11-25；只剩证据与授权门）
+
+1. **reference：**自选的 candidate-blind 联合谱方案已进合同；旧 single-cosh `FAIL` 仍有效。只有独立 E-chain receipt 和数据授权到位后才运行新 reference；交付拟合残差/窗口与态数稳定性图、PP/A4P 一致性、边界命中表、planned/valid/failed/abstained 分母及独立审阅。任一 reference gate 失败就保持 unresolved。
+2. **score dependence：**如未来获准，固定同一 score map、每 block 连续5个配置，按 `N=4000`、`gamma_ps>=0.20`、8-block burn-in 后 TV `<=0.001` 的预注册要求提交 score-specific 证明和 receipt。D0–99 的20个候选 length-5 blocks、trajectory spacing 和 bootstrap 不能代替这些证据。
+3. **anchor：**合同选择 `n_A=1000`、support `[0.1,3.0]`、`alpha_A=0.01`、`C/R<=0.01`。1000 units 必须是相互独立且来自目标平稳分布的真实 IID draws；同一 HMC 链的配置数不能充作 IID 样本。若无法证明 IID，Hoeffding 路线不可用，先另提并审阅 Markov-aware anchor coverage bound，不能用 ESS 代入。
+4. **独立审阅与确认：**只有 reference、dependence、anchor、source identity 与 common-bias receipts 全部齐全并获未封存数据/资源 owner 授权后，才运行 F=3 confirmation。任何缺项均 `ABSTAIN/NOT_READY`；不得读取 sealed split、启动 GPU/QUDA 或产生 `physical_score`。
+5. **诊断交付：**每项都附图或可复查文字数据流，列清 planned/valid/failed/abstained、原因、剪裁前后 score、各误差扣减、`LCB` 和输入 hashes。现有 F=3 公式图与 CSV 已完成，不再重跑同一网格。
+
+## 历史开工清单（已由 2026-11-25 自选输入更新替代）
 
 1. **版本化评分合同及结构检查器已整理**：人类可读草案见 [`bounded_block_risk_contract_v1.md`](bounded_block_risk_contract_v1.md)，当前 null JSON 为 [`bounded_block_risk_contract_v1.json`](bounded_block_risk_contract_v1.json)，检查器见 [`bounded_block_risk_contract.py`](bounded_block_risk_contract.py)。下一步仍需研究者冻结 `m*` 单位/范围、`R`、剪裁函数、失败编码、目标 `delta_star`、`F` 和总 alpha 分配；现阶段不从 toy 或开发误差反推物理阈值。
 2. **合成规划/覆盖诊断已完成：**1,728 点解析可行性网格、30-cell 已知 `m`-dependence MC、16-cell 共同 score+anchor MC、12-cell exact anchor-distribution 枚举，以及 30-cell color-class empirical-Bernstein vs graph-Hoeffding MC 均有图/表、明确分母和可复现输入。它们只检验已知合成图、正态或有界 iid anchor 条件下的公式/效用；不估计真实覆盖、支持或依赖。经验方差界没有显示对高色数网格的普遍功效改进，故不替代 Hoeffding 基线。
