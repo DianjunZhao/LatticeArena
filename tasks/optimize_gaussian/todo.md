@@ -292,3 +292,13 @@ a4 = (  b0 -  4 b1 +  6 b2 -  4 b3 +  b4) / 128
 专项转换/合同/区间测试 **34 passed**；PR #6 全仓 CPU suite **146 passed**；`git diff --check` 通过。文本数据流：`校验单调 Bernstein controls -> 固定有理矩阵转 Chebyshev -> Clenshaw 应用 -> H/Hermitian/谱区间与共同 sandwich 检查`。这关闭的是 CPU 转换路径的不必要数值求解；测试不证明真实生产 links、物理 reference、同预算风险胜出、GPU/QUDA 性能或 rounding-level PSD 证书。
 
 **继续边界：**旧 synthetic Chebyshev 三 panel 的连续区间报告仍只描述原有拟合系数；不把它扩展成生产声明。Pion 的真实 score-specific dependence/anchor/reference 收据，以及 Wilson C/F 的独立 calibration/污染界仍需对应数据与独立 review；Optimize 仍需 E-chain/reference、split/cost 收据和生产/GPU 授权。没有新的授权/数据前，不重跑同族 synthetic 网格，不打开 sealed data，三项任务维持各自 `NOT_READY/UNCERTIFIED`、`physical_score=null`（Wilson F 另保留 `GROUND_STATE_FORCE_UNCERTIFIED`）。
+
+## 2026-11-25 Optimize 报告生成器与当前合同同步
+
+后续 PR #6 提交 [`49673bb`](https://github.com/Greyyy-HJC/LatticeArena/commit/49673bbec8044ecd313a4237b4a7d3f3055e75f9) 修正了两个方法选择后仍称 D04/D06/D11“未冻结”的旧报告生成器：现从 `research_contract_v1.json` 载入已选默认值，将剩余事项明列为独立 E-chain/reference 与 split 收据、真实 paired-risk/成本账本、D11 production-link 审阅和 owner 授权。D11 符号上精确的 dyadic 有理变换及其 float64 实现也写入报告合同。
+
+- [D11 图文诊断 v3](https://github.com/Greyyy-HJC/LatticeArena/blob/49673bbec8044ecd313a4237b4a7d3f3055e75f9/results/optimize_gaussian/chebyshev_constrained_baseline_20261125_v3/README.md) 附 `spectral_response.png`、所选 D04/D06/D11 默认值快照、开放 gate、文字流程和分母。图的三条曲线是合法控制点的代数示例，planned/valid/failed/abstained=`3/3/0/0`，不含拟合或物理样本。
+- [候选注册图文诊断 v4](https://github.com/Greyyy-HJC/LatticeArena/blob/49673bbec8044ecd313a4237b4a7d3f3055e75f9/results/optimize_gaussian/framework_candidate_contract_20261125_v4/README.md) 收据绑定选定研究合同及源码哈希；schema fixture=`1/1/0/0`，coefficient fit=`0/0/0/0`。它仍不构造真实 TaskSpec/evaluator 或物理 score。
+- 两份报告的 payload SHA-256 均匹配；Optimize 专项 **34 passed**，PR #6 全仓 CPU suite **146 passed**。提交 [`679f62d`](https://github.com/Greyyy-HJC/LatticeArena/commit/679f62daea0caa98ebf44bca486dc4a3a3d02bfa) 是固定有理变换本身，`49673bb` 更新了诊断生成器与报告。
+
+该同步关闭的是“自选方法默认值已冻结但报告仍显示待选”的软件/文档不一致。Optimize TODO 仍保留：没有独立 E-chain/reference、split/hash、实测成本、production review 和 GPU/data 授权，不能执行真实三臂比较；Pion 与 Wilson 剩余边界仍分别依赖独立 coverage/reference/anchor 收据、C/F calibration 与污染界。三项不得据此升级状态或读取 sealed data。
