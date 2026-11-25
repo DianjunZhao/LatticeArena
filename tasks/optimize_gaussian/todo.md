@@ -431,3 +431,15 @@ IID 校准设计覆盖 3 个已知真值有界 DGP、低于/恰在/高于最小�
 文字流程：`预分配 arm + paired macroblock -> solver accepted: four-time clipped loss; solver failed: score=1 -> 保留全臂/全 block denominator -> missing/corrupt source not explained by solver status: ABSTAIN -> apply calibrated bound only after dependence and reference receipts`。当前没有 production solver receipt，主 D04 不变，`physical_score=null`；进入 evaluator 前仍须冻结 residual/timeout 的 failure 判定并校准真实失败过程。
 
 实现后完整 Optimize 测试文件集 `tests/test_optimize*.py` 为 **105 passed**（CPU）；failure-penalty 报告 artifact hashes **4/4**、源文件 hashes **2/2** 匹配。此验证只覆盖计分接口和精确示意公式，不构成 production solver 或失败率测量。
+
+### 2026-11-26：D06 有界 block-risk 的 Markov 依赖备选
+
+独立 macroblock 假设当前没有证据；为此补了一个严格条件化的 Markov 路线，而不是把 HMC 间隔、经验自相关时间或 synthetic coverage 当成独立性证明。实现见 [`bounded_block_risk_markov.py`](bounded_block_risk_markov.py)，解析情景与 known-gap stress runner 见 [`d06_markov_dependence_diagnostic.py`](d06_markov_dependence_diagnostic.py)，[图文报告](../../results/optimize_gaussian/d06_markov_dependence_cpu_20261126_v1/README.md)。
+
+该路线对三项同时事件作 union bound：trainable-$W$ 均值的正分母界，以及相对同预算 SLSQP 与 degree-4 Chebyshev 的两个固定对比。设任一 summand 的 support width 为 `w`，则使用 `Var_pi(f)≤w²/4`、`|f−E_pi f|≤w`；风险均值的 support 是 `[0,1]`，配对 contrast 的 support 是 `[-r_star,1]`。按 Paulin corrected arXiv v5 Theorem 3.11 / Eq. (3.25) 反解两侧 Bernstein 尾概率，再保守地用于 lower bound。若 burn-in 后的**完整 paired-block state** 初始律与 stationary law 的 TV 距离有上界 `δ_TV`，将其对三个事件的并集只支付一次，剩余 `alpha_total−δ_TV` 再平分三界；这对应 Proposition 3.15 / Eq. (3.29)，并需要针对该链和该 burn-in 的可审阅 TV receipt。采用的数学来源：[Paulin corrected arXiv v5](https://arxiv.org/html/1212.2015v5)。
+
+[诊断图](../../results/optimize_gaussian/d06_markov_dependence_cpu_20261126_v1/markov_dependence_feasibility.png)左栏显示 support-only 半径随块数和假设 `gamma_ps` 的变化；144 个公式 scenario 的 planned/valid/failed/abstained=`144/144/0/0`，其中仅 `69/144` 在分母和 contrast 的最乐观支持端点下仍有理论放行空间。对假设 contrast margin `0.01–0.10`，所需 scored blocks 跨声明 gap/TV 网格为 `6,290–24,732,070`；这只是条件样本量，不是项目效应估计。
+
+中、右栏是独立 two-state Markov toy 的已知 gap 覆盖压力测试：`n=250/2,000/20,000`，每 cell 4,000 个 panels，共 `36,000`；已知 `gamma_ps=1/0.36/0.0975`。joint lower-bound coverage 九格全为 `1.000`（每格 Wilson MC 95% 下界 `0.999`）；SLSQP 真比值恰在 `r_star` 时，家族误放行计数 `0/4,000` 每格，Wilson 上界约 `0.10%`。这验证的是实现对给定合成链的保守行为；不验证真实 HMC 链的齐次性、stationarity、gap 或统计 reviewer 的结论。生成器种类和块数覆盖有限，因此这组全覆盖结果不能当成广泛 coverage guarantee。
+
+本轮 `tests/test_optimize*.py` 为 **122 passed**；Markov 报告 payload hashes **7/7**、源文件 hashes **3/3** 匹配，`git diff --check` 通过。决策仍是：D04 原 estimand 不改，bounded block-risk 继续作为分开的备选；未拿到独立 paired-block `gamma_ps`、burn-in/TV、score-map 与 D04 reference receipts 前，不接 confirmation evaluator。最简流程：`冻结三臂和 bounded score -> 构造配对宏块链 -> 审查 homogeneity + gamma_ps + stationary/TV receipts -> 三个同时下界 -> 两项都通过才可申请下一 gate，否则 ABSTAIN/no release`。当前无真实 solver receipt、无数据授权、无 GPU/QUDA 运行，`physical_score=null`；TODO 保留。

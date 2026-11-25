@@ -1,8 +1,8 @@
 # wilson_loop：CPU 验收结论与下一阶段
 
-### 2026-11-25 本 checkout 回归核验
+### 2026-11-26 本 checkout 回归核验
 
-当前 Optimize/Wilson PR worktree 的完整 Wilson 测试文件集 `tests/test_wilson*.py` 为 **62 passed**（CPU only；2026-11-25 复跑）。它覆盖 lane contract、force-budget propagation、Markov 支持界、finite-`N_t` 代数与 toy/randomized fixtures；只确认代码/公式边界，不提供 C/F measurement、独立 q/h/x/GEVP/thermal receipt 或 coverage/calibration 证据。现有图文分析和 lane-specific 未决项如下文，仍保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+当前 Optimize/Wilson PR worktree 的完整 Wilson 测试文件集 `tests/test_wilson*.py` 为 **62 passed**（CPU only；2026-11-26 复跑）。它覆盖 lane contract、force-budget propagation、Markov 支持界、finite-`N_t` 代数与 toy/randomized fixtures；只确认代码/公式边界，不提供 C/F measurement、独立 q/h/x/GEVP/thermal receipt 或 coverage/calibration 证据。现有图文分析和 lane-specific 未决项如下文，仍保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
 
 ### 2026-11-25 当前接手：C/F 方法默认已提出，独立证据和认证门仍未完成
 
