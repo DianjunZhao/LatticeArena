@@ -429,3 +429,5 @@ IID 校准设计覆盖 3 个已知真值有界 DGP、低于/恰在/高于最小�
 [精确混合敏感度图文](../../results/optimize_gaussian/d06_failure_penalty_cpu_20261126_v1/README.md)用成功风险 `(.04,.08,.075)` 和 303 组 failure-probability × pattern 公式格（planned/valid/failed/abstained=`303/303/0/0`）说明它如何改变两项主比较；公式为 `mu_a=p_fail,a+(1-p_fail,a)*mu_success,a`。例如 trainable-W 独有 `5%` 失败时，两个期望风险比为 `0.909/0.852`；两 comparator 独有 `5%` 失败时为 `3.150/3.031`；三臂同为 `5%` 时为 `1.432/1.378`。这些风险与概率都是图中声明的示意输入，不是训练测得的失败率或统计覆盖结论。此评分仍在 `[0,1]`，但只有独立配对宏块假设成立时才能套用当前浓缩界；HMC 依赖校正、D04 reference uncertainty 与 trainable-arm selection 仍未解决。
 
 文字流程：`预分配 arm + paired macroblock -> solver accepted: four-time clipped loss; solver failed: score=1 -> 保留全臂/全 block denominator -> missing/corrupt source not explained by solver status: ABSTAIN -> apply calibrated bound only after dependence and reference receipts`。当前没有 production solver receipt，主 D04 不变，`physical_score=null`；进入 evaluator 前仍须冻结 residual/timeout 的 failure 判定并校准真实失败过程。
+
+实现后完整 Optimize 测试文件集 `tests/test_optimize*.py` 为 **105 passed**（CPU）；failure-penalty 报告 artifact hashes **4/4**、源文件 hashes **2/2** 匹配。此验证只覆盖计分接口和精确示意公式，不构成 production solver 或失败率测量。
