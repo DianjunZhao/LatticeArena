@@ -168,17 +168,20 @@ receipt; malformed, stale, mismatched or unreviewed inputs return `ABSTAIN`.
 always returning `independence_proven=false`: unique labels and hashes cannot
 establish independent sampling. Consumers must still hash actual source bytes,
 review theorem assumptions and connect the result to a task-specific gate; the
-schema itself never sets a physical score.
+schema itself never sets a physical score. `apply_evidence_gate` revalidates a
+shared `RunReceipt`: missing/unrun denominator units or envelope errors send the
+requested `RunState` stage to `abstained`; a complete schema plus complete
+planned denominator advances only to `draft`, never `validated`.
 
 Eight fixtures cover Pion anchor/dependence, Optimize bounded-risk, and Wilson
 force-bound metadata. They explicitly exercise missing Markov gap, wrong chain,
 wrong force unit, stale source hash, missing review and reused chain identity;
 all invalid cases abstain. The focused run `python -B -m pytest -q
-tests/test_evidence.py tests/test_receipts.py` reports **13 passed**. This is a
+tests/test_evidence.py tests/test_receipts.py` reports **16 passed**. This is a
 schema/fixture check only; no production receipt was supplied and no task
 evaluator currently consumes the envelope. The next implementation is to add
 task-owned adapters that map frozen contracts to expected dotted fields and
-source hashes, then feed their abstain result into each task's `RunState`.
+source hashes, then use `apply_evidence_gate` from each task's `RunState` path.
 
 ## Practical implementation order for a new task
 

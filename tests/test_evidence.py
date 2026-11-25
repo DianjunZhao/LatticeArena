@@ -2,10 +2,13 @@ import copy
 
 from core.evidence import (
     EVIDENCE_SCHEMA,
+    apply_evidence_gate,
     evidence_envelope,
     inspect_distinct_chain_identities,
     inspect_evidence_envelope,
 )
+from core.receipts import denominator, run_receipt, scenario_spec
+from core.state import RunState
 
 
 HASH_A = "a" * 64
@@ -54,6 +57,20 @@ def make_envelope(*, task="pion_projection", kind="score_dependence",
         },
         source_hashes={"manifest": manifest_hash, "score_map": HASH_B},
         review=review_record,
+    )
+
+
+def make_run_receipt(*, planned=2, valid=2):
+    scenario = scenario_spec("evidence-gate-fixture", "panel", "metadata gate fixture")
+    counts = denominator("panels", planned=planned, valid=valid)
+    reasons = []
+    if counts["not_run"]:
+        reasons.append({"unit": "panels", "state": "not_run",
+                        "count": counts["not_run"], "reason": "fixture not started"})
+    return run_receipt(
+        scenario, {"panels": counts}, artifact_hashes={"fixture": HASH_C},
+        text_flow="fixture -> count planned/valid/not-run panels",
+        reason_rows=reasons,
     )
 
 
@@ -174,3 +191,42 @@ def test_family_confidence_and_review_hashes_are_validated():
                         "alpha_allocated": 0.01, "family_size": 1},
             source_hashes={"source": HASH_A},
         )
+
+
+def test_runstate_gate_only_advances_to_draft_when_envelope_and_denominator_are_complete():
+    state = RunState()
+    result = apply_evidence_gate(state, "statistical", make_envelope(), make_run_receipt())
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["run_state"]["status"]["statistical"] == "draft"
+    assert result["run_state"]["score"] is None
+    assert result["certified"] is False
+
+
+def test_runstate_gate_abstains_for_incomplete_denominator_or_missing_envelope_field():
+    state = RunState()
+    partial = apply_evidence_gate(
+        state, "statistical", make_envelope(), make_run_receipt(planned=2, valid=1),
+    )
+    assert partial["status"] == "ABSTAIN_EVIDENCE_GATE"
+    assert partial["run_state"]["status"]["statistical"] == "abstained"
+    assert any("not run" in reason for reason in partial["reasons"])
+
+    state = RunState()
+    broken = make_envelope()
+    del broken["dependence"]["tv_bound_after_burn_in"]
+    result = apply_evidence_gate(state, "statistical", broken, make_run_receipt())
+    assert result["status"] == "ABSTAIN_EVIDENCE_GATE"
+    assert result["run_state"]["score"] is None
+
+
+def test_runstate_gate_rejects_empty_or_missing_run_receipt():
+    state = RunState()
+    empty = apply_evidence_gate(
+        state, "statistical", make_envelope(), make_run_receipt(planned=0, valid=0),
+    )
+    assert empty["status"] == "ABSTAIN_EVIDENCE_GATE"
+    assert any("no planned units" in reason for reason in empty["reasons"])
+
+    state = RunState()
+    missing = apply_evidence_gate(state, "statistical", make_envelope(), None)
+    assert missing["status"] == "ABSTAIN_EVIDENCE_GATE"

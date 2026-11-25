@@ -11,6 +11,8 @@ import re
 from numbers import Real
 from typing import Any
 
+from .receipts import RECEIPT_SCHEMA, run_receipt as normalize_run_receipt
+
 
 EVIDENCE_SCHEMA = "latticearena-evidence-envelope-v1"
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -284,5 +286,83 @@ def inspect_distinct_chain_identities(first: object, second: object) -> dict[str
         "reasons": reasons,
         "identity_distinct": not reasons,
         "independence_proven": False,
+        "physical_score": None,
+    }
+
+
+def apply_evidence_gate(
+    run_state: object,
+    stage: str,
+    envelope: object,
+    receipt: object,
+    *,
+    expected: dict[str, Any] | None = None,
+    required_source_hashes: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Route envelope/denominator failures to RunState abstention.
+
+    A complete schema plus complete denominator advances only to ``draft``.
+    Task-specific evaluators must still verify source bytes, thresholds,
+    assumptions and reviewer scope before they can validate a stage.
+    """
+    if not hasattr(run_state, "status") or not hasattr(run_state, "set") or not hasattr(run_state, "abstain"):
+        raise ValueError("run_state must provide status, set and abstain")
+    if stage not in run_state.status:
+        raise ValueError(f"unknown RunState stage {stage!r}")
+    if run_state.status[stage] != "not_run":
+        return {
+            "status": "ABSTAIN_RUNSTATE_STAGE_ALREADY_USED",
+            "reasons": [f"{stage} is already {run_state.status[stage]}"],
+            "run_state": run_state.summary(),
+            "physical_score": None,
+        }
+
+    reasons = []
+    envelope_result = inspect_evidence_envelope(
+        envelope, expected=expected,
+        required_source_hashes=required_source_hashes,
+        require_review=True,
+    )
+    if envelope_result["status"] != "SCHEMA_COMPLETE_NOT_CERTIFIED":
+        reasons.extend(envelope_result["reasons"])
+
+    try:
+        if not isinstance(receipt, dict) or receipt.get("schema") != RECEIPT_SCHEMA:
+            raise ValueError(f"receipt.schema must be {RECEIPT_SCHEMA!r}")
+        normalized_receipt = normalize_run_receipt(
+            receipt.get("scenario"), receipt.get("denominators"),
+            artifact_hashes=receipt.get("artifact_hashes"),
+            text_flow=receipt.get("text_flow"),
+            reason_rows=receipt.get("reason_rows"),
+        )
+        if receipt.get("status") != normalized_receipt["status"]:
+            raise ValueError("receipt.status does not match its denominator counts")
+        if not any(item["planned"] > 0 for item in normalized_receipt["denominators"].values()):
+            raise ValueError("run receipt has no planned units")
+        if normalized_receipt["status"] != "complete":
+            reasons.append("run receipt has planned units that are not run")
+    except (TypeError, ValueError) as exc:
+        reasons.append(str(exc))
+
+    if reasons:
+        run_state.abstain(stage, "; ".join(reasons))
+        return {
+            "status": "ABSTAIN_EVIDENCE_GATE",
+            "reasons": reasons,
+            "run_state": run_state.summary(),
+            "certified": False,
+            "physical_score": None,
+        }
+
+    run_state.set(
+        stage,
+        "draft",
+        evidence="metadata and denominator contracts are complete; source and scientific validation remain",
+    )
+    return {
+        "status": "DRAFT_PENDING_TASK_VALIDATION",
+        "reasons": [],
+        "run_state": run_state.summary(),
+        "certified": False,
         "physical_score": None,
     }
