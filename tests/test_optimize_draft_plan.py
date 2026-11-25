@@ -23,6 +23,8 @@ def test_selected_f2_contrasts_are_bound_to_fail_closed_no_launch_plan():
     assert run["status"] == "DRAFT_NO_LAUNCH"
     assert plan["launch_allowed"] is False
     assert run["launch_allowed"] is False
+    assert "risk_statistics.py" in plan["source_hashes"]
+    assert "an evaluator that generates paired outer block-bootstrap and inner D04 draws" in plan["not_established"]
     assert plan["physical_score"] is None
     assert run["physical_score"] is None
     assert run["data"] == {}

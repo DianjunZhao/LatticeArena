@@ -1,5 +1,9 @@
 # wilson_loop：CPU 验收结论与下一阶段
 
+### 2026-11-25 本 checkout 回归核验
+
+当前 Optimize/Wilson PR worktree 的完整 Wilson 测试文件集 `tests/test_wilson*.py` 为 **49 passed**（CPU only）。它覆盖 lane contract、Markov 支持界、finite-`N_t` 代数与 toy/randomized fixtures；只确认代码/公式边界，不提供 C/F measurement、独立 q/h/x/GEVP/thermal receipt 或 coverage/calibration 证据。现有图文分析和 lane-specific 未决项如下文，仍保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+
 ### 2026-11-25 当前接手：C/F 方法默认已提出，独立证据和认证门仍未完成
 
 用户已选择保留两个不同 estimand：有限-$T$ Creutz 和基态离散静态力；随后要求执行者自行提出剩余规则。建议默认值已登记在 [`lane_contract_v2.json`](lane_contract_v2.json) 的 `selected_protocol` 与 `common` / `lanes` 草案映射中，状态仍为 `DRAFT_NOT_READY` / `METHOD_DEFAULTS_SELECTED_EVIDENCE_NOT_READY`。本次完成数据-free 映射，并在[结构检查器 v9](../../results/wilson_loop/lane_contract_diagnostic_20261125_v9/README.md)列出当前剩余字段；这不等于独立审阅、生产数据授权或物理认证。下方早期“等待选择 R/T/kernel/阈值”的说法由本节替代。

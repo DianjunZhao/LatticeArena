@@ -1,5 +1,15 @@
 # optimize_gaussian：CPU 验收结论与后续研究
 
+### 2026-11-25：D04/D06 风险统计量的 fail-closed CPU reducer
+
+新增 [`risk_statistics.py`](risk_statistics.py)，将已选择的 D04/D06 公式做成纯数组 reducer：D04 按 `t=(2,3,4,5)`、`ddof=1` 计算每时刻 `Var_boot(q)+[E_boot(q)-1]^2` 并取平均；缺 draw、NaN/Inf 或 draw 数不足时保留计划分母并返回 `risk=null`。D06 固定 `F=2` 的每比较 `alpha=0.025`、`r_star=10/9`、`L=(2,5,10)`，要求 comparator/trainable-W 每个长度的风险 draw ID 一一相同且唯一，风险严格正；使用 linear 0.025 quantile 并对三种长度取最低值。任一配对缺失、零风险、非有限或除法溢出均 `ABSTAIN`；不丢弃坏 draw、不补 epsilon、不生成物理分数。
+
+可复算文字诊断见 [`d04_d06_risk_statistics_cpu_20261125_v4`](../../results/optimize_gaussian/d04_d06_risk_statistics_cpu_20261125_v4/README.md)：D04 手算 fixture 分母 `3/3/0/0`、风险 `0.784722222`；D06 三个四-draw synthetic fixture 分别展示阈值通过、未通过、零风险弃权，缺失/无效例保留 `12/11/1/0`。report JSON 绑定 reducer 和研究合同源码 SHA-256，artifact hashes 完整。`draft_plan_20261125_v6` 已把 reducer 加入 no-launch RunSpec 草案的源码依赖映射；该草案仍为 `DRAFT_NO_LAUNCH`，物理门 `5/0/0/5`，输入分母 `0/0/0/0`。
+
+**此项完成的是统计公式的数组层实现和失败处理，不是 bootstrap 实施或校准：**外层按 block length 的 paired configuration 重抽样、每个外层 draw 内 D04 `q` 分布、参考拟合不确定性传播、draw ID 的配置来源证明、percentile quantile 覆盖率验证以及真实 evaluator/RunSpec 接线仍未做。四 draw fixture 仅验算术；正式设计仍需每个长度 10,000 draws。当前整个 Optimize 测试文件集 `tests/test_optimize*.py` 为 **72 passed**（CPU only）。
+
+下一步：实现由明确 protocol/hash 输入驱动的 paired outer-block + D04 inner-risk evaluator（或先通过方法审阅证明非嵌套算法与所选 estimand 等价），再做已知有限总体的覆盖模拟并给覆盖图、失败分母和 Monte Carlo 误差；接入当前 task-specific trainable-W、同预算 SLSQP 与 degree-4 Chebyshev 三臂后，先 CPU fixture 再申请 production/GPU。当前没有合格 D04 reference 或生产数据授权，因此任何中间结果继续 `diagnostic_only`、`physical_score=null`；不读 sealed IDs。
+
 ### 2026-11-25 本 checkout 的 TaskSpec/RunSpec 接线审计
 
 新增 [`draft_plan.py`](draft_plan.py) 将已选 D04/D06/D11 默认值传入 `core.specs.task_spec` 和 `core.specs.run_spec`，生成了[数据-free 草案和文字数据流](../../results/optimize_gaussian/draft_plan_20261125_v2/README.md)（旧 v1 保留为历史快照）。合同及源码 SHA-256 已绑定；只登记已开放的 D0–59 fit 与 D60–99 development-selection 元数据，没有读取配置字节、生成输入 hash、启动训练或连接 evaluator。schema 计划分母 `1/1/0/0`；五个物理认证阶段 `5/0/0/5`，`launch_allowed=false`、`physical_score=null`。

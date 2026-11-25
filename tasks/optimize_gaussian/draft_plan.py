@@ -24,7 +24,7 @@ from .candidate_contract import (
 
 ROOT = Path(__file__).resolve().parents[2]
 TASK_DIR = Path(__file__).resolve().parent
-DEFAULT_OUT = ROOT / "results/optimize_gaussian/draft_plan_20261125_v2"
+DEFAULT_OUT = ROOT / "results/optimize_gaussian/draft_plan_20261125_v6"
 CONTRACT_PATH = TASK_DIR / "research_contract_v1.json"
 
 
@@ -44,6 +44,7 @@ def build_plan() -> dict[str, Any]:
         "contract.py": TASK_DIR / "contract.py",
         "candidate_contract.py": TASK_DIR / "candidate_contract.py",
         "chebyshev_baseline.py": TASK_DIR / "chebyshev_baseline.py",
+        "risk_statistics.py": TASK_DIR / "risk_statistics.py",
         "kernels.py": TASK_DIR / "kernels.py",
         "core/specs.py": ROOT / "core/specs.py",
         "core/state.py": ROOT / "core/state.py",
@@ -152,6 +153,7 @@ def build_plan() -> dict[str, Any]:
         "text_flow": [
             "research_contract_v1.json + source files -> SHA-256 dependency map",
             "selected D04/D06/D11 defaults -> generic TaskSpec + draft RunSpec",
+            "risk_statistics.py -> fail-closed D04/D06 array reducers; no draw generation or fitting",
             "no data hashes / no runner entrypoint / no authorization -> launch_allowed=false",
             "five physical certification stages remain abstained; physical_score=null",
         ],
@@ -161,6 +163,8 @@ def build_plan() -> dict[str, Any]:
             "D11 independent production-operator review",
             "D06 paired outcomes, measured costs or complete failure denominator",
             "a train.main/training entrypoint in this checkout",
+            "an evaluator that generates paired outer block-bootstrap and inner D04 draws",
+            "coverage calibration for the selected percentile-quantile convention",
             "GPU/QUDA permission or sealed-data permission",
         ],
     }
@@ -177,6 +181,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict:
         "core_specs.py": ROOT / "core/specs.py",
         "core_state.py": ROOT / "core/state.py",
         "candidate_contract.py": TASK_DIR / "candidate_contract.py",
+        "risk_statistics.py": TASK_DIR / "risk_statistics.py",
     }
     for name, source in shutil_snapshot.items():
         (out / f"snapshot_{name}").write_bytes(source.read_bytes())
@@ -190,11 +195,14 @@ The selected research contract is now represented in LatticeArena's generic `cor
 
 The generic `validation` range is explicitly limited to the already-open D60-D99 **development-selection** role. It is not final confirmation. Sealed roles are not included in the plan. The ranges are metadata only; no data bytes, manifests, anchor chain, gap, validation or holdout files were opened.
 
+The source hash map also binds `risk_statistics.py`, which implements pure-array D04/D06 reducers with fixed selected constants, paired draw-ID checks, full planned denominators, no epsilon repair, and abstention on incomplete or invalid draws. These helpers consume prepared arrays only; they do not generate the paired outer block-bootstrap or inner D04 bootstrap draws, fit a reference, or establish coverage for the percentile-quantile convention.
+
 ## Text flow
 
 ```text
 selected research contract + source files -> SHA-256 dependency map
   -> generic TaskSpec (D0-D59 fit; D60-D99 development selection)
+  -> D04/D06 array reducers are source-bound, but no production draw generator is wired
   -> generic RunSpec with empty data-hash map
   -> missing reference/input/runner receipts => launch_allowed=false
   -> five physical RunState stages abstained => physical_score=null
