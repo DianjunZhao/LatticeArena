@@ -220,13 +220,15 @@ separate anchor/score evidence; Optimize uses it for bounded D06's two
 contrasts and common denominator. Wilson C and F each use a separate lane
 bundle. Identity checks still report `independence_proven=false`.
 
-`verify_source_bytes` is a separate byte-identity preflight. It accepts an
-explicit logical-name-to-relative-path map and caller-supplied root; absolute,
-parent-traversal, unexpected and root-escaping paths never reach file hashing.
-Missing paths/files count as abstentions and digest mismatches/read failures as
-failures. This utility is not yet wired to production task readers; even a
-complete digest receipt does not authenticate its expected-hash authority or
-freeze the underlying file after the read.
+`verify_source_bytes` accepts an explicit logical-name-to-relative-path map and
+caller-supplied root; absolute, parent-traversal, unexpected and root-escaping
+paths never reach file hashing. Missing paths/files count as abstentions and
+digest mismatches/read failures as failures. The shared
+`apply_evidence_gate_with_source_bytes` and bundle variant run this preflight
+before the metadata gate; complete bytes still advance only to `draft`.
+Optimize/Wilson task adapters are not yet wired to real RunSpecs/source
+readers. A digest receipt also cannot authenticate its expected-hash authority
+or freeze the underlying file after the read.
 
 This PR's fixtures cover Optimize D04/D06/D11 and Wilson C/F metadata. They
 exercise missing Markov gap, wrong chain, wrong force unit, stale source hash,

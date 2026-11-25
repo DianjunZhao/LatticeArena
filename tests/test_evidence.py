@@ -1,9 +1,12 @@
 import copy
+import hashlib
 
 from core.evidence import (
     EVIDENCE_SCHEMA,
     apply_evidence_gate,
     apply_evidence_bundle_gate,
+    apply_evidence_gate_with_source_bytes,
+    apply_evidence_bundle_gate_with_source_bytes,
     evidence_envelope,
     inspect_distinct_chain_identities,
     inspect_evidence_envelope,
@@ -354,3 +357,145 @@ def test_runstate_gate_rejects_empty_or_missing_run_receipt():
     state = RunState()
     missing = apply_evidence_gate(state, "statistical", make_envelope(), None)
     assert missing["status"] == "ABSTAIN_EVIDENCE_GATE"
+
+
+def _sha256_bytes(payload):
+    return hashlib.sha256(payload).hexdigest()
+
+
+def test_source_byte_gate_verifies_files_before_advancing_to_draft(tmp_path):
+    payload = b"synthetic manifest"
+    (tmp_path / "manifest.json").write_bytes(payload)
+    digest = _sha256_bytes(payload)
+    envelope = make_envelope()
+    envelope["source_hashes"]["manifest"] = digest
+    state = RunState()
+
+    result = apply_evidence_gate_with_source_bytes(
+        state,
+        "statistical",
+        envelope,
+        make_run_receipt(),
+        source_root=tmp_path,
+        source_paths={"manifest": "manifest.json"},
+        required_source_hashes={"manifest": digest},
+    )
+
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["source_verification"]["status"] == "verified"
+    assert result["source_verification"]["denominator"]["valid"] == 1
+    assert result["source_byte_identity_verified"] is True
+    assert result["certified"] is False
+    assert result["physical_score"] is None
+
+
+def test_source_byte_gate_abstains_on_hash_mismatch(tmp_path):
+    (tmp_path / "manifest.json").write_bytes(b"observed")
+    expected = _sha256_bytes(b"expected")
+    envelope = make_envelope()
+    envelope["source_hashes"]["manifest"] = expected
+    state = RunState()
+
+    result = apply_evidence_gate_with_source_bytes(
+        state,
+        "statistical",
+        envelope,
+        make_run_receipt(),
+        source_root=tmp_path,
+        source_paths={"manifest": "manifest.json"},
+        required_source_hashes={"manifest": expected},
+    )
+
+    assert result["status"] == "ABSTAIN_SOURCE_BYTES"
+    assert result["source_verification"]["denominator"]["failed"] == 1
+    assert result["run_state"]["status"]["statistical"] == "abstained"
+    assert result["physical_score"] is None
+
+
+def test_bundle_source_byte_gate_is_atomic_across_all_routes(tmp_path):
+    anchor_bytes = b"synthetic anchor manifest"
+    score_bytes = b"synthetic score manifest"
+    (tmp_path / "anchor.json").write_bytes(anchor_bytes)
+    (tmp_path / "score.json").write_bytes(score_bytes)
+    anchor_hash = _sha256_bytes(anchor_bytes)
+    score_hash = _sha256_bytes(score_bytes)
+    anchor = make_envelope(kind="anchor_coverage", chain_id="E-anchor",
+                           split_id="anchor", manifest_hash=anchor_hash,
+                           unit="dimensionless anchor scalar")
+    score = make_envelope(kind="score_dependence", chain_id="D-score",
+                          split_id="development", manifest_hash=score_hash,
+                          unit="bounded score")
+    anchor["source_hashes"]["manifest"] = anchor_hash
+    score["source_hashes"]["manifest"] = score_hash
+    expected = {
+        "anchor": {"task": "pion_projection", "evidence_kind": "anchor_coverage"},
+        "score": {"task": "pion_projection", "evidence_kind": "score_dependence"},
+    }
+    required = {
+        "anchor": {"manifest": anchor_hash},
+        "score": {"manifest": score_hash},
+    }
+    state = RunState()
+
+    result = apply_evidence_bundle_gate_with_source_bytes(
+        state,
+        "statistical",
+        {"anchor": anchor, "score": score},
+        make_run_receipt(),
+        source_root=tmp_path,
+        source_paths_by_envelope={
+            "anchor": {"manifest": "anchor.json"},
+            "score": {"manifest": "score.json"},
+        },
+        expected_by_envelope=expected,
+        required_source_hashes_by_envelope=required,
+        distinct_chain_pairs=[("anchor", "score")],
+    )
+
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["source_verification"]["denominator"]["planned"] == 2
+    assert result["source_verification"]["denominator"]["valid"] == 2
+    assert result["source_byte_identity_verified"] is True
+    assert result["chain_identity_checks"][0]["independence_proven"] is False
+
+
+def test_bundle_source_byte_gate_abstains_if_any_route_is_missing_or_mismatched(tmp_path):
+    anchor_bytes = b"synthetic anchor manifest"
+    (tmp_path / "anchor.json").write_bytes(anchor_bytes)
+    anchor_hash = _sha256_bytes(anchor_bytes)
+    score_hash = _sha256_bytes(b"expected score manifest")
+    anchor = make_envelope(kind="anchor_coverage", chain_id="E-anchor",
+                           split_id="anchor", manifest_hash=anchor_hash,
+                           unit="dimensionless anchor scalar")
+    score = make_envelope(kind="score_dependence", chain_id="D-score",
+                          split_id="development", manifest_hash=score_hash,
+                          unit="bounded score")
+    anchor["source_hashes"]["manifest"] = anchor_hash
+    score["source_hashes"]["manifest"] = score_hash
+    expected = {
+        "anchor": {"task": "pion_projection", "evidence_kind": "anchor_coverage"},
+        "score": {"task": "pion_projection", "evidence_kind": "score_dependence"},
+    }
+    required = {
+        "anchor": {"manifest": anchor_hash},
+        "score": {"manifest": score_hash},
+    }
+    state = RunState()
+
+    result = apply_evidence_bundle_gate_with_source_bytes(
+        state,
+        "statistical",
+        {"anchor": anchor, "score": score},
+        make_run_receipt(),
+        source_root=tmp_path,
+        source_paths_by_envelope={"anchor": {"manifest": "anchor.json"}},
+        expected_by_envelope=expected,
+        required_source_hashes_by_envelope=required,
+        distinct_chain_pairs=[("anchor", "score")],
+    )
+
+    assert result["status"] == "ABSTAIN_SOURCE_BYTES"
+    assert result["source_verification"]["denominator"]["planned"] == 2
+    assert result["source_verification"]["denominator"]["valid"] == 1
+    assert result["source_verification"]["denominator"]["abstained"] == 1
+    assert result["run_state"]["status"]["statistical"] == "abstained"
