@@ -2,7 +2,7 @@
 
 ### 当前控制状态（2026-11-26；以下替代早期“等待选择”交接）
 
-研究合同已给出可审阅的方法默认值：D04 用独立、candidate-blind E-chain PP/A4P 联合拟合；D06 保留 trainable-$W$ 对同预算 SLSQP 和 degree-4 Chebyshev 两项对比、`F=2`、`r_star=10/9`；bounded block-risk 是用户已接受的并列 estimand；D11 degree-4 Bernstein/Chebyshev 强谱算符和 160-call 单任务预算也已写入合同。TODO 仍开着，因为 E-reference 与配对 solver receipts、独立统计/算符审阅、生产成本测量和相应授权缺失。维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`；不读封存 split、不启动 GPU/QUDA。下方早期时间戳条目保留审计历史，方法选择以本节和文末最新 handoff 为准。
+研究合同已给出可审阅的方法默认值：D04 用独立、candidate-blind E-chain PP/A4P 联合拟合；D06 保留 trainable-$W$ 对同预算 SLSQP 和 degree-4 Chebyshev 两项对比、`F=2`、`r_star=10/9`；bounded block-risk 是用户已接受的并列 estimand；D11 degree-4 Bernstein/Chebyshev 强谱算符和 160-call 单任务预算也已写入合同。D06 bounded-risk Markov 路线现除两态 reversible stress 外，又有非可逆 19 态已知-gap/初始-TV 图文校准，但仍只是合成覆盖证据。TODO 仍开着，因为 E-reference 与配对 solver receipts、独立统计/算符审阅、生产成本测量和相应授权缺失。维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`；不读封存 split、不启动 GPU/QUDA。下方早期时间戳条目保留审计历史，方法选择以本节和文末最新 handoff 为准。
 
 ### 2026-11-25：D06 percentile hull synthetic coverage pilot 显示欠覆盖
 
@@ -456,4 +456,14 @@ IID 校准设计覆盖 3 个已知真值有界 DGP、低于/恰在/高于最小�
 - **D06 主比较：**保留 `F=2`，trainable-$W$ 分别对同预算 SLSQP 和固定 degree-4 Chebyshev；`r_star=10/9`。新增 bounded block-risk 是另一个并列 estimand，用户已接受其不同于 D04；它不能替换 D04，也无需再次询问是否保留。Markov 界只在其 paired-block chain、score map、`gamma_ps` 与 burn-in/TV 收据被独立审阅后才可使用。
 - **D11 强谱对照：**合同已记录三维周期空间 `H=sum_i(T_i+T_i^dagger-2I)`、`[-12,0]` 谱域、degree-4 Bernstein controls 到 Chebyshev 的固定映射、`0<=b0<=...<=b4=1`、共同未归一化 `G^2 P4(H) G^2` sandwich；CPU helper 的 U(3) 数学条件与生产 SU(3) identity receipt 分开。该 adapter 仍是 diagnostic schema；生产 links、独立 operator review 和 evaluator 均未闭合。
 
-因此下一位不再让用户重复选择上述默认方法，也不把它们标成已认证。后续工作应交付一份独立 reviewer 的逐项公式/单位/失败规则审阅，再由 owner 提供身份绑定的、获授权 E-reference 与 paired solver receipts；通过 D04 gate 后，才可用固定 RunSpec 做配对训练与确认。160 objective/gradient-call cap、一次预设起点和所有训练/setup 成本计入单任务 walltime 已写入合同；真实硬件时间、设备回收和总成本仍待授权运行。框架层的可复用方向见 [`framework_extensibility.md`](../../doc/framework_extensibility.md)：把 paired-block chain 身份、bounded score map、支持域、`gamma_ps`/TV、confidence budget 和 reviewer/source hashes 作为 typed evidence envelope，但该跨任务 runtime 尚未实现。所有下一步图文都应分开报告诊断单位的 planned/valid/failed/abstained 与物理 lane 状态，保持 `NOT_READY/UNCERTIFIED`、`physical_score=null` 和封存 split closed。
+因此下一位不再让用户重复选择上述默认方法，也不把它们标成已认证。后续工作应交付一份独立 reviewer 的逐项公式/单位/失败规则审阅，再由 owner 提供身份绑定的、获授权 E-reference 与 paired solver receipts；通过 D04 gate 后，才可用固定 RunSpec 做配对训练与确认。160 objective/gradient-call cap、一次预设起点和所有训练/setup 成本计入单任务 walltime 已写入合同；真实硬件时间、设备回收和总成本仍待授权运行。框架层的可复用方向见 [framework extensibility map in PR #5](https://github.com/Greyyy-HJC/LatticeArena/blob/codex/pion-dependence-sensitivity-20261123/doc/framework_extensibility.md)：把 paired-block chain 身份、bounded score map、支持域、`gamma_ps`/TV、confidence budget 和 reviewer/source hashes 作为 typed evidence envelope，但该跨任务 runtime 尚未实现。所有下一步图文都应分开报告诊断单位的 planned/valid/failed/abstained 与物理 lane 状态，保持 `NOT_READY/UNCERTIFIED`、`physical_score=null` 和封存 split closed。
+
+### 2026-11-26 D06 bounded-risk Markov 校准扩展：非可逆多态链
+
+在早先的两态 reversible known-gap 压力测试之外，新增 [`d06_markov_multistate_diagnostic.py`](d06_markov_multistate_diagnostic.py) 与[图文报告](../../results/optimize_gaussian/d06_markov_multistate_cpu_20261126_v1/README.md)。它使用 19 态定向 cycle 加 uniform refresh：平稳分布为均匀分布，链非可逆；在零均值子空间上是缩放酉移位，因此 `gamma_ps=1-(1-eta)^2`，程序同时从转移矩阵 singular spectrum 数值复核。分数 map 取满 `[0,1]` 支持：trainable-W 风险精确为 `9/19`，SLSQP 为 `10/19`，其 paired contrast 恰好在 `r_star=10/9` 边界；Chebyshev 风险为 1，提供正对照 contrast `9/19`。TV=0.02 情景使用精确混合初始律 `nu=(1-rho)pi+rho*delta_0`，并把 TV 一次性从 family alpha 扣除。
+
+12 个预设 cell（3 个 gap × 2 个 block 数 × 2 个初始 TV）共 14,400 个 panel、158,400,000 个 scored paired macroblocks，planned/valid/failed/abstained=`14400/14400/0/0`；没有排除链或 panel。所有 cell 的联合下界覆盖率均为 1.000，Wilson Monte Carlo 95% 区间均为 `[0.9968,1.0000]`；SLSQP 恰在阈值时没有 family release，最大 Wilson 上界为 0.0032。正对照的 Chebyshev 下界随 `gamma_ps`、样本量及 TV 变动，图中显示了误放行控制与可用性损失的权衡。报告还用同一实际路径对照公共 decision helper 与批量计算，数值一致；协议及图表产物 SHA-256 已记录。
+
+这不是对真实 HMC 的校准证明，也不能给生产链填入 `gamma_ps` 或 TV；全支持界仍非常保守，高覆盖可以伴随低放行力。该结果只扩大了 bounded-risk 路线在一种新的非可逆多态合成族上的诊断覆盖，不替代 D04、candidate-selection 不确定度或独立统计 review。
+
+**接下来的具体工作：**不再复跑两态或这组 19 态生成器的 seed/网格。由未参与实现的统计 reviewer 独立复核 pseudo-gap 推导、Paulin bound 反演、TV 并集校正及 boundary fixture；然后接收身份绑定的 paired-macroblock state/score map、生产链 `gamma_ps` lower-bound 与 burn-in/TV receipts、E-chain reference receipt 和配对 SLSQP/Chebyshev solver receipts。只有这些来源/分割/哈希均通过合同后，才固定真实数据 RunSpec、运行授权的 GPU dry-run 与比较。交付需继续包含风险下界图、calls/time 与成本分解、residual/KKT、failure/abstention 表和完整 denominator。任何输入缺失时保留 `NOT_READY/UNCERTIFIED`、`physical_score=null`，不读取 sealed IDs。
