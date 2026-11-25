@@ -178,19 +178,24 @@ schema itself never sets a physical score. `apply_evidence_gate` revalidates a
 shared `RunReceipt`: missing/unrun denominator units or envelope errors send the
 requested `RunState` stage to `abstained`; a complete schema plus complete
 planned denominator advances only to `draft`, never `validated`.
+`apply_evidence_bundle_gate` checks multiple named envelopes and selected
+chain-identity pairs before making one stage transition. This supports Pion's
+separate anchor/score evidence without allowing a partial draft transition;
+its identity check still reports `independence_proven=false`.
 
 Fixtures cover Pion anchor/dependence, Optimize bounded-risk, and Wilson
 force-bound metadata. They explicitly exercise missing Markov gap, wrong chain,
 wrong force unit, stale source hash, missing review, a non-independent reviewer
-role claim, a missing independence-claim hash and reused chain identity; all
-invalid cases abstain. The focused run `python -B -m pytest -q
-tests/test_evidence.py tests/test_receipts.py` now reports **18 passed**. The
-combined `tests/test_pion*.py tests/test_evidence.py tests/test_framework.py
-tests/test_receipts.py` run reports **213 passed**. This is a schema/fixture
-check only; no production receipt was supplied and no task
-evaluator currently consumes the envelope. The next implementation is to add
-task-owned adapters that map frozen contracts to expected dotted fields and
-source hashes, then use `apply_evidence_gate` from each task's `RunState` path.
+role claim, a missing independence-claim hash, bundle-member mismatch, chain
+collision and null required-hash mapping; all invalid cases abstain. The
+focused run `python -B -m pytest -q tests/test_evidence.py tests/test_receipts.py`
+now reports **21 passed**. The combined `tests/test_pion*.py
+tests/test_evidence.py tests/test_framework.py tests/test_receipts.py` run
+reports **216 passed**. This is a schema/fixture check only; no production
+receipt was supplied and no task evaluator currently consumes the envelope.
+The next implementation is to add task-owned adapters that map frozen
+contracts to expected dotted fields and source hashes, then use the single- or
+multi-envelope gate from each task's `RunState` path.
 
 ## Practical implementation order for a new task
 

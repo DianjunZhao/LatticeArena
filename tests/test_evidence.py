@@ -3,6 +3,7 @@ import copy
 from core.evidence import (
     EVIDENCE_SCHEMA,
     apply_evidence_gate,
+    apply_evidence_bundle_gate,
     evidence_envelope,
     inspect_distinct_chain_identities,
     inspect_evidence_envelope,
@@ -232,6 +233,88 @@ def test_dependence_assumptions_must_be_a_sequence_not_a_string():
     result = inspect_evidence_envelope(envelope)
     assert result["status"] == "ABSTAIN_INVALID_EVIDENCE_ENVELOPE"
     assert "sequence of nonempty strings" in result["reasons"][0]
+
+
+def test_evidence_bundle_checks_anchor_and_score_together_without_claiming_independence():
+    anchor = make_envelope(kind="anchor_coverage", chain_id="E-anchor",
+                           split_id="anchor", manifest_hash=HASH_A,
+                           unit="dimensionless anchor scalar")
+    score = make_envelope(kind="score_dependence", chain_id="D-score",
+                          split_id="development", manifest_hash=HASH_C,
+                          unit="bounded score")
+    state = RunState()
+    result = apply_evidence_bundle_gate(
+        state,
+        "statistical",
+        {"anchor": anchor, "score": score},
+        make_run_receipt(),
+        expected_by_envelope={
+            "anchor": {"task": "pion_projection", "evidence_kind": "anchor_coverage"},
+            "score": {"task": "pion_projection", "evidence_kind": "score_dependence"},
+        },
+        required_source_hashes_by_envelope={
+            "anchor": {"manifest": HASH_A},
+            "score": {"manifest": HASH_C},
+        },
+        distinct_chain_pairs=[("anchor", "score")],
+    )
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["run_state"]["status"]["statistical"] == "draft"
+    assert result["chain_identity_checks"][0]["identity_distinct"] is True
+    assert result["chain_identity_checks"][0]["independence_proven"] is False
+    assert result["certified"] is False
+    assert result["physical_score"] is None
+
+
+def test_evidence_bundle_abstains_on_a_chain_identity_collision_or_bad_member():
+    anchor = make_envelope(kind="anchor_coverage", chain_id="reused",
+                           split_id="anchor", manifest_hash=HASH_A,
+                           unit="dimensionless anchor scalar")
+    score = make_envelope(kind="score_dependence", chain_id="reused",
+                          split_id="development", manifest_hash=HASH_C)
+    expected = {
+        "anchor": {"task": "pion_projection", "evidence_kind": "anchor_coverage"},
+        "score": {"task": "pion_projection", "evidence_kind": "score_dependence"},
+    }
+    state = RunState()
+    collision = apply_evidence_bundle_gate(
+        state, "statistical", {"anchor": anchor, "score": score},
+        make_run_receipt(), expected_by_envelope=expected,
+        distinct_chain_pairs=[("anchor", "score")],
+    )
+    assert collision["status"] == "ABSTAIN_EVIDENCE_BUNDLE"
+    assert collision["run_state"]["status"]["statistical"] == "abstained"
+    assert collision["chain_identity_checks"][0]["independence_proven"] is False
+
+    state = RunState()
+    score["observable"]["support"]["unit"] = "wrong unit"
+    mismatch = apply_evidence_bundle_gate(
+        state, "statistical", {"anchor": anchor, "score": score},
+        make_run_receipt(), expected_by_envelope={
+            "anchor": expected["anchor"],
+            "score": {**expected["score"], "observable.support.unit": "bounded score"},
+        },
+    )
+    assert mismatch["status"] == "ABSTAIN_EVIDENCE_BUNDLE"
+    assert mismatch["run_state"]["status"]["statistical"] == "abstained"
+
+
+def test_evidence_bundle_does_not_treat_null_required_hashes_as_optional():
+    anchor = make_envelope(kind="anchor_coverage", chain_id="E-anchor",
+                           split_id="anchor", manifest_hash=HASH_A,
+                           unit="dimensionless anchor scalar")
+    result = apply_evidence_bundle_gate(
+        RunState(),
+        "statistical",
+        {"anchor": anchor},
+        make_run_receipt(),
+        expected_by_envelope={
+            "anchor": {"task": "pion_projection", "evidence_kind": "anchor_coverage"},
+        },
+        required_source_hashes_by_envelope={"anchor": None},
+    )
+    assert result["status"] == "ABSTAIN_EVIDENCE_BUNDLE"
+    assert result["run_state"]["status"]["statistical"] == "abstained"
 
 
 def test_runstate_gate_only_advances_to_draft_when_envelope_and_denominator_are_complete():

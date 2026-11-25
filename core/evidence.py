@@ -383,3 +383,144 @@ def apply_evidence_gate(
         "certified": False,
         "physical_score": None,
     }
+
+
+def apply_evidence_bundle_gate(
+    run_state: object,
+    stage: str,
+    envelopes: dict[str, object],
+    receipt: object,
+    *,
+    expected_by_envelope: dict[str, dict[str, Any]],
+    required_source_hashes_by_envelope: dict[str, dict[str, str]] | None = None,
+    distinct_chain_pairs: list[tuple[str, str]] | tuple[tuple[str, str], ...] = (),
+) -> dict[str, Any]:
+    """Atomically check multiple evidence envelopes before one RunState transition.
+
+    This supports task gates that need separate receipts for distinct chains or
+    estimands. Different chain identifiers are only an identity check and never
+    prove statistical independence. A complete bundle advances only to
+    ``draft``; each task evaluator still verifies source bytes and claims.
+    """
+    if not hasattr(run_state, "status") or not hasattr(run_state, "set") or not hasattr(run_state, "abstain"):
+        raise ValueError("run_state must provide status, set and abstain")
+    if stage not in run_state.status:
+        raise ValueError(f"unknown RunState stage {stage!r}")
+    if run_state.status[stage] != "not_run":
+        return {
+            "status": "ABSTAIN_RUNSTATE_STAGE_ALREADY_USED",
+            "reasons": [f"{stage} is already {run_state.status[stage]}"],
+            "run_state": run_state.summary(),
+            "certified": False,
+            "physical_score": None,
+        }
+
+    reasons: list[str] = []
+    if not isinstance(envelopes, dict) or not envelopes:
+        reasons.append("evidence bundle must be a nonempty mapping")
+        envelopes = {}
+    if not isinstance(expected_by_envelope, dict) or set(expected_by_envelope) != set(envelopes):
+        reasons.append("expected_by_envelope keys must exactly match the evidence bundle")
+        expected_by_envelope = expected_by_envelope if isinstance(expected_by_envelope, dict) else {}
+    if required_source_hashes_by_envelope is not None:
+        if (not isinstance(required_source_hashes_by_envelope, dict)
+                or not set(required_source_hashes_by_envelope).issubset(envelopes)):
+            reasons.append("required source-hash routes must be a mapping over bundle members")
+            required_source_hashes_by_envelope = {}
+    if not isinstance(distinct_chain_pairs, (list, tuple)):
+        reasons.append("distinct_chain_pairs must be a sequence of route-name pairs")
+        distinct_chain_pairs = ()
+
+    envelope_results: dict[str, dict[str, Any]] = {}
+    normalized: dict[str, dict[str, Any]] = {}
+    for route, envelope in envelopes.items():
+        try:
+            route_name = _text(route, "evidence bundle route")
+        except ValueError as exc:
+            reasons.append(str(exc))
+            continue
+        expected = expected_by_envelope.get(route_name)
+        if not isinstance(expected, dict):
+            reasons.append(f"{route_name}: expected fields must be a mapping")
+            continue
+        required_hashes = None
+        if required_source_hashes_by_envelope is not None:
+            if route_name in required_source_hashes_by_envelope:
+                required_hashes = required_source_hashes_by_envelope[route_name]
+            if (route_name in required_source_hashes_by_envelope
+                    and (not isinstance(required_hashes, dict) or not required_hashes)):
+                reasons.append(f"{route_name}: required source hashes must be a mapping")
+                continue
+        result = inspect_evidence_envelope(
+            envelope,
+            expected=expected,
+            required_source_hashes=required_hashes,
+            require_review=True,
+        )
+        envelope_results[route_name] = result
+        if result["status"] != "SCHEMA_COMPLETE_NOT_CERTIFIED":
+            reasons.extend(f"{route_name}: {reason}" for reason in result["reasons"])
+        else:
+            normalized[route_name] = result["normalized_envelope"]
+
+    identity_checks = []
+    for pair in distinct_chain_pairs:
+        if (not isinstance(pair, (list, tuple)) or len(pair) != 2
+                or any(not isinstance(name, str) for name in pair)):
+            reasons.append("each distinct-chain check must name exactly two bundle routes")
+            continue
+        left_name, right_name = pair
+        if left_name not in normalized or right_name not in normalized:
+            reasons.append(f"chain identity check {left_name!r}/{right_name!r} lacks a valid envelope")
+            continue
+        left = normalized[left_name]["chain"]
+        right = normalized[right_name]["chain"]
+        collisions = []
+        if left["chain_id"] == right["chain_id"]:
+            collisions.append("chain_id collision")
+        if left["manifest_sha256"] == right["manifest_sha256"]:
+            collisions.append("chain manifest collision")
+        identity_checks.append({
+            "routes": [left_name, right_name],
+            "status": "ABSTAIN_CHAIN_IDENTITY_COLLISION" if collisions else "IDENTITIES_DISTINCT_NOT_INDEPENDENCE_PROOF",
+            "reasons": collisions,
+            "identity_distinct": not collisions,
+            "independence_proven": False,
+        })
+        if collisions:
+            reasons.extend(
+                f"chain identity {left_name!r}/{right_name!r}: {reason}"
+                for reason in collisions
+            )
+
+    if reasons:
+        run_state.abstain(stage, "; ".join(reasons))
+        return {
+            "status": "ABSTAIN_EVIDENCE_BUNDLE",
+            "reasons": reasons,
+            "envelope_results": envelope_results,
+            "chain_identity_checks": identity_checks,
+            "run_state": run_state.summary(),
+            "certified": False,
+            "physical_score": None,
+        }
+
+    primary_route = next(iter(envelopes))
+    gate_result = apply_evidence_gate(
+        run_state,
+        stage,
+        envelopes[primary_route],
+        receipt,
+        expected=expected_by_envelope[primary_route],
+        required_source_hashes=(
+            required_source_hashes_by_envelope.get(primary_route)
+            if required_source_hashes_by_envelope is not None else None
+        ),
+    )
+    return {
+        **gate_result,
+        "envelope_results": envelope_results,
+        "chain_identity_checks": identity_checks,
+        "certified": False,
+        "physical_score": None,
+    }

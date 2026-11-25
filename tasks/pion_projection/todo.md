@@ -2,7 +2,7 @@
 
 ### 当前控制状态（2026-11-26）
 
-`F=3`、bounded block-risk、score/anchor 错误预算和 Markov 备选路线均已有明确方案及图文敏感度诊断；通用 `core/evidence.py` 的 schema v2 校验 evidence/source hashes、reviewer role claim 与 independence-claim hash，并对缺项/错配 fail closed。`apply_evidence_gate` 会把 envelope/RunReceipt 缺项写成 RunState `abstained`，完整元数据与完整 denominator 也只到 `draft`；声明字段不认证 reviewer 身份、source bytes、统计独立性或物理有效性，且尚未接入 Pion evaluator。真实链的 `gamma_ps`/TV、E-reference、anchor scalar map、支持域/协方差或 common-bias `C` 收据仍缺。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`；按用户要求，E/gap/validation/shared holdout/confirmation 保持封存，不启动 GPU/QUDA。当前只可在收到身份绑定、获准的 receipts 后接 evaluator 和检查 fail-closed 路径；历史章节里的缺省输入表以新方案为准。
+`F=3`、bounded block-risk、score/anchor 错误预算和 Markov 备选路线均已有明确方案及图文敏感度诊断；通用 `core/evidence.py` 的 schema v2 校验 evidence/source hashes、reviewer role claim 与 independence-claim hash，并对缺项/错配 fail closed。`apply_evidence_gate` 和 `apply_evidence_bundle_gate` 会在完整核验后把 RunState 最多推进到 `draft`，缺项/错配进入 `abstained`；声明字段不认证 reviewer 身份、source bytes、统计独立性或物理有效性，且尚未接入 Pion evaluator。真实链的 `gamma_ps`/TV、E-reference、anchor scalar map、支持域/协方差或 common-bias `C` 收据仍缺。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`；按用户要求，E/gap/validation/shared holdout/confirmation 保持封存，不启动 GPU/QUDA。当前只可在收到身份绑定、获准的 receipts 后接 evaluator 和检查 fail-closed 路径；历史章节里的缺省输入表以新方案为准。
 
 ### 2026-11-25 接续复核：anchor-fit 区间桥仍不能安全实现
 
@@ -444,3 +444,11 @@ Pion 侧可继续做的本地软件工作，仅限收到实际 scalar anchor map
 验证：`tests/test_evidence.py tests/test_receipts.py` **18 passed**；`tests/test_pion*.py tests/test_evidence.py tests/test_framework.py tests/test_receipts.py` **213 passed**。负例涵盖缺 independence claim、role=`author`、错误声明 hash、依赖假设字符串、错链/单位/来源和 incomplete denominator；所有结果仍 `certified=false`、`physical_score=null`。文字流程：`schema v2 结构检查 -> 声明为 independent 且 review scope/hash 齐全 -> 外部核验实际声明与源字节 -> task adapter/RunState -> 最多 draft；任一步缺证据则 ABSTAIN`。
 
 此项修复不关闭 Pion 的物理 TODO。后续仍需真实 scalar anchor map/support、独立 E reference、score/anchor stationarity 与 gap/TV receipts、`C/R<=0.01` 论证及独立审阅；不打开封存 split，不把声明字段或合成夹具当成物理证明。
+
+### 2026-11-26 多 evidence envelope 原子 gate
+
+新增 [`apply_evidence_bundle_gate`](../../core/evidence.py)，在一个 RunState stage 上先检查多份 named envelopes、各自的 frozen expectations/source hashes 和选定 chain-identity pairs；只有所有成员通过才调用单 envelope gate 做一次 `draft` 转移。任一 envelope 错配、required hash 映射为空/缺失或 anchor-score chain/manifest 身份冲突，都将该 stage 原子弃权，避免部分链先进入 draft 后留下不一致状态。身份不同只通过 bookkeeping 检查，返回值始终 `independence_proven=false`。
+
+Pion 的未来 adapter 可将 `anchor_coverage` 与 `score_dependence` 两个 envelope 组成一个 bundle，并在 bundle 内要求不同 chain ID 与 manifest；再由 adapter 检查其真实 receipt 和依赖假设。当前 synthetic bundle gate 调用 denominator 为 planned/valid/failed/abstained=`4/1/0/3`（一项 draft 正控、三项身份/合同弃权负控），focused evidence/receipt 测试 **21 passed**，与 Pion/framework/receipt 文件合集跑 **216 passed**。这只是共享门控软件检查，不代表真实 anchor-score 独立、coverage、`gamma_ps`/TV 或 `C`。
+
+文字流程：`anchor envelope + score envelope -> 分别核对 schema/unit/source/review -> chain identity collision check -> 任一失败则一次性 RunState ABSTAIN -> 全部元数据和 RunReceipt 完整则最多 DRAFT -> 外部核验独立性与物理假设`。Pion task evaluator 仍未接线，真实 `m*`/anchor map/reference 和 sealed data 状态不变。
