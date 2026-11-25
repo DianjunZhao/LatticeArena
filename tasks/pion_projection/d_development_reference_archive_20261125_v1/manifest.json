@@ -13,7 +13,7 @@
     99
   ],
   "files": {
-    "README.md": "0c0b40afb86a785a0d91d7642b4c9c5944e26a9057097002e2d33a1fbd0b7302",
+    "README.md": "4c8be78046247a1f4836c366d13d35018602334ca1f9a0001de438b1ec67b91a",
     "SOURCE_AMENDMENT.md": "121db80c691d1c158895848725e8f94c6094465db06022c51ea3e80d11924ee5",
     "analysis_provenance.json": "33bd80c6800c4332a4a3698be7fa5be2e29dedf3ff3db94e1221b90bc0a4e82f",
     "development_diagnostics.png": "f1fc3dbb538751310d8239fbd373327544b0d897adecaedcfb30a6ed0da0ec23",
@@ -21,8 +21,9 @@
     "effective_mass_diagnostic.md": "ebef47a9f5c7ba943fb2c1a10319ad98b4476909294a586ff7dc3c728d164e00",
     "effective_mass_diagnostic.png": "02ea5d5490bd000b67f9a26da4285d3f9aa3b6e261a2b12f17c1e4db3f391a6f",
     "effective_mass_late_time.png": "2a4fbeb6f149b71c2092a2f514f1b41f5a4bd98e6cafe06797260a23d0da279b",
-    "runner_replay_audit.md": "fb2cf614cfcbb465886fc04648f5248f22d8dcb0ff99a3eeda427d63ddb004f0",
-    "source_snapshot/README.md": "1ad960113ca2f16a27579125e0ee09646ef7ca7a5f240aa25843a206d625b150",
+    "replay_protocol.json": "d7073c1dc535195cb875aa1f9bce084ebc9360ae9a8ef35b6260015371c26dd1",
+    "runner_replay_audit.md": "f0ab2a76b23c0a5314097028c74a5a26c69a8f3cea32367bb212d9c750c8bb63",
+    "source_snapshot/README.md": "8d013d17fc64234475a56b518cbdbf395682e36bcb063453cacd4feac31bd6f0",
     "source_snapshot/core/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "source_snapshot/core/io.py": "17da0ac2eaaaaf8795841770195dfee491a08f3751b10a1ebc52973c3ad94486",
     "source_snapshot/core/receipts.py": "a523507fcd0dffa527f57ae64e8482e6125e33a55956c2a3f65fd4e0678dfc42",
@@ -115,13 +116,14 @@
       "[6,7,8]": 15.78
     }
   },
-  "reproducibility": "local_numeric_replay_and_source_snapshot_verified_D_input_runtime_not_packaged",
+  "reproducibility": "local_numeric_replay_source_and_semantic_protocol_archived_D_input_runtime_not_packaged",
   "source_artifact_hashes": {
     "analysis_provenance.json": "33bd80c6800c4332a4a3698be7fa5be2e29dedf3ff3db94e1221b90bc0a4e82f",
     "development.npz": "8a78947c8b4d1bec3b672ed57cd1406ed0bcccf6ec874747ece4d64078da7fe3",
     "development_provenance.json": "c58a016943e211ab32d613dfa677bb20261c694e048cde9ae700c45f350bc785",
     "development_results.json": "31772afbd75e60250a883dde33a8936573ea9ae8c24e7b324fd896bfa231c7d6",
     "effective_mass_diagnostic.json": "8b3639413e3d0d74b5d7c6af8e66251e7b62e7a00f5736a031d2e6fa97aaa6d1",
+    "replay_protocol.json": "d7073c1dc535195cb875aa1f9bce084ebc9360ae9a8ef35b6260015371c26dd1",
     "source_snapshot/source_manifest.json": "eb891085e249f137e6043fe31b24f022e170c30187ea87fff5caf758fa8a61a3",
     "two_state_diagnostic.json": "006e245ce34e71265c4407c101bb196d5e9daea684201885209df248e92dae80",
     "two_state_diagnostic_provenance.json": "a3a39cdd17e3dae1482ae1757d1f41ddb30508202617151d6874afe9a7b1ae4b"
