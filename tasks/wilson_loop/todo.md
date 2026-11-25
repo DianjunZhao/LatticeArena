@@ -335,3 +335,5 @@ PR #5 的共享 gate 已使用 evidence-envelope v2。review 元数据要求 `re
 文字流程：`C: 同一配置上的四个正 loop means -> 有限-T Creutz 与预注册区间/精度门 -> 覆盖与依赖 receipt -> C lane 独立结论或 ABSTAIN`；`F: 3×3 GEVP + matched Nt=32 -> f0 正下界 -> q/h/x 与谱项通过 8-corner stencil 传播到 a_s*a_t*F -> 合计统计/系统误差门 -> F lane 独立结论或 GROUND_STATE_FORCE_UNCERTIFIED`。两条 lane 共享样本时保留相关性，但各自不能替另一条提供证书。
 
 本轮与 Optimize 一起复跑 `tests/test_optimize*.py tests/test_wilson*.py`：**184 passed**。这是 CPU 软件/合同回归，不覆盖 C/F 生产测量、独立污染界、确认区间或 physical score。
+
+PR #5 现另有 `apply_evidence_bundle_gate`：合并后 C lane 可将四个 loop/source/coverage receipts 组成一个原子 bundle；F lane 可将 GEVP、reference-force 与 q/h/x/thermal/spectral receipts 组成另一 bundle。C、F 是 co-primary estimands，task adapter 应维护 lane-specific RunState/denominators，不能让一条 lane 的 draft 代替另一条；链身份不同仍不构成独立性证明。

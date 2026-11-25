@@ -483,3 +483,5 @@ PR #5 的共享 gate 已升级到 evidence-envelope v2：review 必须同时带 
 文字流程：`独立 E-chain D04 拟合与 source/review 核验 -> D04 reference gate -> D06 paired-block map 分别比较 SLSQP/Chebyshev 并计入失败 -> D11 SU(3) operator receipt -> 两项独立比较的误差界与成本 -> RunState draft 或 abstained`。D04 不通过即停止物理解读；D06 任一 planned arm 缺失不删分母；D11 只有 CPU U(3) fixture 时拒绝生产门。
 
 本轮联合复跑 `tests/test_optimize*.py tests/test_wilson*.py`：**184 passed**。仅为 CPU 软件/合同回归；不证明 E reference、真实 Markov gap/TV、GPU 成本或物理 score。
+
+PR #5 现另有 `apply_evidence_bundle_gate`：合并后可把 D06 的 SLSQP 与 Chebyshev 两项 comparison envelopes 作为一个 statistical bundle 原子校验；D04 reference 与 D11 operator 仍走各自 stage，避免其中一项通过后误表示全合同通过。只有合同规定不同链时才要求 chain identity 不碰撞；这仍不证明统计独立。
