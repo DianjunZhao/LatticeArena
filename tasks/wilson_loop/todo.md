@@ -235,3 +235,15 @@ PR #6 提交 [`f9be949`](https://github.com/Greyyy-HJC/LatticeArena/commit/f9be9
 ## 2026-11-25 最新接手说明
 
 上面 2026-11-24 的“等待用户选择 C estimand、primary 与预算”已由用户要求助手自行选择输入的指示取代。选定的两条 lane、机器合同、q/h/x→force 文字流程和 97 项 Optimize/Wilson CPU 回归结果见前面的 2026-11-25 更新；合同已在[PR #6 head `6afedb178f325c15f62b4786c4ed2f075ebcedd8`](https://github.com/Greyyy-HJC/LatticeArena/blob/6afedb178f325c15f62b4786c4ed2f075ebcedd8/tasks/wilson_loop/lane_contract_v2.json)。当前仍没有新物理测量或独立 GEVP/q/h/x/Nt32 receipts，confirmation 和 GPU/QUDA 授权仍关闭；下一步仅在独立 calibration IDs 与对应 owner 授权到位后开展污染测量与 review。
+
+## 2026-11-25 接手复核：C/F 方法选择完成，数据门仍关闭
+
+此前要求在 C 候选间再选择 estimand、或重新选择 primary 精度规则的段落均为历史记录；本文件开头的 C/F 默认值已经按用户指示自选。合同、有限 `N_t` toy、C/F 单位/符号检查和可读的误差决策流程已覆盖 CPU 侧工作；不再重复相同 contract/toy fixture。
+
+接下来真正需要的证据分开记录：
+
+- **C lane:** 在新的授权 calibration IDs 上测 `chi_stout(2,5)`；保存四个 loop 的正 ensemble means、paired-block bootstrap draws、坏 draw/失败原因及精度和多重性收据。D0–99 已观察过，不能改作 confirmation。
+- **F lane:** 在独立 calibration IDs 上提供 `R=2,3` 的 3×3 GEVP、两/三态和时间窗敏感度、匹配 `N_t=32` 热污染、`q/h/x` 分别传播到 force units 的界与总预算；由独立审阅确认各界未重复计数且覆盖概率/误差目标闭合。
+- **后续 confirmation:** 只有 calibration gate 通过、独立 review 完成且 data/resource owner 明确授权新的未观察 IDs 与 GPU/QUDA 运行后，才可打开 confirmation。
+
+目前这些输入、收据和授权都没有出现在可审阅范围。继续保持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 与 sealed data closed；不使用 toy 或历史样本补造污染界。

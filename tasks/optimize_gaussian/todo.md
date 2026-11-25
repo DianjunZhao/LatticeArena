@@ -260,3 +260,15 @@ Astra 只读复核已结束，没有产生外部授权或可直接冻结的 D04/
 ## 2026-11-25 最新接手说明
 
 上面 2026-11-24 的“等待研究者冻结 D04/D06/D11”已由用户要求助手自行选择输入的指示取代。选定方法、机器合同、160 次/臂的 objective-oracle 规划上限、文字数据流和 97 项 Optimize/Wilson CPU 回归结果见前面的 2026-11-25 更新；合同已在[PR #6 head `6afedb178f325c15f62b4786c4ed2f075ebcedd8`](https://github.com/Greyyy-HJC/LatticeArena/blob/6afedb178f325c15f62b4786c4ed2f075ebcedd8/tasks/optimize_gaussian/research_contract_v1.json)。当前仍未取得独立 E-chain reference、split/hash、实测 cost ledger、独立审阅或生产/GPU 授权；下一步是补这些证据并按授权执行三臂对照，不能把方法选择当成确认结果。
+
+## 2026-11-25 接手复核：只剩实证与资源门
+
+此前仍要求研究者选择 D04/D06/D11 的段落均为历史记录；本文件开头的候选默认值已按用户指示自选，不应再次询问相同方法选择。CPU 合同、SLSQP 对照、固定 degree-4 Chebyshev 对照、warm-start 诊断及其图/文字分母已完成；当前没有可通过重跑相同 synthetic teacher/grid 来关闭的剩余项。
+
+剩余开放项按顺序为：
+
+1. 取得未观察且获数据 owner 授权的独立 E-chain/reference 及 fit/eval IDs/hash，跑候选盲 reference gate。
+2. 在同一批新 calibration/evaluation IDs 上记录 trainable-W、同预算 SLSQP、degree-4 Chebyshev 三臂的 paired risk 和完整失败分母；同一 objective/precision 下计 setup、训练、拟合、推理/solve、I/O、恢复与 total wall time。
+3. 由独立审阅者核验 D04/D06/D11 的收据和生产算符合同；需要 GPU/QUDA 的步骤另需资源 owner 授权。
+
+当前没有这些输入或授权。保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed data closed；不要把旧 D0–99 或现有 synthetic panels 用作独立确认，也不要重复方法网格。
