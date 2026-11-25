@@ -295,3 +295,21 @@ v9 合同诊断为 15 个结构 fixture，planned/valid/failed/abstained=`15/5/1
 文字流程：`IID receipt 有效 -> bounded-IID Hoeffding；否则 -> 固定 scalar-per-anchor-state 映射 + 独立 anchor gamma/TV 收据 + target-bias bridge -> Markov Bernstein CI(alpha_A-delta_A) -> 加 C 得 B -> 减去 2B/R；任一输入缺失 -> ABSTAIN/NOT_READY`。
 
 **后续只剩实证门：**独立 reviewer 需审阅 scalar map 是否估计同一 `m*` 及其 `C` 界；owner 需提供真实 anchor chain、其独立 `gamma_ps` 与 stationarity/post-burn-in TV receipts，以及与 score chain 的条件独立证据。不得把本分析点的 `gamma_A`、TV 或单位数当实测输入，也不要将 Markov route 当作 IID route 已成立。
+
+## 2026-11-25 可选向量 anchor 均值盒（不改主合同）
+
+为避免把 PP/A4P ensemble-level 非线性拟合误写成逐配置标量，新增可选 helper [`bounded_block_risk_anchor_vector.py`](bounded_block_risk_anchor_vector.py)。对同一 anchor-chain state 的 `d` 个预先固定、有界实值 feature，逐坐标调用既有 corrected Markov Bernstein 半径，并以 family=`d` 作 union bound。若初始 law 的路径级 TV 上界为 `delta_A`，联合事件一次性支付该项后使用 `alpha_A-delta_A`；不把同一个 path-level TV 误乘 `d`。坐标 `j` 的半径为
+
+```text
+r_j = min(U_j-L_j, BernsteinRadius(n_A, gamma_A, family=d,
+                                    alpha_A-delta_A,
+                                    variance <= (U_j-L_j)^2/4,
+                                    centered_abs <= U_j-L_j))
+I_j = [max(L_j, mean_j-r_j), min(U_j, mean_j+r_j)]
+```
+
+联合 box 在共同链、固定 feature、事前 support、合法 pseudo-gap 与 stationarity/TV 假设下覆盖 `E[f]`。之后仍须对冻结的 candidate-blind PP/A4P fit map `g(mu)` 在整个 box 上做可审计的全局区间传播，只有 `g(box)` 唯一且有界时才可得到 `m*` 区间；未收敛、非唯一、碰边界、特征支持或协方差条件不成立时一律 `ABSTAIN`。由该区间导出的 common-bias `C` 和与 score chain 独立性仍要独立 receipt。**当前 helper 不做 `g(box)`，`target_fit_interval=null`、`common_bias_bound_C=null`，未接入主合同，也不替代 selected IID/标量 Markov route。**
+
+[向量 anchor 诊断包](../../results/pion_projection/bounded_block_risk_anchor_vector_20261125_v1/README.md)包含文字数据流、协议、fixture 结果、RunReceipt 与 SHA-256。4,000 行确定性正弦/余弦只用于公式算术 fixture，不是 Markov path、配置、coverage Monte Carlo 或物理数据；输入的 `gamma_A=0.20`、TV=`0.001` 和三维 support 均为假设。诊断分母 vector box=`1/1/0/0`、feature coordinates=`3/3/0/0`；拟合目标区间与 `C` 未计算。helper/报告 tests **10 passed**，Pion bounded-risk/dependency 专项 **152 passed**，PR #5 全仓 CPU suite **199 passed**；报告 receipt 与 outer manifest 中所有 SHA-256 匹配。
+
+文字数据流：`fixed bounded per-state feature vector -> componentwise Markov intervals -> family-d union bound -> joint mean box -> certified frozen-fit image g(box) -> m* interval + independent C bridge -> score LCB`。当前实现只到 `joint mean box`；后续先需推导并实现对既定 PP/A4P estimator 的 verified interval image，再用 synthetic edge fixtures 检查单值/非唯一/边界/跨奇异面等 abstention。未完成该区间映射与独立审阅前，不把此路写为可认证 anchor 方法，不估物理 `m*`，也不打开封存输入。
