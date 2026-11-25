@@ -1,5 +1,9 @@
 # Pion projection: bounded block-risk calibration handoff
 
+### 当前控制状态（2026-11-26）
+
+`F=3`、bounded block-risk、score/anchor 错误预算和 Markov 备选路线均已有明确方案及图文敏感度诊断；这没有提供真实链的 `gamma_ps`/TV、E-reference、anchor scalar map、支持域/协方差或 common-bias `C` 收据。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`；按用户要求，E/gap/validation/shared holdout/confirmation 保持封存，不启动 GPU/QUDA。当前只可在收到身份绑定、获准的 receipts 后接 evaluator 和检查 fail-closed 路径；历史章节里的缺省输入表以新方案为准。
+
 ### 2026-11-25 接续复核：anchor-fit 区间桥仍不能安全实现
 
 本轮复核向量 anchor handoff 后，没有读取 D/E、gap、validation 或 shared-holdout 输入。现有 `bounded_block_risk_anchor_vector.py` 只生成固定有界 feature 均值盒；其 diagnostic 把 `target_fit_interval` 与 common-bias `C` 留为 null。可复用的 two-state runner 目前只存在于 D-development archive 的 source snapshot，而任务主路径的 `statistics.py` 是单态拟合；不能把 archive runner 或当前 D-development 协方差自动视作已冻结的 E-anchor estimator。
