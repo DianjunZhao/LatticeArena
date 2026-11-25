@@ -418,3 +418,9 @@ Q_prof(m;x) = x^T W x
 依照“sealed data closed”约束，本轮不打开 E、gap、validation、shared holdout 或 confirmation，也不启动 GPU/QUDA。方法默认值已由前文选定；仍缺的真实输入是：(1) 独立、candidate-blind E-chain reference 及拟合 receipt；(2) 可逐 anchor state 计算、与同一 `m*` 目标相连的固定 scalar/feature 映射，含其支持域、协方差与完整拟合门；(3) anchor-chain 和 score-chain 的独立性、stationarity/burn-in、`gamma_ps` 或其它可证明依赖界及 TV receipts；(4) 经独立审阅的 common-bias 上界 `C/R<=0.01`，或承认当前 `C/R` 无法达到该设计门并另行审议 estimand。缺其中任一项，bounded-score 仍为 `ABSTAIN/NOT_READY`，`physical_score=null`。
 
 下一位 agent 不再重复已完成的 D0–99 runner replay、F=3/Markov sensitivity 或 common-bias 公式网格；只在数据 owner 明确提供上述未封存、身份绑定 receipts 后，执行 mapping/contract review 与预先约定的区间映射诊断，并给出图或逐步骤文字、planned/valid/failed/abstained 分母。
+
+### 2026-11-26 框架扩展点同步
+
+已把本轮 `F=3` score-Markov 与独立 anchor-Markov 两条条件路线、各自的错误预算和未认证边界同步到 [`framework_extensibility.md`](../../doc/framework_extensibility.md)。框架文档新增跨任务 typed evidence-envelope 的扩展提案：chain/state 单位、observable/block-map hash、support/units、依赖定理及假设、burn-in/TV、confidence allocation、来源与 reviewer receipt；另用文字流程区分 Pion score-chain 与 anchor-chain。它是设计建议，**尚未实现为 shared runtime**，不得把 task-local helper 的存在当作通用 receipt 已接线。
+
+Pion 侧可继续做的本地软件工作，仅限收到实际 scalar anchor map 与独立 receipt 后，将 `bounded_block_risk_anchor_markov.py` 的单态区间、目标映射和 `C` bridge 接到 task evaluator，并用 `wrong-chain / wrong-support / stale-hash / missing-TV / incomplete-denominator` 负例让它 fail closed。当前 map、E reference、独立性、`gamma_ps`/TV 与 `C/R<=0.01` 仍未具备；不得用 schema 例子、D0–99 或 synthetic coverage 补填。维持 `NOT_READY/UNCERTIFIED`、`physical_score=null` 和封存输入 closed；图文流程及 planned/valid/failed/abstained 分母要求继续适用。

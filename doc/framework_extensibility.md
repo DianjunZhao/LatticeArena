@@ -30,15 +30,15 @@ contracts; declaring a schema alone does not create an evaluator.
 
 | Need | Existing hook | What a new task must add |
 |---|---|---|
-| Describe a scientific problem | [`core/specs.py`](https://github.com/Greyyy-HJC/LatticeArena/blob/3b9c77201be97d300dfce98b0c3e0d67dc57146f/core/specs.py): `task_spec` includes observable, geometry, boundary, source, splits, reference, metric, budget, dependencies; it validates inclusive integer ranges and rejects overlap | Freeze units, operator conventions, split identity, reference and invalid-result rules; declared range disjointness still does not authenticate data IDs or prove statistical independence |
-| Declare an operator/candidate | `operator_contract` and `candidate_spec` bind axes, dtype, transformation, support, parameters, builder and dependencies | Pion and Wilson retain their task schemas; Optimize now registers `optimize-chebyshev-diagnostic-v1` through a task-owned validator. This schema is diagnostic only: it does not freeze D11, create a complete Optimize `TaskSpec`, or connect production evaluation |
+| Describe a scientific problem | [`core/specs.py`](../core/specs.py): `task_spec` includes observable, geometry, boundary, source, splits, reference, metric, budget, dependencies; it validates inclusive integer ranges and rejects overlap | Freeze units, operator conventions, split identity, reference and invalid-result rules; declared range disjointness still does not authenticate data IDs or prove statistical independence |
+| Declare an operator/candidate | `operator_contract` and `candidate_spec` bind axes, dtype, transformation, support, parameters, builder and dependencies | Pion and Wilson retain their task schemas; Optimize registers `optimize-chebyshev-diagnostic-v1` through a task-owned validator. Its research contract records selected D11 method defaults, but the adapter remains diagnostic: independent production-link review, full Optimize `TaskSpec`, and evaluator connection remain open |
 | Add a measurement backend | [`core/measurement.py`](../core/measurement.py): arrays, manifest, dtype and declared `linear_response`, `cross_matrix`, `new_source` capabilities | Implement the task-owned CPU/GPU/MPI measurement route, bind inputs and software identity in the manifest, and reject unavailable capabilities before measurement. Current bundle validation checks finite nonempty arrays; it does not provide storage isolation or verify all provenance hashes by itself |
 | Add a search method | [`core/search.py`](../core/search.py): common validate → budget → evaluate → record path | Adapt LLM, deterministic optimizer, evolutionary search or learned initializer to emit proposals; count invalid attempts according to the frozen budget and retain every rejection reason |
 | Add a score or paired estimand | [`core/comparator.py`](../core/comparator.py): shared draw-length checks, optional unique draw IDs, positive paired risk ratio and a log lower bound | Implement the task estimand and failure policy; preserve common draw/configuration identity, planned denominators and multiplicity. A new formula must not silently inherit the current ratio's positivity or interval semantics |
-| Plan diagnostics and retain denominators | [`core/receipts.py`](https://github.com/Greyyy-HJC/LatticeArena/blob/f209015337b08f26e34b733771d56142a5288806/core/receipts.py) adds versioned `ScenarioSpec`, stage-specific denominators and `RunReceipt` with source/output SHA-256 references and exact reason accounting. Optimize candidate-contract, Wilson lane-contract and Pion bounded-risk contract reports are consumers; a saved Pion known-graph coverage report also binds its cell, replicate, paired-block-event and family-score denominators without rerunning MC | Extend receipts to remaining task-specific statistical units (panel, replicate, block, optimizer fit, stencil or contract check). Keep cap-stop/non-success, failure, abstention and not-run counts distinct; receipt hashes identify bytes but do not prove provenance, independence or scientific validity |
-| Track evidence readiness | [`core/state.py`](https://github.com/Greyyy-HJC/LatticeArena/blob/710eeb27b5d94de37a646ee52ec743be18894786/core/state.py): operator, reference, numerical, statistical and comparison states; validation observation is permanent; a score is available only when all states have hash-bound validation; `abstained` is a terminal no-certificate state | Bind task receipts and evidence hashes to these states. Keep diagnostic/physical labels explicit; Pion, Optimize and Wilson task evaluators still need to connect their task-specific abstention rules to this generic state |
+| Plan diagnostics and retain denominators | [`core/receipts.py`](../core/receipts.py) adds versioned `ScenarioSpec`, stage-specific denominators and `RunReceipt` with source/output SHA-256 references and exact reason accounting. Optimize candidate-contract, Wilson lane-contract and Pion bounded-risk contract reports are consumers; a saved Pion known-graph coverage report also binds its cell, replicate, paired-block-event and family-score denominators without rerunning MC | Extend receipts to remaining task-specific statistical units (panel, replicate, block, optimizer fit, stencil or contract check). Keep cap-stop/non-success, failure, abstention and not-run counts distinct; receipt hashes identify bytes but do not prove provenance, independence or scientific validity |
+| Track evidence readiness | [`core/state.py`](../core/state.py): operator, reference, numerical, statistical and comparison states; validation observation is permanent; a score is available only when all states have hash-bound validation; `abstained` is a terminal no-certificate state | Bind task receipts and evidence hashes to these states. Keep diagnostic/physical labels explicit; Pion, Optimize and Wilson task evaluators still need to connect their task-specific abstention rules to this generic state |
 | Compare learned/iterative methods fairly | `core/ledger.py` has generic setup/solve/residual phases; the Optimize stress report keeps call cap, optimizer seconds, fit selection and postchecks separate | Add `BudgetSpec` fields for objective/gradient calls, setup, training, inference, I/O, recovery and amortization count. Enforce shared fit/heldout IDs, initialization policy and restart count; report call-budget and total-walltime estimands separately |
-| Preserve artifacts | [`core/io.py`](../core/io.py): content digest, canonical fingerprint and JSON writing; [`core/receipts.py`](https://github.com/Greyyy-HJC/LatticeArena/blob/f209015337b08f26e34b733771d56142a5288806/core/receipts.py) binds declared source/output hash maps and reason-accounted denominators; CPU diagnostics retain text/figure explanations and snapshots | Extend receipts with environment and authorized input provenance only when a task defines those fields. Use no-clobber run directories and retain failure receipts. A manifest proves byte identity, not scientific validity or input independence |
+| Preserve artifacts | [`core/io.py`](../core/io.py): content digest, canonical fingerprint and JSON writing; [`core/receipts.py`](../core/receipts.py) binds declared source/output hash maps and reason-accounted denominators; CPU diagnostics retain text/figure explanations and snapshots | Extend receipts with environment and authorized input provenance only when a task defines those fields. Use no-clobber run directories and retain failure receipts. A manifest proves byte identity, not scientific validity or input independence |
 
 `agents/operator_search.py` illustrates repeated agent proposals against the
 Pion development evaluator. `agents/optimization_benchmark.py` illustrates
@@ -61,8 +61,9 @@ The generic split preflight is `split name + inclusive integer [start,end] -> va
   `physical_score` null. The versioned draft at
   `tasks/pion_projection/bounded_block_risk_contract_v1.md` collects the
   estimand, transform, conditional bound and open decision fields while leaving
-  every study-specific threshold, block-dependence value and anchor receipt
-  unset. The synthetic coverage MCs compare a known finite-
+  the score-family threshold and conditional dependence assumptions explicit,
+  while the actual score-chain/anchor-chain receipts and scalar anchor map remain
+  absent. The synthetic coverage MCs compare a known finite-
   dependence graph with an IID misspecification and add an independent,
   known-variance anchor interval with explicit `alpha_score/alpha_anchor`
   allocation. A separate exact two-point enumeration contrasts the known-
@@ -77,21 +78,28 @@ The generic split preflight is `split name + inclusive integer [start,end] -> va
   family-score, hypothetical anchor-observation, and exact-outcome denominators.
   A second dependence route is now explicit: Paulin's Markov-chain
   pseudo-spectral-gap Bernstein theorem can be applied conditionally to a
-  stationary chain of predeclared block states. Its 40-cell worst-case-radius
-  sensitivity is highly conservative at the 20-block planning point and does
-  not estimate the block-chain gap. A reusable Pion calibration extension
-  should therefore expose a typed dependence contract (graph-color bound or
-  Markov-gap bound), bind the block-map hash and theorem/assumption receipt,
-  record the bound's unit and confidence level, preserve separate anchor and
-  score error budgets, and fail closed when the receipt is absent. Clipping
-  changes the estimand and must be frozen before confirmation data.
-- **Optimize Gaussian:** a standalone versioned draft inspector now retains the
-  two selected contrasts (trainable-W versus same-budget SLSQP; trainable-W
-  versus fixed degree-4 Chebyshev) and lists unset D04 reference, D06 `r_star`,
-  D11 operator and fairness-budget fields. The degree-4 Bernstein/Chebyshev
-  candidate now has a versioned diagnostic adapter in
-  [candidate_contract.py](https://github.com/Greyyy-HJC/LatticeArena/blob/f209015337b08f26e34b733771d56142a5288806/tasks/optimize_gaussian/candidate_contract.py)
-  and a [hashed text-flow report](https://github.com/Greyyy-HJC/LatticeArena/blob/f209015337b08f26e34b733771d56142a5288806/results/optimize_gaussian/framework_candidate_contract_20261124_v3/README.md).
+  stationary chain of predeclared block states. The selected Pion `F=3`
+  planning surface has 245 formula cells (`140` mathematically valid and `105`
+  abstained); at the assumed `N=4000`, `gamma_ps=0.20`, `TV=0.001` point its
+  score radius is `0.386316`. A separate Markov-anchor sensitivity report
+  treats the anchor chain with its own support, gap, TV and error budget; at its
+  assumed planning point it lowers the best-case score LCB to `0.187605`.
+  Neither report estimates a chain gap, a TV distance, the anchor-to-target map
+  or physical coverage. A reusable calibration extension should expose a typed
+  dependence contract (IID, graph-color/finite-dependence, or Markov-gap route),
+  bind the observable/block-map hash and theorem/assumption receipt, record
+  support, units, confidence allocation and burn-in/TV semantics, preserve
+  separate anchor and score chains, and fail closed when required evidence is
+  absent. Clipping changes the estimand and must be frozen before confirmation
+  data.
+- **Optimize Gaussian:** the versioned research contract now records selected
+  method defaults: candidate-blind independent E-chain PP/A4P reference fit,
+  `r_star=10/9`, and two contrasts (trainable-W versus same-budget SLSQP and
+  trainable-W versus fixed degree-4 Chebyshev). Bounded block-risk is retained
+  as a separate estimand alongside D04. The degree-4 Bernstein/Chebyshev
+  candidate has a versioned diagnostic adapter in
+  [candidate_contract.py](https://github.com/DianjunZhao/LatticeArena/blob/5d14b639bdb36f12c8b54ebf3abf96defdfc01c9/tasks/optimize_gaussian/candidate_contract.py)
+  and a [hashed text-flow report](https://github.com/DianjunZhao/LatticeArena/blob/5d14b639bdb36f12c8b54ebf3abf96defdfc01c9/results/optimize_gaussian/framework_candidate_contract_20261125_v6/README.md).
   It validates the illustrative Bernstein controls against the generic candidate
   schema and a shared receipt with separate `schema_fixture=1/1/0/0` and
   `coefficient_fit=0/0/0/0` units. Receipt status `complete` means all planned
@@ -103,26 +111,55 @@ The generic split preflight is `split name + inclusive integer [start,end] -> va
   and separate solver stops from failed fits; a separate 12-train/12-eval pooled
   initialization replay separates train-only prior fitting, identical online
   SLSQP budgets, and heldout scoring. Its synthetic break-even count is call
-  accounting, not a production timing claim. These descriptive cells do not
-  resolve the physical reference or minimum effect size. The generic optimizer
-  hook does not define those choices.
-- **Wilson loop:** add versioned estimand contracts for finite-`T` Creutz and
-  ground-state discrete force separately. Both can share block IDs and paired
-  draws while using different systematic-error gates. The fixed q/h/x toy and
-  randomized positive-spectrum stress validate the four-point algebra and
-  envelope propagation over the declared synthetic ranges, but supply no
-  physical contamination envelope. The versioned lane-contract inspector
-  fixes the finite-`T` Creutz sign and candidate-minus-reference force direction,
-  checks precision units before adding statistical and systematic budgets, and
-  rejects malformed shared kernel lists. Synthetic mutations exercise these
-  fail-closed paths. It also checks alpha allocation and evidence-receipt shape
-  while keeping `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW` separate from
-  readiness. The [v4 report](https://github.com/Greyyy-HJC/LatticeArena/blob/f209015337b08f26e34b733771d56142a5288806/results/wilson_loop/lane_contract_diagnostic_20261124_v4/README.md)
-  uses the shared receipt API: 14 fixture-lane checks have denominator
-  `14/6/8/0`, and each failed check has a text reason. Its complete status means
-  all checks are accounted for; it does not authenticate receipts or provide
-  physics evidence. The generic `RunState` does not infer spectral, thermal or
-  mixed-sector bounds.
+  accounting, not a production timing claim. A separate Markov correction
+  report adds a support-only bound for the paired macroblock chain and a
+  known-gap two-state synthetic stress. These defaults and formula diagnostics
+  do not supply the E-chain reference receipt, physical effect measurement,
+  production dependence receipt, or independent review. The generic optimizer
+  hook does not define those evidence gates.
+- **Wilson loop:** the selected method defaults now keep finite-`T` Creutz and
+  ground-state discrete force as separate estimands. They can share paired IDs
+  while using different inference and systematic-error gates. The fixed q/h/x
+  toy and randomized positive-spectrum stress validate the four-point algebra
+  and envelope propagation over declared synthetic ranges, but supply no
+  physical contamination envelope. The versioned lane-contract inspector fixes
+  the Creutz sign and candidate-minus-reference force direction, checks units
+  and alpha allocation, and rejects malformed kernel lists and receipts. The
+  current [v9 report](https://github.com/DianjunZhao/LatticeArena/blob/5d14b639bdb36f12c8b54ebf3abf96defdfc01c9/results/wilson_loop/lane_contract_diagnostic_20261125_v9/README.md)
+  uses the shared receipt API: 16 structural checks have denominator
+  `16/7/9/0`, and each failed check has a text reason. Complete status still
+  means only that checks are accounted for; it neither authenticates evidence
+  receipts nor provides physics evidence. The generic `RunState` does not infer
+  spectral, thermal or mixed-sector bounds.
+
+## Cross-task extension proposal: typed dependence and physics evidence
+
+The three task families now exercise related but non-interchangeable evidence
+routes: Pion has a score-block chain and a distinct anchor chain; Optimize has a
+joint paired macroblock chain for a positive denominator plus two contrasts;
+Wilson C has four bounded loop means propagated through logs, while Wilson F
+needs spectral and thermal contamination envelopes propagated through a
+force stencil. A single `gamma_ps` field or generic `RunState` cannot represent
+these claims safely.
+
+```text
+frozen task estimand + observable-map hash
+  -> typed evidence route (IID / dependency graph / Markov gap / spectral envelope)
+  -> route-specific support, units, error allocation, burn-in and source receipts
+  -> independent review + task evaluator
+  -> reason-accounted receipt -> RunState abstain or validation (never by schema completeness alone)
+```
+
+The next reusable core extension is a versioned evidence-envelope contract that
+records the chain/state unit, fixed observable map, support and units, theorem or
+bound version, dependence/spectrum assumptions, confidence allocation,
+burn-in and TV treatment, source hashes, and reviewer receipt. Anchor and score
+chains must have separate identities; Wilson spectral bounds must be typed in
+the output units of the propagated estimator. This is a design proposal, not a
+shared runtime implementation: current task helpers remain separate because
+their units and mathematical events differ. A core contract should be added
+only with task adapters and fixtures proving that missing, mismatched-unit,
+wrong-chain, stale-hash and incomplete-receipt cases all abstain.
 
 ## Practical implementation order for a new task
 
@@ -147,24 +184,19 @@ failures and protocol abstentions are distinct states and should stay visible.
 
 ## Current integration boundary
 
-The current `main` has a full Pion pilot. Pion dependence calibration and the
-Optimize/Wilson additions are isolated analytic/synthetic CPU diagnostics and
-theory artifacts; none is a production measurement pipeline. A shared receipt
-API now has Optimize and Wilson contract consumers, plus Pion contract and saved
-known-graph, joint score/anchor, and time-varying Eq. (3.26) report consumers;
-remaining Pion sensitivity reports still use task-local schemas. Pion's bounded
-risk reports include a 1,728-scenario feasibility surface, a known-graph
-coverage MC, a joint score/anchor coverage MC, an exact anchor-distribution
-robustness comparison, and a color-class empirical-Bernstein sensitivity grid.
-The companion Optimize/Wilson PR reports the 36-panel trainable-W stress grid,
-12-panel pooled-initialization replay, Wilson lane-contract completeness and
-four fail-closed mutation fixtures, finite-`N_t` Creutz toy identity check, and
-randomized positive-spectrum four-point stress over 4,000 cases, all with
-figures or text flow, denominators and source/artifact hashes. All three task
-families now exercise shared receipt generation for contract diagnostics with
-explicit count/reason semantics; Pion also binds saved statistical-diagnostic
-units without rerunning their simulations or formula grids. Extending receipts
-to remaining task-specific units is still open. Their TODOs remain until task-specific
-references, effect/tolerance or spectral-error contracts, dependence/anchor
-bounds, lane protocols, and data/compute authorization gates are resolved. CPU
-tests establish software/algebra behavior only, not GPU/MPI physics validation.
+The current `main` has a Pion pilot, but the three task additions remain
+analytic, synthetic or structural CPU work; none closes a production physics
+measurement pipeline. Shared receipts cover several contract and diagnostic
+consumers, but there is no generic typed dependence/evidence-envelope runtime.
+Pion's current evidence set includes the selected `F=3` Markov score sensitivity,
+a separate Markov-anchor sensitivity, known-graph and anchor coverage
+simulations, and the common-bias feasibility analysis. Optimize now has two
+selected contrasts and a conditional Markov route for its distinct bounded
+block-risk estimand; its real E-reference and solver receipts remain absent.
+Wilson now has both selected lane defaults, a v9 structural mapping report,
+force-budget propagation and C-lane Markov support sensitivity; its production
+loop, spectrum and contamination receipts remain absent. Figures/text flows,
+denominators and artifact hashes accompany these method diagnostics, but they
+do not demonstrate chain assumptions or physical coverage. The three TODOs stay
+open for independent review, task-specific receipts and authorization. CPU
+checks establish software/algebra behavior only, not GPU/MPI physics validation.
