@@ -268,6 +268,6 @@ Wilson 仍按已选定的有限温 Creutz C lane 与基态离散静态力 F lane
 
 ## 2026-11-25 PR #6 RunState 与报告生成器续记
 
-PR #6 提交 [`a22cd23`](https://github.com/Greyyy-HJC/LatticeArena/commit/a22cd2304735dbd8e86c6210196f47c79dd47976) 将两 lane 当前物理 gate 投影到 `core.RunState`，并修正报告生成器，后续步骤不再要求重选已冻结的 C/F 方法。[Wilson v8 诊断](../../results/wilson_loop/lane_contract_diagnostic_20261125_v8/README.md) 中 C/F synthetic 结构检查仍为 `16/7/9/0`；另列五个整体物理认证阶段 `5/0/0/5`。RunReceipt 合计 planned/valid/failed/abstained=`21/7/9/5`，每个结构失败和物理 abstention 都有独立原因。`complete` 表示分母全部记账；`physical_ready=false` 且 `physical_score=null`。
+PR #6 提交 [`a22cd23`](https://github.com/Greyyy-HJC/LatticeArena/commit/a22cd2304735dbd8e86c6210196f47c79dd47976) 将两 lane 当前物理 gate 投影到 `core.RunState`，并修正报告生成器，后续步骤不再要求重选已冻结的 C/F 方法。[Wilson v8 诊断](https://github.com/DianjunZhao/LatticeArena/blob/a22cd2304735dbd8e86c6210196f47c79dd47976/results/wilson_loop/lane_contract_diagnostic_20261125_v8/README.md) 中 C/F synthetic 结构检查仍为 `16/7/9/0`；另列五个整体物理认证阶段 `5/0/0/5`。RunReceipt 合计 planned/valid/failed/abstained=`21/7/9/5`，每个结构失败和物理 abstention 都有独立原因。`complete` 表示分母全部记账；`physical_ready=false` 且 `physical_score=null`。
 
 报告与 `core/state.py` 快照的哈希均已核验。Optimize/Wilson 合同、候选与共享框架四个专项模块 **37 passed**。新报告仍没有读取 Wilson measurements 或 sealed data，也没有产生 C loop interval、F 污染界或 confirmation；C/F 校准输入和 owner 授权继续是下一步的真实门槛。
