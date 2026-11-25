@@ -28,6 +28,11 @@ def load_data(output, split, p=None, *, source_snapshot=None, source_name=None):
     if source_snapshot is not None:
         if not isinstance(source_snapshot, SourceByteSnapshot):
             raise ValueError('source_snapshot must be a verified SourceByteSnapshot')
+        if split != 'development':
+            raise ValueError(
+                'snapshot data loading is restricted to the open development split '
+                'in this workflow'
+            )
         if not isinstance(source_name, str) or not source_name.strip():
             raise ValueError('source_name is required when loading from a source snapshot')
         stream = BytesIO(source_snapshot.read_bytes(source_name))

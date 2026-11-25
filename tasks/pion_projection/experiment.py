@@ -6,9 +6,11 @@ import numpy as np
 from scipy.optimize import minimize
 
 from core.candidates import validate_weights
+from core.source_integrity import SourceByteSnapshot
 
 from .common import digest, fingerprint, load_data, protocol, write_json
 from .statistics import (ReferenceFit, blocks, bootstrap_indices, fold, inverse_covariance, risk)
+from .spec import bundle_for
 
 
 def late_metric(data, weights, p):
@@ -44,12 +46,57 @@ def optimize_mixture(data, scales, m, mb, index, p):
     return fit, len(outcomes), evaluations
 
 
-def develop(output):
+def develop(output, *, source_snapshot=None, source_names=None):
     output = Path(output)
-    if (output / 'submission.json').exists() or (output / 'validation.npz').exists():
-        raise ValueError('Development is closed for this run; use a new run and disclose prior validation access')
-    p = protocol()
-    raw = load_data(output, 'development')
+    if source_snapshot is not None:
+        if not isinstance(source_snapshot, SourceByteSnapshot):
+            raise ValueError('source_snapshot must be a verified SourceByteSnapshot')
+        if (not isinstance(source_names, dict)
+                or set(source_names) != {
+                    'development_provenance', 'development_measurements'
+                }):
+            raise ValueError(
+                'source_names must map development_provenance and '
+                'development_measurements only'
+            )
+        if output.exists():
+            raise FileExistsError('snapshot development output must use a new directory')
+        output_abs, snapshot_root = output.resolve(), Path(source_snapshot.root).resolve()
+        if (output_abs == snapshot_root or output_abs in snapshot_root.parents
+                or snapshot_root in output_abs.parents):
+            raise ValueError('snapshot development output must be outside the source tree')
+        captured_provenance = json.loads(
+            source_snapshot.read_bytes(source_names['development_provenance'])
+        )
+        p = captured_provenance.get('protocol') if isinstance(captured_provenance, dict) else None
+        if not isinstance(p, dict) or p != protocol():
+            raise ValueError('captured development protocol differs from the checked-out protocol')
+        measurement_bundle = bundle_for(
+            source_snapshot=source_snapshot, source_names=source_names,
+        )
+        raw = measurement_bundle['arrays']['development']
+        development_sha = measurement_bundle['manifest']['source_files'][
+            'development_measurements'
+        ]['sha256']
+        source_hashes = {
+            role: entry['sha256']
+            for role, entry in measurement_bundle['manifest']['source_files'].items()
+        }
+        source_read_mode = 'immutable_snapshot'
+    else:
+        if source_names is not None:
+            raise ValueError('source_names is only valid with source_snapshot')
+        if (output / 'submission.json').exists() or (output / 'validation.npz').exists():
+            raise ValueError('Development is closed for this run; use a new run and disclose prior validation access')
+        p = protocol()
+        raw = load_data(output, 'development')
+        development_sha = digest(output / 'development.npz')
+        source_hashes = {'development_measurements': development_sha}
+        provenance = output / 'development_provenance.json'
+        if provenance.is_file():
+            source_hashes['development_provenance'] = digest(provenance)
+        source_read_mode = 'path'
+
     data = blocks(fold(raw), p['block_length'])
     index = bootstrap_indices(len(data), p['bootstrap_samples'], p['seed'])
     windows, masses = [], []
@@ -101,15 +148,19 @@ def develop(output):
     submissions = {'local': basis[0].tolist(), 'tuned_gaussian': basis[best].tolist(),
                    'agent_signed_mixture': weights.tolist()}
     metrics = {name: late_metric(data, w, p).tolist() for name, w in submissions.items()}
-    frozen = {'protocol_hash': fingerprint(p), 'development_sha256': digest(output/'development.npz'),
+    frozen = {'protocol_hash': fingerprint(p), 'development_sha256': development_sha,
               'statistics_sha256': digest(Path(__file__).with_name('statistics.py')),
               'kernel_sha256': digest(Path(__file__).with_name('kernels.py')),
+              'development_source_read_mode': source_read_mode,
+              'development_source_hashes': source_hashes,
               'powers': p['powers'], 'alpha': p['alpha'], 'submissions': submissions,
               'normalized_mixture_weights': fit.x.tolist(), 'basis_amplitude_scales': scales.tolist(),
               'late_inverse_covariances': metrics, 'selected_gaussian_power': p['powers'][best],
               'optimizer': {'converged_starts': converged, 'objective': float(fit.fun),
                             'iterations': int(fit.nit), 'l1': float(abs(fit.x).sum())},
               'calibration': calibration}
+    if source_snapshot is not None:
+        output.mkdir(parents=True, exist_ok=False)
     write_json(output/'development_results.json', {'basis': baseline_results, 'agent': candidate_result})
     write_json(output/'submission.json', frozen)
     np.savez_compressed(output/'reference_bootstrap.npz', masses=mb, indices=index)
@@ -191,6 +242,11 @@ def evaluate(output):
     output = Path(output)
     p = protocol()
     frozen = json.loads((output/'submission.json').read_text())
+    if frozen.get('development_source_read_mode') == 'immutable_snapshot' and not (output/'development.npz').is_file():
+        raise ValueError(
+            'Snapshot-only development has no colocated NPZ for validation evaluation; '
+            'supply an explicitly authorized, hash-matching development/validation transaction'
+        )
     if frozen['protocol_hash'] != fingerprint(p) or frozen['development_sha256'] != digest(output/'development.npz'):
         raise ValueError('Frozen protocol or development data changed')
     if frozen['statistics_sha256'] != digest(Path(__file__).with_name('statistics.py')) or frozen['kernel_sha256'] != digest(Path(__file__).with_name('kernels.py')):
