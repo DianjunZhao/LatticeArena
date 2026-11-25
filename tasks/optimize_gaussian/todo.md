@@ -274,3 +274,21 @@ Astra 只读复核已结束，没有产生外部授权或可直接冻结的 D04/
 当前没有这些输入或授权。保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed data closed；不要把旧 D0–99 或现有 synthetic panels 用作独立确认，也不要重复方法网格。
 
 本次在 PR #6 当前 head `6afedb1` 重跑 Optimize/Wilson 专项 suite 为 **97 passed**，全仓 CPU suite 为 **145 passed**。这是软件回归证据，不填补上述数据、独立审阅或 GPU 资源门。
+
+## 2026-11-25 D11 Bernstein-to-Chebyshev 数值实现收口
+
+PR #6 新提交 [`679f62d`](https://github.com/Greyyy-HJC/LatticeArena/commit/679f62daea0caa98ebf44bca486dc4a3a3d02bfa) 将 `bernstein_to_chebyshev` 从 Chebyshev 节点采样加线性求解，改为 `y=(x+1)/2` 下固定的 degree-4 有理变换矩阵。其五行分别为
+
+```text
+a0 = ( 35 b0 + 20 b1 + 18 b2 + 20 b3 + 35 b4) / 128
+a1 = (-56 b0 - 16 b1         + 16 b3 + 56 b4) / 128
+a2 = ( 28 b0 - 16 b1 - 24 b2 - 16 b3 + 28 b4) / 128
+a3 = ( -8 b0 + 16 b1         - 16 b3 +  8 b4) / 128
+a4 = (  b0 -  4 b1 +  6 b2 -  4 b3 +  b4) / 128
+```
+
+矩阵元素是可由 float64 精确表示的二进有理数；符号上的基变换为精确恒等式，最终矩阵向量乘仍按 float64 运算，不宣称机器舍入误差为零。保留 `chebyshev_interval_minimum` 作为旧的无约束系数诊断；选定 D11 方法的正性门来自 `0<=b0<=...<=b4=1` 的 Bernstein 参数化与 `validate_control_points` fail-closed 校验，因此不再依赖对拟合 Chebyshev 系数做浮点驻点搜索来代替约束。
+
+专项转换/合同/区间测试 **34 passed**；PR #6 全仓 CPU suite **146 passed**；`git diff --check` 通过。文本数据流：`校验单调 Bernstein controls -> 固定有理矩阵转 Chebyshev -> Clenshaw 应用 -> H/Hermitian/谱区间与共同 sandwich 检查`。这关闭的是 CPU 转换路径的不必要数值求解；测试不证明真实生产 links、物理 reference、同预算风险胜出、GPU/QUDA 性能或 rounding-level PSD 证书。
+
+**继续边界：**旧 synthetic Chebyshev 三 panel 的连续区间报告仍只描述原有拟合系数；不把它扩展成生产声明。Pion 的真实 score-specific dependence/anchor/reference 收据，以及 Wilson C/F 的独立 calibration/污染界仍需对应数据与独立 review；Optimize 仍需 E-chain/reference、split/cost 收据和生产/GPU 授权。没有新的授权/数据前，不重跑同族 synthetic 网格，不打开 sealed data，三项任务维持各自 `NOT_READY/UNCERTIFIED`、`physical_score=null`（Wilson F 另保留 `GROUND_STATE_FORCE_UNCERTIFIED`）。
