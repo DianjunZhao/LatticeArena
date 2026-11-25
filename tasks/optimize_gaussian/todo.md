@@ -314,3 +314,9 @@ D04/D06/D11 的方法默认值已经自选并写进合同；比较族继续同�
 ## 2026-11-25 当前接手结论
 
 较早要求研究者选择 D04 reference、D06 `r_star`、D11 算符形式的段落已被本文件开头的自选默认值取代；不得再次询问相同方法选择。Optimize TODO 保留，因为真实 reference、配对 split/cost receipts、production-link review 与授权仍缺失。没有新的、未封存且获授权的输入前，不训练真实 W、不读取 sealed confirmation、不申请或假称 GPU 资源；交付物仍须包括两种基线的并列风险/总成本图表或清晰文字流程和完整分母。
+
+## 2026-11-25 PR #6 RunState 接线续记
+
+PR #6 提交 [`a22cd23`](https://github.com/Greyyy-HJC/LatticeArena/commit/a22cd2304735dbd8e86c6210196f47c79dd47976) 将当前五个物理认证阶段接入通用 `core.RunState`。 [候选合同 v5](../../results/optimize_gaussian/framework_candidate_contract_20261125_v5/README.md) 明确 `operator/reference/numerical/statistical/comparison` 都因缺真实收据或授权而 `abstained`，`physical_ready=false`、`score=null`；独立 gate 分母 `5/0/0/5`。Schema 例子仍是 `1/1/0/0`，系数拟合是 `0/0/0/0`，RunReceipt `complete` 只表示这些状态均已记账。
+
+报告保存 `core/state.py` 快照并绑定 source/artifact hashes。Optimize 合同、候选、Wilson lane 与共享框架四个专项模块 **37 passed**；新诊断仍未提供 D04、D06、D11 的实证 receipts、真实 W 结果或物理 score。后续获授权运行必须创建新的 RunState，不能从本次 abstained 状态直接转为 validated。

@@ -318,7 +318,7 @@ I_j = [max(L_j, mean_j-r_j), min(U_j, mean_j+r_j)]
 
 PR #5 的 [`core.RunState`](../../core/state.py) 现与 PR #6 一致支持有原因的终态 `abstained`。Pion 合同诊断 [v14](../../results/pion_projection/bounded_block_risk_contract_diagnostic_20261125_v14/README.md) 把 operator/reference/numerical/statistical/comparison 五个物理认证阶段明确记录为 abstained，`physical_ready=false`、`score=null`；RunReceipt 单列该 gate 分母 `5/0/0/5`。19 个 synthetic schema fixture 仍单独计为 `19/6/13/0`；合并后的 receipt 分母为 20 项、planned/valid/failed/abstained=`24/6/13/5`。`complete` 只表示所有 schema 检查和无证书 gate 都已记账，不代表物理测量或认证。
 
-v14 文本表格逐项列出 blocker；`physical_score=null`、`NOT_READY/UNCERTIFIED` 和 sealed-data 边界不变。定向 `test_pion_bounded_block_risk_contract.py tests/test_framework.py tests/test_receipts.py` **57 passed**；报告快照包括 `core/state.py`，其 receipt/manifest 哈希均由测试逐项复核。未来拿到授权后必须建立新 RunState，不能将当前 abstained 状态直接推进成 validated。
+v14 文本表格逐项列出 blocker；`physical_score=null`、`NOT_READY/UNCERTIFIED` 和 sealed-data 边界不变。定向 `test_pion_bounded_block_risk_contract.py tests/test_framework.py tests/test_receipts.py` **57 passed**；改动后的 PR #5 全仓 CPU suite **201 passed**。报告快照包括 `core/state.py`，其 receipt/manifest 哈希均由测试逐项复核。未来拿到授权后必须建立新 RunState，不能将当前 abstained 状态直接推进成 validated。
 
 ## 2026-11-25 本轮继续复核：区间映射的真实前置条件
 
