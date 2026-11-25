@@ -410,3 +410,11 @@ Q_prof(m;x) = x^T W x
 新增[common-bias 可行性图文诊断](../../results/pion_projection/anchor_bias_feasibility_cpu_20261125_v1/README.md)与 [`anchor_bias_feasibility_diagnostic.py`](anchor_bias_feasibility_diagnostic.py)，只读取已冻结的 Pion 方法合同并代入既有 corrected Markov 公式，没有读取 correlator、receipt、cache、sealed split 或运行新模拟。按当前设计 `N=4000, gamma_ps=0.20, TV=0.001, F=3`，score 半径为 `0.386316`；`n_A=1000, alpha_A=0.01` 的 IID anchor 随机半径为 `0.051470 R`。即使真实 score 均值达到理论最大 1，要超过 `delta_star/R^2=0.05` 仍必须有 `C/R < 0.229372` 的 common-bias 界。选定 `C/R<=0.01` 的最好情形 LCB 是 `0.488744`；若只凭两者都在 `[0.1,3.0]` 的范围事实，则只能给平凡 `C/R<=1`，其最好情形 LCB 降为 `-1.491256`，不可能通过。故 clipping/有限支持可以支持浓缩界，但不能替代 estimator-specific 的 anchor-to-target 偏差桥。
 
 公式敏感度 CSV 的 planned/valid/failed/abstained=`101/101/0/0`；物理证据 gate=`1/0/0/1`。新增专项测试 **3 passed**，当前 `tests/test_pion*.py` **183 passed**。这给出了必要可行性门槛，不是 `C` 的估计或证明，也不把 Pion 状态提升为 ready。下一步应先明确可逐 anchor state 计算的固定 scalar map、证明它和拟合目标的偏差界 `C/R<=0.01` 并提供独立 receipt；如果只能得到 `C/R` 接近平凡 1 的界，则应维持 `ABSTAIN/NOT_READY`，或另行研究并冻结不同 estimand，不能靠扩大同一 synthetic grid 解决。
+
+## 2026-11-26 本轮接手边界复核
+
+本轮用项目虚拟环境复跑 `tests/test_pion*.py`：**183 passed**；当前 PR #5 的远端记录与 Pion 分支 head `578a117` 一致。此处测试只核验现有 bounded-risk、Markov、合同和 runner 边界，不产生新测量或 anchor/reference receipt。
+
+依照“sealed data closed”约束，本轮不打开 E、gap、validation、shared holdout 或 confirmation，也不启动 GPU/QUDA。方法默认值已由前文选定；仍缺的真实输入是：(1) 独立、candidate-blind E-chain reference 及拟合 receipt；(2) 可逐 anchor state 计算、与同一 `m*` 目标相连的固定 scalar/feature 映射，含其支持域、协方差与完整拟合门；(3) anchor-chain 和 score-chain 的独立性、stationarity/burn-in、`gamma_ps` 或其它可证明依赖界及 TV receipts；(4) 经独立审阅的 common-bias 上界 `C/R<=0.01`，或承认当前 `C/R` 无法达到该设计门并另行审议 estimand。缺其中任一项，bounded-score 仍为 `ABSTAIN/NOT_READY`，`physical_score=null`。
+
+下一位 agent 不再重复已完成的 D0–99 runner replay、F=3/Markov sensitivity 或 common-bias 公式网格；只在数据 owner 明确提供上述未封存、身份绑定 receipts 后，执行 mapping/contract review 与预先约定的区间映射诊断，并给出图或逐步骤文字、planned/valid/failed/abstained 分母。
