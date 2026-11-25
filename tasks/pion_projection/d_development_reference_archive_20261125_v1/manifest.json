@@ -8,12 +8,14 @@
     "validation": false
   },
   "classification": "open_development_diagnostic_only",
-  "configuration_ids": [
+  "configuration_id_range_inclusive": [
     0,
     99
   ],
+  "n_configurations": 100,
   "files": {
-    "README.md": "dee184670e710756a16b9ed457596fffd7010164edcf2fc32f54e728eecb15c7",
+    "README.md": "18edf587b98d6fa8c41449d3df1ddde396485431974d82e90459e0a0c42e63ad",
+    "runner_replay_audit.md": "f4ca7d2a55a73eacd6f7dd584e69f433570e83ece7de7b98725a60f79abcc041",
     "SOURCE_AMENDMENT.md": "121db80c691d1c158895848725e8f94c6094465db06022c51ea3e80d11924ee5",
     "analysis_provenance.json": "33bd80c6800c4332a4a3698be7fa5be2e29dedf3ff3db94e1221b90bc0a4e82f",
     "development_diagnostics.png": "f1fc3dbb538751310d8239fbd373327544b0d897adecaedcfb30a6ed0da0ec23",
@@ -96,7 +98,7 @@
       "[6,7,8]": 15.78
     }
   },
-  "reproducibility": "archive_only_original_runners_not_included",
+  "reproducibility": "local_numeric_replay_verified_pr_package_not_standalone",
   "source_artifact_hashes": {
     "analysis_provenance.json": "33bd80c6800c4332a4a3698be7fa5be2e29dedf3ff3db94e1221b90bc0a4e82f",
     "development.npz": "8a78947c8b4d1bec3b672ed57cd1406ed0bcccf6ec874747ece4d64078da7fe3",

@@ -347,9 +347,15 @@ v14 文本表格逐项列出 blocker；`physical_score=null`、`NOT_READY/UNCERT
 
 ## 2026-11-25 继续推进：开放 D 参考拟合归档与向量 anchor 区间映射方案
 
-开放 S16T16D IDs 0–99 的既有参考拟合、两态诊断与 effective-mass 图已归档在 [`d_development_reference_archive_20261125_v1`](d_development_reference_archive_20261125_v1/README.md)，附原说明、四张图及源输入/输出 hash manifest。单态拟合 `a_t m=1.0961829 ± 0.00305` 的 approximate fit p=`1.081e-15`，两个窗口偏移 `20.41σ`、`15.78σ`，故冻结 reference gate 为失败。事后两态拟合的 p 值为 `0.90–0.997`、窗口偏移降至 `0.86σ`/`1.92σ`，但 `[6,7,8]` 的激发态 bootstrap 碰上界，条件数约 `2.99e5`；effective mass 在 `t=7` 随 sink power 仍从 `1.034` 变化至 `1.093`。这说明增加模型自由度能吸收 D 开发样本中的曲率，却没有稳健识别 excited state 或独立确定 `m*`。它是已存在 D-development 诊断归档，不是本轮新测量；E anchor、validation、gap、shared holdout 和 confirmation 均未打开，runner 未打包，所以该归档可审阅但不能 standalone rerun。
+开放 S16T16D IDs 0–99 的既有参考拟合、两态诊断与 effective-mass 图已归档在 [`d_development_reference_archive_20261125_v1`](d_development_reference_archive_20261125_v1/README.md)，附原说明、四张图及源输入/输出 hash manifest。单态拟合 `a_t m=1.0961829 ± 0.00305` 的 approximate fit p=`1.081e-15`，两个窗口偏移 `20.41σ`、`15.78σ`，故冻结 reference gate 为失败。事后两态拟合的 p 值为 `0.90–0.997`、窗口偏移降至 `0.86σ`/`1.92σ`，但 `[6,7,8]` 的激发态 bootstrap 碰上界，条件数约 `2.99e5`；effective mass 在 `t=7` 随 sink power 仍从 `1.034` 变化至 `1.093`。这说明增加模型自由度能吸收 D 开发样本中的曲率，却没有稳健识别 excited state 或独立确定 `m*`。它是既有 D-development 诊断归档，不是新测量；E anchor、validation、gap、shared holdout 和 confirmation 均未打开。
 
 文字流程：`开放 D0–99 -> 单态 reference gate FAIL -> 两态拟合改善 in-sample p-value -> 晚时窗碰界/条件数约 3e5 -> effective mass 仍随 t 与 sink power 变化 -> 不升级为独立 E anchor / score coverage`。
+
+### 2026-11-25 runner 数值重放复核
+
+随后从本地根 checkout 找回四个原分析 runner；四个 SHA-256 均与归档 provenance 一致。只将 D0–99 `development.npz` 和同 generation 的 provenance 复制到临时目录，并从 provenance 重构对应 protocol 后，单态关键点值与历史摘要相差极小，两态质量/误差/p-value/条件数摘要在 `rel_tol=2e-9, abs_tol=2e-12` 下相符，有效质量 point/median/q16/q84 摘要最大绝对差为 0。单态窗口 z 的相对差约 `10^-7`，所有原 gate verdict 不变；JSON/NPZ 字节哈希不同，故不是 bitwise reproduction。具体数值表和路径身份见 [`runner_replay_audit.md`](d_development_reference_archive_20261125_v1/runner_replay_audit.md)。
+
+该重放只证明 recovered local source 对开放 D 样本的数值摘要可复现；PR 包自身没有三支诊断 runner，且 `identity.py`、`reference.py` 缺失、若干依赖源码 hash 不同，尚不能从 PR 独立 rerun。要关闭复现缺口，后续须归档完整精确 runner/dependency source closure，并提供获准分发的 D 输入包；不得因此打开 E/gap/validation/shared holdout。该核对不改变 reference `FAIL`、`NOT_READY/UNCERTIFIED` 或 `physical_score=null`。
 
 ### 向量 anchor `g(box)` 的可验证全局区间映射：后续设计，不是已认证算法
 
