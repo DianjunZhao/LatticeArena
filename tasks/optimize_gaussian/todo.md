@@ -556,4 +556,4 @@ reader 现在还从同一 snapshots 严格解析 `optimize-paired-macroblock-cha
 
 文字流程：`历史 RunSpec hashes -> 路径式 train.main -> 旧 fit/dev_val/test 与 bootstrap objective` 与当前 `D06 immutable snapshot q-matrix + chain/gap/TV receipts -> Markov bound` 在读取事务、split 语义和统计 estimand 上不相接；本轮静态审计 planned/valid/failed/abstained=`3/3/0/0`（三个旧模块 inspected），物理文件读取=`0/0/0/0`。继续软件接线应实现新协议的 evaluator/parser并从同一 bytes snapshot 派生 q 矩阵、失败分母、receipt 摘要和证据摘要；旧 runner 仅作 hard-timeout 参考。不得为满足“有 runner”而重建旧 `train.py` 或访问真实/封存输入。
 
-本次 Wilson reader 的全仓 CPU 回归为 **297 passed**；这验证软件行为，不解决 E-reference、真实 gap/TV receipt、paired solver/cost、D11 SU(3) 审阅、production RunSpec 或授权。状态仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
+本次 Wilson reader 的全仓 CPU 回归为 **299 passed**；这验证软件行为，不解决 E-reference、真实 gap/TV receipt、paired solver/cost、D11 SU(3) 审阅、production RunSpec 或授权。状态仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`。

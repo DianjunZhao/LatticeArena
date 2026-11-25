@@ -4,6 +4,9 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from io import BytesIO
+
+import numpy as np
 
 from core.evidence import evidence_envelope
 from core.receipts import denominator, run_receipt, scenario_spec
@@ -21,6 +24,16 @@ from tasks.wilson_loop.evidence_adapter import (
 from tasks.wilson_loop.lane_contract import selected_protocol
 from tasks.wilson_loop.force_summary_reader import (
     apply_wilson_force_snapshot_gate,
+)
+from tasks.wilson_loop.c_lane_snapshot_reader import (
+    MANIFEST_SCHEMA as C_MANIFEST_SCHEMA,
+    MEASUREMENT_SCHEMA as C_MEASUREMENT_SCHEMA,
+    SUMMARY_SCHEMA as C_SUMMARY_SCHEMA,
+    apply_wilson_creutz_snapshot_gate,
+)
+from tasks.wilson_loop.c_lane_open_development_diagnostic import (
+    N_DRAWS as C_N_DRAWS,
+    analyze as analyze_creutz_values,
 )
 
 
@@ -106,6 +119,96 @@ def _creutz_fixture(*, split="C-calibration-open", halfwidth=0.01):
         "summary_sha256": hashes["interval_summary"],
     }
     return envelope, receipt, summary, hashes
+
+
+def _creutz_snapshot_fixture(tmp_path, *, split="C-calibration-open", summary_delta=0.0):
+    envelope, receipt, _summary, _hashes = _creutz_fixture(split=split)
+    protocol = selected_protocol()
+    c_lane = protocol["finite_T_Creutz"]
+    ids = list(range(12))
+    kernel_ids = ["identity", "ape_alpha0.4_n5", c_lane["kernel_id"]]
+    manifest = {
+        "schema": C_MANIFEST_SCHEMA,
+        "split_id": split,
+        "config_ids": ids,
+        "geometry": protocol["ensemble_design"]["geometry"],
+        "action": "Wilson gauge action, beta=6",
+        "boundary_conditions": protocol["ensemble_design"]["boundary_conditions"],
+        "r_values": [1, 2, 3, 4],
+        "t_values": [4, 5, 6, 7, 8],
+        "kernel_ids": kernel_ids,
+        "primary_kernel_id": c_lane["kernel_id"],
+        "kernel_parameters": {c_lane["kernel_id"]: {
+            "kind": "stout", "rho": 0.1, "steps": 5,
+        }},
+    }
+    manifest_bytes = json.dumps(
+        manifest, sort_keys=True, separators=(",", ":"), allow_nan=False
+    ).encode()
+    loops = np.full((len(ids), len(kernel_ids), 4, 5), 0.4, dtype=np.float64)
+    stout = loops[:, kernel_ids.index(c_lane["kernel_id"])]
+    stout[:, 2, 2] = 0.3  # W(3,6)
+    stout[:, 1, 1] = 0.5  # W(2,5)
+    stout[:, 2, 1] = 0.4  # W(3,5)
+    stout[:, 1, 2] = 0.4  # W(2,6)
+    npz_stream = BytesIO()
+    np.savez_compressed(
+        npz_stream,
+        schema=np.asarray(C_MEASUREMENT_SCHEMA), split_id=np.asarray(split),
+        config_ids=np.asarray(ids, dtype=np.int64), kernel_ids=np.asarray(kernel_ids),
+        r_values=np.asarray([1, 2, 3, 4], dtype=np.int64),
+        t_values=np.asarray([4, 5, 6, 7, 8], dtype=np.int64),
+        manifest_sha256=np.asarray(hashlib.sha256(manifest_bytes).hexdigest()),
+        loops=loops,
+    )
+    measurement_bytes = npz_stream.getvalue()
+    analyzed = analyze_creutz_values(stout)
+    _means, _point, _point_valid, rows, _draws, lower, upper, halfwidth, _passed = analyzed
+    invalid = sum(row["invalid_draws"] for row in rows)
+    summary = {
+        "schema": C_SUMMARY_SCHEMA,
+        "units": "dimensionless",
+        "hull_lower": lower + summary_delta,
+        "hull_upper": upper,
+        "halfwidth": (upper - lower) / 2 + summary_delta / 2,
+        "invalid_draws": invalid,
+        "planned_draws": len(rows) * C_N_DRAWS,
+    }
+    summary_bytes = json.dumps(
+        summary, sort_keys=True, separators=(",", ":"), allow_nan=False
+    ).encode()
+    (tmp_path / "manifest.json").write_bytes(manifest_bytes)
+    (tmp_path / "loops.npz").write_bytes(measurement_bytes)
+    (tmp_path / "interval-summary.json").write_bytes(summary_bytes)
+    common_bytes = b"synthetic C dependence, coverage, review, and authorization receipts"
+    (tmp_path / "common.bin").write_bytes(common_bytes)
+    map_bytes = json.dumps({
+        "protocol_id": protocol["protocol_id"],
+        "finite_T_Creutz": c_lane,
+        "lane_contract": json.loads(CONTRACT_PATH.read_text())["lanes"]["finite_T_Creutz"],
+    }, sort_keys=True, separators=(",", ":")).encode()
+    (tmp_path / "loop-map.json").write_bytes(map_bytes)
+    hashes = {
+        "manifest": hashlib.sha256(manifest_bytes).hexdigest(),
+        "loop_map": hashlib.sha256(map_bytes).hexdigest(),
+        "loop_measurements": hashlib.sha256(measurement_bytes).hexdigest(),
+        "dependence_receipt": hashlib.sha256(common_bytes).hexdigest(),
+        "coverage_calibration_receipt": hashlib.sha256(common_bytes).hexdigest(),
+        "interval_summary": hashlib.sha256(summary_bytes).hexdigest(),
+        "review_receipt": hashlib.sha256(common_bytes).hexdigest(),
+        "authorization_receipt": hashlib.sha256(common_bytes).hexdigest(),
+    }
+    envelope["chain"]["manifest_sha256"] = hashes["manifest"]
+    envelope["source_hashes"] = hashes
+    envelope["review"]["receipt_sha256"] = hashes["review_receipt"]
+    paths = {
+        "manifest": "manifest.json", "loop_map": "loop-map.json",
+        "loop_measurements": "loops.npz", "interval_summary": "interval-summary.json",
+        "dependence_receipt": "common.bin", "coverage_calibration_receipt": "common.bin",
+        "review_receipt": "common.bin", "authorization_receipt": "common.bin",
+    }
+    snapshot = capture_source_snapshot(tmp_path, hashes, paths)
+    return envelope, receipt, hashes, snapshot, measurement_bytes
 
 
 def _force_fixture():
@@ -401,6 +504,69 @@ def test_creutz_lane_verifies_explicit_source_bytes_before_draft(tmp_path):
         "unit": "source_file", "planned": 8, "valid": 1,
         "failed": 7, "abstained": 0, "not_run": 0,
     }
+
+
+def test_creutz_snapshot_reader_recomputes_interval_from_same_loop_bytes(tmp_path):
+    envelope, receipt, hashes, snapshot, measurement_bytes = _creutz_snapshot_fixture(tmp_path)
+    (tmp_path / "loops.npz").write_bytes(b"changed after immutable capture")
+
+    result = apply_wilson_creutz_snapshot_gate(
+        _ready_state("operator", "numerical"), envelope, receipt,
+        required_source_hashes=hashes, source_snapshot=snapshot,
+    )
+
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["physical_score"] is None and result["certified"] is False
+    reader = result["creutz_snapshot_reader"]
+    assert reader["status"] == "ARRAY_REDUCED_NOT_CERTIFIED"
+    assert reader["source_hashes"]["loop_measurements"] == hashlib.sha256(measurement_bytes).hexdigest()
+    assert reader["summary_consistency"] == "MATCHED_TO_CAPTURED_LOOP_MATRIX"
+    assert reader["source_denominator"] == {
+        "unit": "C calibration input file", "planned": 3,
+        "valid": 3, "failed": 0, "abstained": 0,
+    }
+    assert reader["configuration_denominator"] == {
+        "unit": "paired saved gauge configuration", "planned": 12,
+        "valid": 12, "failed": 0, "abstained": 0,
+    }
+    assert reader["draw_denominator"] == {
+        "unit": "paired circular-bootstrap draw", "planned": 30_000,
+        "valid": 30_000, "failed": 0, "abstained": 0,
+    }
+    assert reader["interval_summary"]["halfwidth"] <= 1e-12
+    assert reader["text_flow"]
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 8, "valid": 8,
+        "failed": 0, "abstained": 0, "not_run": 0,
+    }
+
+
+def test_creutz_snapshot_reader_rejects_stale_summary_and_closed_split(tmp_path):
+    envelope, receipt, hashes, snapshot, _measurement_bytes = _creutz_snapshot_fixture(
+        tmp_path, summary_delta=0.01,
+    )
+    result = apply_wilson_creutz_snapshot_gate(
+        _ready_state("operator", "numerical"), envelope, receipt,
+        required_source_hashes=hashes, source_snapshot=snapshot,
+    )
+    assert result["status"] == "ABSTAIN_WILSON_C_LANE"
+    assert result["creutz_snapshot_reader"]["status"] == "ABSTAIN_C_SUMMARY_MISMATCH"
+    assert result["physical_score"] is None
+
+    closed_root = tmp_path / "closed"
+    closed_root.mkdir()
+    envelope, receipt, hashes, snapshot, _measurement_bytes = _creutz_snapshot_fixture(
+        closed_root, split="C-calibration-validation-sealed",
+    )
+    state = _ready_state("operator", "numerical")
+    result = apply_wilson_creutz_snapshot_gate(
+        state, envelope, receipt,
+        required_source_hashes=hashes, source_snapshot=snapshot,
+    )
+    assert result["status"] == "ABSTAIN_WILSON_C_LANE"
+    assert state.status["statistical"] == "abstained"
+    assert result["creutz_snapshot_reader"]["status"] == "ABSTAIN_C_CLOSED_SPLIT"
+    assert result["physical_score"] is None
 
 
 def test_creutz_lane_abstains_on_bad_precision_or_closed_split():
