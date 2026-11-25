@@ -85,13 +85,14 @@ The generic split preflight is `split name + inclusive integer [start,end] -> va
   treats the anchor chain with its own support, gap, TV and error budget; at its
   assumed planning point it lowers the best-case score LCB to `0.187605`.
   Neither report estimates a chain gap, a TV distance, the anchor-to-target map
-  or physical coverage. A reusable calibration extension should expose a typed
-  dependence contract (IID, graph-color/finite-dependence, or Markov-gap route),
-  bind the observable/block-map hash and theorem/assumption receipt, record
-  support, units, confidence allocation and burn-in/TV semantics, preserve
-  separate anchor and score chains, and fail closed when required evidence is
-  absent. Clipping changes the estimand and must be frozen before confirmation
-  data.
+  or physical coverage. The new core evidence envelope records dependence route,
+  observable/block-map hash, method assumptions, support/units, confidence
+  allocation, burn-in/TV, source hashes and reviewer receipt. Its identity
+  comparison rejects reused anchor/score chain IDs but explicitly does not prove
+  statistical independence. A Pion-owned adapter must still bind the frozen
+  anchor scalar map, target-chain score and common-bias receipt before physical
+  evaluation. Clipping changes the estimand and must be frozen before
+  confirmation data.
 - **Optimize Gaussian:** the versioned research contract now records selected
   method defaults: candidate-blind independent E-chain PP/A4P reference fit,
   `r_star=10/9`, and two contrasts (trainable-W versus same-budget SLSQP and
@@ -132,7 +133,7 @@ The generic split preflight is `split name + inclusive integer [start,end] -> va
   receipts nor provides physics evidence. The generic `RunState` does not infer
   spectral, thermal or mixed-sector bounds.
 
-## Cross-task extension proposal: typed dependence and physics evidence
+## Cross-task extension: typed dependence and physics evidence
 
 The three task families now exercise related but non-interchangeable evidence
 routes: Pion has a score-block chain and a distinct anchor chain; Optimize has a
@@ -150,16 +151,34 @@ frozen task estimand + observable-map hash
   -> reason-accounted receipt -> RunState abstain or validation (never by schema completeness alone)
 ```
 
-The next reusable core extension is a versioned evidence-envelope contract that
-records the chain/state unit, fixed observable map, support and units, theorem or
-bound version, dependence/spectrum assumptions, confidence allocation,
-burn-in and TV treatment, source hashes, and reviewer receipt. Anchor and score
-chains must have separate identities; Wilson spectral bounds must be typed in
-the output units of the propagated estimator. This is a design proposal, not a
-shared runtime implementation: current task helpers remain separate because
-their units and mathematical events differ. A core contract should be added
-only with task adapters and fixtures proving that missing, mismatched-unit,
-wrong-chain, stale-hash and incomplete-receipt cases all abstain.
+The shared schema is implemented in [`core/evidence.py`](../core/evidence.py).
+`evidence_envelope` records task and evidence kind; chain ID, split, state unit
+and manifest hash; observable-map ID/hash and support with units; method/version
+and assumptions; IID, finite-dependence, Markov, spectral or deterministic
+route; confidence family/allocation; source hashes; and a hash-bound review
+receipt. For Markov evidence it requires `gamma_ps_lower`, burn-in unit/count,
+and a post-burn-in TV bound. A Wilson F-lane bound can carry the propagated
+force unit such as `a_s*a_t*F`, rather than an upstream loop's dimensionless
+unit.
+
+`inspect_evidence_envelope` returns `SCHEMA_COMPLETE_NOT_CERTIFIED` only when
+the envelope matches caller-frozen identity/unit/source expectations and review
+receipt; malformed, stale, mismatched or unreviewed inputs return `ABSTAIN`.
+`inspect_distinct_chain_identities` rejects a reused chain ID or manifest while
+always returning `independence_proven=false`: unique labels and hashes cannot
+establish independent sampling. Consumers must still hash actual source bytes,
+review theorem assumptions and connect the result to a task-specific gate; the
+schema itself never sets a physical score.
+
+Eight fixtures cover Pion anchor/dependence, Optimize bounded-risk, and Wilson
+force-bound metadata. They explicitly exercise missing Markov gap, wrong chain,
+wrong force unit, stale source hash, missing review and reused chain identity;
+all invalid cases abstain. The focused run `python -B -m pytest -q
+tests/test_evidence.py tests/test_receipts.py` reports **13 passed**. This is a
+schema/fixture check only; no production receipt was supplied and no task
+evaluator currently consumes the envelope. The next implementation is to add
+task-owned adapters that map frozen contracts to expected dotted fields and
+source hashes, then feed their abstain result into each task's `RunState`.
 
 ## Practical implementation order for a new task
 
@@ -187,7 +206,8 @@ failures and protocol abstentions are distinct states and should stay visible.
 The current `main` has a Pion pilot, but the three task additions remain
 analytic, synthetic or structural CPU work; none closes a production physics
 measurement pipeline. Shared receipts cover several contract and diagnostic
-consumers, but there is no generic typed dependence/evidence-envelope runtime.
+consumers, and the generic typed evidence metadata validator now exists, but no
+task evaluator consumes it and it does not authenticate source bytes or claims.
 Pion's current evidence set includes the selected `F=3` Markov score sensitivity,
 a separate Markov-anchor sensitivity, known-graph and anchor coverage
 simulations, and the common-bias feasibility analysis. Optimize now has two
