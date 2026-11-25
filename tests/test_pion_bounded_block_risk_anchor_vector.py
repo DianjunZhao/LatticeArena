@@ -104,6 +104,16 @@ def test_vector_box_fails_closed_when_tv_spends_anchor_alpha():
         )
 
 
+def test_vector_box_rejects_unrepresentable_numeric_parameters():
+    with pytest.raises(ValueError, match="gamma_ps_lower"):
+        markov_anchor_mean_box(
+            np.array([[0.2], [0.3]]),
+            support_bounds=[(0.0, 1.0)],
+            gamma_ps_lower=10**10000,
+            alpha_anchor=0.05,
+        )
+
+
 def test_vector_box_requires_consistent_startup_convention():
     with pytest.raises(ValueError, match="stationary start"):
         markov_anchor_mean_box(

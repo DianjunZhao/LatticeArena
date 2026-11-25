@@ -17,8 +17,12 @@ from .bounded_block_risk_markov_gap import markov_gap_radius
 
 
 def _finite_real(value: object) -> bool:
-    return (isinstance(value, Real) and not isinstance(value, bool)
-            and math.isfinite(float(value)))
+    if not isinstance(value, Real) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(float(value))
+    except (OverflowError, TypeError, ValueError):
+        return False
 
 
 def markov_anchor_mean_box(
