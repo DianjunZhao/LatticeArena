@@ -404,3 +404,9 @@ Q_prof(m;x) = x^T W x
 前提是 `W` 经验证正定、`Phi^T W Phi` 在每个保留 mass 子盒上满秩且其逆/解有可靠区间界；秩变、近简并 mass、条件数过大、任何拟合约束/截断或模型门不确定均不得用普通 float64 伪逆静默继续，应细分并出具 rank/condition interval 或 abstain。若冻结合同对振幅加符号/幅度约束，需把内层改为有验证界的凸二次子问题，不能套用上式的无约束闭式投影。mass 域、最小 state gap、边界、PP/A4P 归一化与 covariance 都必须先冻结；不得从本次 D 样本反推它们。
 
 该路线只降低优化维度，不绕过“找全所有全局最小值”证明，也不能修复 D0–99 暴露的谱不可辨识。定向数值诊断应覆盖已知两态/三态的精确解、双极小与近简并、质量触边、`Phi` 降秩/高条件数、协方差奇异、PP/A4P 模型门在盒内翻转，以及 branch budget 耗尽。报告图建议画 `m0` 认证 hull 随 subdivision budget 的收敛带、每轮 `expanded/pruned/unresolved` 盒数和 objective gap；始终保留全局最小值未证明时的 abstention denominator。该为 conditional algorithm proposal，未实现、未测试，也未对物理数据作推断。
+
+### 2026-11-25 继续推进：仅靠区间支持的 anchor 偏差桥必然太松
+
+新增[common-bias 可行性图文诊断](../../results/pion_projection/anchor_bias_feasibility_cpu_20261125_v1/README.md)与 [`anchor_bias_feasibility_diagnostic.py`](anchor_bias_feasibility_diagnostic.py)，只读取已冻结的 Pion 方法合同并代入既有 corrected Markov 公式，没有读取 correlator、receipt、cache、sealed split 或运行新模拟。按当前设计 `N=4000, gamma_ps=0.20, TV=0.001, F=3`，score 半径为 `0.386316`；`n_A=1000, alpha_A=0.01` 的 IID anchor 随机半径为 `0.051470 R`。即使真实 score 均值达到理论最大 1，要超过 `delta_star/R^2=0.05` 仍必须有 `C/R < 0.229372` 的 common-bias 界。选定 `C/R<=0.01` 的最好情形 LCB 是 `0.488744`；若只凭两者都在 `[0.1,3.0]` 的范围事实，则只能给平凡 `C/R<=1`，其最好情形 LCB 降为 `-1.491256`，不可能通过。故 clipping/有限支持可以支持浓缩界，但不能替代 estimator-specific 的 anchor-to-target 偏差桥。
+
+公式敏感度 CSV 的 planned/valid/failed/abstained=`101/101/0/0`；物理证据 gate=`1/0/0/1`。新增专项测试 **3 passed**，当前 `tests/test_pion*.py` **183 passed**。这给出了必要可行性门槛，不是 `C` 的估计或证明，也不把 Pion 状态提升为 ready。下一步应先明确可逐 anchor state 计算的固定 scalar map、证明它和拟合目标的偏差界 `C/R<=0.01` 并提供独立 receipt；如果只能得到 `C/R` 接近平凡 1 的界，则应维持 `ABSTAIN/NOT_READY`，或另行研究并冻结不同 estimand，不能靠扩大同一 synthetic grid 解决。
