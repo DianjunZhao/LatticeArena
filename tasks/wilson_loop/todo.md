@@ -249,3 +249,9 @@ PR #6 提交 [`f9be949`](https://github.com/Greyyy-HJC/LatticeArena/commit/f9be9
 目前这些输入、收据和授权都没有出现在可审阅范围。继续保持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 与 sealed data closed；不使用 toy 或历史样本补造污染界。
 
 本次在 PR #6 当前 head `6afedb1` 重跑 Wilson/Optimize 专项 suite 为 **97 passed**，全仓 CPU suite 为 **145 passed**。这些测试验证合同、公式与代码路径，不提供 C loop 测量、F lane 的污染上界或 confirmation 证据。
+
+## 2026-11-25 后续接手：Optimize 合同更新后的 Wilson 状态
+
+PR #6 最新 head [`49673bb`](https://github.com/Greyyy-HJC/LatticeArena/commit/49673bbec8044ecd313a4237b4a7d3f3055e75f9) 本轮更新仅涉及 Optimize 的 D11 Bernstein/Chebyshev 转换和图文报告生成器；Wilson source、lane contract 与其物理默认值没有改动。当前 head 上重跑 `tests/test_wilson*.py`：**37 passed**；全仓 CPU suite：**146 passed**。这是共享代码回归与 Wilson 合同/toy 软件验证，不是新的 C/F 物理测量或独立污染证据。
+
+Wilson 仍按已选定的有限温 Creutz C lane 与基态离散静态力 F lane 分开报告。继续缺少 C lane 新 calibration IDs 的四 loop 正均值/paired-block 精度收据，以及 F lane 独立 3×3 GEVP、多态/时间窗、matched `N_t=32` 热路径、q/h/x→force 同时界和独立审阅；D0–99 不可改作 confirmation。没有这些资料和 data/resource owner 授权时，保持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 与 sealed data closed，不生成物理分数。
