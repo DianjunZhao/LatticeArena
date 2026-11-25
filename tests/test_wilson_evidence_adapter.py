@@ -1,16 +1,22 @@
 """CPU-only structural and numerical checks for Wilson lane adapters."""
 from __future__ import annotations
 
+import hashlib
+import json
+
 from core.evidence import evidence_envelope
 from core.receipts import denominator, run_receipt, scenario_spec
 from core.state import RunState
 from tasks.wilson_loop.evidence_adapter import (
+    CONTRACT_PATH,
+    _F_UNITS,
     _F_ROUTES,
     apply_wilson_creutz_gate,
     apply_wilson_force_gate,
     creutz_map_sha256,
     force_map_sha256,
 )
+from tasks.wilson_loop.lane_contract import selected_protocol
 
 
 H = [f"{i:064x}" for i in range(1, 60)]
@@ -234,6 +240,7 @@ def test_creutz_lane_checks_frozen_point_precision_and_keeps_score_null():
     state = _ready_state("operator", "numerical")
     result = apply_wilson_creutz_gate(
         state, envelope, receipt, summary, required_source_hashes=hashes,
+        require_source_bytes=False,
     )
     assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
     assert state.status["statistical"] == "draft"
@@ -241,11 +248,83 @@ def test_creutz_lane_checks_frozen_point_precision_and_keeps_score_null():
     assert result["certified"] is False
 
 
+def test_creutz_lane_requires_explicit_source_bytes_by_default():
+    envelope, receipt, summary, hashes = _creutz_fixture()
+    state = _ready_state("operator", "numerical")
+    result = apply_wilson_creutz_gate(
+        state, envelope, receipt, summary, required_source_hashes=hashes,
+    )
+    assert result["status"] == "ABSTAIN_WILSON_C_LANE"
+    assert state.status["statistical"] == "abstained"
+    assert any("source-byte verification requires" in reason for reason in result["reasons"])
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 8, "valid": 0,
+        "failed": 0, "abstained": 8, "not_run": 0,
+    }
+
+
+def test_creutz_lane_verifies_explicit_source_bytes_before_draft(tmp_path):
+    envelope, receipt, summary, hashes = _creutz_fixture()
+    common_bytes = b"synthetic shared Wilson C receipt"
+    (tmp_path / "common.bin").write_bytes(common_bytes)
+    common_hash = hashlib.sha256(common_bytes).hexdigest()
+    protocol = selected_protocol()
+    map_bytes = json.dumps({
+        "protocol_id": protocol["protocol_id"],
+        "finite_T_Creutz": protocol["finite_T_Creutz"],
+        "lane_contract": json.loads(CONTRACT_PATH.read_text())["lanes"]["finite_T_Creutz"],
+    }, sort_keys=True, separators=(",", ":")).encode()
+    assert hashlib.sha256(map_bytes).hexdigest() == creutz_map_sha256()
+    (tmp_path / "creutz-map.json").write_bytes(map_bytes)
+
+    hashes = {
+        name: (creutz_map_sha256() if name == "loop_map" else common_hash)
+        for name in hashes
+    }
+    envelope["chain"]["manifest_sha256"] = common_hash
+    envelope["source_hashes"] = hashes
+    envelope["review"]["receipt_sha256"] = common_hash
+    summary["summary_sha256"] = common_hash
+    source_paths = {
+        name: ("creutz-map.json" if name == "loop_map" else "common.bin")
+        for name in hashes
+    }
+
+    state = _ready_state("operator", "numerical")
+    result = apply_wilson_creutz_gate(
+        state, envelope, receipt, summary,
+        required_source_hashes=hashes,
+        source_root=tmp_path,
+        source_paths=source_paths,
+    )
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["source_byte_identity_verified"] is True
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 8, "valid": 8,
+        "failed": 0, "abstained": 0, "not_run": 0,
+    }
+
+    (tmp_path / "common.bin").write_bytes(b"tampered Wilson C receipt")
+    state = _ready_state("operator", "numerical")
+    result = apply_wilson_creutz_gate(
+        state, envelope, receipt, summary,
+        required_source_hashes=hashes,
+        source_root=tmp_path,
+        source_paths=source_paths,
+    )
+    assert result["status"] == "ABSTAIN_SOURCE_BYTES"
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 8, "valid": 1,
+        "failed": 7, "abstained": 0, "not_run": 0,
+    }
+
+
 def test_creutz_lane_abstains_on_bad_precision_or_closed_split():
     envelope, receipt, summary, hashes = _creutz_fixture(halfwidth=0.021)
     state = _ready_state("operator", "numerical")
     result = apply_wilson_creutz_gate(
         state, envelope, receipt, summary, required_source_hashes=hashes,
+        require_source_bytes=False,
     )
     assert result["status"] == "ABSTAIN_WILSON_C_LANE"
     assert state.status["statistical"] == "abstained"
@@ -255,6 +334,7 @@ def test_creutz_lane_abstains_on_bad_precision_or_closed_split():
     state = _ready_state("operator", "numerical")
     result = apply_wilson_creutz_gate(
         state, envelope, receipt, summary, required_source_hashes=hashes,
+        require_source_bytes=False,
     )
     assert result["status"] == "ABSTAIN_WILSON_C_LANE"
     assert any("closed" in reason for reason in result["reasons"])
@@ -266,11 +346,96 @@ def test_force_lane_checks_28_systematic_cells_and_force_unit_budget():
     result = apply_wilson_force_gate(
         state, envelopes, receipt, summary,
         required_source_hashes_by_envelope=routes,
+        require_source_bytes=False,
     )
     assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
     assert state.status["statistical"] == "draft"
     assert len(result["envelope_results"]) == 6
     assert result["physical_score"] is None
+
+
+def test_force_lane_requires_explicit_source_bytes_by_default():
+    envelopes, receipt, summary, routes = _force_fixture()
+    state = _ready_state("operator", "reference", "numerical")
+    result = apply_wilson_force_gate(
+        state, envelopes, receipt, summary,
+        required_source_hashes_by_envelope=routes,
+    )
+    assert result["status"] == "ABSTAIN_WILSON_F_LANE"
+    assert state.status["statistical"] == "abstained"
+    assert any("source-byte verification requires" in reason for reason in result["reasons"])
+    assert result["source_verification"]["denominator"]["planned"] == sum(
+        len(route_hashes) for route_hashes in routes.values()
+    )
+    assert result["source_verification"]["denominator"]["abstained"] == sum(
+        len(route_hashes) for route_hashes in routes.values()
+    )
+
+
+def test_force_lane_verifies_all_route_source_bytes_atomically(tmp_path):
+    envelopes, receipt, summary, routes = _force_fixture()
+    common_bytes = b"synthetic shared Wilson F receipt"
+    (tmp_path / "common.bin").write_bytes(common_bytes)
+    common_hash = hashlib.sha256(common_bytes).hexdigest()
+    protocol = selected_protocol()
+    force = protocol["ground_state_discrete_static_force"]
+    source_paths = {}
+
+    for route, envelope in envelopes.items():
+        map_bytes = json.dumps({
+            "protocol_id": protocol["protocol_id"],
+            "estimand": force["estimand"],
+            "formula": force["formula"],
+            "units": force["units"],
+            "error_propagation": force["error_propagation"],
+            "spectral_evidence_plan": force["spectral_evidence_plan"],
+            "role": route,
+            "support_unit": _F_UNITS[route],
+        }, sort_keys=True, separators=(",", ":")).encode()
+        assert hashlib.sha256(map_bytes).hexdigest() == force_map_sha256(route)
+        map_name = f"{route}-map.json"
+        (tmp_path / map_name).write_bytes(map_bytes)
+        route_hashes = {
+            name: (force_map_sha256(route) if name == "observable_map" else common_hash)
+            for name in routes[route]
+        }
+        routes[route] = route_hashes
+        envelope["chain"]["manifest_sha256"] = common_hash
+        envelope["source_hashes"] = route_hashes
+        envelope["review"]["receipt_sha256"] = common_hash
+        source_paths[route] = {
+            name: (map_name if name == "observable_map" else "common.bin")
+            for name in route_hashes
+        }
+
+    summary["summary_sha256"] = common_hash
+    state = _ready_state("operator", "reference", "numerical")
+    result = apply_wilson_force_gate(
+        state, envelopes, receipt, summary,
+        required_source_hashes_by_envelope=routes,
+        source_root=tmp_path,
+        source_paths_by_envelope=source_paths,
+    )
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["source_byte_identity_verified"] is True
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 53, "valid": 53,
+        "failed": 0, "abstained": 0, "not_run": 0,
+    }
+
+    (tmp_path / "common.bin").write_bytes(b"tampered Wilson F receipt")
+    state = _ready_state("operator", "reference", "numerical")
+    result = apply_wilson_force_gate(
+        state, envelopes, receipt, summary,
+        required_source_hashes_by_envelope=routes,
+        source_root=tmp_path,
+        source_paths_by_envelope=source_paths,
+    )
+    assert result["status"] == "ABSTAIN_SOURCE_BYTES"
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 53, "valid": 6,
+        "failed": 47, "abstained": 0, "not_run": 0,
+    }
 
 
 def test_force_lane_abstains_without_positive_reference_or_with_overbudget_bounds():
@@ -280,6 +445,7 @@ def test_force_lane_abstains_without_positive_reference_or_with_overbudget_bound
     result = apply_wilson_force_gate(
         state, envelopes, receipt, summary,
         required_source_hashes_by_envelope=routes,
+        require_source_bytes=False,
     )
     assert result["status"] == "ABSTAIN_WILSON_F_LANE"
     assert any("positive simultaneous" in reason for reason in result["reasons"])
@@ -292,6 +458,7 @@ def test_force_lane_abstains_without_positive_reference_or_with_overbudget_bound
     result = apply_wilson_force_gate(
         state, envelopes, receipt, summary,
         required_source_hashes_by_envelope=routes,
+        require_source_bytes=False,
     )
     assert result["status"] == "ABSTAIN_WILSON_F_LANE"
     assert any("finite_T_thermal" in reason for reason in result["reasons"])
@@ -315,6 +482,7 @@ def test_force_lane_requires_complete_GEVP_thermal_denominators_and_separate_run
     result = apply_wilson_force_gate(
         state, envelopes, bad, summary,
         required_source_hashes_by_envelope=routes,
+        require_source_bytes=False,
     )
     assert result["status"] == "ABSTAIN_WILSON_F_LANE"
     assert any("gevp_fit_variants" in reason for reason in result["reasons"])
@@ -324,5 +492,6 @@ def test_force_lane_requires_complete_GEVP_thermal_denominators_and_separate_run
     result = apply_wilson_force_gate(
         state, envelopes, receipt, summary,
         required_source_hashes_by_envelope=routes,
+        require_source_bytes=False,
     )
     assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"

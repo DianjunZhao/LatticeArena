@@ -45,7 +45,7 @@ Pion development evaluator. `agents/optimization_benchmark.py` illustrates
 paired synthetic episodes with development selection and a separate test draw.
 These are task examples, not automatic plug-ins for every task family.
 
-The generic split preflight is `split name + inclusive integer [start,end] -> valid endpoint order -> reject overlap`; it checks declared ranges only, not source data IDs or independence. The generic run-state transition for a missing gate is `not_run/draft -> abstained(reason) -> terminal`; abstention cannot be upgraded in place to a validated result, and `score_or_null()` remains null unless every state has hash-bound validation. This distinguishes insufficient evidence from a demonstrated failure. Optimize and Wilson route their metadata expectations through the shared state model in this PR; Pion's corresponding task adapter is in PR #5. Source readers, byte authentication and physical evaluators remain incomplete.
+The generic split preflight is `split name + inclusive integer [start,end] -> valid endpoint order -> reject overlap`; it checks declared ranges only, not source data IDs or independence. The generic run-state transition for a missing gate is `not_run/draft -> abstained(reason) -> terminal`; abstention cannot be upgraded in place to a validated result, and `score_or_null()` remains null unless every state has hash-bound validation. This distinguishes insufficient evidence from a demonstrated failure. Optimize and Wilson route their metadata expectations through the shared state model and now use explicit-path byte wrappers at the task gates; Pion's task adapter is in PR #5. Production readers and physical evaluators remain incomplete.
 
 ## Task-specific opportunities
 
@@ -121,8 +121,9 @@ The generic split preflight is `split name + inclusive integer [start,end] -> va
   production dependence receipt, or independent review. The task adapter in
   `tasks/optimize_gaussian/evidence_adapter.py` now maps D04 fit checks, both
   bounded-block D06 contrasts plus their shared denominator, and D11 SU(3)
-  operator metadata to the shared gate; it does not authenticate source bytes
-  or implement the training/evaluation runner.
+  operator metadata to the shared gate and requires an explicit-path byte check
+  by default; it does not connect the real source reader or implement the
+  training/evaluation runner.
 - **Wilson loop:** the selected method defaults now keep finite-`T` Creutz and
   ground-state discrete force as separate estimands. They can share paired IDs
   while using different inference and systematic-error gates. The fixed q/h/x
@@ -226,24 +227,30 @@ paths never reach file hashing. Missing paths/files count as abstentions and
 digest mismatches/read failures as failures. The shared
 `apply_evidence_gate_with_source_bytes` and bundle variant run this preflight
 before the metadata gate; complete bytes still advance only to `draft`.
-Optimize/Wilson task adapters are not yet wired to real RunSpecs/source
-readers. A digest receipt also cannot authenticate its expected-hash authority
-or freeze the underlying file after the read.
+Optimize D04/D06/D11 and Wilson C/F task adapters now call these wrappers by
+default and abstain when their explicit root/path maps are absent. Their
+synthetic fixtures opt out of byte checks explicitly. The adapters are not yet
+connected to real RunSpecs/source readers, so production callers still need to
+bind the files they actually read. A digest receipt also cannot authenticate
+its expected-hash authority or freeze the underlying file after the read.
 
 This PR's fixtures cover Optimize D04/D06/D11 and Wilson C/F metadata. They
 exercise missing Markov gap, wrong chain, wrong force unit, stale source hash,
 missing review, non-independent reviewer role, missing independence-claim hash,
 incomplete bundle, chain collision, invalid fit summary, missing SU(3) receipt,
 sealed split, excess TV, force-budget failure, and incomplete GEVP denominator;
-invalid cases abstain. Optimize maps both bounded-risk contrasts plus the
+invalid cases abstain. Default source-byte-required behavior is also tested;
+synthetic positive metadata fixtures declare their opt-out. Optimize maps both bounded-risk contrasts plus the
 shared positive denominator to one bundle, while D04 and D11 retain separate
 stages. Wilson keeps C and F receipts in separate lane-specific states. The
-adapters advance only to `draft` and do not authenticate receipt bytes or
-certify statistical/physical claims. The Optimize/Wilson adapter fixtures
-report **10 passed** (5 each); the shared schema has separate contract tests.
-PR #5 contains the Pion adapter and its fixtures as a separate change. No
-production receipt was supplied. Byte-authenticating readers, independent
-review of task checks, and numerical/physics evaluators remain future work.
+adapters advance only to `draft`; byte matching does not authenticate receipt
+authority or certify statistical/physical claims. Optimize/Wilson adapter
+fixtures report **18 passed** (9 Optimize, 9 Wilson), and the focused shared
+evidence/source-integrity plus adapter set reports **44 passed**; the full CPU
+suite reports **276 passed**. PR #5 contains
+the Pion adapter and its fixtures as a separate change. No production receipt
+was supplied. Connecting real readers to byte maps, independent review of task
+checks, and numerical/physics evaluators remain future work.
 
 ## Practical implementation order for a new task
 
@@ -271,8 +278,9 @@ failures and protocol abstentions are distinct states and should stay visible.
 The current `main` has a Pion pilot, but these additions remain analytic,
 synthetic or structural CPU work; none closes a production physics measurement
 pipeline. Shared receipts cover several contract and diagnostic consumers, and
-the Optimize/Wilson metadata adapters in this PR consume the typed evidence
-validator; they do not authenticate source bytes or claims. Pion's selected
+the Optimize/Wilson adapters consume the typed evidence validator plus an
+explicit-path byte check; neither establishes source authority, independence,
+or scientific claims. Pion's selected
 `F=3` Markov score sensitivity, separate Markov-anchor sensitivity, coverage
 simulations and common-bias feasibility analysis are in the separate PR #5.
 Optimize now has two

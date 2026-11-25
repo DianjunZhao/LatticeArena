@@ -501,3 +501,14 @@ PR #6 当前的 `apply_evidence_bundle_gate` 把 D06 的 SLSQP、Chebyshev 与 t
 通用字节身份前置现在由 [`core/source_integrity.py`](../../core/source_integrity.py) 的 `verify_source_bytes` 提供，并由 `core/evidence.py` 的 `apply_evidence_gate_with_source_bytes` / bundle variant 在 metadata gate 前调用：只散列调用方明确映射、位于指定 root 下的相对路径；planned denominator 保留未映射/缺文件为 abstained、hash mismatch/越界路径为 failed。专项临时文件测试 **6 passed**，与 RunState gate 集成测试另计于 shared evidence suite。通过字节 gate 也最多到 `draft`；它只证明本次读到的字节与给定 hash 一致，不证明 hash 的授权来源、数据独立性，也不锁定文件后续不变。尚未接入 Optimize RunSpec/真实 source reader，本轮未打开任何物理输入。
 
 **继续工作：**独立统计/物理 reviewer 需复核 D04 六项 fit gating、D06 paired state + pseudo-gap/TV union bound、D11 operator 维度/边界/舍入与 SU(3) 证据范围；软件侧将 source-byte gate 接到实际 RunSpec/source reader，并验证 receipt 指向的 bytes 与文件清单一一对应。随后仍需经过授权的真实 E-reference、paired solver/失败/成本 receipts、实际 `train.main` evaluator 接线。D04 reference、D06 Markov gap/TV 与真实 solver 输入均未提供；当前不训练 W、不测 GPU、不打开 sealed IDs，保持 `NOT_READY/UNCERTIFIED` 和 `physical_score=null`。所有后续报告继续保留 planned/valid/failed/abstained 分母，并提供图或文字数据流/决策流程。
+
+
+### 2026-11-26 Optimize task adapters 的 source-byte 默认门
+
+本次把 source-byte 检查从 shared helper 推进到三个 Optimize adapter 的实际 gate 调用点：D04/D11 单 envelope 接受 `source_root + source_paths`，D06 接受同一 root 下按 route 分开的 `source_paths_by_envelope`。默认 `require_source_bytes=True`；没有 root 或路径映射即进入相应 stage 的 `abstained`。即便调用方显式给出 `require_source_bytes=False`，也只有在 root 和 paths 都未提供时才走 metadata-only 分支；这是 synthetic fixture 的显式选择。若路径映射提供不完整，shared verifier 会按所有注册 source hashes 计计划文件，并将缺路径/文件记为 abstained、字节不匹配或越界路径记为 failed。全量字节一致后仍只到 `draft`。
+
+文字流程：`RunReceipt + task envelope/source hashes -> task-specific contract checks -> explicit root/path map -> 每个 source hash 逐文件 SHA-256（planned = 注册的 source-hash 项数；valid/failed/abstained 按实际文件计） -> shared schema gate -> draft 或 abstained`。D04 的 E-chain/reference/fit/review/authorization 文件、D11 的 link/operator/kernel/SU(3)/review/authorization 文件、D06 三路的 score/chain/gap/TV/budget/cost/review/authorization 文件均须由调用方明确给出相对路径；不会由 adapter 猜文件位置。
+
+新增三项默认拒绝测试分别覆盖 D04、D11、D06；缺路径时对应 source-file P/V/F/A 分别为 D04 `8/0/0/8`、D11 `7/0/0/7`、D06 `30/0/0/30`。另有 D06 三路 bundle 的正向字节映射，30/30 通过；篡改共用文件后为 `30/3/27/0` 并原子 abstain。Optimize adapter suite 为 **9 passed**，与 Wilson adapter suite、共享 evidence 和 source-integrity suite合计 **44 passed**；整个 checkout CPU suite **276 passed**，Optimize/Wilson test 文件组合 **202 passed**。这些 task-level source 文件均为临时 synthetic bytes，不是实际 source-map 或生产收据。任何完整 byte map 也仅证明本次读取字节与调用方提供 digest 一致，不验证 hash authority、reviewer 身份/独立性、物理内容或读取后的不可变性。
+
+仍未把实际 RunSpec/source reader 接到这些参数，因此当前不能声明 receipt 与程序真正读取的输入文件一一对应。下一步软件工作是由 task evaluator 在同一读取事务中导出真实文件清单、hash 和相对路径映射，再对新增接线做正例、丢失文件、hash mismatch、root escape 和 receipt/reader 不一致测试。独立 reviewer 还需复核 D04/D06/D11 的物理与统计门；E-reference、paired solver、Markov gap/TV、SU(3) production links 与授权成本 receipts 未到位前，不运行真实训练或 GPU、不读 sealed split。`NOT_READY/UNCERTIFIED`、`physical_score=null` 保持不变。

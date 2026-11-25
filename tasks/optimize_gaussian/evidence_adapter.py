@@ -1,10 +1,11 @@
 """Optimize task gates for D04, bounded-block D06, and D11 evidence.
 
-These adapters bind the shared evidence-envelope schema to the selected
-Optimize contracts. They check metadata, reported gate summaries, and complete
-denominators only; the caller must authenticate source bytes and reviewers.
-Every successful transition stops at ``draft`` and leaves ``physical_score``
-unset.
+These adapters bind task metadata and denominators to the selected Optimize
+contracts. By default they also require an explicit root and per-source path
+map, then hash the bytes before a successful transition can reach ``draft``.
+The explicit metadata-only option is for synthetic fixtures. Neither byte
+matching nor metadata validates scientific content, source authority, or
+reviewer independence; ``physical_score`` remains unset.
 """
 from __future__ import annotations
 
@@ -16,8 +17,14 @@ from numbers import Real
 from pathlib import Path
 from typing import Any
 
-from core.evidence import apply_evidence_bundle_gate, apply_evidence_gate
+from core.evidence import (
+    apply_evidence_bundle_gate,
+    apply_evidence_bundle_gate_with_source_bytes,
+    apply_evidence_gate,
+    apply_evidence_gate_with_source_bytes,
+)
 from core.receipts import RECEIPT_SCHEMA, run_receipt as normalize_run_receipt
+from core.source_integrity import SOURCE_VERIFICATION_SCHEMA
 from .bounded_block_risk import R_STAR
 
 
@@ -137,6 +144,37 @@ def _source_map(value: object, required: frozenset[str], label: str) -> list[str
     return reasons
 
 
+def _missing_source_byte_receipt(value: object) -> dict[str, Any]:
+    """Account for every expected source when no root/path map was supplied."""
+    expected: dict[str, object] = {}
+    if isinstance(value, dict):
+        if value and all(isinstance(item, dict) for item in value.values()):
+            for route, hashes in value.items():
+                expected.update({f"{route}::{name}": digest for name, digest in hashes.items()})
+        else:
+            expected = {str(name): digest for name, digest in value.items()}
+    entries = {
+        name: {
+            "status": "abstained",
+            "path": None,
+            "expected_sha256": digest if _valid_hash(digest) else None,
+            "observed_sha256": None,
+            "reason": "source_root_or_path_map_missing",
+        }
+        for name, digest in expected.items()
+    }
+    planned = len(entries)
+    return {
+        "schema": SOURCE_VERIFICATION_SCHEMA,
+        "status": "incomplete",
+        "denominator": {
+            "unit": "source_file", "planned": planned, "valid": 0,
+            "failed": 0, "abstained": planned, "not_run": 0,
+        },
+        "entries": entries,
+    }
+
+
 def _check_receipt(receipt: object, expected: dict[str, int] | None = None,
                    *, dynamic: frozenset[str] = frozenset()) -> tuple[dict[str, Any] | None, list[str]]:
     if not isinstance(receipt, dict) or receipt.get("schema") != RECEIPT_SCHEMA:
@@ -221,6 +259,9 @@ def apply_optimize_d04_reference_gate(
     reference_summary: object,
     *,
     required_source_hashes: object,
+    source_root: str | Path | None = None,
+    source_paths: dict[str, str] | None = None,
+    require_source_bytes: bool = True,
 ) -> dict[str, Any]:
     """Check the selected independent E-chain D04 fit and advance to draft.
 
@@ -323,17 +364,31 @@ def apply_optimize_d04_reference_gate(
     ))
     if reasons:
         return _abstain(run_state, stage, reasons, "ABSTAIN_OPTIMIZE_D04_REFERENCE")
-    return apply_evidence_gate(
+    expected = {
+        "task": TASK,
+        "evidence_kind": "d04_e_chain_reference",
+        "observable.map_id": "optimize-d04-joint-reference-v1",
+        "observable.map_sha256": d04_reference_map_sha256(),
+        "observable.support.unit": "a_t m_pi",
+        "method.name": "candidate_blind_joint_PP_A4P_two_state_fit",
+    }
+    if require_source_bytes is False and source_root is None and source_paths is None:
+        return apply_evidence_gate(
+            run_state, stage, envelope, receipt, expected=expected,
+            required_source_hashes=hashes,
+        )
+    if source_root is None or source_paths is None:
+        result = _abstain(
+            run_state, stage,
+            ["D04 source-byte verification requires source_root and an explicit source_paths map"],
+            "ABSTAIN_OPTIMIZE_D04_REFERENCE",
+        )
+        result["source_verification"] = _missing_source_byte_receipt(hashes)
+        return result
+    return apply_evidence_gate_with_source_bytes(
         run_state, stage, envelope, receipt,
-        expected={
-            "task": TASK,
-            "evidence_kind": "d04_e_chain_reference",
-            "observable.map_id": "optimize-d04-joint-reference-v1",
-            "observable.map_sha256": d04_reference_map_sha256(),
-            "observable.support.unit": "a_t m_pi",
-            "method.name": "candidate_blind_joint_PP_A4P_two_state_fit",
-        },
-        required_source_hashes=hashes,
+        source_root=str(source_root), source_paths=source_paths,
+        expected=expected, required_source_hashes=hashes,
     )
 
 
@@ -344,6 +399,9 @@ def apply_optimize_d11_operator_gate(
     operator_summary: object,
     *,
     required_source_hashes: object,
+    source_root: str | Path | None = None,
+    source_paths: dict[str, str] | None = None,
+    require_source_bytes: bool = True,
 ) -> dict[str, Any]:
     """Bind D11 production-link/operator receipts; success remains draft-only."""
     stage = "operator"
@@ -409,17 +467,31 @@ def apply_optimize_d11_operator_gate(
     ))
     if reasons:
         return _abstain(run_state, stage, reasons, "ABSTAIN_OPTIMIZE_D11_OPERATOR")
-    return apply_evidence_gate(
+    expected = {
+        "task": TASK,
+        "evidence_kind": "d11_production_operator",
+        "observable.map_id": "optimize-d11-degree4-operator-v1",
+        "observable.map_sha256": d11_operator_map_sha256(),
+        "method.name": "degree4_bernstein_chebyshev_clenshaw",
+        "dependence.mode": "deterministic",
+    }
+    if require_source_bytes is False and source_root is None and source_paths is None:
+        return apply_evidence_gate(
+            run_state, stage, envelope, receipt, expected=expected,
+            required_source_hashes=hashes,
+        )
+    if source_root is None or source_paths is None:
+        result = _abstain(
+            run_state, stage,
+            ["D11 source-byte verification requires source_root and an explicit source_paths map"],
+            "ABSTAIN_OPTIMIZE_D11_OPERATOR",
+        )
+        result["source_verification"] = _missing_source_byte_receipt(hashes)
+        return result
+    return apply_evidence_gate_with_source_bytes(
         run_state, stage, envelope, receipt,
-        expected={
-            "task": TASK,
-            "evidence_kind": "d11_production_operator",
-            "observable.map_id": "optimize-d11-degree4-operator-v1",
-            "observable.map_sha256": d11_operator_map_sha256(),
-            "method.name": "degree4_bernstein_chebyshev_clenshaw",
-            "dependence.mode": "deterministic",
-        },
-        required_source_hashes=hashes,
+        source_root=str(source_root), source_paths=source_paths,
+        expected=expected, required_source_hashes=hashes,
     )
 
 
@@ -429,6 +501,9 @@ def apply_optimize_bounded_block_risk_gate(
     receipt: object,
     *,
     required_source_hashes_by_envelope: object,
+    source_root: str | Path | None = None,
+    source_paths_by_envelope: dict[str, dict[str, str]] | None = None,
+    require_source_bytes: bool = True,
 ) -> dict[str, Any]:
     """Atomically gate both bounded-risk contrasts and their shared denominator.
 
@@ -545,11 +620,24 @@ def apply_optimize_bounded_block_risk_gate(
 
     if reasons:
         return _abstain(run_state, stage, reasons, "ABSTAIN_OPTIMIZE_D06_BOUNDED_RISK")
-    return apply_evidence_bundle_gate(
-        run_state,
-        stage,
-        envelopes,
-        receipt,
+    if require_source_bytes is False and source_root is None and source_paths_by_envelope is None:
+        return apply_evidence_bundle_gate(
+            run_state, stage, envelopes, receipt,
+            expected_by_envelope=expected_by_route,
+            required_source_hashes_by_envelope=source_routes,
+        )
+    if source_root is None or source_paths_by_envelope is None:
+        result = _abstain(
+            run_state, stage,
+            ["D06 source-byte verification requires source_root and an explicit per-route source_paths map"],
+            "ABSTAIN_OPTIMIZE_D06_BOUNDED_RISK",
+        )
+        result["source_verification"] = _missing_source_byte_receipt(source_routes)
+        return result
+    return apply_evidence_bundle_gate_with_source_bytes(
+        run_state, stage, envelopes, receipt,
+        source_root=str(source_root),
+        source_paths_by_envelope=source_paths_by_envelope,
         expected_by_envelope=expected_by_route,
         required_source_hashes_by_envelope=source_routes,
     )

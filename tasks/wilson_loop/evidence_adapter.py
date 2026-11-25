@@ -1,9 +1,10 @@
-"""Lane-specific metadata gates for Wilson finite-T Creutz and static force.
+"""Lane-specific gates for Wilson finite-T Creutz and ground-state force.
 
 The C and F estimands use separate receipts, expected fields, denominators,
-and RunState instances. These adapters verify reported contracts and bounds;
-they do not read or authenticate source bytes, prove reviewer independence, or
-certify either physical result. A complete bundle can advance only to draft.
+and RunState instances. By default each gate requires explicit source paths and
+checks their bytes before a complete bundle can advance only to ``draft``.
+That check does not authenticate source authority, prove reviewer independence,
+or certify either physical result. Metadata-only mode is for synthetic tests.
 """
 from __future__ import annotations
 
@@ -15,8 +16,14 @@ from numbers import Real
 from pathlib import Path
 from typing import Any
 
-from core.evidence import apply_evidence_bundle_gate, apply_evidence_gate
+from core.evidence import (
+    apply_evidence_bundle_gate,
+    apply_evidence_bundle_gate_with_source_bytes,
+    apply_evidence_gate,
+    apply_evidence_gate_with_source_bytes,
+)
 from core.receipts import RECEIPT_SCHEMA, run_receipt as normalize_run_receipt
+from core.source_integrity import SOURCE_VERIFICATION_SCHEMA
 from .lane_contract import LATTICE_FORCE_UNITS, selected_protocol
 
 
@@ -167,6 +174,37 @@ def _check_sources(value: object, required: frozenset[str], label: str) -> list[
     return reasons
 
 
+def _missing_source_byte_receipt(value: object) -> dict[str, Any]:
+    """Account for every expected source when no root/path map was supplied."""
+    expected: dict[str, object] = {}
+    if isinstance(value, dict):
+        if value and all(isinstance(item, dict) for item in value.values()):
+            for route, hashes in value.items():
+                expected.update({f"{route}::{name}": digest for name, digest in hashes.items()})
+        else:
+            expected = {str(name): digest for name, digest in value.items()}
+    entries = {
+        name: {
+            "status": "abstained",
+            "path": None,
+            "expected_sha256": digest if _hash(digest) else None,
+            "observed_sha256": None,
+            "reason": "source_root_or_path_map_missing",
+        }
+        for name, digest in expected.items()
+    }
+    planned = len(entries)
+    return {
+        "schema": SOURCE_VERIFICATION_SCHEMA,
+        "status": "incomplete",
+        "denominator": {
+            "unit": "source_file", "planned": planned, "valid": 0,
+            "failed": 0, "abstained": planned, "not_run": 0,
+        },
+        "entries": entries,
+    }
+
+
 def _check_receipt(receipt: object, expected: dict[str, int]) -> tuple[dict[str, Any] | None, list[str]]:
     if not isinstance(receipt, dict) or receipt.get("schema") != RECEIPT_SCHEMA:
         return None, [f"receipt.schema must be {RECEIPT_SCHEMA!r}"]
@@ -255,6 +293,9 @@ def apply_wilson_creutz_gate(
     interval_summary: object,
     *,
     required_source_hashes: object,
+    source_root: str | Path | None = None,
+    source_paths: dict[str, str] | None = None,
+    require_source_bytes: bool = True,
 ) -> dict[str, Any]:
     """Check the selected finite-T Creutz C lane, keeping it separate from F."""
     reasons = _prerequisites(run_state, ("operator", "numerical"))
@@ -349,21 +390,35 @@ def apply_wilson_creutz_gate(
                 reasons.append("C finite-dependence route needs an integer dependence radius")
     if reasons:
         return _abstain(run_state, reasons, "ABSTAIN_WILSON_C_LANE")
-    return apply_evidence_gate(
+    expected = {
+        "task": TASK,
+        "evidence_kind": "finite_t_creutz_interval",
+        "observable.map_id": "wilson-finite-t-creutz-R2-T5-stout-v1",
+        "observable.map_sha256": creutz_map_sha256(),
+        "observable.support.unit": "dimensionless finite-T Creutz observable",
+        "method.name": "paired_circular_block_bootstrap_hull",
+        "confidence.family_id": "wilson-two-lane-selected-v1",
+        "confidence.alpha_total": 0.05,
+        "confidence.alpha_allocated": _C_ALPHA,
+        "confidence.family_size": 2,
+    }
+    if require_source_bytes is False and source_root is None and source_paths is None:
+        return apply_evidence_gate(
+            run_state, "statistical", envelope, receipt, expected=expected,
+            required_source_hashes=required_source_hashes,
+        )
+    if source_root is None or source_paths is None:
+        result = _abstain(
+            run_state,
+            ["Wilson C source-byte verification requires source_root and an explicit source_paths map"],
+            "ABSTAIN_WILSON_C_LANE",
+        )
+        result["source_verification"] = _missing_source_byte_receipt(required_source_hashes)
+        return result
+    return apply_evidence_gate_with_source_bytes(
         run_state, "statistical", envelope, receipt,
-        expected={
-            "task": TASK,
-            "evidence_kind": "finite_t_creutz_interval",
-            "observable.map_id": "wilson-finite-t-creutz-R2-T5-stout-v1",
-            "observable.map_sha256": creutz_map_sha256(),
-            "observable.support.unit": "dimensionless finite-T Creutz observable",
-            "method.name": "paired_circular_block_bootstrap_hull",
-            "confidence.family_id": "wilson-two-lane-selected-v1",
-            "confidence.alpha_total": 0.05,
-            "confidence.alpha_allocated": _C_ALPHA,
-            "confidence.family_size": 2,
-        },
-        required_source_hashes=required_source_hashes,
+        source_root=str(source_root), source_paths=source_paths,
+        expected=expected, required_source_hashes=required_source_hashes,
     )
 
 
@@ -410,6 +465,9 @@ def apply_wilson_force_gate(
     force_summary: object,
     *,
     required_source_hashes_by_envelope: object,
+    source_root: str | Path | None = None,
+    source_paths_by_envelope: dict[str, dict[str, str]] | None = None,
+    require_source_bytes: bool = True,
 ) -> dict[str, Any]:
     """Check the F-lane bundle with force-unit propagated bounds.
 
@@ -601,11 +659,24 @@ def apply_wilson_force_gate(
 
     if reasons:
         return _abstain(run_state, reasons, "ABSTAIN_WILSON_F_LANE")
-    return apply_evidence_bundle_gate(
-        run_state,
-        "statistical",
-        envelopes,
-        receipt,
+    if require_source_bytes is False and source_root is None and source_paths_by_envelope is None:
+        return apply_evidence_bundle_gate(
+            run_state, "statistical", envelopes, receipt,
+            expected_by_envelope=expected_by_route,
+            required_source_hashes_by_envelope=source_routes,
+        )
+    if source_root is None or source_paths_by_envelope is None:
+        result = _abstain(
+            run_state,
+            ["Wilson F source-byte verification requires source_root and an explicit per-route source_paths map"],
+            "ABSTAIN_WILSON_F_LANE",
+        )
+        result["source_verification"] = _missing_source_byte_receipt(source_routes)
+        return result
+    return apply_evidence_bundle_gate_with_source_bytes(
+        run_state, "statistical", envelopes, receipt,
+        source_root=str(source_root),
+        source_paths_by_envelope=source_paths_by_envelope,
         expected_by_envelope=expected_by_route,
         required_source_hashes_by_envelope=source_routes,
     )

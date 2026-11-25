@@ -2,7 +2,7 @@
 
 ### 2026-11-26 本 checkout 回归核验
 
-当前 Optimize/Wilson PR worktree 的完整 Wilson 测试文件集 `tests/test_wilson*.py` 为 **62 passed**（CPU only；2026-11-26 复跑）。它覆盖 lane contract、force-budget propagation、Markov 支持界、finite-`N_t` 代数与 toy/randomized fixtures；只确认代码/公式边界，不提供 C/F measurement、独立 q/h/x/GEVP/thermal receipt 或 coverage/calibration 证据。PR #5 最新 head `c7a4c9b` 另有共享 [`core/evidence.py` metadata contract](https://github.com/Greyyy-HJC/LatticeArena/blob/c7a4c9b2c8858d1fdf3499966a2223c45427bbc6/core/evidence.py)，包括单 envelope 和 multi-envelope bundle gate，完整合同最多推进至 RunState `draft`；该 PR 还提供了 Pion 的 task adapter 接口样例，但没有 Wilson adapter/evaluator 接线，而且尚未合并到此 PR。接口不认证真实来源或独立性。现有图文分析和 lane-specific 未决项如下文，仍保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+当前 Optimize/Wilson PR worktree 的完整 Wilson 测试文件集 `tests/test_wilson*.py` 为 **71 passed**（CPU only；2026-11-26 复跑）。它覆盖 lane contract、force-budget propagation、Markov 支持界、finite-`N_t` 代数、toy/randomized fixtures 与 C/F task adapter 的默认 source-byte fail-closed 行为；只确认软件/公式边界，不提供 C/F measurement、独立 q/h/x/GEVP/thermal receipt 或 coverage/calibration 证据。当前 Wilson adapter 默认要求 source root 与显式路径 map，并在 source bytes 匹配后最多将 gate 推进到 draft；但它仍未接入实际生产 RunSpec/source reader。PR #5 的共享 [`core/evidence.py` metadata contract](https://github.com/Greyyy-HJC/LatticeArena/blob/c7a4c9b2c8858d1fdf3499966a2223c45427bbc6/core/evidence.py)包含单 envelope 和 multi-envelope bundle gate；PR #5 的 Pion adapter/诊断另行保留。字节一致不认证真实来源、reviewer 独立性或物理内容。现有图文分析和 lane-specific 未决项如下文，仍保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
 
 ### 2026-11-25 当前接手：C/F 方法默认已提出，独立证据和认证门仍未完成
 
@@ -324,7 +324,7 @@ CPU schema 前置检查由 [F4 synthetic preflight](../../results/wilson_loop/au
 
 ### 2026-11-26 共享 evidence schema v2 的 Wilson 接线要求
 
-PR #5 的共享 gate 已使用 evidence-envelope v2。review 元数据要求 `reviewer_role_claim="independent"`、scope/receipt hash 与 `independence_claim_sha256`；这些字段只能索引审阅声明，不能认证 reviewer 身份、无利益冲突或真实独立性。为使 PR #6 可基于 `main` 单独检查，本 PR 携带 shared gate 的最小 runtime 和 schema tests，并由 Wilson-owned adapter 调用；Pion task adapter/诊断仍单独留在 PR #5。Task 层逐字节核验来源和物理内容仍未实现。
+PR #5 的共享 gate 已使用 evidence-envelope v2。review 元数据要求 `reviewer_role_claim="independent"`、scope/receipt hash 与 `independence_claim_sha256`；这些字段只能索引审阅声明，不能认证 reviewer 身份、无利益冲突或真实独立性。为使 PR #6 可基于 `main` 单独检查，本 PR 携带 shared gate 的最小 runtime 和 schema tests，并由 Wilson-owned adapter 调用；Pion task adapter/诊断仍单独留在 PR #5。该时间点 task adapter 尚未接入逐字节门；2026-11-26 后续条目记录了 C/F 默认 byte-gate 接线，但真实 RunSpec/source reader 仍未连接。
 
 - **C lane / finite-T Creutz：**单独绑定 stout `R=2,T=5` 主点、四个正 loop means、同一 saved-configuration chain 与归一化 map；要求对应 multiplicity、precision 和 inference receipt。现有 synthetic coverage 显示在长相关情景下常用 bootstrap/HAC 未保证名义覆盖；没有独立 gap/TV 或新覆盖校准时不得把旧 D0–99 bootstrap 升成 confirmation interval。
 - **F lane / ground-state force：**单独绑定 `R_mid=2.5` 离散力 estimator、正 reference-force simultaneous lower bound、3×3 GEVP/operator provenance、matched `N_t=32` thermal evidence，以及 q/h/x + spectral-model error 经 8-corner stencil 后的 `a_s*a_t*F` 力级包络；统计、谱/热/mixed/model 项保持分立 receipts 与 family allocation。
@@ -349,6 +349,17 @@ PR #6 当前的 `apply_evidence_bundle_gate`：C lane 可将四个 loop/source/c
 
 本轮 synthetic positive fixture 的可复查分母为：C `four_required_loop_means=4/4/0/0`、`paired_bootstrap_draws=30000/30000/0/0`；示例 hull `[0.09,0.11]`、half-width `0.01`、invalid `0`。F `force_interval_draws=30000/30000/0/0`、`positive_reference_draws=30000/30000/0/0`、`gevp_fit_variants=36/36/0/0`、`force_systematic_cells=28/28/0/0`、`matched_nt32_thermal_receipts=1/1/0/0`；示例正 reference lower bound `1.0`，四项 propagated force bounds 为 `.01/.01/.005/.005`，statistical half-width `.03`。这些全是 metadata/summary fixtures，非 Wilson measurement 或物理污染界。C/F adapter 专项 `5 passed`，与 Optimize adapter 合计 `10 passed`。
 
-通用字节身份前置由 [`core/source_integrity.py`](../../core/source_integrity.py) 的 `verify_source_bytes` 提供；共享 `apply_evidence_gate_with_source_bytes` / bundle variant 会在 metadata gate 前核验调用方逐项映射的 root 内相对路径，完整报告每个 planned 文件的 valid/failed/abstained。临时文件专项 **6 passed**，shared gate 集成用例另计。它不会自行读取或接线任何 Wilson 文件；digest 只支持当前读到的字节匹配，不认证生产来源、授权、独立性或后续不可变性。即便 byte gate 完整也最多到 `draft`。
+通用字节身份前置由 [`core/source_integrity.py`](../../core/source_integrity.py) 的 `verify_source_bytes` 提供；共享 `apply_evidence_gate_with_source_bytes` / bundle variant 会在 metadata gate 前核验调用方逐项映射的 root 内相对路径，完整报告每个 planned 文件的 valid/failed/abstained。临时文件专项 **6 passed**，shared gate 集成用例另计。当时 Wilson task adapter 尚未接入 source-byte wrapper；随后 2026-11-26 更新已将 wrapper 接入 C/F gate，但生产 RunSpec/reader 尚未提供真实 source path map。digest 只支持当前读到的字节匹配，不认证生产来源、授权、独立性或后续不可变性。即便 byte gate 完整也最多到 `draft`。
 
 **继续工作：**独立 reviewer 仍须复核 C 依赖/coverage 方法、四 loop 符号与 paired inference，以及 F 的 `q/h/x` 物理定义、GEVP/热态适用条件、角点传播和系统项相关性/重复计数；软件侧需将 source-byte gate 接入实际 reader/RunSpec，并核对每个 lane 的期望 hash 与所读文件清单。实际 manifest、loop/GEVP/thermal 原始 bytes、独立 coverage 与 contamination receipts、授权收据尚未提供。故当前不重跑 Wilson 测量、不打开 gap/validation/holdout/confirmation、不做 GPU/QUDA，维持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。真实诊断仍须附图或可复查文字，并按 lane 报告 planned/valid/failed/abstained 与失败原因。
+
+
+### 2026-11-26 Wilson C/F task adapters 的 source-byte 默认门
+
+本次把 shared source-byte wrappers 接入 C 与 F 两个 Wilson task gate。C 单 envelope 接受 `source_root + source_paths`；F 六路 bundle 接受同一 root 下按 route 区分的 `source_paths_by_envelope`。默认 `require_source_bytes=True`，缺 root 或 map 即使 metadata 摘要齐全也 abstain；只有 synthetic tests 显式传 `require_source_bytes=False` 且没有 source 参数时才使用 metadata-only 路径。给出部分路径时 wrapper 对 C 所有注册的 source-hash 项、F 所有 route 的注册 source-hash 项逐一计数；缺路径/文件是 abstained，hash mismatch/越界/read failure 是 failed，所有文件匹配才交给 shared metadata/receipt gate。完成仍只到 draft。
+
+文字流程：`C 四 loop means + dependence/coverage/review/source hashes -> C map/precision gate -> root 下逐文件字节核验 -> C draft 或 abstained`；`F 六 route envelopes + force/GEVP/thermal/systematic receipts -> force-unit 与 28-cell 预算 gate -> 六 route 的 source hashes 展开成 planned 文件 denominator -> 原子字节核验 -> F draft 或 abstained`。逐 route 文件清单必须由真实调用者提供，adapter 不搜索 production tree，也不推断 chain 独立性。
+
+新增 C 与 F 默认缺路径拒绝测试；缺路径时 source-file P/V/F/A 为 C `8/0/0/8`、F `53/0/0/53`。C 正向映射 8/8 文件有效，篡改 common receipt 后为 `8/1/7/0` 并 abstain；F 六路正向映射 53/53 文件有效，篡改 common receipt 后为 `53/6/47/0` 并原子 abstain。Wilson adapter suite 为 **9 passed**，Optimize/Wilson adapters 与 shared evidence/source-integrity tests 合计 **44 passed**；整个 checkout CPU suite **276 passed**，Optimize/Wilson test 文件组合 **202 passed**。目前没有真实 Wilson 路径映射，task adapter 的可用 C/F source 包仍未提交，因此这些 CPU fixtures 不是 production receipt。SHA-256 一致不认证 digest 来源、物理语义或审阅独立性，也不锁定读完后的文件。
+
+下一步接线应让 C loop reader 与 F GEVP/thermal/force reader 在同一输入清单上产出其真正读取的路径和 hashes，再验证每个 receipt 文件与 reader 文件完全一致，保留 planned/valid/failed/abstained 和失败原因。独立 reviewer 仍需确认 C 依赖与 coverage、Creutz 符号/index、F 的谱/热污染定义和角点 force-unit 传播。没有获授权的真实 calibration files、独立 dependence/coverage receipts、matched-`N_t=32`/GEVP 污染界及 positive reference-force 时，不测 GPU/QUDA、不打开 sealed/confirmation 数据；状态仍为 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。

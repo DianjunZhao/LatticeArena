@@ -1,6 +1,9 @@
 """CPU-only contracts for Optimize task evidence adapters."""
 from __future__ import annotations
 
+import hashlib
+import json
+
 from core.evidence import evidence_envelope
 from core.receipts import denominator, run_receipt, scenario_spec
 from core.state import RunState
@@ -224,6 +227,7 @@ def test_d04_reference_gate_binds_six_joint_fits_and_stops_at_draft():
     state = RunState()
     result = apply_optimize_d04_reference_gate(
         state, envelope, receipt, summary, required_source_hashes=hashes,
+        require_source_bytes=False,
     )
     assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
     assert state.status["reference"] == "draft"
@@ -231,11 +235,27 @@ def test_d04_reference_gate_binds_six_joint_fits_and_stops_at_draft():
     assert result["certified"] is False
 
 
+def test_d04_reference_gate_requires_explicit_source_bytes_by_default():
+    envelope, receipt, summary, hashes = _d04_fixture()
+    state = RunState()
+    result = apply_optimize_d04_reference_gate(
+        state, envelope, receipt, summary, required_source_hashes=hashes,
+    )
+    assert result["status"] == "ABSTAIN_OPTIMIZE_D04_REFERENCE"
+    assert state.status["reference"] == "abstained"
+    assert any("source-byte verification requires" in reason for reason in result["reasons"])
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 8, "valid": 0,
+        "failed": 0, "abstained": 8, "not_run": 0,
+    }
+
+
 def test_d04_reference_gate_abstains_on_failed_fit_criterion_or_stale_summary():
     envelope, receipt, summary, hashes = _d04_fixture(p_value=0.009)
     state = RunState()
     result = apply_optimize_d04_reference_gate(
         state, envelope, receipt, summary, required_source_hashes=hashes,
+        require_source_bytes=False,
     )
     assert result["status"] == "ABSTAIN_OPTIMIZE_D04_REFERENCE"
     assert state.status["reference"] == "abstained"
@@ -245,6 +265,7 @@ def test_d04_reference_gate_abstains_on_failed_fit_criterion_or_stale_summary():
     state = RunState()
     result = apply_optimize_d04_reference_gate(
         state, envelope, receipt, summary, required_source_hashes=hashes,
+        require_source_bytes=False,
     )
     assert result["status"] == "ABSTAIN_OPTIMIZE_D04_REFERENCE"
     assert any("summary hash" in reason for reason in result["reasons"])
@@ -255,6 +276,7 @@ def test_d11_operator_gate_requires_real_su3_scope_and_stops_at_draft():
     state = RunState()
     result = apply_optimize_d11_operator_gate(
         state, envelope, receipt, summary, required_source_hashes=hashes,
+        require_source_bytes=False,
     )
     assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
     assert state.status["operator"] == "draft"
@@ -264,9 +286,25 @@ def test_d11_operator_gate_requires_real_su3_scope_and_stops_at_draft():
     state = RunState()
     result = apply_optimize_d11_operator_gate(
         state, envelope, receipt, summary, required_source_hashes=hashes,
+        require_source_bytes=False,
     )
     assert result["status"] == "ABSTAIN_OPTIMIZE_D11_OPERATOR"
     assert state.status["operator"] == "abstained"
+
+
+def test_d11_operator_gate_requires_explicit_source_bytes_by_default():
+    envelope, receipt, summary, hashes = _d11_fixture()
+    state = RunState()
+    result = apply_optimize_d11_operator_gate(
+        state, envelope, receipt, summary, required_source_hashes=hashes,
+    )
+    assert result["status"] == "ABSTAIN_OPTIMIZE_D11_OPERATOR"
+    assert state.status["operator"] == "abstained"
+    assert any("source-byte verification requires" in reason for reason in result["reasons"])
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 7, "valid": 0,
+        "failed": 0, "abstained": 7, "not_run": 0,
+    }
 
 
 def test_bounded_d06_bundle_gates_both_contrasts_and_shared_denominator():
@@ -275,6 +313,7 @@ def test_bounded_d06_bundle_gates_both_contrasts_and_shared_denominator():
     result = apply_optimize_bounded_block_risk_gate(
         state, envelopes, receipt,
         required_source_hashes_by_envelope=routes,
+        require_source_bytes=False,
     )
     assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
     assert state.status["statistical"] == "draft"
@@ -284,12 +323,94 @@ def test_bounded_d06_bundle_gates_both_contrasts_and_shared_denominator():
                for check in result["chain_identity_checks"])
 
 
+def test_bounded_d06_bundle_requires_explicit_source_bytes_by_default():
+    envelopes, receipt, routes = _d06_fixtures()
+    state = _upstream_ready()
+    result = apply_optimize_bounded_block_risk_gate(
+        state, envelopes, receipt,
+        required_source_hashes_by_envelope=routes,
+    )
+    assert result["status"] == "ABSTAIN_OPTIMIZE_D06_BOUNDED_RISK"
+    assert state.status["statistical"] == "abstained"
+    assert any("source-byte verification requires" in reason for reason in result["reasons"])
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 30, "valid": 0,
+        "failed": 0, "abstained": 30, "not_run": 0,
+    }
+
+
+def test_bounded_d06_bundle_verifies_all_mapped_source_bytes(tmp_path):
+    envelopes, receipt, routes = _d06_fixtures()
+    common_bytes = b"synthetic shared D06 source receipt"
+    (tmp_path / "common.bin").write_bytes(common_bytes)
+    common_hash = hashlib.sha256(common_bytes).hexdigest()
+    source_paths = {}
+
+    for route, envelope in envelopes.items():
+        role = "trainable_w_mean" if route == "trainable_w" else f"contrast:{route}"
+        support = [0.0, 1.0] if route == "trainable_w" else [-10.0 / 9.0, 1.0]
+        map_bytes = json.dumps({
+            "schema": "optimize-bounded-block-risk-markov-v1",
+            "role": role,
+            "times": [2, 3, 4, 5],
+            "score": "mean_t min((q-1)^2,1); assigned-arm solver failure scores 1",
+            "contrast": None if route == "trainable_w" else "X_comparator - (10/9)*X_trainable_w",
+            "r_star": 10.0 / 9.0,
+            "support": support,
+        }, sort_keys=True, separators=(",", ":")).encode()
+        assert hashlib.sha256(map_bytes).hexdigest() == bounded_risk_map_sha256(route)
+        map_name = f"{route}-score-map.json"
+        (tmp_path / map_name).write_bytes(map_bytes)
+
+        route_hashes = {
+            name: (bounded_risk_map_sha256(route) if name == "score_map" else common_hash)
+            for name in routes[route]
+        }
+        routes[route] = route_hashes
+        envelope["chain"]["manifest_sha256"] = common_hash
+        envelope["source_hashes"] = route_hashes
+        envelope["review"]["receipt_sha256"] = common_hash
+        source_paths[route] = {
+            name: (map_name if name == "score_map" else "common.bin")
+            for name in route_hashes
+        }
+
+    state = _upstream_ready()
+    result = apply_optimize_bounded_block_risk_gate(
+        state, envelopes, receipt,
+        required_source_hashes_by_envelope=routes,
+        source_root=tmp_path,
+        source_paths_by_envelope=source_paths,
+    )
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["source_byte_identity_verified"] is True
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 30, "valid": 30,
+        "failed": 0, "abstained": 0, "not_run": 0,
+    }
+
+    (tmp_path / "common.bin").write_bytes(b"tampered D06 source receipt")
+    state = _upstream_ready()
+    result = apply_optimize_bounded_block_risk_gate(
+        state, envelopes, receipt,
+        required_source_hashes_by_envelope=routes,
+        source_root=tmp_path,
+        source_paths_by_envelope=source_paths,
+    )
+    assert result["status"] == "ABSTAIN_SOURCE_BYTES"
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 30, "valid": 3,
+        "failed": 27, "abstained": 0, "not_run": 0,
+    }
+
+
 def test_bounded_d06_bundle_rejects_unapproved_split_bad_gap_and_missing_arm():
     envelopes, receipt, routes = _d06_fixtures(split="sealed-confirmation")
     state = _upstream_ready()
     result = apply_optimize_bounded_block_risk_gate(
         state, envelopes, receipt,
         required_source_hashes_by_envelope=routes,
+        require_source_bytes=False,
     )
     assert result["status"] == "ABSTAIN_OPTIMIZE_D06_BOUNDED_RISK"
     assert state.status["statistical"] == "abstained"
@@ -302,6 +423,7 @@ def test_bounded_d06_bundle_rejects_unapproved_split_bad_gap_and_missing_arm():
     result = apply_optimize_bounded_block_risk_gate(
         state, envelopes, receipt,
         required_source_hashes_by_envelope=routes,
+        require_source_bytes=False,
     )
     assert result["status"] == "ABSTAIN_OPTIMIZE_D06_BOUNDED_RISK"
     assert any("TV" in reason for reason in result["reasons"])
@@ -312,6 +434,7 @@ def test_bounded_d06_bundle_rejects_unapproved_split_bad_gap_and_missing_arm():
     result = apply_optimize_bounded_block_risk_gate(
         state, envelopes, receipt,
         required_source_hashes_by_envelope=routes,
+        require_source_bytes=False,
     )
     assert result["status"] == "ABSTAIN_OPTIMIZE_D06_BOUNDED_RISK"
     assert any("bundle must contain" in reason for reason in result["reasons"])
