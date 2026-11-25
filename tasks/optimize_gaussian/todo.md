@@ -1,14 +1,30 @@
 # optimize_gaussian：CPU 验收结论与后续研究
 
+### 2026-11-25：D06 percentile hull synthetic coverage pilot 显示欠覆盖
+
+实现 [`d06_bootstrap_coverage_diagnostic.py`](d06_bootstrap_coverage_diagnostic.py)，用已知平稳 Gaussian AR(1) 生成三臂配对 `q_theta(t)`（trainable-W、同预算 SLSQP、degree-4 Chebyshev），以精确 AR(1) 有限样本 `Var(mean)` 作风险比真值。每个外层 circular-block panel 内，D04 风险采用经验 circular-block bootstrap 的解析无限内抽样矩；外层再重抽 L=2/5/10 的配置块，构造 comparator/trainable-W 风险比及每长度 0.025 lower quantile，取 hull 最低值，同时评估 F=2 familywise coverage。已分别做 40/60/100 配置、phi=0/0.4/0.8 的 1,000-draw pilot，以及 `(n=60, phi=0.8)` 的合同 10,000 draws 复核：全量表、Wilson Monte Carlo 区间、分长度诊断与 denominator 见[样本量敏感度报告 v7](../../results/optimize_gaussian/d06_percentile_hull_coverage_cpu_20261125_v7/README.md)及[10,000-draw 欠覆盖复核 v8](../../results/optimize_gaussian/d06_percentile_hull_coverage_cpu_20261125_v8/README.md)。两包的 artifact hashes 和模拟脚本 hash 均匹配。
+
+结果**不支持将当前 bootstrap percentile hull 当作已校准推断**：每格 250 个 simulated panels，P/V/F/A=`250/250/0/0`。`n=60` 的 F=2 joint coverage 在 phi=0、0.4、0.8 分别为 `95.6% [92.3%,97.5%]`、`91.6% [87.5%,94.4%]`、`75.6% [69.9%,80.5%]`；phi=0.8 时 n=40/100 也仅 `79.2% [73.7%,83.8%]` / `78.8% [73.3%,83.4%]`。合同 10,000 outer draws 的 n=60、phi=0.8 复核仍为 `76.4% [70.8%,81.2%]`；SLSQP/Chebyshev 的 marginal lower-bound coverage 为 `86.8%` / `85.6%`，都低于单比较 97.5% 目标。L=2/5/10 的 F=2 coverage 分别为 `64.4% / 72.0% / 76.0%`，最低值 hull 只小幅改善到 76.4%。因此该欠覆盖不是把 outer draws 从 1,000 增到 10,000 就能消除的本模拟现象。
+
+解释边界：这证明的是**本报告具体的嵌套 block-bootstrap 实现**在所选 AR(1) 生成器/风险真值下欠覆盖；它不是实际 gauge 链的 phi 估计，也不能自动否定未来不同的 production estimator。但它足以让 D06 percentile 规则保持 `UNCALIBRATED/NOT_READY`，即使数组 reducer 算术正确也不能报告确认性 PASS。继续工作应保留同一 D04 风险比 estimand、F=2 alpha 与 r_star，对更长 block / studentized 或经偏差校准的区间做事前比较，扩展 MC 误差预算并让独立统计审阅者确认风险真值/嵌套算法；只有在已知 AR(1)、强尾/方差差异及配对相关情景下均恢复名义覆盖后，才把所选方法接入真实 evaluator。不得用本模拟调参后直接读取 sealed IDs。
+
+### 2026-11-25：D06 配对 influence-HAC 候选与全网格覆盖诊断
+
+为同一 `D04` 风险比写出有限 `L` empirical-risk 的解析 influence，并构造配对比值 Newey–West/Bartlett 单侧下界；HAC 方差的带宽 `2/5/10/20/30` 与 D04 `L=2/5/10` 全部取最低下界。先在和 v8 相同的 250 个 `(n=60, phi=0.8)` 面板、相同随机种子上，用 10,000-draw percentile hull 作同样本比较，见[定向比较 v4](../../results/optimize_gaussian/d06_hac_coverage_cpu_20261125_v4/README.md)：percentile 与 HAC 的 F=2 覆盖率为 `76.4%` 与 `93.2%`；HAC-minus-percentile 配对差 `+16.8 pp`，面板 bootstrap 95% 区间 `[+12.0,+21.6] pp`。HAC 的自身 Wilson 95% 蒙特卡洛区间为 `[89.4%,95.7%]`，未证明达到 95% familywise target。
+
+随后扩展到已归档的 `n=40/60/100 × phi=0/0.4/0.8` 网格，每 cell 250 面板，同种面板同时对比 HAC 与 1,000-draw percentile hull，图文和全量配对变化见[九格覆盖报告 v2](../../results/optimize_gaussian/d06_hac_grid_coverage_cpu_20261125_v2/README.md)。HAC F=2 覆盖率按 `phi=(0,0.4,0.8)` 分别为：`n=40: 98.4%,97.6%,95.2%`；`n=60: 94.4%,96.8%,94.4%`；`n=100: 90.0%,90.8%,82.8%`。相对 percentile 的 familywise 配对变化分别为 `+3.2,+8.0,+16.0 pp`、`−1.2,+5.2,+18.8 pp`、`−4.8,−2.4,+4.0 pp`。每格 P/V/F/A=`250/250/0/0`。因此 HAC 在部分中高相关 cell 改善明显，但在 `n=100` 各 cell 和 `n=60,phi=0` 没有改善；它不是全网格稳定校准的替代方法。
+
+解析风险梯度通过逐配置有限差分核对，新增 HAC/grid 汇总测试 5 项；本报告仍是 Gaussian AR(1) 合成方法比较。全网格 percentile 基线只有每长度 1,000 draws，目标合同为 10,000；HAC 又依赖未被证明的渐近线性化、弱依赖与矩条件，当前没有 heavy-tail、非平稳、D04 reference-fit 不确定度或 optimizer failure 覆盖。故 D06 继续 `UNCALIBRATED/NOT_READY`。后续应冻结更广 DGP 与 Monte Carlo 停止规则，比较 studentized / bias-corrected / conservative ratio bounds，并由独立统计审阅者复核后，才考虑真实 evaluator 接线；不能根据这 9 格选出最优带宽，也不读 sealed IDs。
+
 ### 2026-11-25：D04/D06 风险统计量的 fail-closed CPU reducer
 
 新增 [`risk_statistics.py`](risk_statistics.py)，将已选择的 D04/D06 公式做成纯数组 reducer：D04 按 `t=(2,3,4,5)`、`ddof=1` 计算每时刻 `Var_boot(q)+[E_boot(q)-1]^2` 并取平均；缺 draw、NaN/Inf 或 draw 数不足时保留计划分母并返回 `risk=null`。D06 固定 `F=2` 的每比较 `alpha=0.025`、`r_star=10/9`、`L=(2,5,10)`，要求 comparator/trainable-W 每个长度的风险 draw ID 一一相同且唯一，风险严格正；使用 linear 0.025 quantile 并对三种长度取最低值。任一配对缺失、零风险、非有限或除法溢出均 `ABSTAIN`；不丢弃坏 draw、不补 epsilon、不生成物理分数。
 
 可复算文字诊断见 [`d04_d06_risk_statistics_cpu_20261125_v4`](../../results/optimize_gaussian/d04_d06_risk_statistics_cpu_20261125_v4/README.md)：D04 手算 fixture 分母 `3/3/0/0`、风险 `0.784722222`；D06 三个四-draw synthetic fixture 分别展示阈值通过、未通过、零风险弃权，缺失/无效例保留 `12/11/1/0`。report JSON 绑定 reducer 和研究合同源码 SHA-256，artifact hashes 完整。`draft_plan_20261125_v6` 已把 reducer 加入 no-launch RunSpec 草案的源码依赖映射；该草案仍为 `DRAFT_NO_LAUNCH`，物理门 `5/0/0/5`，输入分母 `0/0/0/0`。
 
-**此项完成的是统计公式的数组层实现和失败处理，不是 bootstrap 实施或校准：**外层按 block length 的 paired configuration 重抽样、每个外层 draw 内 D04 `q` 分布、参考拟合不确定性传播、draw ID 的配置来源证明、percentile quantile 覆盖率验证以及真实 evaluator/RunSpec 接线仍未做。四 draw fixture 仅验算术；正式设计仍需每个长度 10,000 draws。当前整个 Optimize 测试文件集 `tests/test_optimize*.py` 为 **72 passed**（CPU only）。
+**此项完成的是统计公式的数组层实现和失败处理，不是 bootstrap 实施或校准：**外层按 block length 的 paired configuration 重抽样、每个外层 draw 内 D04 `q` 分布、参考拟合不确定性传播、draw ID 的配置来源证明、真实 evaluator/RunSpec 接线仍未做。纯统计 helper 现有 4 项 synthetic coverage tests 加四 draw arithmetic fixture，不能取代上段所示欠覆盖；正式确认仍需校准后的区间方法及真实合同 10,000 draws。加入影响函数梯度与九格覆盖汇总后，当前整个 Optimize 测试文件集 `tests/test_optimize*.py` 为 **81 passed**（CPU only）。
 
-下一步：实现由明确 protocol/hash 输入驱动的 paired outer-block + D04 inner-risk evaluator（或先通过方法审阅证明非嵌套算法与所选 estimand 等价），再做已知有限总体的覆盖模拟并给覆盖图、失败分母和 Monte Carlo 误差；接入当前 task-specific trainable-W、同预算 SLSQP 与 degree-4 Chebyshev 三臂后，先 CPU fixture 再申请 production/GPU。当前没有合格 D04 reference 或生产数据授权，因此任何中间结果继续 `diagnostic_only`、`physical_score=null`；不读 sealed IDs。
+下一步：percentile hull 与 influence-HAC 都已在部分指定 AR(1) cell 中显示欠覆盖；先冻结涵盖强尾、异方差、跨臂相关、reference-fit 传播的校准网格、MCSE/停止门与 complete denominator，再比较 studentized、偏差校正和保守风险比界。独立统计审阅者需复核风险真值和区间实现。接入当前 task-specific trainable-W、同预算 SLSQP 与 degree-4 Chebyshev 三臂前，先交 CPU fixture 与 coverage 图/表，再申请 production/GPU。当前没有合格 D04 reference 或生产数据授权，因此任何中间结果继续 `diagnostic_only`、`physical_score=null`；不读 sealed IDs。
 
 ### 2026-11-25 本 checkout 的 TaskSpec/RunSpec 接线审计
 
