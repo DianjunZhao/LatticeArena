@@ -391,4 +391,4 @@ shared [`core/source_integrity.py`](../../core/source_integrity.py) 现提供有
 
 本次在同一 bytes parser 中又补了两项 preflight：NPZ 内 `protocol_hash` 必须等于捕获 provenance protocol 的 canonical fingerprint，选取 C-lane loop 前要求整个 loop tensor 有限。此前只验证 transaction 中记录的 source hash 和 loop-array hash；现在再显式检查 provenance 与测量载荷的协议关联以及非有限值。对应 synthetic snapshot regression 已包含路径覆写、协议/transaction 拒绝、绘图产物和 no-clobber；它仍是 fixture，真实 D measurement 本轮未读取，生产 C/F adapter 仍不接收此 retrospective reader 输出。
 
-随 PR #6 更新重跑的完整 CPU suite 为 **294 passed**；其中 Wilson source-snapshot reader regression 只使用测试构造的 bytes/合成 loop tensor，不读取归档的实际 D0–99 NPZ。此数是软件回归证据，不关闭 C coverage/calibration 或 F ground-state-force 证据门。
+随 PR #6 更新重跑的完整 CPU suite 当前为 **295 passed**；其中 Wilson source-snapshot reader regression 只使用测试构造的 bytes/合成 loop tensor，不读取归档的实际 D0–99 NPZ。此数是软件回归证据，不关闭 C coverage/calibration 或 F ground-state-force 证据门。

@@ -11,6 +11,7 @@ from core.evidence import evidence_envelope
 from core.receipts import denominator, run_receipt, scenario_spec
 from core.source_integrity import capture_source_snapshot
 from core.state import RunState
+from tasks.optimize_gaussian.bounded_block_risk import ARMS, TIMES
 from tasks.optimize_gaussian.evidence_adapter import (
     _D06_ROUTES,
     apply_optimize_bounded_block_risk_gate,
@@ -265,19 +266,46 @@ def _d06_score_map_bytes(route):
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
 
 
-def _d06_snapshot_bundle(tmp_path, *, release_signal=True):
+def _d06_snapshot_bundle(tmp_path, *, release_signal=True, receipt_gamma=1.0):
     envelopes, _, _ = _d06_fixtures(gamma=1.0, tv=0.001)
     n_blocks = 2000
     score_matrix_bytes = _d06_score_matrix_payload(n_blocks=n_blocks,
                                                     release_signal=release_signal)
     routes = {}
     snapshots = {}
+    first = envelopes[_D06_ROUTES[0]]
+    review_sha256 = hashlib.sha256(b"synthetic independent-review declaration").hexdigest()
+    block_chain_receipt = {
+        "schema": "optimize-paired-macroblock-chain-receipt-v1",
+        "chain_id": first["chain"]["chain_id"],
+        "split_id": first["chain"]["split_id"],
+        "state_unit": first["chain"]["state_unit"],
+        "block_length_configurations": 5,
+        "block_ids": list(range(200, 200 + n_blocks)),
+        "arm_order": list(ARMS), "times": list(TIMES),
+        "review_receipt_sha256": review_sha256,
+    }
+    gamma_receipt = {
+        "schema": "optimize-markov-gap-receipt-v1",
+        "chain_id": first["chain"]["chain_id"],
+        "split_id": first["chain"]["split_id"],
+        "gamma_ps_lower": receipt_gamma,
+        "review_receipt_sha256": review_sha256,
+    }
+    tv_receipt = {
+        "schema": "optimize-initial-law-tv-receipt-v1",
+        "chain_id": first["chain"]["chain_id"],
+        "split_id": first["chain"]["split_id"],
+        "tv_bound_after_burn_in": 0.001,
+        "burn_in_unit": "paired macroblock", "burn_in_blocks": 8,
+        "review_receipt_sha256": review_sha256,
+    }
     shared_payloads = {
         "manifest": b"synthetic shared manifest",
         "score_matrix": score_matrix_bytes,
-        "block_chain_receipt": b"synthetic block-chain receipt",
-        "gamma_ps_receipt": b"synthetic gamma receipt",
-        "initial_law_tv_receipt": b"synthetic initial-law TV receipt",
+        "block_chain_receipt": json.dumps(block_chain_receipt, sort_keys=True).encode(),
+        "gamma_ps_receipt": json.dumps(gamma_receipt, sort_keys=True).encode(),
+        "initial_law_tv_receipt": json.dumps(tv_receipt, sort_keys=True).encode(),
         "budget_receipt": b"synthetic shared budget receipt",
         "review_receipt": b"synthetic independent-review declaration",
         "authorization_receipt": b"synthetic authorization declaration",
@@ -663,6 +691,10 @@ def test_d06_snapshot_reader_reconciles_arrays_receipt_and_atomic_byte_gate(tmp_
                for row in result["reader_summary"].values())
     assert result["reader_decision"]["dependence_method"] == "corrected_markov_pseudo_gap_bernstein_support_only"
     assert result["reader_decision"]["status"] == "CONDITIONAL_MARKOV_PASS_BOTH_COMPARISONS"
+    assert result["markov_receipt_denominator"] == {
+        "unit": "D06_markov_receipt", "planned": 3, "valid": 3,
+        "failed": 0, "abstained": 0,
+    }
     assert result["reader_summary"]["trainable_w"]["gamma_ps_lower_assumed"] == 1.0
     assert result["reader_summary"]["trainable_w"]["trainable_w_lower_bound"] > 0.0
     assert all(value > 0.0 for value in result["reader_summary"]["trainable_w"]["comparison_lower_bounds"].values())
@@ -713,3 +745,22 @@ def test_d06_snapshot_reader_rejects_route_specific_markov_inputs(tmp_path):
     assert result["status"] == "ABSTAIN_OPTIMIZE_D06_SNAPSHOT_READER"
     assert state.status["statistical"] == "abstained"
     assert any("shared Markov gap" in reason for reason in result["reasons"])
+
+
+def test_d06_snapshot_reader_reconciles_gamma_receipt_bytes_with_envelope(tmp_path):
+    envelopes, receipt, routes, snapshots = _d06_snapshot_bundle(
+        tmp_path, receipt_gamma=0.5,
+    )
+    state = _upstream_ready()
+    result = apply_bounded_block_risk_snapshot_gate(
+        state, envelopes, receipt,
+        required_source_hashes_by_envelope=routes,
+        source_snapshots_by_envelope=snapshots,
+    )
+    assert result["status"] == "ABSTAIN_OPTIMIZE_D06_SNAPSHOT_READER"
+    assert state.status["statistical"] == "abstained"
+    assert result["markov_receipt_denominator"] == {
+        "unit": "D06_markov_receipt", "planned": 3, "valid": 2,
+        "failed": 1, "abstained": 0,
+    }
+    assert any("differs from the envelope" in reason for reason in result["reasons"])

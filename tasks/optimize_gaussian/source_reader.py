@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from hashlib import sha256
 from io import BytesIO
+from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
@@ -27,6 +28,9 @@ _REQUIRED_ARRAYS = frozenset({
 _CLOSED_SPLIT_MARKERS = (
     "gap", "validation", "holdout", "sealed", "confirmation",
 )
+_BLOCK_CHAIN_RECEIPT_SCHEMA = "optimize-paired-macroblock-chain-receipt-v1"
+_GAP_RECEIPT_SCHEMA = "optimize-markov-gap-receipt-v1"
+_TV_RECEIPT_SCHEMA = "optimize-initial-law-tv-receipt-v1"
 
 
 def _abstention(status: str, reason: str, split_id: object, *,
@@ -312,6 +316,179 @@ def _reader_summary(parsed: dict[str, dict[str, Any]]) -> dict[str, Any]:
     return summary
 
 
+def _read_markov_receipts(
+    envelopes: dict[str, Any],
+    hashes_by_route: dict[str, Any],
+    snapshots_by_route: dict[str, Any],
+    readers_by_route: dict[str, dict[str, Any]],
+    routes: tuple[str, ...],
+) -> tuple[dict[str, Any] | None, dict[str, int], list[str]]:
+    """Parse the exact chain/gap/TV receipt bytes used for the Markov bound."""
+    specs = {
+        "block_chain_receipt": (
+            _BLOCK_CHAIN_RECEIPT_SCHEMA,
+            {
+                "schema", "chain_id", "split_id", "state_unit",
+                "block_length_configurations", "block_ids", "arm_order", "times",
+                "review_receipt_sha256",
+            },
+        ),
+        "gamma_ps_receipt": (
+            _GAP_RECEIPT_SCHEMA,
+            {"schema", "chain_id", "split_id", "gamma_ps_lower", "review_receipt_sha256"},
+        ),
+        "initial_law_tv_receipt": (
+            _TV_RECEIPT_SCHEMA,
+            {"schema", "chain_id", "split_id", "tv_bound_after_burn_in",
+             "burn_in_unit", "burn_in_blocks", "review_receipt_sha256"},
+        ),
+    }
+    states: dict[str, str] = {}
+    records: dict[str, dict[str, Any]] = {}
+    reasons: list[str] = []
+
+    for name, (schema, required_keys) in specs.items():
+        payloads: list[bytes] = []
+        missing_states: list[str] = []
+        for route in routes:
+            snapshot = snapshots_by_route.get(route)
+            try:
+                if not isinstance(snapshot, SourceByteSnapshot):
+                    raise ValueError("invalid source snapshot")
+                payload = snapshot.read_bytes(name)
+            except (TypeError, ValueError):
+                entry = (snapshot.capture_entries.get(name)
+                         if isinstance(snapshot, SourceByteSnapshot) else None)
+                missing_states.append(
+                    entry.get("status", "abstained") if isinstance(entry, Mapping) else "abstained"
+                )
+                continue
+            expected_hashes = hashes_by_route.get(route)
+            expected_hash = (expected_hashes.get(name)
+                             if isinstance(expected_hashes, dict) else None)
+            if not isinstance(expected_hash, str) or sha256(payload).hexdigest() != expected_hash:
+                missing_states.append("failed")
+                continue
+            payloads.append(payload)
+        if missing_states:
+            states[name] = "failed" if "failed" in missing_states else "abstained"
+            reasons.append(f"{name}: a required route snapshot is missing or hash-mismatched")
+            continue
+        if len(payloads) != len(routes) or any(item != payloads[0] for item in payloads[1:]):
+            states[name] = "failed"
+            reasons.append(f"{name}: paired routes did not capture identical receipt bytes")
+            continue
+        try:
+            record = json.loads(payloads[0])
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            states[name] = "failed"
+            reasons.append(f"{name}: captured receipt is not valid JSON")
+            continue
+        if (not isinstance(record, dict) or set(record) != required_keys
+                or record.get("schema") != schema):
+            states[name] = "failed"
+            reasons.append(f"{name}: captured receipt schema or exact key set is invalid")
+            continue
+        states[name] = "valid"
+        records[name] = record
+
+    def fail(name: str, message: str) -> None:
+        states[name] = "failed"
+        reasons.append(f"{name}: {message}")
+
+    if len(records) == len(specs):
+        chain_receipt = records["block_chain_receipt"]
+        gamma_receipt = records["gamma_ps_receipt"]
+        tv_receipt = records["initial_law_tv_receipt"]
+        first_envelope = envelopes.get(routes[0])
+        first_chain = first_envelope.get("chain") if isinstance(first_envelope, dict) else None
+        first_review = first_envelope.get("review") if isinstance(first_envelope, dict) else None
+        first_hashes = hashes_by_route.get(routes[0])
+        expected_chain_id = first_chain.get("chain_id") if isinstance(first_chain, dict) else None
+        expected_split_id = first_chain.get("split_id") if isinstance(first_chain, dict) else None
+        expected_state_unit = first_chain.get("state_unit") if isinstance(first_chain, dict) else None
+        expected_review_sha = first_review.get("receipt_sha256") if isinstance(first_review, dict) else None
+        expected_block_ids = readers_by_route.get(routes[0], {}).get("block_ids")
+
+        expected_declarations = {}
+        for route in routes:
+            envelope = envelopes.get(route)
+            chain = envelope.get("chain") if isinstance(envelope, dict) else None
+            dependence = envelope.get("dependence") if isinstance(envelope, dict) else None
+            burn = dependence.get("burn_in") if isinstance(dependence, dict) else None
+            review = envelope.get("review") if isinstance(envelope, dict) else None
+            hashes = hashes_by_route.get(route)
+            expected_declarations[route] = {
+                "chain_id": chain.get("chain_id") if isinstance(chain, dict) else None,
+                "split_id": chain.get("split_id") if isinstance(chain, dict) else None,
+                "state_unit": chain.get("state_unit") if isinstance(chain, dict) else None,
+                "gamma_ps_lower": dependence.get("gamma_ps_lower") if isinstance(dependence, dict) else None,
+                "tv_bound_after_burn_in": dependence.get("tv_bound_after_burn_in") if isinstance(dependence, dict) else None,
+                "burn_in_unit": burn.get("unit") if isinstance(burn, dict) else None,
+                "burn_in_blocks": burn.get("count") if isinstance(burn, dict) else None,
+                "review_receipt_sha256": review.get("receipt_sha256") if isinstance(review, dict) else None,
+                "source_review_receipt_sha256": hashes.get("review_receipt") if isinstance(hashes, dict) else None,
+            }
+        declarations = list(expected_declarations.values())
+        if any(item != declarations[0] for item in declarations[1:]):
+            fail("block_chain_receipt", "route envelope declarations are not identical")
+        declared = declarations[0]
+
+        for name, receipt in (("block_chain_receipt", chain_receipt),
+                              ("gamma_ps_receipt", gamma_receipt),
+                              ("initial_law_tv_receipt", tv_receipt)):
+            if (receipt.get("chain_id"), receipt.get("split_id"),
+                    receipt.get("review_receipt_sha256")) != (
+                    expected_chain_id, expected_split_id, expected_review_sha):
+                fail(name, "chain, split, or review receipt link differs from the envelope")
+            if receipt.get("review_receipt_sha256") != declared["source_review_receipt_sha256"]:
+                fail(name, "review receipt digest differs from the route source map")
+
+        if chain_receipt.get("state_unit") != expected_state_unit:
+            fail("block_chain_receipt", "state unit differs from the envelope")
+        if (type(chain_receipt.get("block_length_configurations")) is not int
+                or chain_receipt.get("block_length_configurations") != 5):
+            fail("block_chain_receipt", "block length must be the selected five configurations")
+        if chain_receipt.get("block_ids") != expected_block_ids:
+            fail("block_chain_receipt", "captured block IDs differ from the parsed q matrix")
+        if chain_receipt.get("arm_order") != list(ARMS) or chain_receipt.get("times") != list(TIMES):
+            fail("block_chain_receipt", "arm/time order differs from the fixed D06 map")
+
+        gamma = gamma_receipt.get("gamma_ps_lower")
+        if (not isinstance(gamma, (int, float)) or isinstance(gamma, bool)
+                or not np.isfinite(gamma) or not 0 < gamma <= 1
+                or gamma != declared["gamma_ps_lower"]):
+            fail("gamma_ps_receipt", "gamma_ps lower bound is invalid or differs from the envelope")
+
+        tv = tv_receipt.get("tv_bound_after_burn_in")
+        burn_count = tv_receipt.get("burn_in_blocks")
+        if (not isinstance(tv, (int, float)) or isinstance(tv, bool)
+                or not np.isfinite(tv) or not 0 <= tv < 0.05
+                or tv != declared["tv_bound_after_burn_in"]):
+            fail("initial_law_tv_receipt", "TV bound is invalid or differs from the envelope")
+        if (type(burn_count) is not int or burn_count < 0
+                or tv_receipt.get("burn_in_unit") != "paired macroblock"
+                or burn_count != declared["burn_in_blocks"]
+                or tv_receipt.get("burn_in_unit") != declared["burn_in_unit"]):
+            fail("initial_law_tv_receipt", "burn-in unit/count differs from the envelope")
+
+    denominator = {
+        "unit": "D06_markov_receipt", "planned": len(specs),
+        "valid": sum(value == "valid" for value in states.values()),
+        "failed": sum(value == "failed" for value in states.values()),
+        "abstained": sum(value == "abstained" for value in states.values()),
+    }
+    params = None
+    if not reasons and len(records) == len(specs):
+        params = {
+            "gamma_ps_lower": records["gamma_ps_receipt"]["gamma_ps_lower"],
+            "tv_bound_after_burn_in": records["initial_law_tv_receipt"]["tv_bound_after_burn_in"],
+            "burn_in_blocks": records["initial_law_tv_receipt"]["burn_in_blocks"],
+            "burn_in_unit": records["initial_law_tv_receipt"]["burn_in_unit"],
+        }
+    return params, denominator, reasons
+
+
 def apply_bounded_block_risk_snapshot_gate(
     run_state: object,
     envelopes: object,
@@ -449,6 +626,19 @@ def apply_bounded_block_risk_snapshot_gate(
     if len({json.dumps(value, sort_keys=True) for value in summaries.values()}) != 1:
         return abstain("D06 routes did not parse identical paired block IDs, scores, and failures")
 
+    receipt_params, markov_receipt_denominator, receipt_reasons = _read_markov_receipts(
+        envelopes, required_source_hashes_by_envelope,
+        source_snapshots_by_envelope, parsed, _D06_ROUTES,
+    )
+    if receipt_reasons or receipt_params is None:
+        result = abstain(
+            "; ".join(receipt_reasons) or "D06 Markov receipts could not be parsed",
+            route_denominator=reader_denominator(parsed),
+        )
+        result["markov_receipt_denominator"] = markov_receipt_denominator
+        result["reader_summary"] = _reader_summary(parsed)
+        return result
+
     reference = parsed[_D06_ROUTES[0]]
     n_blocks = reference["block_denominator"]["planned"]
     failed_arms = sum(reference["arm_failure_counts"].values())
@@ -481,6 +671,7 @@ def apply_bounded_block_risk_snapshot_gate(
         )
         result["reader_decision"] = decision
         result["reader_summary"] = _reader_summary(parsed)
+        result["markov_receipt_denominator"] = markov_receipt_denominator
         return result
 
     result = apply_optimize_bounded_block_risk_gate(
@@ -491,4 +682,5 @@ def apply_bounded_block_risk_snapshot_gate(
     )
     result["reader_decision"] = decision
     result["reader_summary"] = _reader_summary(parsed)
+    result["markov_receipt_denominator"] = markov_receipt_denominator
     return result
