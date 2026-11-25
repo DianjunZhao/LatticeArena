@@ -272,3 +272,5 @@ Astra 只读复核已结束，没有产生外部授权或可直接冻结的 D04/
 3. 由独立审阅者核验 D04/D06/D11 的收据和生产算符合同；需要 GPU/QUDA 的步骤另需资源 owner 授权。
 
 当前没有这些输入或授权。保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed data closed；不要把旧 D0–99 或现有 synthetic panels 用作独立确认，也不要重复方法网格。
+
+本次在 PR #6 当前 head `6afedb1` 重跑 Optimize/Wilson 专项 suite 为 **97 passed**，全仓 CPU suite 为 **145 passed**。这是软件回归证据，不填补上述数据、独立审阅或 GPU 资源门。

@@ -247,3 +247,5 @@ PR #6 提交 [`f9be949`](https://github.com/Greyyy-HJC/LatticeArena/commit/f9be9
 - **后续 confirmation:** 只有 calibration gate 通过、独立 review 完成且 data/resource owner 明确授权新的未观察 IDs 与 GPU/QUDA 运行后，才可打开 confirmation。
 
 目前这些输入、收据和授权都没有出现在可审阅范围。继续保持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 与 sealed data closed；不使用 toy 或历史样本补造污染界。
+
+本次在 PR #6 当前 head `6afedb1` 重跑 Wilson/Optimize 专项 suite 为 **97 passed**，全仓 CPU suite 为 **145 passed**。这些测试验证合同、公式与代码路径，不提供 C loop 测量、F lane 的污染上界或 confirmation 证据。
