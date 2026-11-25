@@ -331,3 +331,7 @@ PR #5 的共享 gate 已使用 evidence-envelope v2。review 元数据要求 `re
 - **负例与状态：**C/F chain、kernel、split、loop/force unit 或 source hash 串用；non-independent/self-review role；缺 independence-claim hash；任一 planned fit/window/corner 未运行；C loop positivity 或 F positive-reference lower bound 不成立；q/h/x 仅有单 loop 原始界而没有传播后的 force-unit 界。RunReceipt 逐项计 planned/valid/failed/abstained；完整元数据最多到 `draft`，缺证据则 `abstained`。
 
 目前 C lane 独立覆盖/依赖收据与 F lane 独立谱、正 reference-force、`N_t=32` 热污染和 propagated-error receipts 都未提供。此接线说明不授权 GPU 或打开 gap、validation、shared holdout；维持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED` 与 `physical_score=null`。图文交付仍须给出 lane 分离的数据流、错误预算图或逐步骤文字及完整分母。
+
+文字流程：`C: 同一配置上的四个正 loop means -> 有限-T Creutz 与预注册区间/精度门 -> 覆盖与依赖 receipt -> C lane 独立结论或 ABSTAIN`；`F: 3×3 GEVP + matched Nt=32 -> f0 正下界 -> q/h/x 与谱项通过 8-corner stencil 传播到 a_s*a_t*F -> 合计统计/系统误差门 -> F lane 独立结论或 GROUND_STATE_FORCE_UNCERTIFIED`。两条 lane 共享样本时保留相关性，但各自不能替另一条提供证书。
+
+本轮与 Optimize 一起复跑 `tests/test_optimize*.py tests/test_wilson*.py`：**184 passed**。这是 CPU 软件/合同回归，不覆盖 C/F 生产测量、独立污染界、确认区间或 physical score。

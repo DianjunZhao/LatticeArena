@@ -479,3 +479,7 @@ PR #5 的共享 gate 已升级到 evidence-envelope v2：review 必须同时带 
 3. `D11_operator`：绑定 degree-4 Bernstein-to-Chebyshev controls、生产 SU(3) link provenance、共同 `G^2 P4(H) G^2` 实现和 operator-review scope；CPU U(3) fixture 不满足生产 SU(3) gate。
 
 负例必须覆盖 D04/D06 chain 或 split 串用、reference/score-map/source hash 过期、仅有 self-review、缺独立性声明 hash、160-call denominator 未闭合、任一 comparison 缺项以及 production link 仅有 U(3) unitary 而无 SU(3) receipt。每个 task gate 仍须由 `RunReceipt` 记录 planned/valid/failed/abstained；schema+分母完整最多到 `draft`，缺项进入 `abstained`。当前 E reference、paired solver/Markov receipts、独立审阅及获授权硬件成本均缺，因此本项不生成 score，不开放 sealed split，也不执行真实 W/GPU 工作。
+
+文字流程：`独立 E-chain D04 拟合与 source/review 核验 -> D04 reference gate -> D06 paired-block map 分别比较 SLSQP/Chebyshev 并计入失败 -> D11 SU(3) operator receipt -> 两项独立比较的误差界与成本 -> RunState draft 或 abstained`。D04 不通过即停止物理解读；D06 任一 planned arm 缺失不删分母；D11 只有 CPU U(3) fixture 时拒绝生产门。
+
+本轮联合复跑 `tests/test_optimize*.py tests/test_wilson*.py`：**184 passed**。仅为 CPU 软件/合同回归；不证明 E reference、真实 Markov gap/TV、GPU 成本或物理 score。
