@@ -16,12 +16,13 @@ from pathlib import Path
 from typing import Any
 
 from core.receipts import run_receipt, scenario_spec
+from core.state import RunState
 from .bounded_block_risk_anchor_markov import markov_anchor_bound
 
 
 SCHEMA = "pion-bounded-block-risk-contract-v1"
 DEFAULT_OUT = (Path(__file__).resolve().parents[2]
-               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261125_v13")
+               / "results/pion_projection/bounded_block_risk_contract_diagnostic_20261125_v14")
 CONTRACT_PATH = Path(__file__).with_name("bounded_block_risk_contract_v1.json")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 DEPENDENCE_METHODS = {
@@ -36,6 +37,21 @@ ANCHOR_METHODS = {
     "markov_pseudo_gap_bernstein",
 }
 FAILURE_POLICY = "failed_block=-1; all_failed_comparison=abstain"
+OPEN_RUN_GATES = {
+    "operator": "candidate scores are not physically interpretable until an independent m_star reference passes",
+    "reference": "candidate-blind E-chain reference measurement and independent review receipts are missing",
+    "numerical": "anchor feature supports and certified PP/A4P fit-image calculation are not available",
+    "statistical": "score-chain dependence and anchor coverage/common-bias receipts are missing",
+    "comparison": "authorized fresh confirmation inputs and score-family evaluation are not available",
+}
+
+
+def open_gate_run_state() -> dict[str, Any]:
+    """Project current evidence blockers into the generic no-certificate state."""
+    state = RunState()
+    for stage, reason in OPEN_RUN_GATES.items():
+        state.abstain(stage, reason)
+    return state.summary()
 
 
 def selected_protocol() -> dict[str, Any]:
@@ -972,6 +988,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "synthetic_markov_missing_gamma_receipt": missing_markov_gamma_receipt,
     }
     results = {name: inspect_contract(value) for name, value in fixtures.items()}
+    run_state = open_gate_run_state()
     rows = [{
         "fixture": name,
         "unit": "one contract check",
@@ -989,6 +1006,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "data_access": "none",
         "physical_score": None,
         "certified": False,
+        "run_state": run_state,
         "fixtures": {
             name: {"contract": fixtures[name], "result": result}
             for name, result in results.items()
@@ -1016,6 +1034,17 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "  -> only then evaluate the full N=4000 planned-block LCB; retain failed slots as -1",
         "  -> require normalized LCB > 0.05; otherwise ABSTAIN; physical_score remains null until all gates are separately authorized",
         "```",
+        "",
+        "## Current no-data RunState projection",
+        "",
+        "The generic `RunState` projection records all five physical-certification stages as `abstained` with explicit evidence blockers in `contract_diagnostics.json`. It reports `physical_ready=false`, `score=null`, and planned/valid/failed/abstained=`5/0/0/5`. This counts missing evidence and authorization, not failed physical measurements; every future authorized run must start with a fresh state.",
+        "",
+        "|stage|state|current blocker|",
+        "|---|---|---|",
+    ]
+    for stage in ("operator", "reference", "numerical", "statistical", "comparison"):
+        lines.append(f"|{stage}|{run_state['status'][stage]}|{run_state['evidence'][stage][0]}|")
+    lines.extend([
         "",
         "The inspector checks whether a future contract contains the fields required by the v1 estimand: bounded paired squared-error scores, a score-specific dependence route, anchor coverage/common-bias evidence, preallocated alpha, and a separate physical reference gate.",
         "",
@@ -1047,27 +1076,24 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "",
         "Receipts are checked for presence and SHA-256 syntax only; their scientific contents and independence are not verified. `valid` below means structurally complete, not evidence-valid, measured, or certified. Each row counts one contract check; it is not a score block or physical sample.",
         "",
-        f"`run_receipt.json` records these {sum(row['planned'] for row in rows)} contract checks as planned/valid/failed/abstained/not_run = {sum(row['planned'] for row in rows)}/{sum(row['valid'] for row in rows)}/{sum(row['failed'] for row in rows)}/{sum(row['abstained'] for row in rows)}/0, with one blocker reason for every fixture that is not structurally complete. Its `complete` status means every planned schema check was accounted for, not that any dependence, anchor, reference, coverage or physical claim succeeded. `artifact_hashes.json` covers the run receipt and all report payloads; source hashes bind the inspector, null contract, score helpers and shared receipt implementation.",
+        f"`run_receipt.json` records these {sum(row['planned'] for row in rows)} synthetic contract checks plus a separate five-stage physical `RunState` denominator of `5/0/0/5` (planned/valid/failed/abstained). Each incomplete fixture and the five abstained evidence gates have explicit reasons. Receipt `complete` means all planned units are accounted for, not that any dependence, anchor, reference, coverage or physical claim succeeded. `artifact_hashes.json` covers the run receipt and all report payloads; source hashes bind the inspector, null contract, score helpers and shared receipt/state implementations.",
         "",
         "|fixture|planned|valid|failed|abstained|status|blockers|",
         "|---|---:|---:|---:|---:|---|---:|",
-    ]
+    ])
     for row in rows:
         lines.append(
             f"|{row['fixture']}|{row['planned']}|{row['valid']}|{row['failed']}|{row['abstained']}|{row['status']}|{row['issue_count']}|"
         )
     lines.extend([
         "",
-        "## Remaining researcher-supplied inputs",
+        "## Remaining evidence receipts after method defaults were selected",
         "",
-        "- Target `m*`, observable, interpretation and units; positive `R`, the all-included prediction-difference bound and its receipt; clipping and failure-policy approval.",
-        "- Planned block identities and score-specific dependence evidence. The graph route needs a coloring/color-class-independence receipt. Every Markov route needs block-chain assumptions, an independently reviewed `gamma_ps` lower-bound receipt, and stationary-start or post-burn-in TV evidence. Fixed-score Markov must freeze one score; Eq. (3.26) must receipt the full time-varying schedule. The exact-`k_ps` variant additionally needs the maximizing-index and residue-variance receipts; the support-only variant avoids those two inputs but not the chain/gap evidence. Freeze candidate comparison family `F`.",
-        "- For time-varying scores, predeclare and receipt the full `f_i` schedule and an anchor-induced score-shift bound in normalized units. The exact-`k_ps` route needs class-variance receipts and keeps its actual `M/k_ps`; the support-only route uses the coded `[-1,1]` range and the conservative `N+ceil(1/gamma_ps_lower)-1` variance-sum bound. Neither route proves its chain/gap assumptions.",
-        "- For the Markov route, document a stationary initial block law (`burn_in_blocks=0`, `delta=0`) or an audited post-burn-in TV bound and receipt; require `F*delta < alpha_score`.",
-        "- Matched E-anchor receipt, total anchor-error bound `B`, explicit common-bias sub-bound `C <= B`, a justified combination rule, method-specific coverage assumptions, score/anchor conditional-independence evidence, and the preallocated alpha split. For the v1 conservative combination, the inspector also checks `B >= random_coverage_radius + C`.",
-        "- Markov-anchor fallback: one fixed measurable bounded scalar per anchor-chain state, a receipt bridging its stationary mean to the chosen `m_star`, separate anchor-chain and `gamma_ps` receipts, stationary-start or post-burn-in TV receipt, and the same `B >= random_coverage_radius + C` check. The selected global multichannel fit is not automatically a per-state scalar map.",
-        "- Minimum effect `delta_star` with units and rationale, plus an independently reviewed physical reference/model-identification gate.",
-        "- Even a structurally complete contract remains subject to human evidence review and separate data/GPU authorization. No fixture changes readiness or emits a score.",
+        "- The target observable, units, score transform, `R`, clipping, `delta_star`, `F=3`, and alpha allocation are selected. The fitted numerical `m_star` remains unknown until the independent candidate-blind E-chain fit passes its fixed model/window gates and yields measurement plus review receipts.",
+        "- For the selected length-5 score block chain, provide authorized block IDs/provenance, a score-specific pseudo-gap lower-bound receipt, stationary-start or post-burn-in TV evidence, and the complete fixed score schedule. Require `F*delta < alpha_score`; do not infer independence from trajectory spacing or bootstrap count.",
+        "- For the selected bounded-IID anchor route, provide 1000 genuinely independent stationary anchor units, range/coverage receipt, common-bias `C` bound and conditional-independence evidence. If IID cannot be proved, use only the separately reviewed Markov scalar-map or vector-mean route with its own anchor-chain gap/TV/support receipts and target-bias bridge.",
+        "- For the vector route, additionally prove finite support for every PP/A4P feature, fix or simultaneously cover covariance/regularization inputs, and certify a full-box interval image of the two-state PP/A4P fit over every global minimizer. An unbounded, non-unique, boundary-hitting or unclosed fit image abstains; a vector mean box alone does not identify `m_star`.",
+        "- Complete the reference gate, anchor/common-bias review and score-chain receipts before any physical LCB. New confirmation inputs, data access and GPU/QUDA each require their corresponding owner authorization. No structural fixture or RunState receipt grants those permissions or emits a score.",
         "",
     ])
     (out / "README.md").write_text("\n".join(lines))
@@ -1078,13 +1104,14 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "data_access": "none",
         "physical_score": None,
         "certified": False,
+        "run_state": run_state,
         "selected_protocol": selected_protocol(),
         "fixtures": list(fixtures),
         "synthetic_fixture_values_are_physical": False,
         "receipt": {
             "schema": "latticearena-run-receipt-v1",
-            "unit": "one contract fixture inspection",
-            "complete_means": "all planned schema checks are accounted for; not scientific success",
+            "unit": "contract fixture checks plus a separately counted physical-gate projection",
+            "complete_means": "all planned structural checks and abstained evidence gates are accounted for; not scientific success",
         },
         "markov_theorem_route": {
             "stationary": "Paulin arXiv:1212.2015v5 Theorem 3.11 / Eq. (3.25), one fixed score function f",
@@ -1102,6 +1129,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "snapshot_bounded_block_risk_markov_varying.py": Path(__file__).with_name("bounded_block_risk_markov_varying.py"),
         "snapshot_bounded_block_risk_anchor_markov.py": Path(__file__).with_name("bounded_block_risk_anchor_markov.py"),
         "snapshot_core_receipts.py": Path(__file__).resolve().parents[2] / "core/receipts.py",
+        "snapshot_core_state.py": Path(__file__).resolve().parents[2] / "core/state.py",
     }
     for name, source in snapshots.items():
         (out / name).write_bytes(source.read_bytes())
@@ -1121,6 +1149,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "tasks/pion_projection/bounded_block_risk_anchor_markov.py": _sha256_file(
             out / "snapshot_bounded_block_risk_anchor_markov.py"),
         "core/receipts.py": _sha256_file(out / "snapshot_core_receipts.py"),
+        "core/state.py": _sha256_file(out / "snapshot_core_state.py"),
     }
     scenario = scenario_spec(
         "pion-bounded-block-risk-contract-fixtures",
@@ -1152,6 +1181,19 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
                 "reason": "; ".join(results[name]["issues"])
                 or "structural validation failed",
             })
+    denominators["physical_run_state_gates"] = {
+        "unit": "one physical certification stage in core.RunState",
+        "planned": len(OPEN_RUN_GATES),
+        "valid": 0,
+        "failed": 0,
+        "abstained": len(OPEN_RUN_GATES),
+    }
+    reason_rows.append({
+        "unit": "physical_run_state_gates",
+        "state": "abstained",
+        "count": len(OPEN_RUN_GATES),
+        "reason": "physical Pion scoring awaits independent reference, anchor and dependence receipts plus authorization",
+    })
     receipt_payload_hashes = {
         name: _sha256_file(out / name) for name in payloads
     }
@@ -1160,7 +1202,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         text_flow=(
             "null v1 contract plus synthetic graph/Markov/anchor fixtures -> "
             "independent contract inspection per fixture -> explicit denominator "
-            "and blocker reasons -> hashed report; complete means accounting only, "
+            "plus five RunState abstentions -> hashed report; complete means accounting only, "
             "not scientific success; physical review and authorized data access "
             "remain later gates"
         ),
@@ -1182,6 +1224,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
     return {
         "status": "STRUCTURE_DIAGNOSTIC_ONLY",
         "physical_score": None,
+        "run_state": run_state,
         "fixture_results": results,
         "denominators": counts,
         "receipt": receipt,
@@ -1199,6 +1242,7 @@ def main() -> None:
     print(json.dumps({
         "status": result["status"],
         "physical_score": result["physical_score"],
+        "run_state": result["run_state"],
         "denominators": result["denominators"],
         "fixture_statuses": {
             name: value["status"] for name, value in result["fixture_results"].items()

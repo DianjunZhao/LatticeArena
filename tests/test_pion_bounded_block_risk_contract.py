@@ -393,17 +393,26 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
         "planned": 19, "valid": 6, "failed": 13, "abstained": 0,
     }
     assert summary["physical_score"] is None
+    assert summary["run_state"]["physical_ready"] is False
+    assert summary["run_state"]["score"] is None
+    assert set(summary["run_state"]["status"].values()) == {"abstained"}
     receipt = json.loads((output / "run_receipt.json").read_text())
     assert receipt["schema"] == "latticearena-run-receipt-v1"
     assert receipt["status"] == "complete"
-    assert len(receipt["denominators"]) == 19
-    assert sum(row["planned"] for row in receipt["denominators"].values()) == 19
+    assert len(receipt["denominators"]) == 20
+    assert sum(row["planned"] for row in receipt["denominators"].values()) == 24
     assert sum(row["valid"] for row in receipt["denominators"].values()) == 6
     assert sum(row["failed"] for row in receipt["denominators"].values()) == 13
-    assert sum(row["abstained"] for row in receipt["denominators"].values()) == 0
+    assert sum(row["abstained"] for row in receipt["denominators"].values()) == 5
     assert sum(row["not_run"] for row in receipt["denominators"].values()) == 0
     assert sum(row["count"] for row in receipt["reason_rows"]
                if row["state"] == "failed") == 13
+    assert sum(row["count"] for row in receipt["reason_rows"]
+               if row["state"] == "abstained") == 5
+    assert receipt["denominators"]["physical_run_state_gates"] == {
+        "unit": "one physical certification stage in core.RunState",
+        "planned": 5, "valid": 0, "failed": 0, "abstained": 5, "not_run": 0,
+    }
     assert "not scientific success" in receipt["text_flow"]
     assert set(receipt["scenario"]["source_hashes"]) == {
         "tasks/pion_projection/bounded_block_risk_contract.py",
@@ -412,11 +421,12 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
         "tasks/pion_projection/bounded_block_risk_markov_varying.py",
         "tasks/pion_projection/bounded_block_risk_anchor_markov.py",
         "core/receipts.py",
+        "core/state.py",
     }
-    assert len(receipt["artifact_hashes"]) == 10
+    assert len(receipt["artifact_hashes"]) == 11
     manifest = json.loads((output / "artifact_hashes.json").read_text())
     assert manifest["algorithm"] == "sha256"
-    assert len(manifest["files"]) == 11
+    assert len(manifest["files"]) == 12
     for name, expected in manifest["files"].items():
         actual = hashlib.sha256((output / name).read_bytes()).hexdigest()
         assert actual == expected
@@ -428,11 +438,14 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
     assert "no correlator, anchor, gap, validation, holdout" in report
     assert "CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW" in report
     assert "F*delta < alpha_score" in report
-    assert "`M/k_ps`" in report
+    assert "M/k_ps=1" in report
     assert "support-only" in report
     assert "physical_score remains null" in report
     assert "run_receipt.json" in report
     assert "not that any dependence, anchor, reference, coverage or physical claim succeeded" in report
+    assert "Current no-data RunState projection" in report
+    assert "Remaining evidence receipts after method defaults were selected" in report
+    assert "Minimum effect `delta_star`" not in report
 
 
 def test_f3_sensitivity_is_analytic_only_and_reports_full_denominators(tmp_path):
