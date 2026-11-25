@@ -302,3 +302,15 @@ a4 = (  b0 -  4 b1 +  6 b2 -  4 b3 +  b4) / 128
 - 两份报告的 payload SHA-256 均匹配；Optimize 专项 **34 passed**，PR #6 全仓 CPU suite **146 passed**。提交 [`679f62d`](https://github.com/Greyyy-HJC/LatticeArena/commit/679f62daea0caa98ebf44bca486dc4a3a3d02bfa) 是固定有理变换本身，`49673bb` 更新了诊断生成器与报告。
 
 该同步关闭的是“自选方法默认值已冻结但报告仍显示待选”的软件/文档不一致。Optimize TODO 仍保留：没有独立 E-chain/reference、split/hash、实测成本、production review 和 GPU/data 授权，不能执行真实三臂比较；Pion 与 Wilson 剩余边界仍分别依赖独立 coverage/reference/anchor 收据、C/F calibration 与污染界。三项不得据此升级状态或读取 sealed data。
+
+## 2026-11-25 本轮继续复核：Optimize 的可执行工作边界
+
+D04/D06/D11 的方法默认值已经自选并写进合同；比较族继续同时保留 trainable-W 对相同调用预算 SLSQP，以及 trainable-W 对固定 degree-4 Chebyshev 强基线。PR #6 head `49673bb` 上 D11 固定有理基变换、两份图文诊断和合同报告已同步；Optimize 专项 34 项及全仓 CPU 146 项记录见上文。本轮没有发现可以靠重复 synthetic teacher/grid 关闭的新方法缺口，因此不再用合成效应替代实证。
+
+后续唯一可升级结果的路径是：取得与开发/确认用途相符且 candidate-blind 的独立 E-chain reference receipt；冻结并哈希共同 fit/eval IDs、seed 与所有 arm 的 objective/precision；在同一目标函数及失败分母下测三臂，逐臂记录 training、setup、solve、inference、I/O、failure recovery 和 total walltime；以 paired risk ratio interval hull 检验已选 `r_star` 并报告 planned/valid/failed/abstained。另由独立 reviewer 检查真实 production links 上 D11 的算符方向、边界、归一化、PSD/约束和舍入误差。真实 W 训练或 GPU/QUDA 比较仍须对应 data/resource owner 授权；未授权时保持 `NOT_READY/UNCERTIFIED` 与 `physical_score=null`。
+
+文字数据流：`独立 E reference + immutable split/seed -> 三臂同 objective/precision/call cap -> paired risk + 全成本账本 -> D06 同时区间过 r_star -> D11 production-link review -> 独立审阅/授权 -> 才能进入新的确认阶段`。任何 reference、split、paired outcome、成本或 production operator 收据缺失，都只记为 blocker，不把合同完整、CPU 测试通过或 toy 优势写成学习型 smear 胜出。
+
+## 2026-11-25 当前接手结论
+
+较早要求研究者选择 D04 reference、D06 `r_star`、D11 算符形式的段落已被本文件开头的自选默认值取代；不得再次询问相同方法选择。Optimize TODO 保留，因为真实 reference、配对 split/cost receipts、production-link review 与授权仍缺失。没有新的、未封存且获授权的输入前，不训练真实 W、不读取 sealed confirmation、不申请或假称 GPU 资源；交付物仍须包括两种基线的并列风险/总成本图表或清晰文字流程和完整分母。

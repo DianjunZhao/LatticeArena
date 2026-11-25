@@ -255,3 +255,13 @@ PR #6 提交 [`f9be949`](https://github.com/Greyyy-HJC/LatticeArena/commit/f9be9
 PR #6 最新 head [`49673bb`](https://github.com/Greyyy-HJC/LatticeArena/commit/49673bbec8044ecd313a4237b4a7d3f3055e75f9) 本轮更新仅涉及 Optimize 的 D11 Bernstein/Chebyshev 转换和图文报告生成器；Wilson source、lane contract 与其物理默认值没有改动。当前 head 上重跑 `tests/test_wilson*.py`：**37 passed**；全仓 CPU suite：**146 passed**。这是共享代码回归与 Wilson 合同/toy 软件验证，不是新的 C/F 物理测量或独立污染证据。
 
 Wilson 仍按已选定的有限温 Creutz C lane 与基态离散静态力 F lane 分开报告。继续缺少 C lane 新 calibration IDs 的四 loop 正均值/paired-block 精度收据，以及 F lane 独立 3×3 GEVP、多态/时间窗、matched `N_t=32` 热路径、q/h/x→force 同时界和独立审阅；D0–99 不可改作 confirmation。没有这些资料和 data/resource owner 授权时，保持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 与 sealed data closed，不生成物理分数。
+
+## 2026-11-25 本轮继续复核：C/F 两条 lane 的当前证据清单
+
+方法默认值已固定：C 报告 `N_t=16` 的有限-T `chi_stout(2,5)`，F 报告 `R=2.5` 的 stout-minus-identity 基态离散力。旧日期段落里要求再选 identity/APE-stout estimand、`R/T/kernel` 或推断规则的文字均为历史记录；当前只按本文件开头与 2026-11-25 defaults 执行。CPU 侧合同、有限-`N_t` 公式/正谱 toy、单位/符号/alpha 检查已完成；当前 PR #6 head `49673bb` 的 Wilson 专项 37 项和全仓 CPU 146 项均只证明代码及合同路径。
+
+**C lane 下一步：**只在获准的独立 calibration IDs 上保存四个共同 paired loop means、每个 draw 的正值/log 检查、失败原因、10,000 次 paired circular-block draws 与 length 2/5/10 区间 hull；检查 0.02 dimensionless half-width 和 <=1% invalid-draw 门。D0–99 已观察，不得用于确认。
+
+**F lane 下一步：**只在与未来 confirmation 不重叠的 calibration IDs 上交付 `R=2,3` 的 identity/APE/stout 3×3 GEVP、二/三态及时间窗图/残差、匹配 `N_t=32` thermal 对照、mixed-term 联合上界和所有失败/截断项。将 q/h/x 和模型项逐项传播为 `a_s*a_t*F` 同时界，核算统计 5%、系统 5%、总线性误差 10% 的预算，并由独立 reviewer 检查相关性与重复计数。缺正的 reference-force 下界或任一独立污染收据时，F 继续 `GROUND_STATE_FORCE_UNCERTIFIED`。
+
+文字数据流：`授权的 C calibration IDs -> 四 loop means/logs/paired interval`；`另行隔离的 F 谱 calibration IDs -> GEVP + matched Nt32 -> q/h/x/model cells -> force-unit 四点传播 -> 完整误差预算`；每个 lane 保留 planned/valid/failed/abstained 与原因。只有两个 calibration protocol 通过独立审阅、再取得未观察 confirmation IDs 与 data/resource owner 授权，才进入新确认。当前未见这些数据/收据/授权，故不发起测量、不打开 sealed split，保留 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED` 与 `physical_score=null`。

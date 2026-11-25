@@ -313,3 +313,15 @@ I_j = [max(L_j, mean_j-r_j), min(U_j, mean_j+r_j)]
 [向量 anchor 诊断包](../../results/pion_projection/bounded_block_risk_anchor_vector_20261125_v1/README.md)包含文字数据流、协议、fixture 结果、RunReceipt 与 SHA-256。4,000 行确定性正弦/余弦只用于公式算术 fixture，不是 Markov path、配置、coverage Monte Carlo 或物理数据；输入的 `gamma_A=0.20`、TV=`0.001` 和三维 support 均为假设。诊断分母 vector box=`1/1/0/0`、feature coordinates=`3/3/0/0`；拟合目标区间与 `C` 未计算。该 v1 收据的 helper 源哈希匹配提交 [`dc6831e`](https://github.com/Greyyy-HJC/LatticeArena/commit/dc6831eae462f26f7b4be858fff4a4148d802988)。随后提交 [`27001ea`](https://github.com/Greyyy-HJC/LatticeArena/commit/27001ea68cc902c122fcb89b49a8b6cc577355b2) 加入超范围数值输入 fail-closed；当前 anchor-vector tests **11 passed**，Pion bounded-risk/dependency 专项 **153 passed**，PR #5 全仓 CPU suite **200 passed**。v1 报告的 receipt 与 outer manifest 均逐项匹配其对应文件哈希。
 
 文字数据流：`fixed bounded per-state feature vector -> componentwise Markov intervals -> family-d union bound -> joint mean box -> certified frozen-fit image g(box) -> m* interval + independent C bridge -> score LCB`。当前实现只到 `joint mean box`；后续先需推导并实现对既定 PP/A4P estimator 的 verified interval image，再用 synthetic edge fixtures 检查单值/非唯一/边界/跨奇异面等 abstention。未完成该区间映射与独立审阅前，不把此路写为可认证 anchor 方法，不估物理 `m*`，也不打开封存输入。
+
+## 2026-11-25 本轮继续复核：区间映射的真实前置条件
+
+当前唯一仍可讨论的向量 anchor 方法工作是把联合均值盒传播到冻结的 candidate-blind PP/A4P 拟合；现有代码没有拟合器、均值支持收据、固定协方差收据或区间优化器。不得用观测样本 min/max 冒充对单态 correlator 的有限支持，也不得只在盒中心或角点重跑非线性拟合后声称覆盖整个盒。
+
+后续实现前须先把拟合输入精确定义为单个 anchor 状态的 24 维向量（PP `n=0,8,16` 与 A4P，`t=3..8`，按协议奇偶折叠），并取得每一维的事前有限支持证明；固定或同时覆盖协方差/正则化输入；写明两态/三态模型、质量与振幅参数域、优化容差及 reference 的窗口/模型接受门。之后对整个联合均值盒和全部全局极小值做可审计的区间 branch-and-bound，返回所有可接受 `m0` 的外包区间。若无法证明全局最优、映射不唯一、质量碰边界、协方差/模型门在盒内翻转，或区间过宽以致 `C` 无法闭合，就 `ABSTAIN`。区间结果仍须由独立 reviewer 审核，并另有 target-bias/common-bias `C` 与 score-chain 独立性收据。
+
+文字流程：`证明 24 个 feature 的固定支持 + 协方差输入 -> simultaneous mean box -> 全盒/全全局极小值区间求解 -> 对每个 admissible m0 检查模型与窗口门 -> 输出 m0 hull 和数值证书；任何未封闭子盒、退化协方差或多解 -> ABSTAIN`。在上述前置条件尚无数据来源时，不为形式完整而编写会接受未经证明支持的“认证”API，也不重跑 synthetic 网格。Pion 当前测试记录仍为 anchor-vector **11 passed**、bounded-risk/dependency **153 passed**、PR #5 全仓 CPU **200 passed**；这些仅是现有软件验证，不覆盖拟合映射。
+
+## 2026-11-25 当前接手结论
+
+本文件开头已冻结研究设计默认值；旧日期段落中“请研究者选择目标、`R`、clipping 或 `delta_star`”均是历史记录，不再是开工要求。现阶段没有证据支持打开 anchor/reference/validation 数据，用户要求维持 `NOT_READY/UNCERTIFIED` 与 sealed data closed，因此本 TODO 保留。下一步是接收独立 E-chain reference 与 anchor-chain 的 feature-support、gap/TV、协方差、`C` 和独立性 receipts，先由独立 reviewer 核准，再实现/运行全盒拟合映射；物理 `m*` 与 bounded score 仍为 `null`，不得由公式 fixture 补值。
