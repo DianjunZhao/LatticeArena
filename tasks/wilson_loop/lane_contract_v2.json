@@ -237,6 +237,23 @@
         }
       ],
       "units": "dimensionless lattice force a_s*a_t*F",
+      "force_bound_propagation": {
+        "assumption": "q,h,x are nonnegative loop-level upper bounds and each correction is log(1+q+h+x)",
+        "corner_count": 8,
+        "corner_layout": [
+          "candidate_R2_t",
+          "candidate_R2_t_plus_1",
+          "candidate_R3_t",
+          "candidate_R3_t_plus_1",
+          "reference_R2_t",
+          "reference_R2_t_plus_1",
+          "reference_R3_t",
+          "reference_R3_t_plus_1"
+        ],
+        "component_force_bound": "sum over all 8 corners of log1p(component_bound)",
+        "uniform_raw_loop_cap": "expm1(force_fraction*positive_reference_force_lower/8)",
+        "evidence_status": "FORMULA_ONLY_INPUT_RECEIPTS_MISSING"
+      },
       "spectral_bounds": [
         {
           "component": "q",
@@ -244,7 +261,8 @@
           "units": "dimensionless",
           "proposed_relative_cap": 0.015,
           "evidence_sha256": null,
-          "scope": "proposed excited-state contamination cap at four force-stencil points",
+          "scope": "proposed 1.5% post-propagation force component budget; derive raw corner cap from positive reference-force lower bound",
+          "uniform_raw_loop_cap_formula": "expm1(0.015*reference_force_lower/8)",
           "independent_review_receipt": null
         },
         {
@@ -253,7 +271,8 @@
           "units": "dimensionless",
           "proposed_relative_cap": 0.015,
           "evidence_sha256": null,
-          "scope": "proposed matched-Nt thermal contamination cap at four force-stencil points",
+          "scope": "proposed 1.5% post-propagation force component budget; derive raw corner cap from positive reference-force lower bound",
+          "uniform_raw_loop_cap_formula": "expm1(0.015*reference_force_lower/8)",
           "independent_review_receipt": null
         },
         {
@@ -262,7 +281,8 @@
           "units": "dimensionless",
           "proposed_relative_cap": 0.01,
           "evidence_sha256": null,
-          "scope": "proposed mixed-sector contamination cap at four force-stencil points",
+          "scope": "proposed 1.0% post-propagation force component budget; derive raw corner cap from positive reference-force lower bound",
+          "uniform_raw_loop_cap_formula": "expm1(0.01*reference_force_lower/8)",
           "independent_review_receipt": null
         }
       ],
@@ -273,7 +293,7 @@
           "units": "dimensionless lattice force a_s*a_t*F",
           "proposed_relative_cap": 0.015,
           "evidence_sha256": null,
-          "scope": "q bound propagated through log(1+q+h+x) and Delta_R Delta_t",
+          "scope": "force-unit component bound after candidate-minus-reference propagation through all eight loop corners",
           "independent_review_receipt": null
         },
         {
@@ -282,7 +302,7 @@
           "units": "dimensionless lattice force a_s*a_t*F",
           "proposed_relative_cap": 0.015,
           "evidence_sha256": null,
-          "scope": "h bound propagated through log(1+q+h+x) and Delta_R Delta_t",
+          "scope": "force-unit component bound after candidate-minus-reference propagation through all eight loop corners",
           "independent_review_receipt": null
         },
         {
@@ -291,7 +311,7 @@
           "units": "dimensionless lattice force a_s*a_t*F",
           "proposed_relative_cap": 0.01,
           "evidence_sha256": null,
-          "scope": "x bound propagated through log(1+q+h+x) and Delta_R Delta_t",
+          "scope": "force-unit component bound after candidate-minus-reference propagation through all eight loop corners",
           "independent_review_receipt": null
         },
         {

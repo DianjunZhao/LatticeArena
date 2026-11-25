@@ -16,6 +16,14 @@
 
 解析风险梯度通过逐配置有限差分核对，新增 HAC/grid 汇总测试 5 项；本报告仍是 Gaussian AR(1) 合成方法比较。全网格 percentile 基线只有每长度 1,000 draws，目标合同为 10,000；HAC 又依赖未被证明的渐近线性化、弱依赖与矩条件，当前没有 heavy-tail、非平稳、D04 reference-fit 不确定度或 optimizer failure 覆盖。故 D06 继续 `UNCALIBRATED/NOT_READY`。后续应冻结更广 DGP 与 Monte Carlo 停止规则，比较 studentized / bias-corrected / conservative ratio bounds，并由独立统计审阅者复核后，才考虑真实 evaluator 接线；不能根据这 9 格选出最优带宽，也不读 sealed IDs。
 
+### 2026-11-25 D06 HAC 对比反演（Fieller-style）未修复欠覆盖
+
+新增 [`d06_hac_fieller_diagnostic.py`](d06_hac_fieller_diagnostic.py)：把 `R_comparator/r - R_trainableW` 的 HAC-studentized 单侧检验直接对 `r` 反演，构造风险比下界；同一套输入上与 influence-ratio delta HAC 对照，保留 `L=2/5/10`、bandwidth `2/5/10/20/30` 的下界 hull 与 `F=2` familywise rule。精确有限样本风险真值来自高斯 AR(1)、有限四阶矩 Student-t5 AR(1)、period-2 异方差 AR(1)；另外扫描配置相关 `phi=0/0.4/0.8`、cross-arm common loading `0/0.8`、`n=40/60/100`，每 cell 1,000 个独立面板。报告含逐 cell Wilson Monte Carlo 区间、两种方法 coverage/release 图、raw paired panels、协议和哈希，见[图文 stress v1](../../results/optimize_gaussian/d06_hac_fieller_stress_cpu_20261125_v1/README.md)。分母 `54,000/54,000/0/0`；名义 95% coverage 的 MCSE 约 `0.0069`。
+
+结果未支持 Fieller-style 反演作为替代：全部 54 个 cell 中，ratio-delta 的 familywise coverage Wilson 下界在 `15/54` 个 cell 达到 `0.95`，contrast-inversion 在 `1/54` 个 cell 达到；**两者都没有达到全网格要求**。跨每个 DGP 的等权平均 family coverage，ratio-delta / contrast-inversion 分别是 Gaussian `0.9424/0.9143`、Student-t5 `0.9447/0.9138`、periodic volatility `0.9409/0.9119`；各 DGP 的最差 cell 约为 `0.882–0.894` 与 `0.822–0.849`。Fieller-style 有略高 release rate，但与更差 coverage 同时出现，不能解释为检出能力提高。结论仅限这组已声明风险定义与 DGP；没有包括 D04 reference-fit uncertainty、mean drift、solver failures 或 lattice 数据。新增方法测试 **7 passed**；本 checkout `tests/test_optimize*.py` 总计 **88 passed**。
+
+下一步不要把 ratio-delta 或 contrast inversion 接入确认 evaluator。现已对**不同的 bounded block-risk estimand**实现并压力测试有限样本界，见本文件末尾；它只在 independent macroblocks 假设下有效，未替代当前 D04/D06 合同。需要独立审阅后决定是否版本化为新 estimand，并先取得独立 block 或有效依赖校正凭据；否则维持 `ABSTAIN/NOT_READY`。之后仍需同预算 SLSQP 与 degree-4 Chebyshev 同时保留，真实 trainable-W、reference-fit 传播及盲测 gate 不因 CPU 诊断而改变。
+
 ### 2026-11-25：D04/D06 风险统计量的 fail-closed CPU reducer
 
 新增 [`risk_statistics.py`](risk_statistics.py)，将已选择的 D04/D06 公式做成纯数组 reducer：D04 按 `t=(2,3,4,5)`、`ddof=1` 计算每时刻 `Var_boot(q)+[E_boot(q)-1]^2` 并取平均；缺 draw、NaN/Inf 或 draw 数不足时保留计划分母并返回 `risk=null`。D06 固定 `F=2` 的每比较 `alpha=0.025`、`r_star=10/9`、`L=(2,5,10)`，要求 comparator/trainable-W 每个长度的风险 draw ID 一一相同且唯一，风险严格正；使用 linear 0.025 quantile 并对三种长度取最低值。任一配对缺失、零风险、非有限或除法溢出均 `ABSTAIN`；不丢弃坏 draw、不补 epsilon、不生成物理分数。
@@ -395,3 +403,19 @@ walltime 仍是同步的 cooperative guard，无法中断正在执行的 objecti
 Optimize 主比较必须同时保留同预算 SLSQP 与一个预先固定的强谱基线：用户已将确认性族定为 `F=2`，分别比较 trainable-W 对 SLSQP、trainable-W 对强谱基。现有[生产前研究决策单](protocol_decision_review_20261121.md)已含一页文字流程和 D04/D06/D11 备选审阅表；其中 degree-4 Chebyshev 只是待批准的固定基候选，operator、谱尺度、系数域/正则、共享 objective 和 calls+walltime 双预算仍须解盲前冻结。CPU heat-kernel 结果不能证明该谱基对物理问题最强。
 
 当前最先决的是 D04 reference 与 D06 最小有意义物理效应：Pion reference 仍 FAIL 时，任何新风险都只能标 `diagnostic_only`，不得填造 `r_star` 或解封盲测。研究者决策与策略冻结后，执行者才生成真实文件/source/environment hash 绑定的 RunSpec，接入真正更新 W 的训练入口，交 CPU 接口/梯度图文；另行授权后再做设备 smoke 与真实比较。交付须含两项 paired-risk 区间图、calls/time best-so-far、成本拆分、residual/KKT、planned/valid/failure/abstain 分母及失败解释。本轮没有训练、GPU 或 sealed split 数据读取；TODO继续保留。
+
+### 2026-11-25：bounded block-risk 的非渐近校准候选与依赖负控
+
+按用户接受的“bounded block-risk 是不同 estimand”方向，新增 [`bounded_block_risk.py`](bounded_block_risk.py) 与 [`d06_bounded_block_risk_diagnostic.py`](d06_bounded_block_risk_diagnostic.py)，报告为[图文 calibration v4](../../results/optimize_gaussian/d06_bounded_block_risk_cpu_20261125_v4/README.md)。RNG seed=`20261125`，协议 JSON 同时存入分方法 planned/valid/failed/abstained 总数与关键覆盖/功效摘要；源与 artifact SHA-256 均复核匹配。定义每个**配对宏块**的有界分数
+
+`X[b,a]=(1/4) Σ_{t=2..5} min((q[b,a,t]-1)^2, 1) ∈ [0,1]`，`μ_a=E[X[b,a]]`，
+
+与 `D04 R_a=mean_t{Var_boot(q_a(t))+|E_boot(q_a(t))-1|²}` 不同，不能替换或混报。保持用户选定 `F=2`、`r_star=10/9`。每个比较直接检验配对差 `D[b]=X[b,comparator]-r_star X[b,W]` 是否正，同时要求 `μ_W` 的单侧下界大于 0；总 `α=0.05` 平均分给两个比较和一个共享正分母界（每界 `δ=1/60`）。Hoeffding 有界界为保守基线；empirical-Bernstein 候选使用 Maurer–Pontil 2009 Theorem 4，并按观测区间宽度缩放。其数学前提是宏块独立；[原始定理](https://arxiv.org/abs/0907.3740)不支持把相关 HMC 配置块自动视为独立样本。
+
+IID 校准设计覆盖 3 个已知真值有界 DGP、低于/恰在/高于最小效应的三组双比较风险比、`n=200/1,000/5,000/20,000`、每 cell 1,000 个独立 synthetic panels。每方法计划 `36,000` 面板；Hoeffding valid/failed/abstained=`26,371/0/9,629`，empirical-Bernstein=`27,000/0/9,000`。IID 网格中，两方法都在 24 个 null/boundary cells 的合计 `24,000` panels 中观察到 `0` 次家族发布。empirical-Bernstein 的联合下界覆盖在 `n≤5,000` 每格为 `100%`；`n=20,000` 最低格为 `999/1,000`，Wilson 95% 下界 `99.44%`。在两项真实比值都超过 `r_star` 的设计中，它等格平均家族发布率从 `n=5,000` 的 `35.0%`（cell range `1.5%–100%`）升到 `n=20,000` 的 `98.4%`（`95.2%–100%`）；Hoeffding 到 `20,000` 仍无家族发布。该结果表示经验 Bernstein 在 IID 有界 synthetic risk 下兼具高覆盖和一定功效，而 Hoeffding 明显保守；它不等于统计 reviewer 批准，也不表示物理链满足 IID。
+
+依赖负控另外计划每个 lag-1 `rho=0/0.5/0.8/0.9/0.95/0.98` 各 `10,000` 个、每 panel 1,000 宏块。empirical-Bernstein 联合下界覆盖从 `rho=0.8` 的 `98.61%` 降至 `rho=0.9/0.95/0.98` 的 `92.66%/82.22%/77.09%`；最高相关度的 Wilson 95% 区间为 `[76.26%,77.90%]`。Hoeffding 在 `rho=0.98` 也仅 `88.47%` 并大量 abstain。这一负控明确显示依赖会破坏所用有限样本定理的覆盖解释；不能从“块长为 5”或轨迹间隔声称 independence。图同时展示覆盖、false release、功效与依赖敏感性；protocol/source/artifact hashes 全部核对通过。
+
+新增 bounded-risk 专项测试 **9 passed**；本 checkout 的完整 `tests/test_optimize*.py` 为 **97 passed**。当前只交付了候选统计规则和 synthetic calibration，不改写 `research_contract_v1.json` 的 D04 主风险，不接入 production evaluator，不读取 gauge/reference/sealed split，不产生 `physical_score`。
+
+后续顺序：先由独立统计 reviewer 复核“配对对比 + 分母正性 + 三界 Bonferroni”的覆盖逻辑和代码；再正式决定是否将 clipped block-risk 作为新版本 estimand（需保留旧 D04 结果并行报告）。无论该决定如何，真实执行前都需要可审计的独立宏块证明，或另推导并校准适用于 Markov/依赖宏块的修正界；否则 fail closed 为 `ABSTAIN`。之后还要冻结 block 构造、`q` 的 reference-fit uncertainty 传播与 confirmation split，再用独立授权的开发数据接 evaluator。文字流程：`frozen reference/candidates -> paired block q -> bounded score -> simultaneous contrast and positive-denominator bounds -> dependency receipt check -> release or abstain`。

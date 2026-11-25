@@ -2,11 +2,28 @@
 
 ### 2026-11-25 本 checkout 回归核验
 
-当前 Optimize/Wilson PR worktree 的完整 Wilson 测试文件集 `tests/test_wilson*.py` 为 **49 passed**（CPU only）。它覆盖 lane contract、Markov 支持界、finite-`N_t` 代数与 toy/randomized fixtures；只确认代码/公式边界，不提供 C/F measurement、独立 q/h/x/GEVP/thermal receipt 或 coverage/calibration 证据。现有图文分析和 lane-specific 未决项如下文，仍保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+当前 Optimize/Wilson PR worktree 的完整 Wilson 测试文件集 `tests/test_wilson*.py` 为 **62 passed**（CPU only；2026-11-25 复跑）。它覆盖 lane contract、force-budget propagation、Markov 支持界、finite-`N_t` 代数与 toy/randomized fixtures；只确认代码/公式边界，不提供 C/F measurement、独立 q/h/x/GEVP/thermal receipt 或 coverage/calibration 证据。现有图文分析和 lane-specific 未决项如下文，仍保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
 
 ### 2026-11-25 当前接手：C/F 方法默认已提出，独立证据和认证门仍未完成
 
 用户已选择保留两个不同 estimand：有限-$T$ Creutz 和基态离散静态力；随后要求执行者自行提出剩余规则。建议默认值已登记在 [`lane_contract_v2.json`](lane_contract_v2.json) 的 `selected_protocol` 与 `common` / `lanes` 草案映射中，状态仍为 `DRAFT_NOT_READY` / `METHOD_DEFAULTS_SELECTED_EVIDENCE_NOT_READY`。本次完成数据-free 映射，并在[结构检查器 v9](../../results/wilson_loop/lane_contract_diagnostic_20261125_v9/README.md)列出当前剩余字段；这不等于独立审阅、生产数据授权或物理认证。下方早期“等待选择 R/T/kernel/阈值”的说法由本节替代。
+
+### 2026-11-25 F-lane q/h/x 到力级误差预算的传播已补齐（纯代数）
+
+此前合同把 `q/h/x` 的 `1.5%/1.5%/1.0%` 与力级系统误差预算写在相邻字段，但没有明确这些百分数是逐 loop corner 上限，还是完成 stencil 传播后的力级上限。这个区别会改变结论。新 helper [`force_budget.py`](force_budget.py) 对两种 kernel、`R=2,3`、`t,t+1` 的 8 个带符号 loop corner 使用
+
+```text
+delta_k(R,t) = log(1 + q_k + h_k + x_k)
+|Delta_R Delta_t delta_candidate - Delta_R Delta_t delta_reference|
+  <= sum_over_8_corners delta_corner
+  <= sum_corner log(1+q) + sum_corner log(1+h) + sum_corner log(1+x).
+```
+
+因此将 `1.5%/1.5%/1.0%` 明确解释为**相对正 reference-force 同时下界的、传播后的 q/h/x 力级预算**。若某个分量在 8 个 corner 都用同一 raw bound `c`，要满足分量预算 `epsilon`，输入必须满足 `c <= expm1(epsilon*f_L/8)`，其中 `f_L` 是独立统计下界；不得把力级百分数直接填成每个 loop 的 q/h/x raw bound。
+
+[图文诊断](../../results/wilson_loop/force_budget_propagation_cpu_20261125_v1/README.md)扫描 50 个纯公式 `f_L` 情景，分母 `50/50/0/0`。在仅用于演示的 `f_L=1` 下，若误把每个 corner 的 raw bound 设为 `q=h=0.015`、`x=0.01`，传播后分量力界分别为 `0.1191`、`0.1191`、`0.0796` 倍 `f_L`，不是目标 `0.015/0.015/0.01`；加上 `1%` 模型截断和 `5%` 统计半宽后，保守总上界为 `0.3778 f_L`，高于 `10%` 门。按力级预算反解时，`f_L=1` 对应 raw corner 上限为 `q=h=0.00187676`、`x=0.00125078`。这些是假设算术，不是 Wilson 输入。合同与 `empty_contract()` 已同步写明 8-corner 布局和反解公式；专测 `29 passed`。
+
+该检查不补出 `q/h/x`、正 reference-force 下界、谱模型截断或统计覆盖收据；物理证据分母仍为 `1/0/0/1`，Lane F 仍 `GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。新模块及合同定向测试为 **29 passed**，当前 `tests/test_wilson*.py` 全集 **62 passed**。下一步只能用独立 receipts 填入逐 kernel/R/time 的 raw envelopes，经该传播器生成 force-unit bounds，再由 reviewer 核查谱假设与数据来源。
 
 ### 2026-11-25 C-lane 条件 Markov 支持界：替代方案已量化，仍不足以认证
 

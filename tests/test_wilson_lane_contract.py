@@ -71,6 +71,19 @@ def test_force_error_budget_requires_model_truncation_instead_of_extrapolations(
     assert not any("finite_a: missing required evidence" in issue for issue in issues)
 
 
+def test_qhx_caps_are_post_propagation_and_bind_the_eight_corner_formula():
+    force = empty_contract()["lanes"]["ground_state_discrete_static_force"]
+    propagation = force["force_bound_propagation"]
+    assert propagation["corner_count"] == 8
+    assert len(propagation["corner_layout"]) == 8
+    assert propagation["uniform_raw_loop_cap"] == (
+        "expm1(force_fraction*positive_reference_force_lower/8)"
+    )
+    for row in force["spectral_bounds"]:
+        assert "post-propagation force component budget" in row["scope"]
+        assert row["uniform_raw_loop_cap_formula"].endswith("/8)")
+
+
 def test_selected_lane_alpha_allocation_closes_the_familywise_budget():
     protocol = selected_protocol()
     allocation = protocol["familywise_alpha_allocation"]
