@@ -442,4 +442,14 @@ IID 校准设计覆盖 3 个已知真值有界 DGP、低于/恰在/高于最小�
 
 中、右栏是独立 two-state Markov toy 的已知 gap 覆盖压力测试：`n=250/2,000/20,000`，每 cell 4,000 个 panels，共 `36,000`；已知 `gamma_ps=1/0.36/0.0975`。joint lower-bound coverage 九格全为 `1.000`（每格 Wilson MC 95% 下界 `0.999`）；SLSQP 真比值恰在 `r_star` 时，家族误放行计数 `0/4,000` 每格，Wilson 上界约 `0.10%`。这验证的是实现对给定合成链的保守行为；不验证真实 HMC 链的齐次性、stationarity、gap 或统计 reviewer 的结论。生成器种类和块数覆盖有限，因此这组全覆盖结果不能当成广泛 coverage guarantee。
 
-本轮 `tests/test_optimize*.py` 为 **122 passed**；Markov 报告 payload hashes **7/7**、源文件 hashes **3/3** 匹配，`git diff --check` 通过。决策仍是：D04 原 estimand 不改，bounded block-risk 继续作为分开的备选；未拿到独立 paired-block `gamma_ps`、burn-in/TV、score-map 与 D04 reference receipts 前，不接 confirmation evaluator。最简流程：`冻结三臂和 bounded score -> 构造配对宏块链 -> 审查 homogeneity + gamma_ps + stationary/TV receipts -> 三个同时下界 -> 两项都通过才可申请下一 gate，否则 ABSTAIN/no release`。当前无真实 solver receipt、无数据授权、无 GPU/QUDA 运行，`physical_score=null`；TODO 保留。
+本轮 `tests/test_optimize*.py` 为 **122 passed**；Markov 报告 payload hashes **7/7**、源文件 hashes **3/3** 匹配，`git diff --check` 通过。D04 原 estimand 不改；bounded block-risk 已被用户接受为并列的不同 estimand，继续校准但不替代 D04。未拿到独立 paired-block `gamma_ps`、burn-in/TV、score-map 与 D04 reference receipts 前，不接 confirmation evaluator。最简流程：`冻结三臂和 bounded score -> 构造配对宏块链 -> 审查 homogeneity + gamma_ps + stationary/TV receipts -> 三个同时下界 -> 两项都通过才可申请下一 gate，否则 ABSTAIN/no release`。当前无真实 solver receipt、无数据授权、无 GPU/QUDA 运行，`physical_score=null`；TODO 保留。
+
+### 2026-11-26 方法选择状态核对与下一步
+
+回查当前 [`research_contract_v1.json`](research_contract_v1.json) 后，旧文中“D04 reference、D06 `r_star`、D11 operator 尚待研究者选择”的话只适用于早期草案，不能再作为当前交接。当前选择是：
+
+- **D04 reference：**独立 E-chain、candidate-blind 的 PP-even/A4P-odd 联合两态谱拟合；主窗 `[3,8]`，`tmin=2,3,4` 与 2/3-state 检查，固定 covariance shrinkage/eigenvalue floor，reference gate 和失败规则均写入合同。E-chain 数据/拟合 receipt 和独立 review 仍为 null；旧 D0–99 单态 gate 失败，故当前风险仍只能是 `diagnostic_only`。
+- **D06 主比较：**保留 `F=2`，trainable-$W$ 分别对同预算 SLSQP 和固定 degree-4 Chebyshev；`r_star=10/9`。新增 bounded block-risk 是另一个并列 estimand，用户已接受其不同于 D04；它不能替换 D04，也无需再次询问是否保留。Markov 界只在其 paired-block chain、score map、`gamma_ps` 与 burn-in/TV 收据被独立审阅后才可使用。
+- **D11 强谱对照：**合同已记录三维周期空间 `H=sum_i(T_i+T_i^dagger-2I)`、`[-12,0]` 谱域、degree-4 Bernstein controls 到 Chebyshev 的固定映射、`0<=b0<=...<=b4=1`、共同未归一化 `G^2 P4(H) G^2` sandwich；CPU helper 的 U(3) 数学条件与生产 SU(3) identity receipt 分开。该 adapter 仍是 diagnostic schema；生产 links、独立 operator review 和 evaluator 均未闭合。
+
+因此下一位不再让用户重复选择上述默认方法，也不把它们标成已认证。后续工作应交付一份独立 reviewer 的逐项公式/单位/失败规则审阅，再由 owner 提供身份绑定的、获授权 E-reference 与 paired solver receipts；通过 D04 gate 后，才可用固定 RunSpec 做配对训练与确认。160 objective/gradient-call cap、一次预设起点和所有训练/setup 成本计入单任务 walltime 已写入合同；真实硬件时间、设备回收和总成本仍待授权运行。框架层的可复用方向见 [`framework_extensibility.md`](../../doc/framework_extensibility.md)：把 paired-block chain 身份、bounded score map、支持域、`gamma_ps`/TV、confidence budget 和 reviewer/source hashes 作为 typed evidence envelope，但该跨任务 runtime 尚未实现。所有下一步图文都应分开报告诊断单位的 planned/valid/failed/abstained 与物理 lane 状态，保持 `NOT_READY/UNCERTIFIED`、`physical_score=null` 和封存 split closed。
