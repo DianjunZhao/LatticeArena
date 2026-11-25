@@ -187,15 +187,17 @@ Fixtures cover Pion anchor/dependence, Optimize bounded-risk, and Wilson
 force-bound metadata. They explicitly exercise missing Markov gap, wrong chain,
 wrong force unit, stale source hash, missing review, a non-independent reviewer
 role claim, a missing independence-claim hash, bundle-member mismatch, chain
-collision and null required-hash mapping; all invalid cases abstain. The
-focused run `python -B -m pytest -q tests/test_evidence.py tests/test_receipts.py`
-now reports **21 passed**. The combined `tests/test_pion*.py
-tests/test_evidence.py tests/test_framework.py tests/test_receipts.py` run
-reports **216 passed**. This is a schema/fixture check only; no production
-receipt was supplied and no task evaluator currently consumes the envelope.
-The next implementation is to add task-owned adapters that map frozen
-contracts to expected dotted fields and source hashes, then use the single- or
-multi-envelope gate from each task's `RunState` path.
+collision and null required-hash mapping; all invalid cases abstain. The Pion
+task metadata adapter now maps its selected F=3 score and bounded-IID anchor
+defaults, exact planned denominators, common-bias cap, required source hashes
+and chain identity into the bundle gate. It advances only to `draft` and does
+not authenticate receipt bytes or certify the statistical/physical claims.
+Focused adapter/evidence/receipt tests report **28 passed**; the combined
+Pion/evidence/framework/receipt suite reports **223 passed**; the full CPU
+suite reports **227 passed**. No production receipt was supplied. Optimize and
+Wilson task adapters and the source-reading task evaluators are still future
+work; they must map each task's frozen contracts into the single- or
+multi-envelope gate and verify actual source bytes before any validation.
 
 ## Practical implementation order for a new task
 
