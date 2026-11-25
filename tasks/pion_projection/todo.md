@@ -462,3 +462,13 @@ Pion adapter 现已把显式 source-root/path byte verification 接入 task meta
 临时文件 fixture 绑定完整 13 项 source 文件（score 6 项、anchor 7 项）：通过分母 `13/13/0/0`；将 common-bias receipt 文件替换后为 `13/12/1/0` 并弃权；不提供路径 map 也弃权。`tests/test_pion_evidence_adapter.py tests/test_evidence.py tests/test_source_integrity.py` **35 passed**；PR #5 全仓 CPU suite **239 passed**。文字流程：`hash-bound score/anchor envelopes -> caller-specified root + 13 relative paths -> byte digest and denominator -> mismatch/missing => ABSTAIN -> all bytes + task metadata complete => DRAFT only`。
 
 这仅证明本次读取的临时字节与调用方提供的哈希相符，不认证哈希的授权来源、原始数据 provenance、reviewer 身份、anchor/score 独立性或 `C/R` 物理界；不锁定读取后的文件变化。当前没有真实 E-chain、anchor-chain 或 receipt 文件，本轮未访问缓存、reference、sealed split 或 GPU。后续待独立 source package 和 review 到位后，把相对路径映射接到真实 task reader；然后分别复核两个 chain 的身份/分割及 estimator 物理内容。Pion 仍保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
+
+### 2026-11-26 同一 source snapshot 供 Pion score/anchor reader 与 gate 复用
+
+shared [`core/source_integrity.py`](../../core/source_integrity.py) 新增 `capture_source_snapshot`，Pion adapter 现接受 `score` 和 `anchor` 两路 immutable `SourceByteSnapshot`，bundle gate 对 13 个注册文件重算同一份捕获 bytes 的 SHA-256。默认总捕获上限 64 MiB；匹配文件才可由 `snapshot.read_bytes(name)` 提供给 reader，缺失、hash mismatch 或超限仍逐项留在分母，不能推进到 draft。
+
+Pion 实际数组读取入口 [`common.load_data`](common.py) 也新增可选 snapshot 参数：指定 `source_name` 后，它从 `snapshot.read_bytes` 得到的同一份 bytes 直接通过 `BytesIO` 交给 `numpy.load`，原有 configuration ID、protocol fingerprint、shape 与 finite checks 保留。新 synthetic NPZ fixture 在捕获后替换磁盘文件，`load_data` 仍读出原始数组；未传 snapshot 的已有调用仍走路径读取，所以 production evaluator 尚未切换。
+
+文字流程：`expected hash + NPZ relative path -> capture once -> common.load_data parses snapshot bytes and checks IDs/protocol/shape/finiteness -> same snapshot goes to gate -> byte map complete => draft / any required source missing or invalid => abstain`。另一个 score/anchor synthetic bundle fixture 在 capture 后覆写 anchor common-bias 文件，仍核验 `13/13/0/0` 并停在 draft；PR #5 的 shared evidence/source integrity/Pion adapter focused suite **43 passed**，完整 CPU suite **247 passed**。这验证的是 synthetic NPZ/source-byte API，不是生产 score/anchor evaluator。
+
+边界：`common.load_data` 的 snapshot route 是显式可选项，当前 `experiment.py`、`candidate.py`、`axial.py` 调用点仍走旧路径；Pion adapter 也仍接收调用者单独给出的 `C/R`、map identity 和 envelope。故这次没有证明真实 evaluator 的输入就是过 gate 的 bytes，也不认证 digest authority、anchor/score 独立性、`C/R<=0.01` 或 reviewer 身份。下一步是将一个获准的 evaluator 入口改成构造单一 score/anchor snapshot、通过 `load_data` 使用其中的 measurement bytes，并从该读取对象派生 manifest/summary/receipt 后传入同一个 adapter snapshot；用读入数组、summary、source hashes 一致性及改写原路径、缺失/错 hash/超限/route 缺失等 fixture 验证。实际 E-reference、anchor 标量图、独立性/gap/TV 与 common-bias 证明仍缺；继续 sealed-data closed，不运行 GPU，保持 `NOT_READY/UNCERTIFIED` 和 `physical_score=null`。

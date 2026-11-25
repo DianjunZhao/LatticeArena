@@ -179,6 +179,14 @@ physical score. `verify_source_bytes` hashes only the declared files beneath a
 caller-supplied root and accounts for missing/mismatched files. The
 `apply_evidence_gate_with_source_bytes` and bundle variant run that check before
 the metadata gate; a complete result still advances only to `draft`.
+`capture_source_snapshot` additionally reads mapped files once, retains only
+hash-matching immutable bytes (64 MiB default total cap), and allows a task
+reader to parse and pass the same snapshot to the gate. Snapshot verification
+re-hashes those retained bytes and identifies `read_mode=immutable_snapshot`;
+larger measurement arrays need a streaming design. Pion's `common.load_data`
+can now load an NPZ directly from snapshot bytes, but existing evaluator call
+sites still use the path-based route and do not pass that snapshot to the task
+gate. Neither route authenticates digest authority or physics.
 `apply_evidence_gate` revalidates a
 shared `RunReceipt`: missing/unrun denominator units or envelope errors send the
 requested `RunState` stage to `abstained`; a complete schema plus complete
@@ -196,11 +204,11 @@ collision and null required-hash mapping; all invalid cases abstain. The Pion
 task metadata adapter now maps its selected F=3 score and bounded-IID anchor
 defaults, exact planned denominators, common-bias cap, required source hashes
 and chain identity into the bundle gate. Production use requires explicit
-source-root/path maps; all mapped bytes must match before the adapter can reach
-`draft`, and no result becomes validated. Temporary byte fixtures are not
-production receipts. Optimize and Wilson task adapters are described in PR #6;
-all production source readers still need authorized file maps and independent
-review before any validation.
+source-root/path maps or captured per-route snapshots; all mapped bytes must
+match before the adapter can reach `draft`, and no result becomes validated.
+Temporary byte fixtures are not production receipts. Optimize and Wilson task
+adapters are described in PR #6; all production source readers still need
+authorized file maps and independent review before any validation.
 
 ## Practical implementation order for a new task
 

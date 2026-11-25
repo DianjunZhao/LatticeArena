@@ -1,9 +1,11 @@
 import json
+from io import BytesIO
 from pathlib import Path
 
 import numpy as np
 
 from core.io import digest, fingerprint, write_json  # noqa: F401  (re-export)
+from core.source_integrity import SourceByteSnapshot
 
 HERE = Path(__file__).resolve().parent
 PROTOCOL_PATH = HERE / 'protocol.json'
@@ -20,10 +22,20 @@ def indices(split, p=None):
     return np.arange(first, last + 1)
 
 
-def load_data(output, split, p=None):
+def load_data(output, split, p=None, *, source_snapshot=None, source_name=None):
     p = p or protocol()
     path = Path(output) / f'{split}.npz'
-    with np.load(path, allow_pickle=False) as f:
+    if source_snapshot is not None:
+        if not isinstance(source_snapshot, SourceByteSnapshot):
+            raise ValueError('source_snapshot must be a verified SourceByteSnapshot')
+        if not isinstance(source_name, str) or not source_name.strip():
+            raise ValueError('source_name is required when loading from a source snapshot')
+        stream = BytesIO(source_snapshot.read_bytes(source_name))
+    else:
+        if source_name is not None:
+            raise ValueError('source_name is only valid together with source_snapshot')
+        stream = path
+    with np.load(stream, allow_pickle=False) as f:
         if not np.array_equal(f['ids'], indices(split, p)):
             raise ValueError(f'{split}: missing or reordered configurations')
         if str(f['protocol_hash']) != fingerprint(p):

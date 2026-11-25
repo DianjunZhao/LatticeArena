@@ -13,7 +13,12 @@ from numbers import Real
 from typing import Any
 
 from .receipts import RECEIPT_SCHEMA, run_receipt as normalize_run_receipt
-from .source_integrity import SOURCE_VERIFICATION_SCHEMA, verify_source_bytes
+from .source_integrity import (
+    SOURCE_VERIFICATION_SCHEMA,
+    SourceByteSnapshot,
+    verify_source_bytes,
+    verify_source_snapshot,
+)
 
 
 EVIDENCE_SCHEMA = "latticearena-evidence-envelope-v2"
@@ -564,15 +569,17 @@ def apply_evidence_gate_with_source_bytes(
     envelope: object,
     receipt: object,
     *,
-    source_root: str,
-    source_paths: dict[str, str],
+    source_root: str | None = None,
+    source_paths: dict[str, str] | None = None,
+    source_snapshot: SourceByteSnapshot | None = None,
     expected: dict[str, Any] | None = None,
     required_source_hashes: dict[str, str],
 ) -> dict[str, Any]:
     """Verify explicit source bytes before applying the metadata-only gate.
 
-    A successful call still advances at most to ``draft``. The verified hash
-    receipt does not authenticate its expected-hash authority or validate the
+    A successful call still advances at most to ``draft``. Callers may pass
+    either paths for preflight hashing or an immutable snapshot also consumed
+    by their reader. Neither authenticates expected-hash authority or validates
     scientific content.
     """
     if (not hasattr(run_state, "status") or not hasattr(run_state, "set")
@@ -608,9 +615,14 @@ def apply_evidence_gate_with_source_bytes(
         return result
 
     try:
-        verification = verify_source_bytes(
-            source_root, required_source_hashes, source_paths,
-        )
+        if source_snapshot is not None:
+            if source_root is not None or source_paths is not None:
+                raise ValueError("pass either source_snapshot or source_root/source_paths")
+            verification = verify_source_snapshot(source_snapshot, required_source_hashes)
+        else:
+            verification = verify_source_bytes(
+                source_root, required_source_hashes, source_paths,
+            )
     except (TypeError, ValueError) as exc:
         verification = {
             "schema": SOURCE_VERIFICATION_SCHEMA,
@@ -644,13 +656,14 @@ def apply_evidence_bundle_gate_with_source_bytes(
     envelopes: dict[str, object],
     receipt: object,
     *,
-    source_root: str,
-    source_paths_by_envelope: dict[str, dict[str, str]],
+    source_root: str | None = None,
+    source_paths_by_envelope: dict[str, dict[str, str]] | None = None,
+    source_snapshots_by_envelope: dict[str, SourceByteSnapshot] | None = None,
     expected_by_envelope: dict[str, dict[str, Any]],
     required_source_hashes_by_envelope: dict[str, dict[str, str]],
     distinct_chain_pairs: list[tuple[str, str]] | tuple[tuple[str, str], ...] = (),
 ) -> dict[str, Any]:
-    """Verify every named source bundle before one atomic metadata transition."""
+    """Verify a path map or per-route snapshots before one atomic transition."""
     if (not hasattr(run_state, "status") or not hasattr(run_state, "set")
             or not hasattr(run_state, "abstain")):
         raise ValueError("run_state must provide status, set and abstain")
@@ -666,12 +679,20 @@ def apply_evidence_bundle_gate_with_source_bytes(
         }
 
     routes = set(envelopes) if isinstance(envelopes, dict) else set()
+    snapshot_mode = source_snapshots_by_envelope is not None
     if (not routes or not isinstance(expected_by_envelope, dict)
             or set(expected_by_envelope) != routes
             or not isinstance(required_source_hashes_by_envelope, dict)
             or set(required_source_hashes_by_envelope) != routes
-            or not isinstance(source_paths_by_envelope, dict)
-            or not set(source_paths_by_envelope).issubset(routes)):
+            or (snapshot_mode and (
+                not isinstance(source_snapshots_by_envelope, dict)
+                or set(source_snapshots_by_envelope) != routes
+                or source_root is not None or source_paths_by_envelope is not None
+            ))
+            or (not snapshot_mode and (
+                not isinstance(source_paths_by_envelope, dict)
+                or not set(source_paths_by_envelope).issubset(routes)
+            ))):
         verification = {
             "schema": SOURCE_VERIFICATION_SCHEMA,
             "status": "invalid",
@@ -686,7 +707,7 @@ def apply_evidence_bundle_gate_with_source_bytes(
     try:
         for route in envelopes:
             route_hashes = required_source_hashes_by_envelope[route]
-            route_paths = source_paths_by_envelope.get(route, {})
+            route_paths = (source_paths_by_envelope or {}).get(route, {})
             if not isinstance(route_hashes, dict) or not route_hashes:
                 raise ValueError(f"{route}: required source hashes must be nonempty")
             if not isinstance(route_paths, dict):
@@ -710,7 +731,35 @@ def apply_evidence_bundle_gate_with_source_bytes(
         )
 
     try:
-        verification = verify_source_bytes(source_root, flattened_hashes, flattened_paths)
+        if snapshot_mode:
+            entries: dict[str, Any] = {}
+            for route in envelopes:
+                route_verification = verify_source_snapshot(
+                    source_snapshots_by_envelope[route],
+                    required_source_hashes_by_envelope[route],
+                )
+                for name, entry in route_verification.get("entries", {}).items():
+                    entries[f"{route}::{name}"] = entry
+            counts = {
+                status: sum(entry["status"] == status for entry in entries.values())
+                for status in ("valid", "failed", "abstained")
+            }
+            planned = len(entries)
+            verification = {
+                "schema": SOURCE_VERIFICATION_SCHEMA,
+                "status": "verified" if counts["valid"] == planned else "incomplete",
+                "read_mode": "immutable_snapshot",
+                "denominator": {
+                    "unit": "source_file", "planned": planned,
+                    "valid": counts["valid"], "failed": counts["failed"],
+                    "abstained": counts["abstained"], "not_run": 0,
+                },
+                "entries": entries,
+            }
+        else:
+            verification = verify_source_bytes(
+                source_root, flattened_hashes, flattened_paths,
+            )
     except (TypeError, ValueError) as exc:
         verification = {
             "schema": SOURCE_VERIFICATION_SCHEMA,

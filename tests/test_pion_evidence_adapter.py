@@ -4,6 +4,7 @@ import json
 
 from core.evidence import evidence_envelope
 from core.receipts import denominator, run_receipt, scenario_spec
+from core.source_integrity import capture_source_snapshot
 from core.state import RunState
 from tasks.pion_projection.evidence_adapter import (
     apply_pion_statistical_evidence_gate,
@@ -206,7 +207,8 @@ def _materialize_source_bytes(root, envelopes, hashes):
 
 def _apply(state, envelopes, hashes, receipt=None, *, common_bias=0.01,
            anchor_map_hash=ANCHOR_MAP_HASH, source_root=None,
-           source_paths_by_envelope=None, require_source_bytes=False):
+           source_paths_by_envelope=None, source_snapshots_by_envelope=None,
+           require_source_bytes=False):
     return apply_pion_statistical_evidence_gate(
         state,
         envelopes,
@@ -217,6 +219,7 @@ def _apply(state, envelopes, hashes, receipt=None, *, common_bias=0.01,
         required_source_hashes_by_envelope=hashes,
         source_root=source_root,
         source_paths_by_envelope=source_paths_by_envelope,
+        source_snapshots_by_envelope=source_snapshots_by_envelope,
         require_source_bytes=require_source_bytes,
     )
 
@@ -341,6 +344,34 @@ def test_pion_source_byte_gate_is_required_and_verified_bundle_stops_at_draft(tm
         "not_run": 0,
     }
     assert result["run_state"]["status"]["statistical"] == "draft"
+    assert result["physical_score"] is None
+
+
+def test_pion_source_snapshot_bundle_survives_path_changes_after_reader_capture(tmp_path):
+    envelopes, hashes = _envelopes()
+    paths, anchor_map_hash = _materialize_source_bytes(tmp_path, envelopes, hashes)
+    snapshots = {
+        route: capture_source_snapshot(tmp_path, hashes[route], paths[route])
+        for route in ("score", "anchor")
+    }
+    score_input = snapshots["score"].read_bytes("score_map")
+    (tmp_path / paths["anchor"]["common_bias_receipt"]).write_bytes(
+        b"changed after the reader captured its input bytes"
+    )
+
+    result = _apply(
+        _ready_state(), envelopes, hashes,
+        anchor_map_hash=anchor_map_hash,
+        source_snapshots_by_envelope=snapshots,
+        require_source_bytes=True,
+    )
+
+    assert hashlib.sha256(score_input).hexdigest() == hashes["score"]["score_map"]
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 13, "valid": 13,
+        "failed": 0, "abstained": 0, "not_run": 0,
+    }
     assert result["physical_score"] is None
 
 

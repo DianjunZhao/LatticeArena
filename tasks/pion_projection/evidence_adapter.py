@@ -1,11 +1,13 @@
 """Pion gate for the selected bounded block-risk protocol.
 
 The adapter binds the shared evidence schema to the frozen F=3 score/anchor
-defaults and planned denominators. By default it verifies bytes for explicit
-source-root/path mappings before a complete bundle can reach ``draft``. This
-matches supplied digests only; it does not authenticate digest authority,
-reviewer identity, independence, or physical validity, and it does not compute
-an LCB or certify a physical score. A passing result is still draft-only.
+defaults and planned denominators. By default it requires either explicit
+source-root/path mappings or per-route immutable source snapshots before a
+complete bundle can reach ``draft``. A snapshot can also be consumed by the
+task reader so the gate rechecks the same retained bytes. This matches supplied
+digests only; it does not authenticate digest authority, reviewer identity,
+independence, or physical validity, and it does not compute an LCB or certify a
+physical score. A passing result is still draft-only.
 """
 from __future__ import annotations
 
@@ -22,6 +24,7 @@ from core.evidence import (
     inspect_evidence_envelope,
 )
 from core.receipts import RECEIPT_SCHEMA, run_receipt as normalize_run_receipt
+from core.source_integrity import SourceByteSnapshot
 from .bounded_block_risk_contract import selected_protocol
 
 
@@ -239,15 +242,17 @@ def apply_pion_statistical_evidence_gate(
     required_source_hashes_by_envelope: object,
     source_root: str | Path | None = None,
     source_paths_by_envelope: object = None,
+    source_snapshots_by_envelope: dict[str, SourceByteSnapshot] | None = None,
     require_source_bytes: bool = True,
 ) -> dict[str, Any]:
     """Apply the Pion statistical metadata gate and optionally verify bytes.
 
     The anchor map and evidence source hashes must come from externally reviewed
-    receipts. Production use requires an explicit root and per-envelope relative
-    path map; synthetic metadata fixtures may opt out. Byte verification only
-    checks the currently read bytes and does not authenticate their authority or
-    scientific claims. The adapter requires the operator,
+    receipts. Production use requires explicit per-envelope paths or captured
+    snapshots; synthetic metadata fixtures may opt out. Path-mode byte
+    verification checks the bytes read during preflight, while snapshot mode
+    lets the task reader and gate share retained bytes. Neither authenticates
+    hash authority or scientific claims. The adapter requires the operator,
     reference and numerical stages to be validated first and accepts only the
     selected 12,000 family-block scores plus 1,000 anchor units. A complete
     result advances ``statistical`` to ``draft`` only.
@@ -328,8 +333,30 @@ def apply_pion_statistical_evidence_gate(
             "physical_score": None,
         }
 
-    paths_supplied = source_root is not None or source_paths_by_envelope is not None
+    paths_supplied = (source_root is not None or source_paths_by_envelope is not None
+                      or source_snapshots_by_envelope is not None)
     if require_source_bytes or paths_supplied:
+        if source_snapshots_by_envelope is not None:
+            if source_root is not None or source_paths_by_envelope is not None:
+                reason = "pass per-envelope source snapshots or source_root/source_paths, not both"
+                run_state.abstain(STAGE, reason)
+                return {
+                    "status": "ABSTAIN_PION_STATISTICAL_ADAPTER",
+                    "reasons": [reason],
+                    "run_state": run_state.summary(),
+                    "certified": False,
+                    "physical_score": None,
+                }
+            return apply_evidence_bundle_gate_with_source_bytes(
+                run_state,
+                STAGE,
+                envelopes,
+                receipt,
+                source_snapshots_by_envelope=source_snapshots_by_envelope,
+                expected_by_envelope=expected,
+                required_source_hashes_by_envelope=source_hashes,
+                distinct_chain_pairs=(("anchor", "score"),),
+            )
         if source_root is None or source_paths_by_envelope is None:
             reason = "source-byte gate requires both source_root and source_paths_by_envelope"
             run_state.abstain(STAGE, reason)
