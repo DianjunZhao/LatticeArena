@@ -1,0 +1,110 @@
+{
+  "access": {
+    "E_anchor": false,
+    "confirmation": false,
+    "gap": false,
+    "sealed": false,
+    "shared_holdout": false,
+    "validation": false
+  },
+  "classification": "open_development_diagnostic_only",
+  "configuration_ids": [
+    0,
+    99
+  ],
+  "files": {
+    "README.md": "dee184670e710756a16b9ed457596fffd7010164edcf2fc32f54e728eecb15c7",
+    "SOURCE_AMENDMENT.md": "121db80c691d1c158895848725e8f94c6094465db06022c51ea3e80d11924ee5",
+    "analysis_provenance.json": "33bd80c6800c4332a4a3698be7fa5be2e29dedf3ff3db94e1221b90bc0a4e82f",
+    "development_diagnostics.png": "f1fc3dbb538751310d8239fbd373327544b0d897adecaedcfb30a6ed0da0ec23",
+    "effective_mass_diagnostic.json": "8b3639413e3d0d74b5d7c6af8e66251e7b62e7a00f5736a031d2e6fa97aaa6d1",
+    "effective_mass_diagnostic.md": "ebef47a9f5c7ba943fb2c1a10319ad98b4476909294a586ff7dc3c728d164e00",
+    "effective_mass_diagnostic.png": "02ea5d5490bd000b67f9a26da4285d3f9aa3b6e261a2b12f17c1e4db3f391a6f",
+    "effective_mass_late_time.png": "2a4fbeb6f149b71c2092a2f514f1b41f5a4bd98e6cafe06797260a23d0da279b",
+    "two_state_diagnostic.json": "006e245ce34e71265c4407c101bb196d5e9daea684201885209df248e92dae80",
+    "two_state_diagnostic.md": "14e9ca650df5c50c258d60d1b19c125b0517d75ada57eee8abcd28d9a13b9653",
+    "two_state_diagnostic.png": "a01ac072db57005cde1fe87ca03e46459f95aa5112f2aba05cddcd6867dd8847",
+    "two_state_diagnostic_provenance.json": "a3a39cdd17e3dae1482ae1757d1f41ddb30508202617151d6874afe9a7b1ae4b"
+  },
+  "measurement_generation": "ab8a41d27e0488ca3646ac83475e680f677b17a913d05913f7731ec87a4448ce",
+  "package": "pion_s16t16d_open_development_reference_archive_v1",
+  "physical_score": null,
+  "reported_summary": {
+    "effective_mass_t7_median_range": [
+      1.034,
+      1.093
+    ],
+    "reflection_odd_limit": 4.0,
+    "reflection_odd_max_abs_z": 1.024,
+    "single_state_approx_fit_p": 1.081e-15,
+    "single_state_bootstrap_se": 0.00305,
+    "single_state_mass": 1.0961829,
+    "two_state_windows": [
+      {
+        "approx_p": 0.997,
+        "bound_hit": false,
+        "condition": 7390.0,
+        "m0": 1.049,
+        "m0_se": 0.00894,
+        "m1": 1.712,
+        "m1_se": 0.064,
+        "shift_sigma": 0.858,
+        "valid_draws": "1000/1000",
+        "window": [
+          4,
+          5,
+          6,
+          7,
+          8
+        ]
+      },
+      {
+        "approx_p": 0.955,
+        "bound_hit": false,
+        "condition": 14600.0,
+        "m0": 1.04,
+        "m0_se": 0.0129,
+        "m1": 1.596,
+        "m1_se": 0.12,
+        "valid_draws": "1000/1000",
+        "window": [
+          5,
+          6,
+          7,
+          8
+        ]
+      },
+      {
+        "approx_p": 0.902,
+        "bound_hit": true,
+        "condition": 299000.0,
+        "m0": 1.063,
+        "m0_se": 0.00964,
+        "m1": 1.844,
+        "m1_se": 0.279,
+        "shift_sigma": 1.92,
+        "valid_draws": "1000/1000",
+        "window": [
+          6,
+          7,
+          8
+        ]
+      }
+    ],
+    "window_shifts_sigma": {
+      "[4,5,6,7,8]": 20.41,
+      "[6,7,8]": 15.78
+    }
+  },
+  "reproducibility": "archive_only_original_runners_not_included",
+  "source_artifact_hashes": {
+    "analysis_provenance.json": "33bd80c6800c4332a4a3698be7fa5be2e29dedf3ff3db94e1221b90bc0a4e82f",
+    "development.npz": "8a78947c8b4d1bec3b672ed57cd1406ed0bcccf6ec874747ece4d64078da7fe3",
+    "development_provenance.json": "c58a016943e211ab32d613dfa677bb20261c694e048cde9ae700c45f350bc785",
+    "development_results.json": "31772afbd75e60250a883dde33a8936573ea9ae8c24e7b324fd896bfa231c7d6",
+    "effective_mass_diagnostic.json": "8b3639413e3d0d74b5d7c6af8e66251e7b62e7a00f5736a031d2e6fa97aaa6d1",
+    "two_state_diagnostic.json": "006e245ce34e71265c4407c101bb196d5e9daea684201885209df248e92dae80",
+    "two_state_diagnostic_provenance.json": "a3a39cdd17e3dae1482ae1757d1f41ddb30508202617151d6874afe9a7b1ae4b"
+  },
+  "status": "FROZEN_SINGLE_STATE_REFERENCE_GATE_FAILED"
+}

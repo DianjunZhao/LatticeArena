@@ -344,3 +344,24 @@ v14 文本表格逐项列出 blocker；`physical_score=null`、`NOT_READY/UNCERT
 本轮只读了本机已存在的 Optimize D-chain adapter/reuse audit 摘要，没有打开 `.cache/pion_projection/propagators/` 文件。该摘要记载 D0–99 point propagators 的 byte-hash 检查为 100/100、最大记录 residual 为 `9.997510675285575e-11`；同时明确 Pion reference gate 为 `False`。这些是已有本地 ignored-results 报告中的开发输入审计记录，不是本轮新测量，也没有随 PR #5 打包。
 
 该结果只能支持“开发 split 的缓存身份与 residual receipt 可供后续 RunSpec 检查”，不能提供独立 E-chain reference、anchor feature 的有限支持、Markov `gamma_ps`/TV、common-bias `C` 或 target/score 覆盖。文字流程：`D0–99 propagator hashes/residual receipt -> Pion reference gate 仍失败 -> 不得据此生成 m* / anchor coverage -> 继续等待独立 E/anchor receipts`。不读取可能包含其他 split 的 cache，不读取封存输入，也不把该 adapter receipt 当作物理 reference。
+
+## 2026-11-25 继续推进：开放 D 参考拟合归档与向量 anchor 区间映射方案
+
+开放 S16T16D IDs 0–99 的既有参考拟合、两态诊断与 effective-mass 图已归档在 [`d_development_reference_archive_20261125_v1`](d_development_reference_archive_20261125_v1/README.md)，附原说明、四张图及源输入/输出 hash manifest。单态拟合 `a_t m=1.0961829 ± 0.00305` 的 approximate fit p=`1.081e-15`，两个窗口偏移 `20.41σ`、`15.78σ`，故冻结 reference gate 为失败。事后两态拟合的 p 值为 `0.90–0.997`、窗口偏移降至 `0.86σ`/`1.92σ`，但 `[6,7,8]` 的激发态 bootstrap 碰上界，条件数约 `2.99e5`；effective mass 在 `t=7` 随 sink power 仍从 `1.034` 变化至 `1.093`。这说明增加模型自由度能吸收 D 开发样本中的曲率，却没有稳健识别 excited state 或独立确定 `m*`。它是已存在 D-development 诊断归档，不是本轮新测量；E anchor、validation、gap、shared holdout 和 confirmation 均未打开，runner 未打包，所以该归档可审阅但不能 standalone rerun。
+
+文字流程：`开放 D0–99 -> 单态 reference gate FAIL -> 两态拟合改善 in-sample p-value -> 晚时窗碰界/条件数约 3e5 -> effective mass 仍随 t 与 sink power 变化 -> 不升级为独立 E anchor / score coverage`。
+
+### 向量 anchor `g(box)` 的可验证全局区间映射：后续设计，不是已认证算法
+
+当前 Markov vector helper 只覆盖逐态固定 feature 均值的同时置信盒；它不覆盖非线性拟合输出。今后只有在精确 fit map、协方差/正则化、参数有界域及 acceptance gates 均冻结且来源可审阅后，才实现 branch-and-bound。令 24 维固定 feature 的同时均值盒为 `X`，冻结模型参数为 `theta`，对每个模型/窗口定义唯一的目标函数 `Q(theta; x)=(x-mu(theta))^T W (x-mu(theta))`，其中 `W` 必须是固定且可验证正定的权重矩阵，或其不确定性也被联合区间覆盖。不得让观察到的 anchor 数据改变时间窗、协方差、正则项、模型、参数域或边界。
+
+理论证书流程：
+
+1. 将 `X` 与每个紧致参数域 `Theta` 分成子盒；区间算术为每个 `(X_k, Theta_l)` 计算 `Q` 的外包下界。对 `X_k` 找一个经整个子盒核验均可行的固定参数 `theta0`，计算 `sup_{x in X_k} Q(theta0; x)` 作为该盒内全局最小值的可行上界；找不到时细分 `X_k`，不能用中心拟合替代。
+2. 仅当 `inf Q(X_k,Theta_l) > sup Q(X_k,theta0)` 时，才可证明 `Theta_l` 中没有任何 `X_k` 的全局最小值并剪枝。其余子盒继续细分；二态、三态和全部事前允许的窗口都要纳入，模型选择/窗口门在子盒内不确定时保留所有可能接受的分支。
+3. 对全部未剪枝参数盒投影 `m0` 并作向外舍入，形成包含所有可能全局最小值的 `m0` hull。报告各模型/窗口的 objective lower/upper gap、expanded/pruned/unresolved 子盒数、参数边界命中与模型门翻转；必须证明域外不存在遗漏的全局极小值。
+4. 只有所有盒都闭合、模型/window gate 在相关盒内确定、协方差保持正定、最小值映射唯一且 `m0` 区间有限/窄到预先约定的 bias bridge 才可进入独立 review。多解、未闭盒、最小值贴边、协方差退化、门限翻转或数值 gap 未闭合一律 `ABSTAIN`。该 `m0` 区间本身不提供物理 model-bias/common-bias `C`，也不证明 anchor 与 score chain 独立；这两者仍需分开的 receipts。
+
+图文交付应至少包含 `X -> interval fit -> admissible global-minimizer boxes -> m0 hull/C bridge -> ABSTAIN or human review` 的流程图，以及每次细分的 objective bound/gap 与 unresolved/pruned 分母图；同时逐项保留 planned/valid/failed/abstained。解析已知最优解的线性/二次小模型、双极小/近退化模型、最优值贴边、协方差奇异、模型门在盒内翻转和故意预算耗尽应作为实现验证 fixtures。上述是理论可行路线和证书要求；因当前精确拟合器、事前 feature support/covariance receipts 与 E anchor 映射均缺失，本轮没有编写会把未经证明输入包装成“认证”的 API，也没有运行新的模拟网格。
+
+当前决定不变：D0–99 只可作为已观察 development 诊断；Pion reference/anchor/dependence/`C` 门仍缺，`NOT_READY/UNCERTIFIED`、`physical_score=null` 与 sealed-data closed 不变。下一位 agent 可先审阅本归档并据此冻结真实 E-anchor estimator/parameter/gate 规范；收到独立 E 与 anchor-chain receipts、feature support、协方差及 `gamma_ps`/TV/独立性证据之后，才实现区间证书，并交独立 reviewer 复核。
