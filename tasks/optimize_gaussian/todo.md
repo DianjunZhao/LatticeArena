@@ -615,3 +615,7 @@ reader 现在还从同一 snapshots 严格解析 `optimize-paired-macroblock-cha
 在 PR #6 文档收尾提交 `a838eda` 上重新运行 `PYTHONPATH=. pytest -q`：**317 passed**（完整 CPU suite）。另将 PR #5 当前 tracked HEAD 放入临时归档，仅覆盖成 PR #6 的 `core/specs.py` 后运行完整 Pion suite：**257 passed**；临时目录已删除，Pion 工作树未改写。两个分支选定共享模块中，`core/evidence.py`、`core/receipts.py`、`core/source_integrity.py`、`core/npz_safety.py` 与 evidence/receipt tests 内容逐字一致；`core/state.py` 的差异仅为相同状态转移集合的排版；`core/specs.py` 的差异是 PR #6 新增 split-range 校验与 Optimize operator-contract 名称，Pion overlay suite 验证了向后兼容。`test_source_integrity.py` 的跨分支差异仅是 import/空行排版。
 
 这只降低当前 shared TaskSpec/gate 的代码整合风险，不代表 PR 已合并或 GitHub 报告 mergeable；PR #5/#6 当前均无 checks，mergeability 为 `UNKNOWN`。此次 suite 是 CPU 软件回归，没有读取真实 E/D/solver/operator 输入，也没有改变任何物理 gate；生产 RunSpec/evaluator、独立 review、授权 receipts 和 `physical_score` 仍未完成。
+
+### 2026-11-26 PR #6 后续全仓回归快照
+
+在新增 Wilson 固定 `L={6,8,10}` MBB 敏感度图文包后，PR #6 当前提交 `773468acf1f1ce6fce824dd8aa207383a3a7d3e1` 的全仓 CPU suite 为 **419 passed**；Optimize 源文件与方法合同未在该提交中改变。该回归不关闭本 TODO 中 D04 E-chain evaluator/reference、D06 获准 paired solver/gap-TV receipts、D11 production SU(3) link/operator evaluator/独立审阅等事项；仍保持两项既定比较、`NOT_READY/UNCERTIFIED`、`physical_score=null` 与 sealed data closed。
