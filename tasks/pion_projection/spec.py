@@ -14,18 +14,26 @@ from .common import load_data
 
 
 def _source_dependencies():
-    """Hash the code that defines both the task and its snapshot read path."""
+    """Hash task, immutable-read, scoring, and evidence-gate implementations."""
     root = Path(__file__).resolve().parents[2]
     paths = {
         'tasks/pion_projection/spec.py': Path(__file__),
         'tasks/pion_projection/common.py': Path(__file__).with_name('common.py'),
         'tasks/pion_projection/experiment.py': Path(__file__).with_name('experiment.py'),
         'tasks/pion_projection/candidate.py': Path(__file__).with_name('candidate.py'),
+        'tasks/pion_projection/path_kernel.py': Path(__file__).with_name('path_kernel.py'),
+        'tasks/pion_projection/evidence_adapter.py': Path(__file__).with_name('evidence_adapter.py'),
+        'tasks/pion_projection/bounded_block_risk_contract.py': Path(__file__).with_name('bounded_block_risk_contract.py'),
+        'tasks/pion_projection/bounded_block_risk_anchor_markov.py': Path(__file__).with_name('bounded_block_risk_anchor_markov.py'),
         'core/io.py': root / 'core' / 'io.py',
+        'core/candidates.py': root / 'core' / 'candidates.py',
+        'core/evidence.py': root / 'core' / 'evidence.py',
         'core/measurement.py': root / 'core' / 'measurement.py',
+        'core/receipts.py': root / 'core' / 'receipts.py',
         'core/specs.py': root / 'core' / 'specs.py',
         'core/source_integrity.py': root / 'core' / 'source_integrity.py',
         'core/npz_safety.py': root / 'core' / 'npz_safety.py',
+        'core/state.py': root / 'core' / 'state.py',
     }
     return {name: digest(path) for name, path in paths.items()}
 
