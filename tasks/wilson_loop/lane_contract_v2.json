@@ -96,6 +96,20 @@
           "fit_source": "joint finite-Nt spectral fit to the measured 3x3 C_ij(R,t) matrix",
           "gevp_role": "GEVP may initialize, label, and stress-test joint spectral fits; its single composite projected operator is separate and must not be copied into identity, APE, or stout kernel-indexed q cells",
           "scope": "positive forward-spectrum q term only; finite-Nt backward/thermal, mixed-sector, fit-truncation, and interval-coverage bounds remain separate",
+          "finite_Nt_trace_decomposition": {
+            "definition_id": "two_sector_transfer_trace_qhx_v1",
+            "trace_formula": "C_ij(R,T;N_t)=Z0(N_t)^-1 * sum_(m,n) exp[-eps_m*(N_t-T)] * exp[-V_n(R)*T] * A_i,mn(R) * conjugate(A_j,mn(R))",
+            "partition_function": "Z0(N_t)=sum_m exp[-eps_m*N_t]",
+            "component_sectors": {
+              "q": "m=0,n>0: vacuum ground state with excited static-source states",
+              "h": "m>0,n=0: excited vacuum-sector states with static-source ground state",
+              "x": "m>0,n>0: excited states in both transfer-matrix sectors"
+            },
+            "diagonal_normalization": "C_kk/C_kk^(m=0,n=0)=1+q_k+h_k+x_k; delta_log=log1p(q_k+h_k+x_k)",
+            "endpoint_convention": "proposed time-local source/sink convention with constant endpoint factors absorbed into A; production exporter time origin and any insertion offsets require independent review",
+            "positivity_assumption": "q/h/x are nonnegative only under a positive transfer-matrix spectral representation and the stated endpoint factorization",
+            "status": "PROPOSED_TRACE_INTERPRETATION_REQUIRES_INDEPENDENT_REVIEW"
+          },
           "status": "PROPOSED_METHOD_DEFAULT_REQUIRES_INDEPENDENT_REVIEW"
         },
         "gevp_dimension": 3,
@@ -366,6 +380,7 @@
           "APE",
           "stout"
         ],
+        "gevp_dimension": 3,
         "q_overlap_contract": {
           "definition_id": "bare_basis_squared_overlap_ratio_v1",
           "kernel_to_basis_operator": {
@@ -380,9 +395,22 @@
           "fit_source": "joint finite-Nt spectral fit to the measured 3x3 C_ij(R,t) matrix",
           "gevp_role": "GEVP may initialize, label, and stress-test joint spectral fits; its single composite projected operator is separate and must not be copied into identity, APE, or stout kernel-indexed q cells",
           "scope": "positive forward-spectrum q term only; finite-Nt backward/thermal, mixed-sector, fit-truncation, and interval-coverage bounds remain separate",
+          "finite_Nt_trace_decomposition": {
+            "definition_id": "two_sector_transfer_trace_qhx_v1",
+            "trace_formula": "C_ij(R,T;N_t)=Z0(N_t)^-1 * sum_(m,n) exp[-eps_m*(N_t-T)] * exp[-V_n(R)*T] * A_i,mn(R) * conjugate(A_j,mn(R))",
+            "partition_function": "Z0(N_t)=sum_m exp[-eps_m*N_t]",
+            "component_sectors": {
+              "q": "m=0,n>0: vacuum ground state with excited static-source states",
+              "h": "m>0,n=0: excited vacuum-sector states with static-source ground state",
+              "x": "m>0,n>0: excited states in both transfer-matrix sectors"
+            },
+            "diagonal_normalization": "C_kk/C_kk^(m=0,n=0)=1+q_k+h_k+x_k; delta_log=log1p(q_k+h_k+x_k)",
+            "endpoint_convention": "proposed time-local source/sink convention with constant endpoint factors absorbed into A; production exporter time origin and any insertion offsets require independent review",
+            "positivity_assumption": "q/h/x are nonnegative only under a positive transfer-matrix spectral representation and the stated endpoint factorization",
+            "status": "PROPOSED_TRACE_INTERPRETATION_REQUIRES_INDEPENDENT_REVIEW"
+          },
           "status": "PROPOSED_METHOD_DEFAULT_REQUIRES_INDEPENDENT_REVIEW"
         },
-        "gevp_dimension": 3,
         "t0": 1,
         "td": 2,
         "R_values": [

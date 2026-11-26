@@ -28,7 +28,28 @@ reader 的 fit input schema 已升为 `wilson-f-bare-basis-overlap-support-v2`�
 
 这也补充了 LatticeArena 的通用扩展方向：矩阵 schema 除 shape 外应绑定有序语义轴、operator/object ID、单位和转换来源；共享设计建议见 [`framework_extensibility.md`](../../doc/framework_extensibility.md#extension-point-semantic-array-axes-and-derived-objects)。当前 reader 仍是 task-specific 校验，不宣称已有通用 typed-array runtime。
 
-**仍未完成：**该默认值要经独立 physics review；需要受审的 raw cross-correlator exporter 和同一 snapshot 的 `C_ij` bytes、joint finite-`N_t` 2/3-state fit、平方 overlap/gap 的 simultaneous one-sided coverage、遗漏态/近简并与近零 `Z_0` 的敏感度、matched-`N_t=32` thermal `h`、mixed-sector `x`、谱截断以及 force/reference paired intervals。玩具数值不能填 receipt。旧版报告中“mapping unresolved”是当时状态快照，现由本节的 method default 取代；其数据-free/uncertified 限制仍有效。继续保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，不打开封存数据、不启动 GPU/QUDA。
+**仍未完成：**该默认值要经独立 physics review；需要受审的 raw cross-correlator exporter 和同一 snapshot 的 `C_ij` bytes、joint finite-`N_t` 2/3-state fit、平方 overlap/gap 的 simultaneous one-sided coverage、遗漏态/近简并与近零 `Z_0` 的敏感度、matched-`N_t=32` thermal `h`、mixed-sector `x` 的生产上界、谱截断以及 force/reference paired intervals。有限-$N_t$ 的 q/h/x sector 对应现已有下方的数据-free 方法提案，但其 source/sink 时序仍须 reviewer 与 exporter 核对，不能替代这些输入。玩具数值不能填 receipt。旧版报告中“mapping unresolved”是当时状态快照，现由本节的 method default 取代；其数据-free/uncertified 限制仍有效。继续保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，不打开封存数据、不启动 GPU/QUDA。
+
+### 2026-11-26 F-lane 有限-$N_t$ transfer trace → q/h/x 方法提案
+
+有限温 Wilson loop 的 transfer-matrix 表示含真空 sector 与静态源 sector 的迹；[Della Morte et al. (2010), Eqs. 2.5–2.6](https://arxiv.org/abs/1012.3037)给出有限-$N_t$ trace，并展示 $N_t\to\infty$ 时的静态源谱和重叠平方。基于这个结构，本轮把 F contract 的 q/h/x 解释写为**可证伪的方法默认值**，不是生产谱模型：
+
+```text
+C_ij(R,T;N_t) = Z0(N_t)^-1 Σ_(m,n) exp[-eps_m (N_t-T)]
+                exp[-V_n(R)T] A_i,mn(R) A*_j,mn(R)
+Z0(N_t) = Σ_m exp[-eps_m N_t]
+q: m=0, n>0       h: m>0, n=0       x: m>0, n>0
+C_kk / C_kk^(0,0) = 1 + q_k + h_k + x_k
+delta_log = log(1 + q_k + h_k + x_k)
+```
+
+在此拆分下，`q` 是真空基态传播到静态源激发态的正向污染，`h` 是补时间长度 $N_t-T$ 上的真空激发，`x` 同时激发两 sector。分母的 $Z_0(N_t)$ 在相对基态贡献中约去。该映射是从文献 trace 结构推导出的**推断**；矩阵元素是否能按给定端点算符分解成 $A_iA_j^*$、源/汇是否局域于声明的时间片、静态能量是否采用相同基准，都需要独立审阅本仓的 exporter 后才可用于 production。
+
+[`lane_contract_v2.json`](lane_contract_v2.json) 现登记 `two_sector_transfer_trace_qhx_v1`、分 sector 的 q/h/x 定义、正谱与端点假设，并标 `PROPOSED_TRACE_INTERPRETATION_REQUIRES_INDEPENDENT_REVIEW`。新增 [`f_lane_finite_nt_trace_diagnostic.py`](f_lane_finite_nt_trace_diagnostic.py) 和[图文诊断](f_lane_finite_nt_trace_diagnostic_20261126_v1/README.md)：有限态 toy 用 $R=2,3$、identity/APE/stout、$N_t=16,32$、$T=3…7$；20 个 $3\times3$ 矩阵均 Hermitian PSD，60/60 个算符格满足 `1+q+h+x` 重构，最大残差 $4.44\times10^{-16}$。图示固定 stout 算符时 `q` 不随 $N_t$ 变，而 `h/x` 在较大 $N_t$ 下按补时间指数下降；这只检查代数结构，不能证明真实热污染会如此小或满足当前误差预算。
+
+示例数值（手设 toy，非测量）为 $R=2,T=5,$ stout：`q=0.0503607`；$N_t=16$ 时 `h=0.0143545, x=2.51899e-4`，$N_t=32$ 时 `h=1.73193e-5, x=3.03925e-7`。相应 `delta_log` 从 `0.0629439` 变成 `0.0491504`；图中 log 纵轴与 CSV 同目录记录所有格点。残差小仅表示用同一个手设有限谱生成并重构同一对象。
+
+**接下来给实现者/reviewer 的工作顺序：**(1) 对照真实 Wilson-loop exporter 核验时间方向、source/sink insertion offset、边界 trace/归一化和 `C_ij` 指标顺序；如果 endpoint 不能因子化，修改 sector decomposition 后重做纯 toy 代数测试。(2) 在同一 immutable source snapshot 上导出非对角 `C_ij`，先对 synthetic exact two/three-state 和近简并反例做 covariance-aware fit 与 q/h/x reconstruction，再做遗漏态/近零 overlap 覆盖校准。(3) 只有 exporter/谱拟合经独立 review 后，才能生成真实 matched-$N_t=32$ thermal、mixed-sector、truncation 与 force-unit simultaneous receipts。物理 measurement 分母仍 `0/0/0/0`，认证门 `1/0/0/1`；维持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED` 和 `physical_score=null`。
 
 ### 2026-11-26 本 checkout 回归核验
 

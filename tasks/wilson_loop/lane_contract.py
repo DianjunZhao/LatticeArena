@@ -68,6 +68,34 @@ def q_overlap_contract() -> dict[str, Any]:
             "positive forward-spectrum q term only; finite-Nt backward/thermal, "
             "mixed-sector, fit-truncation, and interval-coverage bounds remain separate"
         ),
+        "finite_Nt_trace_decomposition": {
+            "definition_id": "two_sector_transfer_trace_qhx_v1",
+            "trace_formula": (
+                "C_ij(R,T;N_t)=Z0(N_t)^-1 * sum_(m,n) "
+                "exp[-eps_m*(N_t-T)] * exp[-V_n(R)*T] "
+                "* A_i,mn(R) * conjugate(A_j,mn(R))"
+            ),
+            "partition_function": "Z0(N_t)=sum_m exp[-eps_m*N_t]",
+            "component_sectors": {
+                "q": "m=0,n>0: vacuum ground state with excited static-source states",
+                "h": "m>0,n=0: excited vacuum-sector states with static-source ground state",
+                "x": "m>0,n>0: excited states in both transfer-matrix sectors",
+            },
+            "diagonal_normalization": (
+                "C_kk/C_kk^(m=0,n=0)=1+q_k+h_k+x_k; "
+                "delta_log=log1p(q_k+h_k+x_k)"
+            ),
+            "endpoint_convention": (
+                "proposed time-local source/sink convention with constant endpoint "
+                "factors absorbed into A; production exporter time origin and any "
+                "insertion offsets require independent review"
+            ),
+            "positivity_assumption": (
+                "q/h/x are nonnegative only under a positive transfer-matrix "
+                "spectral representation and the stated endpoint factorization"
+            ),
+            "status": "PROPOSED_TRACE_INTERPRETATION_REQUIRES_INDEPENDENT_REVIEW",
+        },
         "status": "PROPOSED_METHOD_DEFAULT_REQUIRES_INDEPENDENT_REVIEW",
     }
 

@@ -39,6 +39,15 @@ def test_null_draft_stays_not_ready_with_two_separate_estimands():
         "spatial_stout_rho0.10_n5": "stout",
     }
     assert "must not be copied" in q_contract["gevp_role"]
+    trace = q_contract["finite_Nt_trace_decomposition"]
+    assert trace["definition_id"] == "two_sector_transfer_trace_qhx_v1"
+    assert trace["component_sectors"] == {
+        "q": "m=0,n>0: vacuum ground state with excited static-source states",
+        "h": "m>0,n=0: excited vacuum-sector states with static-source ground state",
+        "x": "m>0,n>0: excited states in both transfer-matrix sectors",
+    }
+    assert trace["status"] == "PROPOSED_TRACE_INTERPRETATION_REQUIRES_INDEPENDENT_REVIEW"
+    assert "production exporter time origin" in trace["endpoint_convention"]
     contamination = spectral["contamination_stencil"]
     assert contamination["primary_effective_energy_T"] == 5
     assert contamination["loop_time_extents"] == [5, 6]

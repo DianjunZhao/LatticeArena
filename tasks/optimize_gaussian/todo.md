@@ -2,11 +2,11 @@
 
 ### 当前控制状态（2026-11-26；以下替代早期“等待选择”交接）
 
-研究合同已给出可审阅的方法默认值：D04 用独立、candidate-blind E-chain PP/A4P 联合拟合；D06 保留 trainable-$W$ 对同预算 SLSQP 和 degree-4 Chebyshev 两项对比、`F=2`、`r_star=10/9`；bounded block-risk 是用户已接受的并列 estimand；D11 degree-4 Bernstein/Chebyshev 强谱算符和 160-call 单任务预算也已写入合同。D06 bounded-risk Markov 路线现除两态 reversible stress 外，又有非可逆 19 态已知-gap/初始-TV 图文校准，但仍只是合成覆盖证据。TODO 仍开着，因为 E-reference 与配对 solver receipts、独立统计/算符审阅、生产成本测量和相应授权缺失。维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`；不读封存 split、不启动 GPU/QUDA。下方早期时间戳条目保留审计历史，方法选择以本节和文末最新 handoff 为准。
+研究合同已给出可审阅的方法默认值：D04 用独立、candidate-blind E-chain PP/A4P 联合拟合；D06 保留 trainable-$W$ 对同预算 SLSQP 和 degree-4 Chebyshev 两项对比、`F=2`、`r_star=10/9`；bounded block-risk 是用户已接受的并列 estimand；D11 degree-4 Bernstein/Chebyshev 强谱算符和 160-call 单任务预算也已写入合同。D06 bounded-risk Markov 路线现除两态 reversible stress 外，又有非可逆 19 态已知-gap/初始-TV 图文校准，但仍只是合成覆盖证据。Wilson F-lane 有限-$N_t$ q/h/x sector 对应也已作为独立审阅前的方法提案登记，见 [`tasks/wilson_loop/todo.md`](../wilson_loop/todo.md)。TODO 仍开着，因为 E-reference 与配对 solver receipts、独立统计/算符审阅、生产成本测量和相应授权缺失。维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`；不读封存 split、不启动 GPU/QUDA。下方早期时间戳条目保留审计历史，方法选择以本节和文末最新 handoff 为准。
 
 ### 2026-11-26 当前 CPU 验证快照
 
-当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **150 passed**；包含 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、D04/D11 same-snapshot summary parser、新增严格 JSON/content-hash 用例、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。Wilson q-object contract/schema v2 增量后，PR #6 完整 CPU suite **345 passed**、Wilson 文件集 **112 passed**。PR #5 当前 Pion 专项文件集 `tests/test_pion*.py` **201 passed** 是另一工作树已有快照，本轮未修改或重跑 PR #5。上述结果只代表对应源码的 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
+当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **150 passed**；包含 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、D04/D11 same-snapshot summary parser、新增严格 JSON/content-hash 用例、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。Wilson 有限-$N_t$ q/h/x trace 提案和 toy tests 合入后，PR #6 完整 CPU suite 为 **355 passed**、Wilson 文件集 **122 passed**（2026-11-26）。PR #5 当前 Pion 专项文件集 `tests/test_pion*.py` **201 passed** 是另一工作树已有快照，本轮未修改或重跑 PR #5。上述结果只代表对应源码的 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
 
 ### 2026-11-25：D06 percentile hull synthetic coverage pilot 显示欠覆盖
 
