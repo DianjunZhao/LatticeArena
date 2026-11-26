@@ -6,7 +6,7 @@
 
 ### 2026-11-26 当前 CPU 验证快照
 
-当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **144 passed**；包含 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。加入 Wilson raw-matrix snapshot projection diagnostic 后，本轮 PR #6 完整 CPU suite **338 passed**、Wilson 文件集 **111 passed**；PR #5 的 Pion 分支本轮独立全仓 suite **257 passed**。这些数只代表当前源码的 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
+当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **150 passed**；包含 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、D04/D11 same-snapshot summary parser、新增严格 JSON/content-hash 用例、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。PR #6 完整 CPU suite **344 passed**、Wilson 文件集 **111 passed**；PR #5 当前 Pion 专项文件集 `tests/test_pion*.py` **201 passed**（该子集复跑，不是本轮 PR #5 全仓复跑）。这些数只代表当前源码的 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
 
 ### 2026-11-25：D06 percentile hull synthetic coverage pilot 显示欠覆盖
 
@@ -589,6 +589,16 @@ reader 现在还从同一 snapshots 严格解析 `optimize-paired-macroblock-cha
 文字流程：`同一 score-matrix + chain/gap/TV snapshot -> NPZ/schema/split/ID/arm/time 检查 -> 三臂 bounded scores 与 Markov 界重算 -> receipts/分母逐项交叉核对 -> 同一 snapshots 原子 source-byte gate -> draft 或 ABSTAIN`。集成正控为 **2,000** synthetic paired macroblocks：每 route reader=`1/1/0/0`，每 route blocks=`2000/2000/0/0`，assigned arm-runs=`6000/5999/1/0`，Markov receipts=`3/3/0/0`，source files=`30/30/0/0`；其中一个预先声明失败的 SLSQP arm 仍按 loss 1 计入完整分母。错 receipt denominator、route-specific gamma、gamma receipt 与 envelope 不一致、以及无法越过效应门的负控均 fail closed。当前 checkout 定向 `tests/test_optimize_evidence_adapter.py tests/test_optimize_snapshot_reader.py` **21 passed**。这些值全部来自合成 NPZ/JSON；`DRAFT_PENDING_TASK_VALIDATION`、`certified=false`、`physical_score=null`。
 
 这项接线取代本 TODO 较早的“reader 输出尚未由 adapter 重算”段落，但不等于真实 Optimize evaluator 已接通：当前分支仍无 production RunSpec builder/worker 或训练入口；D04 summary、D11 operator summary 仍是调用方传入且没有基于生产原始输入的同快照 evaluator。下一步只可在独立审阅后的新 evaluator 协议下补这些 parser/receipt 接线；真实 E-reference、paired solver/cost、gap/TV 与 SU(3) production receipts 以及数据/GPU 授权未到前，不训练、不启动 GPU、不读 sealed splits。trainable-W vs 同预算 SLSQP 与 trainable-W vs degree-4 Chebyshev 两项比较继续并列保留。
+
+### 2026-11-26 D04/D11 summary 的同快照解析与 digest 自引用修正
+
+本轮推进了上一段遗留的软件边界：D04 `reference_summary` 与 D11 `operator_summary` 现在可由 gate 直接从传入的 `SourceByteSnapshot` 读取，不再信任旁路传入的 summary 对象；若调用者同时传入的 summary 与捕获 bytes 解析结果不一致，gate 会 abstain。新 JSON reader 拒绝重复 key、NaN/Inf 和非 object 根。另修正一个此前无法满足的合同：summary 不可能在自身文件中保存“等于完整文件 SHA-256”的字段，因为添加该字段会改变文件 hash。现改用 `summary_content_sha256`，对去掉此字段后的 canonical JSON 内容计算；源文件的完整 SHA-256 仍独立由 source map 和 immutable snapshot 检查。
+
+文字流程：`同一 SourceByteSnapshot -> strict JSON decode -> 读取 D04/D11 summary -> canonical content digest/schema 检查 -> task-specific fit/operator gate -> 原始文件 SHA-256 gate -> draft 或 abstain`。真实合成快照中 D04 source files `8/8/0/0`、D11 `7/7/0/0`，均只进入 `DRAFT_PENDING_TASK_VALIDATION`；缺文件仍 `ABSTAIN_SOURCE_BYTES`，summary 冲突或内容 digest 错误 fail closed。定向 `tests/test_optimize_evidence_adapter.py tests/test_optimize_snapshot_reader.py` **27 passed**；Optimize 全集 **150 passed**；PR #6 全仓 CPU suite **344 passed**。这些是 synthetic JSON/source fixture，summary content hash 不证明签发者身份或物理内容。
+
+与这次 reader 代码同步生成了新的[data-free RunSpec 草案报告 v7](../../results/optimize_gaussian/draft_plan_20261126_v7/README.md)：20 个 artifact/source hashes 全匹配，schema plan=`1/1/0/0`，physical gates=`5/0/0/5`，data inputs=`0/0/0/0`，`launch_allowed=false`。报告的文字流程把 D04/D11 summary-byte parser 标为 metadata 接线，并明确没有原始 correlator fit 或生产 link/operator evaluator。
+
+此项关闭的是 D04/D11 summary 的路径旁路与自哈希不可能性，不等于实际 evaluator：manifest/envelope/run receipt 仍未由当前 production RunSpec 从读取事务生成；没有真实 E-chain correlator parser/六种 joint fit、D11 production SU(3) link/operator evaluator、独立审阅或 source authorization。下一步仍需按 reviewed contract 实现真实同快照 evaluator，并用输入清单一致、content mismatch、缺文件、hash mismatch、root escape 与 denominator 边界 fixtures 验证；在真实 E-reference、paired solver/cost、Markov gap/TV、SU(3) receipt 与授权到位前，不读 sealed IDs、不启动 GPU，保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`。两项 Optimize 比较仍并列为 trainable-W vs 同预算 SLSQP 和 trainable-W vs degree-4 Chebyshev。
 
 ### 2026-11-26 GEVP diagnostic 之前的跨 PR 兼容性复核
 

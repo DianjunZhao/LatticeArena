@@ -25,8 +25,11 @@ from core.evidence import (
     apply_evidence_gate_with_source_bytes,
 )
 from core.receipts import RECEIPT_SCHEMA, run_receipt as normalize_run_receipt
-from core.source_integrity import SOURCE_VERIFICATION_SCHEMA, SourceByteSnapshot
+from core.source_integrity import (
+    SOURCE_VERIFICATION_SCHEMA, SourceByteSnapshot, verify_source_snapshot,
+)
 from .bounded_block_risk import R_STAR
+from .source_reader import read_json_object_snapshot
 
 
 TASK = "optimize_gaussian"
@@ -52,6 +55,16 @@ _D11_SOURCE_KEYS = frozenset({
     "link_manifest", "operator_map", "operator_summary", "kernel_source",
     "su3_receipt", "review_receipt", "authorization_receipt",
 })
+_D04_SUMMARY_FIELDS = frozenset({
+    "reference_mass", "reference_mass_error", "relative_mass_error_max",
+    "gof_p_min", "max_channel_or_window_shift_paired_se", "fit_variants",
+    "boundary_hit_count", "summary_content_sha256",
+})
+_D11_SUMMARY_FIELDS = frozenset({
+    "production_links", "su3_provenance_valid", "shape_and_periodic_boundary_valid",
+    "unitarity_valid", "finite_values_valid", "bernstein_constraints_valid",
+    "spectral_interval_valid", "clenshaw_reference_agrees", "summary_content_sha256",
+})
 
 
 def _contract() -> dict[str, Any]:
@@ -59,8 +72,38 @@ def _contract() -> dict[str, Any]:
 
 
 def _canonical_hash(value: object) -> str:
-    payload = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
     return hashlib.sha256(payload).hexdigest()
+
+
+def summary_content_sha256(summary: dict[str, Any]) -> str:
+    """Hash summary fields without a self-referential digest field."""
+    if not isinstance(summary, dict):
+        raise TypeError("summary must be a mapping")
+    return _canonical_hash({
+        key: value for key, value in summary.items()
+        if key != "summary_content_sha256"
+    })
+
+
+def _check_summary_content(summary: object, *, fields: frozenset[str], label: str) -> list[str]:
+    if not isinstance(summary, dict):
+        return [f"{label} summary is missing"]
+    reasons = []
+    if set(summary) != fields:
+        reasons.append(f"{label} summary keys do not match its frozen schema")
+    digest = summary.get("summary_content_sha256")
+    if not _valid_hash(digest):
+        reasons.append(f"{label} summary_content_sha256 must be lowercase SHA-256")
+    else:
+        try:
+            observed = summary_content_sha256(summary)
+        except (TypeError, ValueError, OverflowError):
+            reasons.append(f"{label} summary cannot be canonically serialized")
+        else:
+            if digest != observed:
+                reasons.append(f"{label} summary content hash does not match its fields")
+    return reasons
 
 
 def d04_reference_map_sha256() -> str:
@@ -176,6 +219,25 @@ def _missing_source_byte_receipt(value: object) -> dict[str, Any]:
     }
 
 
+def _snapshot_source_blocker(run_state: object, stage: str, hashes: object,
+                             snapshot: SourceByteSnapshot | None,
+                             status: str) -> dict[str, Any] | None:
+    if snapshot is None or not isinstance(hashes, dict):
+        return None
+    try:
+        verification = verify_source_snapshot(snapshot, hashes)
+    except (TypeError, ValueError):
+        return None
+    if verification["status"] == "verified":
+        return None
+    result = _abstain(
+        run_state, stage,
+        ["source snapshot does not contain all matching task evidence bytes"], status,
+    )
+    result["source_verification"] = verification
+    return result
+
+
 def _check_receipt(receipt: object, expected: dict[str, int] | None = None,
                    *, dynamic: frozenset[str] = frozenset()) -> tuple[dict[str, Any] | None, list[str]]:
     if not isinstance(receipt, dict) or receipt.get("schema") != RECEIPT_SCHEMA:
@@ -268,13 +330,38 @@ def apply_optimize_d04_reference_gate(
     """Check the selected independent E-chain D04 fit and advance to draft.
 
     Six planned joint fits cover three ``tmin`` checks crossed with two/three
-    states. Any fit failure or failed frozen reference criterion abstains.
+    states. When a source snapshot is supplied, ``reference_summary`` is
+    parsed from its captured ``reference_summary`` bytes; a conflicting caller
+    object or unreadable source abstains. Any fit failure or failed frozen
+    reference criterion abstains.
     """
     stage = "reference"
     if not hasattr(run_state, "status") or stage not in run_state.status:
         raise ValueError("run_state must provide the reference stage")
     hashes = required_source_hashes
+    blocked = _snapshot_source_blocker(
+        run_state, stage, hashes, source_snapshot, "ABSTAIN_SOURCE_BYTES",
+    )
+    if blocked is not None:
+        return blocked
+    summary_read_error = None
+    if source_snapshot is not None:
+        try:
+            captured_summary = read_json_object_snapshot(
+                source_snapshot, source_name="reference_summary"
+            )
+        except ValueError as exc:
+            summary_read_error = str(exc)
+            reference_summary = None
+        else:
+            if reference_summary is not None and reference_summary != captured_summary:
+                summary_read_error = "caller-provided D04 summary differs from captured summary bytes"
+                reference_summary = None
+            else:
+                reference_summary = captured_summary
     reasons = _source_map(hashes, _D04_SOURCE_KEYS, "D04")
+    if summary_read_error is not None:
+        reasons.append(summary_read_error)
     normalized, receipt_reasons = _check_receipt(
         receipt, {"reference_fit_variants": _D04_FIT_VARIANTS}
     )
@@ -286,9 +373,10 @@ def apply_optimize_d04_reference_gate(
                  or fits["abstained"]):
         reasons.append("all six planned D04 fit variants must be valid")
 
-    if not isinstance(reference_summary, dict):
-        reasons.append("D04 reference summary is missing")
-    else:
+    reasons.extend(_check_summary_content(
+        reference_summary, fields=_D04_SUMMARY_FIELDS, label="D04",
+    ))
+    if isinstance(reference_summary, dict):
         numeric = (
             "reference_mass", "reference_mass_error",
             "relative_mass_error_max", "gof_p_min",
@@ -325,10 +413,6 @@ def apply_optimize_d04_reference_gate(
                 reasons.append("D04 boundary_hit_count must be an integer count")
             if reference_summary["boundary_hit_count"] != 0:
                 reasons.append("D04 fit hit a frozen parameter boundary")
-    if isinstance(hashes, dict) and isinstance(reference_summary, dict):
-        if hashes.get("reference_summary") != reference_summary.get("summary_sha256"):
-            reasons.append("D04 summary hash does not match the reported summary")
-
     if isinstance(envelope, dict):
         chain = envelope.get("chain", {})
         observable = envelope.get("observable", {})
@@ -421,12 +505,39 @@ def apply_optimize_d11_operator_gate(
     source_snapshot: SourceByteSnapshot | None = None,
     require_source_bytes: bool = True,
 ) -> dict[str, Any]:
-    """Bind D11 production-link/operator receipts; success remains draft-only."""
+    """Bind D11 production-link/operator receipts; success remains draft-only.
+
+    When a source snapshot is supplied, ``operator_summary`` is parsed from
+    its captured ``operator_summary`` bytes. A conflicting caller object or
+    unreadable source abstains.
+    """
     stage = "operator"
     if not hasattr(run_state, "status") or stage not in run_state.status:
         raise ValueError("run_state must provide the operator stage")
     hashes = required_source_hashes
+    blocked = _snapshot_source_blocker(
+        run_state, stage, hashes, source_snapshot, "ABSTAIN_SOURCE_BYTES",
+    )
+    if blocked is not None:
+        return blocked
+    summary_read_error = None
+    if source_snapshot is not None:
+        try:
+            captured_summary = read_json_object_snapshot(
+                source_snapshot, source_name="operator_summary"
+            )
+        except ValueError as exc:
+            summary_read_error = str(exc)
+            operator_summary = None
+        else:
+            if operator_summary is not None and operator_summary != captured_summary:
+                summary_read_error = "caller-provided D11 summary differs from captured summary bytes"
+                operator_summary = None
+            else:
+                operator_summary = captured_summary
     reasons = _source_map(hashes, _D11_SOURCE_KEYS, "D11")
+    if summary_read_error is not None:
+        reasons.append(summary_read_error)
     normalized, receipt_reasons = _check_receipt(receipt, dynamic=frozenset({"operator_cases"}))
     reasons.extend(receipt_reasons)
     reasons.extend(_scenario_name(normalized, "optimize-d11-production-operator"))
@@ -434,9 +545,10 @@ def apply_optimize_d11_operator_gate(
     cases = denominators.get("operator_cases")
     if cases and (cases["valid"] != cases["planned"] or cases["failed"] or cases["abstained"]):
         reasons.append("every planned D11 production operator case must be valid")
-    if not isinstance(operator_summary, dict):
-        reasons.append("D11 operator summary is missing")
-    else:
+    reasons.extend(_check_summary_content(
+        operator_summary, fields=_D11_SUMMARY_FIELDS, label="D11",
+    ))
+    if isinstance(operator_summary, dict):
         flags = (
             "production_links", "su3_provenance_valid", "shape_and_periodic_boundary_valid",
             "unitarity_valid", "finite_values_valid", "bernstein_constraints_valid",
@@ -445,9 +557,6 @@ def apply_optimize_d11_operator_gate(
         for key in flags:
             if operator_summary.get(key) is not True:
                 reasons.append(f"D11 summary requires {key}=true")
-    if isinstance(hashes, dict) and isinstance(operator_summary, dict):
-        if hashes.get("operator_summary") != operator_summary.get("summary_sha256"):
-            reasons.append("D11 summary hash does not match the reported summary")
     if isinstance(envelope, dict):
         chain = envelope.get("chain", {})
         observable = envelope.get("observable", {})

@@ -34,6 +34,45 @@ _GAP_RECEIPT_SCHEMA = "optimize-markov-gap-receipt-v1"
 _TV_RECEIPT_SCHEMA = "optimize-initial-law-tv-receipt-v1"
 
 
+def _reject_duplicate_json_keys(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value):
+    raise ValueError(f"non-finite JSON constant: {value}")
+
+
+def read_json_object_snapshot(snapshot: SourceByteSnapshot, *, source_name: str) -> dict[str, Any]:
+    """Parse a strict JSON object from bytes retained by a source snapshot."""
+    if not isinstance(snapshot, SourceByteSnapshot):
+        raise ValueError("snapshot must be a SourceByteSnapshot")
+    if not isinstance(source_name, str) or not source_name.strip():
+        raise ValueError("source_name must be a nonempty string")
+    try:
+        payload = snapshot.read_bytes(source_name)
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"JSON snapshot source is unavailable: {source_name}") from exc
+    observed = sha256(payload).hexdigest()
+    if observed != snapshot.expected_hashes.get(source_name):
+        raise ValueError(f"JSON snapshot source hash mismatch: {source_name}")
+    try:
+        document = json.loads(
+            payload.decode("utf-8"),
+            object_pairs_hook=_reject_duplicate_json_keys,
+            parse_constant=_reject_json_constant,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise ValueError(f"JSON snapshot source is invalid: {source_name}") from exc
+    if not isinstance(document, dict):
+        raise ValueError(f"JSON snapshot source root must be an object: {source_name}")
+    return document
+
+
 def _abstention(status: str, reason: str, split_id: object, *,
                 source_planned: int = 1, source_abstained: int = 1,
                 source_failed: int = 0, source_valid: int = 0,

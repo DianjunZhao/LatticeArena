@@ -16,7 +16,7 @@ def _transaction(tmp_path, *, split="synthetic_calibration_open", mutate_npz=Non
     arrays = {
         "block_ids": np.arange(8, dtype=np.int64),
         "correlator_matrices": diagnostic._synthetic_matrices(8),
-        "kernel_ids": np.asarray(diagnostic.KERNELS, dtype="U32"),
+        "operator_basis_ids": np.asarray(diagnostic.OPERATOR_BASIS_IDS, dtype="U32"),
         "R_values": np.asarray(diagnostic.R_VALUES, dtype=np.int64),
         "time_slices": np.asarray(diagnostic.TIME_SLICES, dtype=np.int64),
         "split_id": np.asarray(split),
@@ -38,7 +38,7 @@ def _transaction(tmp_path, *, split="synthetic_calibration_open", mutate_npz=Non
         "action": "synthetic_forward_fixture",
         "boundary_conditions": "periodic_fixture",
         "temporal_extent": 16,
-        "operator_ids": list(diagnostic.KERNELS),
+        "operator_basis_ids": list(diagnostic.OPERATOR_BASIS_IDS),
         "R_values": list(diagnostic.R_VALUES),
         "time_slices": list(diagnostic.TIME_SLICES),
         "matrix_definition": definition,
@@ -76,9 +76,9 @@ def test_reader_projects_from_immutable_snapshot_and_reports_no_physical_score(t
 
     assert result["status"] == "RAW_MATRIX_GEVP_PROJECTION_ONLY"
     assert result["certified"] is False and result["physical_score"] is None
-    assert result["projected_correlators"].shape == (8, 3, 2, 7)
-    assert result["denominators"]["operator_R_time_values"] == {
-        "planned": 42, "valid": 42, "failed": 0, "abstained": 0,
+    assert result["projected_correlators"].shape == (8, 2, 7)
+    assert result["denominators"]["R_time_values"] == {
+        "planned": 14, "valid": 14, "failed": 0, "abstained": 0,
     }
     assert result["denominators"]["physical_q_interval_or_certification"]["abstained"] == 1
     assert all(abs(row["metric_norm"] - 1) < 1e-9 for row in result["matrix_condition"].values())
@@ -92,7 +92,7 @@ def test_reader_rejects_closed_split(tmp_path):
 
 def test_reader_rejects_reordered_operator_axis(tmp_path):
     def reorder(arrays):
-        arrays["kernel_ids"] = arrays["kernel_ids"][[1, 0, 2]]
+        arrays["operator_basis_ids"] = arrays["operator_basis_ids"][[1, 0, 2]]
     snapshot, _, _ = _transaction(tmp_path, mutate_npz=reorder)
     with pytest.raises(ValueError, match="operator axis is missing, reordered"):
         _read(snapshot)
@@ -106,10 +106,10 @@ def test_reader_rejects_geometry_temporal_extent_mismatch(tmp_path):
 
 def test_reader_does_not_require_each_noisy_block_projection_to_be_positive(tmp_path):
     def one_negative_t0_block(arrays):
-        arrays["correlator_matrices"][0, 0, 0, 0] *= -0.5
+        arrays["correlator_matrices"][0, 0, 0] *= -0.5
     snapshot, _, _ = _transaction(tmp_path, mutate_npz=one_negative_t0_block)
     result = _read(snapshot)
-    projected = result["projected_correlators"][:, 0, 0, 0]
+    projected = result["projected_correlators"][:, 0, 0]
     assert projected[0] < 0
     assert projected.mean() > 0
 
@@ -123,12 +123,12 @@ def test_reader_rejects_invalid_matrix_values(tmp_path, kind, message):
     def mutate(arrays):
         matrices = arrays["correlator_matrices"]
         if kind == "non_hermitian":
-            matrices[0, 0, 0, 0, 0, 1] += 0.1j
+            matrices[0, 0, 0, 0, 1] += 0.1j
         elif kind == "nonfinite":
-            matrices[0, 0, 0, 0, 0, 0] = complex(float("nan"), 0)
+            matrices[0, 0, 0, 0, 0] = complex(float("nan"), 0)
         elif kind == "singular_metric":
-            matrices[:, 0, 0, 0, :, :] = 0
-            matrices[:, 0, 0, 1, :, :] = 0
+            matrices[:, 0, 0, :, :] = 0
+            matrices[:, 0, 1, :, :] = 0
     snapshot, _, _ = _transaction(tmp_path, mutate_npz=mutate)
     with pytest.raises(ValueError, match=message):
         _read(snapshot)

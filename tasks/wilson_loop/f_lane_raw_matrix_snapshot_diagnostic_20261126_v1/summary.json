@@ -2,17 +2,17 @@
   "certified": false,
   "classification": "SYNTHETIC_SCHEMA_AND_LINEAR_ALGEBRA_DIAGNOSTIC_NOT_MEASUREMENT",
   "denominators": {
-    "operator_R_projection_cells": {
+    "R_projection_cells": {
       "abstained": 0,
       "failed": 0,
-      "planned": 6,
-      "valid": 6
+      "planned": 2,
+      "valid": 2
     },
-    "operator_R_time_values": {
+    "R_time_values": {
       "abstained": 0,
       "failed": 0,
-      "planned": 42,
-      "valid": 42
+      "planned": 14,
+      "valid": 14
     },
     "physical_q_interval_or_certification": {
       "abstained": 1,
@@ -31,12 +31,14 @@
   "limits": [
     "synthetic input only; no Wilson measurement or production source bytes were read",
     "the repository has no raw cross-correlator producer; diagonal loop arrays cannot reconstruct missing off-diagonal elements",
+    "the matrix basis uses three ordered smearing IDs; do not add an outer kernel axis or interpret one projected vector as three per-kernel q values",
+    "the q-bound contract asks for kernel-indexed q cells; mapping those cells to basis-operator or GEVP-composite overlaps remains unresolved",
     "synthetic block spread is descriptive and is not a confidence interval or independence claim",
     "captured-byte digest equality does not authenticate who issued the expected digests",
     "no state-overlap/gap fit, q upper bound, coverage calibration, finite-Nt backward term, thermal h, mixed x, force propagation, or physical gate"
   ],
   "matrix_condition": {
-    "ape_alpha0.4_n5|R2": {
+    "R2": {
       "condition_C_t0": 27.819708721080364,
       "condition_C_td": 29.02705409060676,
       "eigenvector": [
@@ -56,7 +58,7 @@
       "metric_norm": 0.9999999999999999,
       "principal_generalized_eigenvalue": 0.7293237435199742
     },
-    "ape_alpha0.4_n5|R3": {
+    "R3": {
       "condition_C_t0": 27.824156679721316,
       "condition_C_td": 29.04763805959874,
       "eigenvector": [
@@ -75,86 +77,6 @@
       ],
       "metric_norm": 1.0000000000000007,
       "principal_generalized_eigenvalue": 0.728417587064395
-    },
-    "identity|R2": {
-      "condition_C_t0": 27.81142524167682,
-      "condition_C_td": 28.978745115243623,
-      "eigenvector": [
-        [
-          -1.2844757449796376,
-          0.0
-        ],
-        [
-          1.5546306997476327,
-          0.0
-        ],
-        [
-          0.5729122768077977,
-          0.0
-        ]
-      ],
-      "metric_norm": 1.0000000000000004,
-      "principal_generalized_eigenvalue": 0.7315954577211046
-    },
-    "identity|R3": {
-      "condition_C_t0": 27.815890925664895,
-      "condition_C_td": 28.999108580239163,
-      "eigenvector": [
-        [
-          -1.277027928232644,
-          0.0
-        ],
-        [
-          1.5466119668088287,
-          0.0
-        ],
-        [
-          0.5699214166675818,
-          0.0
-        ]
-      ],
-      "metric_norm": 0.9999999999999997,
-      "principal_generalized_eigenvalue": 0.7306859688681765
-    },
-    "spatial_stout_rho0.10_n5|R2": {
-      "condition_C_t0": 27.828025941520814,
-      "condition_C_td": 29.07598851537734,
-      "eigenvector": [
-        [
-          -1.2601533838164691,
-          0.0
-        ],
-        [
-          1.530372791870662,
-          0.0
-        ],
-        [
-          0.5637165699208788,
-          0.0
-        ]
-      ],
-      "metric_norm": 0.9999999999999992,
-      "principal_generalized_eigenvalue": 0.7270604132269682
-    },
-    "spatial_stout_rho0.10_n5|R3": {
-      "condition_C_t0": 27.832459556305714,
-      "condition_C_td": 29.09679666952857,
-      "eigenvector": [
-        [
-          -1.2529523895780859,
-          0.0
-        ],
-        [
-          1.5226584007053676,
-          0.0
-        ],
-        [
-          0.5608350950894305,
-          0.0
-        ]
-      ],
-      "metric_norm": 0.9999999999999991,
-      "principal_generalized_eigenvalue": 0.7261575950998187
     }
   },
   "physical_measurement_inputs": {
@@ -167,8 +89,8 @@
   "physical_score": null,
   "schema": "wilson-f-raw-matrix-snapshot-diagnostic-v1",
   "source_hashes": {
-    "manifest": "44c62541b5c8abfa7b9cea19321bf4bd52c4a664658eab8f650ee4508bac71d7",
-    "matrix_npz": "092926f6ea86b535a5103e790dcd6af2d5ca7fe21c7d3173185ec76193f19e29"
+    "manifest": "b647b4a6014833bb16dc3252f60fb2cde4e332dee1ecc983921e0ab09324ac8d",
+    "matrix_npz": "134792d12e324c3565a2e761856a0ecf04a0f70397ce4d86f9423fd9dfd54c7d"
   },
   "status": "RAW_MATRIX_GEVP_PROJECTION_ONLY"
 }

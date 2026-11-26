@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 from io import BytesIO
 import json
+from pathlib import Path
 
 import numpy as np
 
@@ -20,6 +21,7 @@ from tasks.optimize_gaussian.evidence_adapter import (
     bounded_risk_map_sha256,
     d04_reference_map_sha256,
     d11_operator_map_sha256,
+    summary_content_sha256,
 )
 from tasks.optimize_gaussian.source_reader import (
     SCHEMA as D06_SCORE_SCHEMA,
@@ -101,8 +103,8 @@ def _d04_fixture(*, p_value=0.02):
         "max_channel_or_window_shift_paired_se": 1.5,
         "fit_variants": 6,
         "boundary_hit_count": 0,
-        "summary_sha256": hashes["reference_summary"],
     }
+    summary["summary_content_sha256"] = summary_content_sha256(summary)
     return envelope, receipt, summary, hashes
 
 
@@ -156,9 +158,57 @@ def _d11_fixture(*, split="production-links-calibration", su3=True):
         "bernstein_constraints_valid": True,
         "spectral_interval_valid": True,
         "clenshaw_reference_agrees": True,
-        "summary_sha256": hashes["operator_summary"],
     }
+    summary["summary_content_sha256"] = summary_content_sha256(summary)
     return envelope, receipt, summary, hashes
+
+
+def _canonical_json_bytes(value):
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+
+
+def _capture_task_summary(tmp_path, envelope, hashes, summary, *, task):
+    contract_path = Path(__file__).resolve().parents[1] / "tasks" / "optimize_gaussian" / "research_contract_v1.json"
+    contract = json.loads(contract_path.read_text())
+    if task == "d04":
+        summary_role = "reference_summary"
+        map_role = "fit_map"
+        map_section = contract["D04_reference"]
+        map_values = {key: map_section[key] for key in ("observable", "units", "reference_method", "fit_protocol")}
+        manifest_role = "manifest"
+    elif task == "d11":
+        summary_role = "operator_summary"
+        map_role = "operator_map"
+        map_section = contract["D11_strong_spectral_operator"]
+        map_values = {key: value for key, value in map_section.items() if key != "independent_review_receipt"}
+        manifest_role = "link_manifest"
+    else:
+        raise ValueError(task)
+
+    summary_payload = json.dumps(summary, sort_keys=True, indent=2, allow_nan=False).encode() + b"\n"
+    payloads = {
+        role: f"synthetic {task} source bytes for {role}".encode()
+        for role in hashes
+    }
+    payloads[map_role] = _canonical_json_bytes(map_values)
+    payloads[summary_role] = summary_payload
+    snapshot_hashes = {
+        role: hashlib.sha256(payload).hexdigest()
+        for role, payload in payloads.items()
+    }
+    assert snapshot_hashes[map_role] == hashes[map_role]
+
+    envelope["source_hashes"] = dict(snapshot_hashes)
+    envelope["chain"]["manifest_sha256"] = snapshot_hashes[manifest_role]
+    envelope["observable"]["map_sha256"] = snapshot_hashes[map_role]
+    envelope["review"]["receipt_sha256"] = snapshot_hashes["review_receipt"]
+    paths = {}
+    for role, payload in payloads.items():
+        filename = f"{task}_{role}.bin"
+        (tmp_path / filename).write_bytes(payload)
+        paths[role] = filename
+    snapshot = capture_source_snapshot(tmp_path, snapshot_hashes, paths)
+    return snapshot, snapshot_hashes
 
 
 def _d06_fixtures(*, split="D06-calibration-open", gamma=0.2, tv=0.001):
@@ -410,6 +460,32 @@ def test_d04_reference_gate_accepts_an_incomplete_read_snapshot_and_abstains(tmp
     }
 
 
+def test_d04_reference_gate_reads_summary_from_the_same_captured_snapshot(tmp_path):
+    envelope, receipt, summary, fixture_hashes = _d04_fixture()
+    snapshot, hashes = _capture_task_summary(tmp_path, envelope, fixture_hashes, summary, task="d04")
+    result = apply_optimize_d04_reference_gate(
+        RunState(), envelope, receipt, None,
+        required_source_hashes=hashes, source_snapshot=snapshot,
+    )
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 8, "valid": 8,
+        "failed": 0, "abstained": 0, "not_run": 0,
+    }
+
+
+def test_d04_reference_gate_rejects_a_caller_summary_that_differs_from_snapshot(tmp_path):
+    envelope, receipt, summary, fixture_hashes = _d04_fixture()
+    snapshot, hashes = _capture_task_summary(tmp_path, envelope, fixture_hashes, summary, task="d04")
+    stale_summary = dict(summary, reference_mass=0.32)
+    result = apply_optimize_d04_reference_gate(
+        RunState(), envelope, receipt, stale_summary,
+        required_source_hashes=hashes, source_snapshot=snapshot,
+    )
+    assert result["status"] == "ABSTAIN_OPTIMIZE_D04_REFERENCE"
+    assert any("differs from captured summary bytes" in reason for reason in result["reasons"])
+
+
 def test_d04_reference_gate_abstains_on_failed_fit_criterion_or_stale_summary():
     envelope, receipt, summary, hashes = _d04_fixture(p_value=0.009)
     state = RunState()
@@ -421,14 +497,14 @@ def test_d04_reference_gate_abstains_on_failed_fit_criterion_or_stale_summary():
     assert state.status["reference"] == "abstained"
 
     envelope, receipt, summary, hashes = _d04_fixture()
-    summary["summary_sha256"] = H[31]
+    summary["summary_content_sha256"] = H[31]
     state = RunState()
     result = apply_optimize_d04_reference_gate(
         state, envelope, receipt, summary, required_source_hashes=hashes,
         require_source_bytes=False,
     )
     assert result["status"] == "ABSTAIN_OPTIMIZE_D04_REFERENCE"
-    assert any("summary hash" in reason for reason in result["reasons"])
+    assert any("content hash" in reason for reason in result["reasons"])
 
 
 def test_d11_operator_gate_requires_real_su3_scope_and_stops_at_draft():
@@ -478,6 +554,20 @@ def test_d11_operator_gate_accepts_snapshot_input_and_keeps_missing_files_abstai
     assert result["source_verification"]["denominator"] == {
         "unit": "source_file", "planned": 7, "valid": 0,
         "failed": 0, "abstained": 7, "not_run": 0,
+    }
+
+
+def test_d11_operator_gate_reads_summary_from_the_same_captured_snapshot(tmp_path):
+    envelope, receipt, summary, fixture_hashes = _d11_fixture()
+    snapshot, hashes = _capture_task_summary(tmp_path, envelope, fixture_hashes, summary, task="d11")
+    result = apply_optimize_d11_operator_gate(
+        RunState(), envelope, receipt, None,
+        required_source_hashes=hashes, source_snapshot=snapshot,
+    )
+    assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 7, "valid": 7,
+        "failed": 0, "abstained": 0, "not_run": 0,
     }
 
 

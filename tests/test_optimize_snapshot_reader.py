@@ -5,10 +5,13 @@ from io import BytesIO
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import numpy as np
+import pytest
 
 from core.source_integrity import capture_source_snapshot
 from tasks.optimize_gaussian.bounded_block_risk import ARMS, TIMES
-from tasks.optimize_gaussian.source_reader import SCHEMA, read_bounded_block_risk_snapshot
+from tasks.optimize_gaussian.source_reader import (
+    SCHEMA, read_bounded_block_risk_snapshot, read_json_object_snapshot,
+)
 
 
 def _npz_payload(*, split_id="D06-calibration-open", arm_order=None, invalid_block=None):
@@ -121,3 +124,18 @@ def test_optimize_d06_reader_abstains_before_loading_inflated_npz_arrays(tmp_pat
     assert result["status"] == "ABSTAIN_NPZ_PARSE_FAILED"
     assert result["source_denominator"]["failed"] == 1
     assert result["physical_score"] is None
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [b'{"x":1,"x":2}', b'{"x":NaN}', b'[]'],
+)
+def test_json_snapshot_reader_rejects_duplicate_nonfinite_and_nonobject_roots(tmp_path, payload):
+    (tmp_path / "summary.json").write_bytes(payload)
+    snapshot = capture_source_snapshot(
+        tmp_path,
+        {"summary": sha256(payload).hexdigest()},
+        {"summary": "summary.json"},
+    )
+    with pytest.raises(ValueError, match="JSON snapshot source"):
+        read_json_object_snapshot(snapshot, source_name="summary")

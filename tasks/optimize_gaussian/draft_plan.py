@@ -164,6 +164,7 @@ def build_plan() -> dict[str, Any]:
         "text_flow": [
             "research_contract_v1.json + source files -> SHA-256 dependency map",
             "selected D04/D06/D11 defaults -> generic TaskSpec + draft RunSpec",
+            "D04/D11 summary JSON -> strict same-snapshot parser/content digest; no physical fit or production-operator evaluator",
             "source_reader.py -> immutable D06 q-matrix bytes -> paired block scores with assigned-failure penalty",
             "risk_statistics.py -> fail-closed D04/D06 array reducers; no draw generation or fitting",
             "no data hashes / no runner entrypoint / no authorization -> launch_allowed=false",
@@ -176,6 +177,7 @@ def build_plan() -> dict[str, Any]:
             "D06 paired outcomes, measured costs or complete failure denominator",
             "a train.main/training entrypoint in this checkout",
             "an evaluator that generates paired outer block-bootstrap and inner D04 draws",
+            "production D04/D11 summary generation from raw correlator/link inputs",
             "coverage calibration for the selected percentile-quantile convention",
             "GPU/QUDA permission or sealed-data permission",
         ],
@@ -219,7 +221,7 @@ The selected research contract is now represented in LatticeArena's generic `cor
 
 The generic `validation` range is explicitly limited to the already-open D60-D99 **development-selection** role. It is not final confirmation. Sealed roles are not included in the plan. The ranges are metadata only; no data bytes, manifests, anchor chain, gap, validation or holdout files were opened.
 
-The source hash map binds the selected trainable-W CPU parameterization and directional features as well as the D04/D06 reducers, bounded-risk and Markov formulas, evidence adapter, snapshot reader, shared evidence gate, receipt/state models, source-integrity code, and `core/npz_safety.py`. The trainable-W implementation is still an isolated coefficient/operator prototype; its coefficient-MSE target is not the selected physical risk and it is not wired as the production training arm. Those files are copied into the report snapshots to make this distinction and code identity reviewable. The NPZ safety helper checks ZIP/NPY structure and the decompressed-byte budget before NumPy allocates arrays. The reducers use fixed selected constants, paired draw-ID checks, full planned denominators, no epsilon repair, and abstention on incomplete or invalid draws. The D06 reader consumes one explicitly captured calibration NPZ, checks its schema, split, ordered arms/times, and macroblock IDs, then derives the three-arm bounded score matrix; a declared optimizer failure receives the preselected loss 1 while remaining in the assigned-arm denominator. This CPU reader has no path fallback and rejects closed split names. None of these modules launches solvers or establishes macroblock independence.
+The source hash map binds the selected trainable-W CPU parameterization and directional features as well as the D04/D06 reducers, bounded-risk and Markov formulas, evidence adapter, snapshot reader, shared evidence gate, receipt/state models, source-integrity code, and `core/npz_safety.py`. The trainable-W implementation is still an isolated coefficient/operator prototype; its coefficient-MSE target is not the selected physical risk and it is not wired as the production training arm. Those files are copied into the report snapshots to make this distinction and code identity reviewable. The NPZ safety helper checks ZIP/NPY structure and the decompressed-byte budget before NumPy allocates arrays. The reducers use fixed selected constants, paired draw-ID checks, full planned denominators, no epsilon repair, and abstention on incomplete or invalid draws. The D06 reader consumes one explicitly captured calibration NPZ, checks its schema, split, ordered arms/times, and macroblock IDs, then derives the three-arm bounded score matrix; a declared optimizer failure receives the preselected loss 1 while remaining in the assigned-arm denominator. This CPU reader has no path fallback and rejects closed split names. D04/D11 adapters can parse their summary JSON directly from the same captured source snapshot, rejecting duplicate keys, non-finite JSON constants, mismatched caller summaries and stale canonical content digests. This only binds the summary object to captured bytes; it does not calculate D04 fits or the D11 production operator summary. None of these modules launches solvers or establishes macroblock independence.
 
 ## Text flow
 
@@ -227,6 +229,7 @@ The source hash map binds the selected trainable-W CPU parameterization and dire
 selected contract + trainable-W prototype/features + reducer/reader/integrity/NPZ parser sources -> SHA-256 map and source snapshots
   -> generic TaskSpec (D0-D59 fit; D60-D99 development selection)
   -> D06 snapshot NPZ -> fixed arm/time/ID checks -> bounded paired block scores
+  -> D04/D11 captured JSON summary -> strict decode/content digest -> metadata gate only
   -> D04/D06 array reducers remain source-bound; production draw generation is not wired
   -> generic RunSpec with empty data-hash map
   -> missing reference/input/runner receipts => launch_allowed=false
@@ -237,7 +240,7 @@ The schema-plan denominator is planned/valid/failed/abstained=`1/1/0/0`: one in-
 
 ## Remaining implementation and evidence
 
-This checkout does not contain `tasks/optimize_gaussian/runspec_builder.py`, a task-specific worker, or `train.main`; the plan therefore does not point to a child command and cannot become a production RunSpec. The new D06 reader is a bounded-array reader, not a solver/evaluator and not the missing task runner. The next software change requires integrating this array contract with a reviewed paired-results producer and RunSpec while preserving the closed-split preflight. The open physical gates separately require the E-chain reference, D11 production-link review, D06 paired solver/cost receipts, and explicit data/GPU authorization. No gate is inferred from schema validity.
+This checkout does not contain `tasks/optimize_gaussian/runspec_builder.py`, a task-specific worker, or `train.main`; the plan therefore does not point to a child command and cannot become a production RunSpec. The new D06 reader is a bounded-array reader, not a solver/evaluator and not the missing task runner. The D04/D11 summary parser does not compute the raw-correlator fit or production-link operator. The next software change requires integrating this array contract with a reviewed paired-results producer and RunSpec while preserving the closed-split preflight. The open physical gates separately require the E-chain reference, D11 production-link review, D06 paired solver/cost receipts, and explicit data/GPU authorization. No gate is inferred from schema validity.
 """
     (out / "README.md").write_text(readme)
     payloads = sorted(path for path in out.iterdir() if path.is_file())

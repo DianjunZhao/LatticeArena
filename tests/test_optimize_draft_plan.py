@@ -37,6 +37,8 @@ def test_selected_f2_contrasts_are_bound_to_fail_closed_no_launch_plan():
     assert "core/evidence.py" in plan["source_hashes"]
     assert "core/receipts.py" in plan["source_hashes"]
     assert "an evaluator that generates paired outer block-bootstrap and inner D04 draws" in plan["not_established"]
+    assert "production D04/D11 summary generation from raw correlator/link inputs" in plan["not_established"]
+    assert any("D04/D11 summary JSON" in item for item in plan["text_flow"])
     assert plan["physical_score"] is None
     assert run["physical_score"] is None
     assert run["data"] == {}
