@@ -479,7 +479,7 @@ Pion 实际数组读取入口 [`common.load_data`](common.py) 也新增可选 sn
 
 文字流程：`development provenance + development NPZ -> bounded snapshot -> bundle_for(snapshot) -> protocol/hash/ID/shape/finite checks -> development-only bundle + source hash record`。合成 NPZ 在 capture 后覆写原文件，bundle 仍返回捕获数组；source-files denominator `2/2/0/0`，`validation` 不在 bundle 中；malformed provenance、snapshot 缺项与额外 validation 名称均被拒绝。`tests/test_pion_source_snapshot_reader.py tests/test_pion_agent.py` **7 passed**。此回归不读任何 Pion measurement；真实测量文件 denominator `0/0/0/0`。
 
-这把 snapshot 接入通用 Pion measurement bundle 入口，但并未切换 `experiment.py`、`candidate.py`、`axial.py`、`ranking.py` 的默认数据通路，也未构造 score/anchor 两条统计证据 envelope。后续若不引入新的数据授权，可继续把 snapshot 参数逐层传入 development-only 的 fit/risk reader，确保 protocol、NPZ、拟合输入和输出 summary 都由同一 captured bytes 派生；validation、E-reference、anchor 与 gap 等仍须按用户封存要求保持未读取。只有在支持域、依赖、common-bias 与 identity-bound receipts 齐备后才可给统计 adapter 传完整 envelope；当前仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
+这把 snapshot 接入通用 Pion measurement bundle 入口，但并未切换 `experiment.py`、`candidate.py`、`axial.py`、`ranking.py` 的默认数据通路，也未构造 score/anchor 两条统计证据 envelope。此处提出的 development-only fit/risk snapshot 接线随后已在本文件“development 拟合入口的 snapshot 接线”和“development snapshot 拟合/风险摘要与产物 hash manifest”两节完成；`candidate.py`、`axial.py`、`ranking.py` 默认路径仍未切换。validation、E-reference、anchor 与 gap 等仍须按用户封存要求保持未读取；只有在支持域、依赖、common-bias 与 identity-bound receipts 齐备后才可给统计 adapter 传完整 envelope；当前仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
 
 ### 2026-11-26 Pion development 拟合入口的 snapshot 接线
 
@@ -487,7 +487,7 @@ Pion 实际数组读取入口 [`common.load_data`](common.py) 也新增可选 sn
 
 文字流程：`开发 split provenance + NPZ -> bounded immutable snapshot -> protocol/hash/ID/shape/finite 校验 -> experiment.develop 的 fold/block/reference/risk 输入 -> 新目录保存 source-hash-bound development 结果 -> 未获准且未提供独立验证事务时 evaluate 停止`。snapshot synthetic fixture 的 source-file denominator=`2/2/0/0`、configuration denominator=`30/30/0/0`；在修改原路径后仍读捕获 bytes。fit/risk/optimizer 测试桩逐项断言收到的数组等于捕获 development bytes 经协议 fold/block 变换得到的输入，并检查 protocol；同时覆盖哈希传播、no-clobber 与封存 split 拒绝，不判断物理拟合数值。`tests/test_pion_source_snapshot_reader.py` **6 passed**，本轮 PR #5 checkout 全仓 CPU suite **251 passed**。
 
-仍未接入 `candidate.py`、`axial.py`、`ranking.py` 的完整 production reader，snapshot-only 结果也没有 E-reference、anchor scalar map、score/anchor 独立性、`gamma_ps`/TV 或 common-bias `C` 收据；所以此接线仍是 development 输入路径，不是统计/物理 gate，也不证明 evaluator 输出由同一 snapshot 派生。所有真实 Pion measurement/source denominator 本轮为 `0/0/0/0`，未读 E/gap/validation/shared holdout、缓存或 GPU；保持 `NOT_READY/UNCERTIFIED` 与 `physical_score=null`。下一软件阶段可在同一 reader 对象上增加明确的 development fit/risk summary 反算和 source hash consistency；不要把这一阶段接成默认 validation evaluator。
+仍未接入 `candidate.py`、`axial.py`、`ranking.py` 的完整 production reader，snapshot-only 结果也没有 E-reference、anchor scalar map、score/anchor 独立性、`gamma_ps`/TV 或 common-bias `C` 收据；所以此接线仍是 development 输入路径，不是统计/物理 gate，也不证明物理 evaluator 已由同一 snapshot 派生。所有真实 Pion measurement/source denominator 本轮为 `0/0/0/0`，未读 E/gap/validation/shared holdout、缓存或 GPU；保持 `NOT_READY/UNCERTIFIED` 与 `physical_score=null`。此处提出的 development fit/risk summary 与 source-hash consistency 工作已由文末“development snapshot 拟合/风险摘要与产物 hash manifest”完成；下一阶段是独立 review 和获准 receipts，不把 snapshot-only development 输出接成默认 validation evaluator。
 
 ### 2026-11-26 immutable NPZ 解压预算预检
 
