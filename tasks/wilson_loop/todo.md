@@ -470,3 +470,17 @@ q_upper(T) = max_over_(tmin,state_count) sum_n ratio_upper[n] * exp(-gap_lower[n
 复核当前 [`lane_contract_v2.json`](lane_contract_v2.json) 与 [`spectral_q_bound_reader.py`](spectral_q_bound_reader.py) 还发现：合同写了 `t0=1, td=2`，reader 只核对这两个整数，却没有定义 `td` 是固定 eigenvector diagonalization time、moving GEVP 的某个时间，还是 fit 参数；也未定义 `overlap_ratio_upper` 指原始 smear operator overlaps 还是 GEVP-projected operator overlaps。二者在一般截断谱中不能静默互换。这是 raw correlator/GEVP producer 接 gate 前必须补的协议定义。
 
 文字流程：`4-state exact forward spectrum -> 3x3 C(t) -> fixed-t0 moving GEVP -> t=3..7 effective-energy pairs -> t0/basis-truncation sensitivity plot -> identify td/operator-overlap ambiguity -> keep F uncertified`。下一软件步骤先将 `td` 语义、overlap 的算符对象和有限-`N_t` 模型写入新版本合同，再据此实现同一 `SourceByteSnapshot` 的 raw matrix reader、GEVP/overlap fit 与 paired interval producer；用 exact three-state recovery、omitted-state bias、非正/近奇异矩阵、split/hash 和覆盖率边界测试闭合调用链。没有经审阅的 producer/consumer 合同、coverage、热污染、mixed-sector、force/reference receipts 与授权前，不连接物理 gate，保持 `GROUND_STATE_FORCE_UNCERTIFIED`、`NOT_READY/UNCERTIFIED`、`physical_score=null`。
+
+### 2026-11-26 F-lane `td` / overlap 对象提案及精确谱 toy
+
+新增 [`gevp_overlap_object_diagnostic.py`](gevp_overlap_object_diagnostic.py)、5 个定向回归和[图文诊断包](gevp_overlap_object_diagnostic_20261126_v1/README.md)。为使后续 reader 有唯一可执行定义，先给出候选默认值：`t0=1` 是广义本征问题的 metric reference；`td=2` 是固定一次的 principal-vector 求解时间，解 `C(td)v0=λ0 C(t0)v0` 并取最大正本征值向量，以 `v0†C(t0)v0=1` 归一化。按本任务相关函数约定 `C_ij(t)=Σ_n Z_ni Z*_nj exp(-E_n t)`，将此向量定义出的固定投影算符 overlap 设为 `Z_n(v0)=Σ_i v0_i* Z_ni`，并计算
+
+```text
+q_v(T) = Σ_{n>0} |Z_n(v0)/Z_0(v0)|² exp[-(E_n-E_0)T],  T∈{5,6}.
+```
+
+这是一项**供独立审阅的合同提案**，尚未写入 `lane_contract_v2.json`，也未接入 q-bound reader 或物理 gate。有限四态、三算符、无限时间 extent、无噪声 toy 显示对象差异非常大：`td=2` 投影的 `q(5),q(6)=8.8819,7.7106`；三个原始算符中的最大值为 `0.9880,0.7742`，前者分别约为后者的 `8.99×,9.96×`。保持同一四态谱，只改固定投影时间 `td=3,4,5`，`q(5)` 变为 `4.2709,1.4458,0.4735`；与此同时 `cond[C(td)]` 从 `29.4` 增至 `45.9`。因此当前数据结构中的 `overlap_ratio_upper` 必须明确是某个固定 GEVP-projected operator 的逐态比值，不能接受未说明是原始 smear 基还是投影态的数组。toy 的 `q(T)` 只表示正向谱污染项，不等于有效能量偏差；结果不意味着真实投影必然更差，也不确定生产 `td`。
+
+图文流程：`exact 4-state spectrum + 3 bare operators -> solve (td,t0) principal vector -> C(t0)-normalize and fix phase -> derive projected Z_n -> q(T=5,6) -> compare original-basis objects and td choices -> reviewer candidate only; F remains uncertified`。分母：原始算符×T 单元 `6/6/0/0`，GEVP `td×T` 单元 `16/16/0/0`，物理 correlator/spectrum 输入 `0/0/0/0`，认证门 `1/0/0/1`（planned/valid/failed/abstained）。新增测试验证三态恰满秩时 excited overlaps 消去、第四态截断时 q 对象/td 敏感、向量缩放与相位不改 q，以及奇异 metric/零基态 overlap 拒绝；新增定向测试 **5 passed**，复跑 Wilson 专项 suite **99 passed**、PR #6 全仓 CPU suite **326 passed**。报告自带 protocol、CSV、PNG、源码/合同快照与 SHA-256 manifest。
+
+下一步可由独立物理 reviewer 先审 `C_ij` 与投影 overlap 的共轭/指标约定、`td=2` 的物理适用性和 q-bound 上界含义；认可后再出 `lane_contract_v3` 并实现同一 `SourceByteSnapshot` 的 raw 3×3 matrix → covariance-aware GEVP/state-overlap fit → paired interval reader。覆盖应增加有噪声 bootstrap、有限-`N_t` 双向谱、近简并态、接近零的 `Z_0(v0)`、投影向量换相位/基变换和估计覆盖率诊断。没有这些受审合同、同字节 raw correlator、matched-`N_t=32` 热项、mixed `x`、force/reference intervals、独立 coverage/review 与授权之前，不能由 toy 数据填入 `q`，不能连接 F gate；继续 `GROUND_STATE_FORCE_UNCERTIFIED`、`NOT_READY/UNCERTIFIED`、`physical_score=null`。

@@ -6,7 +6,7 @@
 
 ### 2026-11-26 当前 CPU 验证快照
 
-当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **144 passed**；包含新 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。新增 Wilson moving-GEVP truncation diagnostic 后，PR #6 完整 CPU suite 为 **321 passed**，其中 Wilson lane/file suite 为 **94 passed**；PR #5 的 Pion 分支独立全仓 suite 为 **257 passed**。这些数只代表当前源码的 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
+当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **144 passed**；包含 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。加入 Wilson GEVP truncation 与 overlap-object diagnostics 后，本轮 PR #6 完整 CPU suite **326 passed**、Wilson 文件集 **99 passed**；PR #5 的 Pion 分支本轮独立全仓 suite **257 passed**。这些数只代表当前源码的 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
 
 ### 2026-11-25：D06 percentile hull synthetic coverage pilot 显示欠覆盖
 
