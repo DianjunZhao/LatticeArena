@@ -38,7 +38,14 @@ def test_selected_method_defaults_cannot_be_confused_with_empirical_receipts():
     assert contract["selected_protocol"]["dependence_design"]["gamma_ps_lower_bound_requirement"] == 0.2
     assert contract["selected_protocol"]["dependence_design"]["gamma_ps_receipt_sha256"] is None
     assert contract["selected_protocol"]["anchor_design"]["coverage_receipt_sha256"] is None
-    assert contract["selected_protocol"]["anchor_design"]["markov_fallback"]["planned_anchor_units"] == 4000
+    anchor = contract["selected_protocol"]["anchor_design"]
+    assert anchor["method"] == "markov_pseudo_gap_bernstein"
+    assert anchor["planned_anchor_units"] == 4000
+    assert anchor["gamma_ps_lower_bound_requirement"] == 0.2
+    assert anchor["burn_in_units"] == 8
+    assert anchor["post_burn_in_tv_bound"] == 0.001
+    assert anchor["state_map"].startswith("UNRESOLVED")
+    assert anchor["iid_fallback"]["independent_stationary_units_required"] == 1000
     contract["selected_protocol"]["dependence_design"]["planned_scored_blocks"] = 20
     result = inspect_contract(contract)
     assert result["status"] == "NOT_READY"

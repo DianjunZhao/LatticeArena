@@ -9,7 +9,6 @@ import argparse
 import csv
 import hashlib
 import json
-import math
 from pathlib import Path
 
 import matplotlib
@@ -19,11 +18,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from .bounded_block_risk_contract import selected_protocol
+from .bounded_block_risk_anchor_markov import markov_anchor_bound
 from .bounded_block_risk_markov_gap import markov_gap_radius_after_initial_tv
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUT = ROOT / "results/pion_projection/anchor_bias_feasibility_cpu_20261125_v1"
+DEFAULT_OUT = ROOT / "results/pion_projection/anchor_bias_feasibility_markov_anchor_20261126_v2"
 CONTRACT = ROOT / "tasks/pion_projection/bounded_block_risk_contract_v1.json"
 
 
@@ -40,9 +40,23 @@ def selected_inputs() -> dict:
     dependence = plan["dependence_design"]
     support = [float(value) for value in anchor["support_interval"]]
     width = support[1] - support[0]
-    n_anchor = int(anchor["independent_stationary_units_required"])
+    n_anchor = int(anchor["planned_anchor_units"])
     alpha_anchor = float(anchor["alpha"])
-    random_radius_over_R = math.sqrt(math.log(2.0 / alpha_anchor) / (2.0 * n_anchor))
+    anchor_gamma = float(anchor["gamma_ps_lower_bound_requirement"])
+    anchor_tv = float(anchor["post_burn_in_tv_bound"])
+    anchor_burn_in = int(anchor["burn_in_units"])
+    anchor_result = markov_anchor_bound(
+        sample_count=n_anchor,
+        gamma_ps_lower=anchor_gamma,
+        alpha_anchor=alpha_anchor,
+        support=tuple(support),
+        common_bias_bound=0.0,
+        initial_law_tv_bound=anchor_tv,
+        burn_in_units=anchor_burn_in,
+        stationary_start=False,
+        score_scale_R=width,
+    )
+    random_radius_over_R = anchor_result["random_coverage_radius"] / width
     tv = float(dependence["post_burn_in_tv_bound_per_comparison"])
     radius, _ = markov_gap_radius_after_initial_tv(
         blocks=int(dependence["planned_scored_blocks"]),
@@ -62,6 +76,11 @@ def selected_inputs() -> dict:
         "support_width_R": width,
         "n_anchor": n_anchor,
         "alpha_anchor": alpha_anchor,
+        "anchor_gamma_ps_lower_assumed": anchor_gamma,
+        "anchor_tv_bound_assumed": anchor_tv,
+        "anchor_burn_in_units_assumed": anchor_burn_in,
+        "anchor_stationary_alpha_after_tv": anchor_result["stationary_alpha_after_tv"],
+        "anchor_method": anchor["method"],
         "anchor_random_radius_over_R": random_radius_over_R,
         "planned_score_blocks": int(dependence["planned_scored_blocks"]),
         "gamma_ps_lower_assumed": float(dependence["gamma_ps_lower_bound_requirement"]),
@@ -132,7 +151,7 @@ def build(output: Path = DEFAULT_OUT) -> dict:
     selected_lcb = inputs["best_case_lcb_before_C"] - 2 * inputs["selected_C_over_R"]
     trivial_lcb = inputs["best_case_lcb_before_C"] - 2.0
     protocol = {
-        "schema": "pion-anchor-common-bias-feasibility-v1",
+        "schema": "pion-anchor-common-bias-feasibility-v2",
         "evidence_class": "analytic_selected_contract_sensitivity_only",
         "inputs": inputs,
         "formula": "best_case_LCB=1-score_radius-2*TV-2*(anchor_random_radius/R+C/R)",
@@ -152,6 +171,7 @@ def build(output: Path = DEFAULT_OUT) -> dict:
             "bounded_block_risk_contract_v1.json": _sha256(CONTRACT),
             "bounded_block_risk_contract.py": _sha256(Path(__file__).with_name("bounded_block_risk_contract.py")),
             "bounded_block_risk_markov_gap.py": _sha256(Path(__file__).with_name("bounded_block_risk_markov_gap.py")),
+            "bounded_block_risk_anchor_markov.py": _sha256(Path(__file__).with_name("bounded_block_risk_anchor_markov.py")),
             "anchor_bias_feasibility_diagnostic.py": _sha256(Path(__file__)),
         },
     }
@@ -170,7 +190,7 @@ LCB_max = 1 - score_radius - 2*TV
              - 2*(anchor_random_radius/R + C/R).
 ```
 
-The selected plan gives score radius `{inputs['score_radius']:.9f}`, `2*TV={2*inputs['post_burn_in_tv_assumed']:.6f}`, and bounded-IID anchor random radius/R `{inputs['anchor_random_radius_over_R']:.9f}` from `n_A={inputs['n_anchor']}`, `alpha_A={inputs['alpha_anchor']}`. Even under this best possible score mean, the threshold `delta_star/R^2={inputs['delta_star_over_R2']:.3f}` can only be reached if `C/R < {inputs['C_over_R_max_for_any_best_case_pass']:.6f}`. This is a necessary feasibility ceiling, not a sufficient certificate or a recommended estimate of `C`.
+The selected plan gives score radius `{inputs['score_radius']:.9f}`, `2*TV_score={2*inputs['post_burn_in_tv_assumed']:.6f}`, and conditional Markov-anchor random radius/R `{inputs['anchor_random_radius_over_R']:.9f}` from `n_A={inputs['n_anchor']}`, `gamma_A={inputs['anchor_gamma_ps_lower_assumed']}`, `TV_A={inputs['anchor_tv_bound_assumed']}`, burn-in `{inputs['anchor_burn_in_units_assumed']}`, and `alpha_A={inputs['alpha_anchor']}`. The anchor TV allowance is spent from `alpha_A`, leaving stationary tail level `{inputs['anchor_stationary_alpha_after_tv']:.6f}`; it is not added as a score-mean shift. Even under this best possible score mean, the threshold `delta_star/R^2={inputs['delta_star_over_R2']:.3f}` can only be reached if `C/R < {inputs['C_over_R_max_for_any_best_case_pass']:.6f}`. This is a necessary feasibility ceiling, not a sufficient certificate or a recommended estimate of `C`.
 
 The selected design budget `C/R={inputs['selected_C_over_R']:.3f}` gives best-case LCB `{selected_lcb:.6f}`. If one uses only the trivial range fact that both the clipped anchor scalar and `m*` lie in `{inputs['support_interval']}`, then `C<=R={inputs['support_width_R']:.3f}` and `C/R=1`; the best-case LCB becomes `{trivial_lcb:.6f}`. Thus clipping or bounded support alone cannot support the chosen score. The required `C/R<=0.01` is a separate bridge that needs a physical estimator/bias argument and an independent receipt.
 
@@ -182,9 +202,11 @@ The selected design budget `C/R={inputs['selected_C_over_R']:.3f}` gives best-ca
 - Physical evidence gate: `1/0/0/1`; anchor map, `C` coverage, independence, and chain/reference receipts are absent.
 
 ```text
-declared support [0.1,3.0] -> trivial C/R <= 1 -> best-case LCB below threshold
+declared support [0.1,3.0] + Markov receipts (n_A=4000, gamma_A>=0.20, burn-in=8, TV_A<=0.001)
+  -> conditional random radius/R from corrected Markov Bernstein
+  -> trivial support-only C/R <= 1 still gives best-case LCB below threshold
   -> need an estimator-specific common-bias bridge C/R <= 0.01 with receipt
-  -> independent review of scalar map and score-chain independence
+  -> independently review scalar map, target correspondence, and score/anchor conditional independence
   -> only then consider a fresh authorized confirmation; otherwise ABSTAIN
 ```
 

@@ -324,7 +324,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
     (out / "README.md").write_text("\n".join([
         "# Markov-aware anchor coverage: conditional planning diagnostic",
         "",
-        "This report adds a dependent-anchor route for the case where 1000 IID stationary anchor units cannot be justified. It is an optional fallback; it does not replace the selected IID Hoeffding route or certify its assumptions.",
+        "This report gives the selected conditional Markov-anchor planning route. Its formula scenarios do not establish a valid state-to-scalar map, support, chain gap, TV bound, common-bias bridge, or any physical receipt; the anchor evaluator must abstain until those inputs are independently reviewed.",
         "",
         "## Bound and scope",
         "",

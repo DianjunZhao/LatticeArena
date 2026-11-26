@@ -98,38 +98,38 @@
       "initial_law_tv_receipt_sha256": null
     },
     "anchor_design": {
-      "method": "bounded_iid_hoeffding",
-      "independent_stationary_units_required": 1000,
+      "method": "markov_pseudo_gap_bernstein",
+      "planned_anchor_units": 4000,
+      "gamma_ps_lower_bound_requirement": 0.2,
+      "burn_in_units": 8,
+      "post_burn_in_tv_bound": 0.001,
       "support_interval": [
         0.1,
         3.0
       ],
       "alpha": 0.01,
-      "coverage_radius_formula": "(3.0-0.1)*sqrt(log(2/0.01)/(2*1000))",
+      "coverage_radius_formula": "markov_gap_radius(n_A=4000,gamma_ps=0.20,family=1,alpha_stationary=0.009,variance=(3.0-0.1)^2/4,centered_abs_bound=3.0-0.1)",
       "common_bias_bound_C_max_over_R": 0.01,
-      "total_error_B_over_R_formula": "sqrt(log(2/0.01)/(2*1000))+0.01",
+      "total_error_B_over_R_formula": "(random_coverage_radius+0.029)/2.9",
       "coverage_receipt_sha256": null,
       "common_bias_receipt_sha256": null,
       "score_anchor_independence_receipt_sha256": null,
-      "markov_fallback": {
-        "method": "markov_pseudo_gap_bernstein",
-        "planned_anchor_units": 4000,
-        "gamma_ps_lower_bound_requirement": 0.2,
-        "burn_in_units": 8,
-        "post_burn_in_tv_bound": 0.001,
-        "alpha_anchor": 0.01,
-        "shared_anchor_interval_family": 1,
-        "common_bias_C_max_over_R": 0.01,
+      "shared_anchor_interval_family": 1,
+      "state_map": "UNRESOLVED: no per-configuration pion-mass proxy is accepted; the ensemble-averaged nonlinear fit is not a scalar state map",
+      "receipts_required": [
+        "anchor_scalar_map_receipt_sha256",
+        "anchor_chain_receipt_sha256",
+        "gamma_ps_lower_receipt_sha256",
+        "initial_law_tv_receipt_sha256",
+        "common_bias_coverage_receipt_sha256",
+        "conditional_independence_receipt_sha256"
+      ],
+      "iid_fallback": {
+        "method": "bounded_iid_hoeffding",
+        "independent_stationary_units_required": 1000,
         "support_interval": [0.1, 3.0],
-        "state_map": "fixed bounded scalar from each anchor chain state; the ensemble-averaged nonlinear fit is not this scalar by default",
-        "receipts_required": [
-          "anchor_scalar_map_receipt_sha256",
-          "anchor_chain_receipt_sha256",
-          "gamma_ps_lower_receipt_sha256",
-          "initial_law_tv_receipt_sha256",
-          "common_bias_coverage_receipt_sha256",
-          "conditional_independence_receipt_sha256"
-        ]
+        "alpha": 0.01,
+        "precondition": "Use only if every anchor unit is receipt-proven IID from the target stationary distribution and the same fixed scalar-map/support/common-bias bridge is reviewed"
       }
     },
     "gates": {

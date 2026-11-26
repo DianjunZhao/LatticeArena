@@ -2,7 +2,15 @@
 
 ### 当前控制状态（2026-11-26）
 
-`F=3`、bounded block-risk、score/anchor 错误预算和 Markov 备选路线均已有明确方案及图文敏感度诊断；研究默认值已自选为 `a_t m_pi`、`R=2.9`、clip `[-1,1]`、`delta_star=0.4205`、效应门 `0.05`、Markov 侧 `gamma_ps>=0.20`/burn-in `8`/`N=4000`/TV `<=0.001`、anchor IID `1000` 或 Markov `4000`，以及 `C/R<=0.01` 的拟议上限。无需再向用户询问这些可由研究设计决定的数值；它们仍是方法默认值，不是实测收据或外部授权。通用 `core/evidence.py` 的 schema v2 校验 evidence/source hashes、reviewer role claim 与 independence-claim hash，并对缺项/错配 fail closed。Pion task adapter 将选定方法 defaults 和分母接到原子 bundle gate，默认要求显式 source root/path maps 并逐项核验当前读取字节，因此完整 statistical stage 最多到 `draft`。它只验证当前 bytes 与调用方 digest 一致，不认证 digest authority、reviewer 身份、统计独立性或物理有效性，也不计算物理 score。真实链的 `gamma_ps`/TV、E-reference、anchor scalar map、支持域/协方差或 common-bias `C` 收据仍缺。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`；按用户要求，E/gap/validation/shared holdout/confirmation 保持封存，不启动 GPU/QUDA。下一步不是再选设计数值，而是核验实际 receipts/方法假设，并在确认具备有效 support、协方差和 bias bridge 后才接 evaluator；历史章节里的缺省输入表以新方案为准。
+`F=3`、bounded block-risk、score/anchor 错误预算和 Markov 覆盖路线已有明确方案及图文敏感度诊断；研究默认值已自选为 `a_t m_pi`、`R=2.9`、clip `[-1,1]`、`delta_star=0.4205`、效应门 `0.05`、score-chain `gamma_ps>=0.20`/burn-in `8`/`N=4000`/TV `<=0.001`、**anchor-chain Markov Bernstein `n_A=4000`、`gamma_A>=0.20`、burn-in `8`、TV `<=0.001`、`alpha_A=0.01`**，以及拟议 `C/R<=0.01`。选择 Markov anchor 为主路，是因为本任务的 HMC 配置不应在没有来源证明时假定为 IID；`n_A=1000` bounded-IID Hoeffding 只保留为确有 1000 个 IID stationary units 收据时的备选。关键限制也已明确：全局 PP/A4P 非线性拟合不是每个链状态上的单一有界标量，因此当前没有合格 anchor scalar map，Markov 数值只是条件设计，不能直接进入校准。通用 `core/evidence.py` 的 schema v2 校验 evidence/source hashes、reviewer role claim 与 independence-claim hash，并对缺项/错配 fail closed。Pion task adapter 将选定方法 defaults 和分母接到原子 bundle gate，默认要求显式 source root/path maps 并逐项核验当前读取字节，因此完整 statistical stage 最多到 `draft`。它只验证当前 bytes 与调用方 digest 一致，不认证 digest authority、reviewer 身份、统计独立性或物理有效性，也不计算物理 score。真实 score/anchor 链的 `gamma_ps`/TV、E-reference、anchor scalar map、支持域/协方差或 common-bias `C` 收据仍缺。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`；按用户要求，E/gap/validation/shared holdout/confirmation 保持封存，不启动 GPU/QUDA。下一步不是再选设计数值，而是用未封存数据-free 输入把 scalar-map/target correspondence 与支持/共偏差证明做成可审阅的条件 evaluator；在此之前继续 fail closed。
+
+### 2026-11-26 自选 anchor 覆盖主路：Markov-aware，不假定 IID
+
+我将 anchor coverage 主路定为固定有界标量的 Markov pseudo-gap Bernstein：`n_A=4000` 链状态、`gamma_ps>=0.20`、8 个状态 burn-in 后 `TV<=0.001`、共享 `alpha_A=0.01`、support `[0.1,3.0]`、拟议 `C<=0.029`（即 `C/R<=0.01`）。TV 从 anchor alpha 中扣除，所以 stationary Bernstein 项使用 `alpha_A-TV=0.009`；单一 anchor 区间在三个 score comparisons 间共享，family size 为 1。对应现有 helper 的规划算术为随机半径 `0.585915 a_t m_pi`、总误差 `B=0.614915 a_t m_pi`、score 修正 `2B/R=0.424079`。连同 score-chain 最坏计划半径约 `0.386316` 和 score-chain `2TV=0.002` 扣减，在 score 均值取理论最大值 1 的理想上限下 LCB 约 `0.1876`，高于预设 `0.05`；这仅说明设计在最乐观算术下非空，不表示 coverage、效果或 anchor map 已成立。
+
+这项选择明确排除“把 HMC 配置数量、间隔、ESS 或 bootstrap 次数直接当 IID 样本数”。IID Hoeffding `n_A=1000` 保留为次选，只有真实来源能证明每个单位相互独立、来自目标平稳分布，且同样的 scalar-map/support/common-bias bridge 通过审阅时才可启用。**当前 anchor evaluator 仍必须弃权**：先前全局 ensemble PP/A4P 拟合的质量是非线性整体统计量，不是每个 gauge configuration 自然产生的标量。除非给出一个预先固定、取值确实在 `[0.1,3.0]` 的状态映射，并独立证明其 stationary mean 与目标 `m*` 相差不超过 `C=0.029`，否则不得调用 Markov anchor 界或计算物理 score。统计/数学收据与新数据授权分别是不同门。既有 `F3_markov_sensitivity_v1` 生成于 IID anchor 是主路的旧合同版本；其中的 Hoeffding anchor 扣减和最佳情形 LCB `0.488744` 不代表当前 Markov-anchor 方案，保留为历史敏感度，不重写历史产物。
+
+文字数据流：`独立 E-chain 状态 -> 固定标量映射及支持证明 -> anchor-chain 条件/gamma/TV receipt -> scalar-mean 到 global-fit m* 的 C bridge -> 与 score-chain 独立性 -> 计算 B 和 2B/R -> 全部门通过才进入 bounded LCB；任何 map/support/C/gap 缺失即 ABSTAIN`。本轮只改方法默认值与审计文字，没有新数据读取、coverage 模拟或物理测量；真实 anchor denominator 仍 `0/0/0/0`。
 
 ### 2026-11-25 接续复核：anchor-fit 区间桥仍不能安全实现
 
@@ -37,17 +45,17 @@
 | 最小效应 | `delta_star=0.05 R^2=0.4205 (a_t m_pi)^2`；要求 familywise LCB `>0.05` | 把最大归一化损失差的 5% 选作最低有意义改善门槛；这是工程/研究判据，不是由旧 pilot 推出的物理常数 |
 | 比较族与显著性 | `F=3`：候选对 local identity、tuned `H^32`、frozen signed-SLSQP；`alpha_total=0.05`, `alpha_score=0.04`, `alpha_anchor=0.01` | 三个比较均固定在 development 选择完成之后的 confirmation family 中；必须在报告里保留每个 comparison 的 planned denominator |
 | score 依赖 | 主路选 fixed-score non-reversible block-Markov pseudo-gap Bernstein；block 是连续 5 个配置，固定同一个 score map。设计门槛：`N=4000` 个 scored blocks、`gamma_ps_lower>=0.20`、burn-in 8 blocks 后 `delta_TV<=0.001` | `F*delta=0.003<alpha_score`；按现有实现与剩余 `alpha=0.037` 计算，浓缩半径约 `0.3863`。这说明该证明路线很保守，旧 D receipt 的 20 个 length-5 blocks 远不足以给出非平凡 LCB。数值是下一版设计要求，不是现有 chain 的估计 |
-| anchor 覆盖 | 选 bounded-IID Hoeffding：`n_A=1000` 个独立 stationary anchor 单位、每个输出限制在 `[0.1,3.0]`、双侧 `alpha_A=0.01` | 随机覆盖半径 `R*sqrt(log(2/alpha_A)/(2*n_A))=0.1493 a_t m_pi=0.05147R`；common-bias 预算定为 `C<=0.01R=0.029`，故 `B=radius+C<=0.1783 a_t m_pi=0.06147R`，score anchor correction `2B/R<=0.12294`。独立性、stationarity 和 C 上界都必须有单独收据；没有这些条件就不能调用 Hoeffding |
+| anchor 覆盖 | 主路：Markov pseudo-gap Bernstein，`n_A=4000`、`gamma_A>=0.20`、burn-in 8 后 `TV_A<=0.001`、`alpha_A=0.01`、support `[0.1,3.0]`；IID Hoeffding `n_A=1000` 仅作经收据证明的备选 | 共享 anchor family=1，stationary alpha=`0.009`；规划随机半径 `0.585915`、加拟议 `C=0.029` 后 `B=0.614915 a_t m_pi`，因此 `2B/R=0.424079`。全部依赖独立 anchor-chain gap/TV、固定有界 scalar map、目标偏差 C 和 score/anchor 条件独立收据；这些收据当前都缺，不能调用该界 |
 
 既有 `F=2` 依赖/coverage 模拟是历史敏感度诊断；本次已按选定的 `F=3` 比较族完成纯公式敏感度图、CSV 和流程说明，见 [`F3_markov_sensitivity_v1/README.md`](F3_markov_sensitivity_v1/README.md)。图示网格含245个公式情景，其中140个可计算、105个因 alpha/LCB 条件弃权、0个数值失败；物理测量分母仍为0/0/0/0。规划点 `N=4000, gamma_ps=0.20, TV=0.001` 在假设 score mean 达到理论最大1时给出半径0.386316、最佳可能归一化 LCB 0.488744；这些只是条件算术，不是测量或覆盖证据。不要重跑 F=3 网格，也不要把 `F=2` 覆盖率移植到 `F=3` 合同。
 
 ![F=3 block-Markov 解析敏感度](F3_markov_sensitivity_v1/sensitivity.svg)
 
-**目前不能由我填造的证据：**实际 `m*` 数值、Markov chain 的 `gamma_ps` 下界、8-block 后 TV 界、1000 个独立 anchor 单位、common-bias `C` 证据和 E-chain correlator receipt。旧的 D0–99 receipt 只对应 20 个长度 5 的候选块，既不证明独立性也不支持上述覆盖。现有 S16T16 reference gate 已失败；所以这些设计数值不能把状态升级为 `READY`，合同的物理数据收据保持缺失，`physical_score=null`，sealed E/gap/validation/holdout 继续关闭。
+**目前不能由我填造的证据：**实际 `m*` 数值、score 与 anchor Markov chains 各自的 `gamma_ps` 下界、各自 burn-in/TV 收据、anchor scalar map/support/C 证明、两链条件独立 receipt 和 E-chain correlator receipt。旧的 D0–99 receipt 只对应 20 个长度 5 的候选块，既不证明 score-chain 独立性也不支持上述覆盖。现有 S16T16 reference gate 已失败；所以这些设计数值不能把状态升级为 `READY`，合同的物理数据收据保持缺失，`physical_score=null`，sealed E/gap/validation/holdout 继续关闭。
 
-文字流程：`独立 candidate-blind E 谱拟合 -> 通过 reference/model gate -> 单一 bounded score map 与三比较族 -> 证明 block-Markov gamma/TV -> 独立 anchor 的 99% Hoeffding 半径 + C -> 对完整 N=4000 计划块计算 LCB -> LCB>0.05 且所有门通过才可申请新 confirmation；否则 ABSTAIN`。
+文字流程：`独立 candidate-blind E 谱拟合 -> 通过 reference/model gate -> 单一 bounded score map 与三比较族 -> 证明 score-block Markov gamma/TV -> 证明独立 anchor-chain scalar map/support/gamma/TV/C -> 对完整 N=4000 计划块计算 LCB -> LCB>0.05 且所有门通过才可申请新 confirmation；否则 ABSTAIN`。
 
-**交接规则：**本文件下方较早的“等待用户选择 target/R/clipping/delta_star”均为历史记录，现由本节默认值覆盖；machine-readable contract 与 `F=3` 公式诊断均已完成。后续不再重复合同/模拟工作，只补独立 E-chain reference、score-specific `gamma_ps`/TV 收据、anchor 覆盖与 common-bias `C` 证据、独立审阅和授权。bounded-IID Hoeffding 的1000个 anchor 单位必须真为相互独立且来自目标平稳分布；同一 HMC 链的1000个配置、trajectory gap、ESS 或 bootstrap 次数都不满足此假设。若无法证明 IID，就不能套 Hoeffding，须另行实现并审阅 Markov-aware anchor coverage bound。无这些证据时保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`；不要读封存 split 或把 synthetic fixture 升格为实测证据。
+**交接规则：**本文件下方较早的“等待用户选择 target/R/clipping/delta_star”均为历史记录，现由本节默认值覆盖；machine-readable contract 与公式诊断均已完成。后续不再重复相同合同/模拟工作，只补独立 E-chain reference、score-specific `gamma_ps`/TV 收据、anchor scalar-map/support/C bridge、anchor-chain `gamma_ps`/TV 和独立审阅/授权。bounded-IID Hoeffding 的1000个单位仅当真实 IID stationary units 有 receipt 时作为备选；同一 HMC 链的配置数、间距、ESS 或 bootstrap 次数均不能满足该假设。当前 Markov route 也不能在 scalar map 缺失时直接套用。无这些证据时保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`；不要读封存 split 或把 synthetic fixture 升格为实测证据。
 
 ## 决策状态
 
@@ -172,7 +180,7 @@ zbar_valid > (delta_star/R^2 + epsilon + 2B/R + phi_hat) / (1-phi_hat)
 
 1. **reference：**自选的 candidate-blind 联合谱方案已进合同；旧 single-cosh `FAIL` 仍有效。只有独立 E-chain receipt 和数据授权到位后才运行新 reference；交付拟合残差/窗口与态数稳定性图、PP/A4P 一致性、边界命中表、planned/valid/failed/abstained 分母及独立审阅。任一 reference gate 失败就保持 unresolved。
 2. **score dependence：**如未来获准，固定同一 score map、每 block 连续5个配置，按 `N=4000`、`gamma_ps>=0.20`、8-block burn-in 后 TV `<=0.001` 的预注册要求提交 score-specific 证明和 receipt。D0–99 的20个候选 length-5 blocks、trajectory spacing 和 bootstrap 不能代替这些证据。
-3. **anchor：**合同选择 `n_A=1000`、support `[0.1,3.0]`、`alpha_A=0.01`、`C/R<=0.01`。1000 units 必须是相互独立且来自目标平稳分布的真实 IID draws；同一 HMC 链的配置数不能充作 IID 样本。若无法证明 IID，Hoeffding 路线不可用，先另提并审阅 Markov-aware anchor coverage bound，不能用 ESS 代入。
+3. **anchor：**合同主路选择 `n_A=4000`、`gamma_A>=0.20`、burn-in 8、post-burn-in `TV_A<=0.001`、support `[0.1,3.0]`、`alpha_A=0.01`、`C/R<=0.01`。先验证固定 scalar map、支持界、scalar target correspondence 和独立 C bridge；未闭合即不调用覆盖界。1000-unit IID Hoeffding 仅在真实 IID stationary units 有收据且同一 map/C 条件成立时作备选。不得用 ESS、trajectory spacing 或 bootstrap 代入 IID/gap 证明。
 4. **独立审阅与确认：**只有 reference、dependence、anchor、source identity 与 common-bias receipts 全部齐全并获未封存数据/资源 owner 授权后，才运行 F=3 confirmation。任何缺项均 `ABSTAIN/NOT_READY`；不得读取 sealed split、启动 GPU/QUDA 或产生 `physical_score`。
 5. **诊断交付：**每项都附图或可复查文字数据流，列清 planned/valid/failed/abstained、原因、剪裁前后 score、各误差扣减、`LCB` 和输入 hashes。现有 F=3 公式图与 CSV 已完成，不再重跑同一网格。
 
@@ -449,7 +457,7 @@ Pion adapter 现已把显式 source-root/path byte verification 接入 task meta
 
 新增 [`apply_evidence_bundle_gate`](../../core/evidence.py)，在一个 RunState stage 上先检查多份 named envelopes、各自的 frozen expectations/source hashes 和选定 chain-identity pairs；只有所有成员通过才调用单 envelope gate 做一次 `draft` 转移。任一 envelope 错配、required hash 映射为空/缺失或 anchor-score chain/manifest 身份冲突，都将该 stage 原子弃权，避免部分链先进入 draft 后留下不一致状态。身份不同只通过 bookkeeping 检查，返回值始终 `independence_proven=false`。
 
-新增 `tasks/pion_projection/evidence_adapter.py`，将 `anchor_coverage` 与 `score_dependence` 两份 envelope 接到同一个统计 stage：检查 operator/reference/numerical 前置 stage、F=3 的 alpha 配置、score map/support、`gamma_ps>=0.20`、burn-in `>=8`、TV `<=0.001`、bounded-IID anchor/support、`C/R<=0.01`、必需 receipt/source hashes，以及 `score_family_blocks=12,000` 和 `anchor_units=1,000` 的完整 planned denominator。12,000 是每个 F 比较使用 N=4,000 blocks 的合计；进入 `valid` 的 score 必须已按失败规则（失败 block 记 `-1`）生成有限值。不同 chain ID 和 manifest 只做身份防重，不证明独立性。adapter 正控最多推进到 `draft`；所有 source hash 仍需外部核验。调用者提供的 `C/R` 数值只经过上限检查，adapter 不从原始 receipt 字节重新计算，后续 evaluator/reviewer 必须将该声明与 hash-bound receipt 核对。
+新增 `tasks/pion_projection/evidence_adapter.py`，将 `anchor_coverage` 与 `score_dependence` 两份 envelope 接到同一个统计 stage：检查 operator/reference/numerical 前置 stage、F=3 的 alpha 配置、score map/support、两条链各自 `gamma_ps>=0.20`、burn-in `>=8`、TV `<=0.001`、anchor Markov support、`C/R<=0.01`、必需 receipt/source hashes，以及 `score_family_blocks=12,000` 和 `anchor_units=4,000` 的完整 planned denominator。12,000 是每个 F 比较使用 N=4,000 blocks 的合计；anchor denominator 是烧入后 4,000 个标量状态，另记录 8 个 burn-in 状态。进入 `valid` 的 score 必须已按失败规则（失败 block 记 `-1`）生成有限值。不同 chain ID 和 manifest 只做身份防重，不证明独立性。adapter 正控最多推进到 `draft`；所有 source hash 仍需外部核验。调用者提供的 `C/R` 数值只经过上限检查，adapter 不从原始 receipt 字节重新计算，后续 evaluator/reviewer 必须将该声明与 hash-bound receipt 核对。
 
 当前 4 次 generic synthetic bundle-gate 调用的输出是 `1 draft / 3 abstain`；每次使用的测试 `RunReceipt` 是 planned/valid/failed/abstained=`2/2/0/0`，并非物理分母。新增 7 个 task-adapter 测试；`tests/test_pion_evidence_adapter.py tests/test_evidence.py tests/test_receipts.py` **28 passed**，Pion/evidence/framework/receipt 合集 **223 passed**，全仓 CPU 套件 **227 passed**。所有 positive fixture 均为 synthetic schema 测试，不代表真实 anchor-score 独立、coverage、`gamma_ps`/TV 或 `C`。
 
@@ -536,3 +544,13 @@ Pion 实际数组读取入口 [`common.load_data`](common.py) 也新增可选 sn
 复核当前 tracked tree 后，没有新的 Pion correlator、E-chain reference 或 anchor-chain receipts 可供安全接线；本轮不检查被忽略的 propagator cache，也不打开 E/gap/validation/shared-holdout/confirmation。可复用的无封存数据工作已包含 development-only immutable snapshot → NPZ 预检 → fit/risk summary → artifact-hash verifier，以及 reader/gate 的同字节检查；不应重复生成同一类 synthetic fixture 来伪造物理推进。
 
 当前唯一有意义的下一步仍是拿到并独立审阅：(1) candidate-blind E-chain PP/A4P reference 和完整拟合/失败收据；(2) 每个 anchor state 可计算、固定支持域与协方差明确的 scalar map；(3) anchor/score chain 的身份、stationarity/burn-in、`gamma_ps` 或其他依赖界、TV 与独立性 receipts；(4) 将 anchor 目标连接到 `m*` 且可证明 `C/R≤0.01` 的 common-bias bridge。少任一项都不运行非线性区间映射或 physical evaluator，继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`。PR #5 Pion 全仓 CPU suite 本轮重新运行 **257 passed**，只表示代码回归，不代表上述输入已有。
+
+### 2026-11-26 Markov anchor 默认值与 common-bias 诊断同步修正
+
+复核实现时发现，协议/adapter 已将 Markov pseudo-gap Bernstein 选作 anchor 主路，但 [`anchor_bias_feasibility_diagnostic.py`](anchor_bias_feasibility_diagnostic.py) 仍读取旧字段 `independent_stationary_units_required`，用 bounded-IID Hoeffding 半径计算；其 README 还把该数值说成当前默认值。这会让最新 common-bias 可行性结论与当前合同不一致。现将脚本切换为调用 [`markov_anchor_bound`](bounded_block_risk_anchor_markov.py)：`n_A=4000`、`gamma_A=0.20`、burn-in 8、`TV_A=0.001`、`alpha_A=0.01`，将 TV 从 anchor tail alpha 中扣除后使用 `alpha_stationary=0.009`；IID 半径只留在历史 2026-11-25 报告。
+
+与之同步更新的 [F=3 Markov-anchor 敏感度图文](F3_markov_sensitivity_markov_anchor_v2/README.md) 仍为 `245/140/0/105` 公式情景、物理测量 `0/0/0/0`；[合同结构报告 v15](../../results/pion_projection/bounded_block_risk_contract_diagnostic_20261126_v15/README.md) 检查 19 个 fixture（6 结构有效、13 结构失败），并将 5 个物理 RunState stage 全部记为 `5/0/0/5` 弃权。二者都是 data-free/conditional artifacts，不是观测 coverage 或真实输入收据。
+
+新报告 [`anchor_bias_feasibility_markov_anchor_20261126_v2`](../../results/pion_projection/anchor_bias_feasibility_markov_anchor_20261126_v2/README.md) 用 101 个确定性 `C/R∈[0,1]` 情景更新可行性图。计划随机半径为 `0.202040 R`，`C/R=0.01` 时最好情形 LCB=`0.187605`；即使假定 score 均值达到数学最大值 1，`C/R` 也必须 `<0.078803` 才可能越过 `0.05` 门。仅由共同支持 `[0.1,3.0]` 得到的平凡界 `C/R<=1` 时，最好情形 LCB=`-1.792395`。公式分母 `101/101/0/0`；物理输入 `1/0/0/1`，`physical_score=null`。
+
+文字流程：`冻结 Markov anchor defaults -> 用 corrected pseudo-gap helper 算单一 shared anchor 区间（TV 只消耗 alpha） -> 加入候选 common-bias C -> 反解 threshold 可行上限并作图 -> 查缺 scalar map / target bridge / receipts -> physical gate ABSTAIN`。专项用例 **3 passed**；PR #5 当前完整 CPU suite **258 passed**。该修正只关闭了规划诊断沿用 IID 公式的实现错误；anchor 标量映射、独立 E reference、anchor/score 链 gap/TV/独立性与 `C/R<=0.01` 证明仍缺，继续保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed、不运行 GPU/QUDA。

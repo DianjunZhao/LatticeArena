@@ -13,7 +13,7 @@ from tasks.pion_projection.evidence_adapter import (
 from tasks.pion_projection.bounded_block_risk_contract import selected_protocol
 
 
-H = [f"{i:064x}" for i in range(1, 20)]
+H = [f"{i:064x}" for i in range(1, 30)]
 ANCHOR_MAP_ID = "fixture-anchor-scalar-map-v1"
 ANCHOR_MAP_HASH = H[6]
 
@@ -33,7 +33,10 @@ def _source_hashes():
             "scalar_map": ANCHOR_MAP_HASH,
             "coverage_receipt": H[7],
             "common_bias_receipt": H[8],
-            "independence_receipt": H[15],
+            "anchor_chain_receipt": H[15],
+            "gamma_ps_receipt": H[16],
+            "initial_law_tv_receipt": H[17],
+            "support_receipt": H[18],
             "score_anchor_independence_receipt": H[9],
             "review_receipt": H[10],
         },
@@ -51,6 +54,7 @@ def _review(receipt_hash):
 
 
 def _envelopes(*, score_gamma=0.2, score_tv=0.001, score_burn_in=8,
+               anchor_gamma=0.2, anchor_tv=0.001, anchor_burn_in=8,
                score_chain_id="score-chain", anchor_chain_id="anchor-chain"):
     hashes = _source_hashes()
     score = evidence_envelope(
@@ -95,7 +99,7 @@ def _envelopes(*, score_gamma=0.2, score_tv=0.001, score_burn_in=8,
         chain={
             "chain_id": anchor_chain_id,
             "split_id": "anchor-evidence",
-            "state_unit": "independent stationary anchor unit",
+            "state_unit": "saved gauge-configuration state",
             "manifest_sha256": hashes["anchor"]["manifest"],
         },
         observable={
@@ -104,14 +108,19 @@ def _envelopes(*, score_gamma=0.2, score_tv=0.001, score_burn_in=8,
             "support": {"lower": 0.1, "upper": 3.0, "unit": "a_t m_pi"},
         },
         method={
-            "name": "bounded_iid_hoeffding",
+            "name": "markov_pseudo_gap_bernstein",
             "version": "fixture-v1",
-            "assumptions": ["anchor units are independent and stationary"],
+            "assumptions": ["one fixed bounded scalar is emitted by each anchor-chain state"],
         },
         dependence={
-            "mode": "iid",
-            "assumptions": ["independent stationary units"],
-            "independence_receipt_sha256": hashes["anchor"]["independence_receipt"],
+            "mode": "markov",
+            "assumptions": ["homogeneous anchor Markov chain with a reviewed pseudo-gap bound"],
+            "gamma_ps_lower": anchor_gamma,
+            "tv_bound_after_burn_in": anchor_tv,
+            "burn_in": {
+                "unit": "saved gauge-configuration state",
+                "count": anchor_burn_in,
+            },
         },
         confidence={
             "family_id": "pion-bounded-block-risk-selected-v1/anchor",
@@ -125,8 +134,8 @@ def _envelopes(*, score_gamma=0.2, score_tv=0.001, score_burn_in=8,
     return {"score": score, "anchor": anchor}, hashes
 
 
-def _receipt(*, score_planned=12000, score_valid=12000, anchor_planned=1000,
-             anchor_valid=1000):
+def _receipt(*, score_planned=12000, score_valid=12000, anchor_planned=4000,
+             anchor_valid=4000):
     scenario = scenario_spec(
         "pion-statistical-evidence-fixture", "planned score or anchor unit",
         "synthetic task adapter interface fixture",
@@ -138,7 +147,7 @@ def _receipt(*, score_planned=12000, score_valid=12000, anchor_planned=1000,
                 "paired score value", planned=score_planned, valid=score_valid,
             ),
             "anchor_units": denominator(
-                "independent stationary anchor scalar", planned=anchor_planned,
+                "anchor Markov-chain scalar state", planned=anchor_planned,
                 valid=anchor_valid,
             ),
         },
@@ -198,8 +207,6 @@ def _materialize_source_bytes(root, envelopes, hashes):
             elif route == "anchor" and name == "scalar_map":
                 envelopes[route]["observable"]["map_sha256"] = digest
                 anchor_map_hash = digest
-            elif route == "anchor" and name == "independence_receipt":
-                envelopes[route]["dependence"]["independence_receipt_sha256"] = digest
         paths[route] = route_paths
     assert anchor_map_hash is not None
     return paths, anchor_map_hash
@@ -254,6 +261,18 @@ def test_pion_statistical_adapter_abstains_below_score_gap_or_above_common_bias_
     result = _apply(_ready_state(), envelopes, hashes, common_bias=0.0101)
     assert result["status"] == "ABSTAIN_PION_STATISTICAL_ADAPTER"
     assert any("C/R" in item for item in result["reasons"])
+
+
+def test_pion_statistical_adapter_applies_markov_anchor_gap_tv_and_burn_in_gates():
+    for kwargs, expected_reason in (
+        ({"anchor_gamma": 0.19}, "anchor: gamma_ps"),
+        ({"anchor_tv": 0.0011}, "anchor: post-burn-in TV"),
+        ({"anchor_burn_in": 7}, "anchor: burn-in"),
+    ):
+        envelopes, hashes = _envelopes(**kwargs)
+        result = _apply(_ready_state(), envelopes, hashes)
+        assert result["status"] == "ABSTAIN_PION_STATISTICAL_ADAPTER"
+        assert any(expected_reason in item for item in result["reasons"])
 
 
 def test_pion_statistical_adapter_abstains_when_score_tv_or_burn_in_misses_plan():
@@ -337,8 +356,8 @@ def test_pion_source_byte_gate_is_required_and_verified_bundle_stops_at_draft(tm
     assert result["source_byte_identity_verified"] is True
     assert result["source_verification"]["denominator"] == {
         "unit": "source_file",
-        "planned": 13,
-        "valid": 13,
+        "planned": 16,
+        "valid": 16,
         "failed": 0,
         "abstained": 0,
         "not_run": 0,
@@ -369,7 +388,7 @@ def test_pion_source_snapshot_bundle_survives_path_changes_after_reader_capture(
     assert hashlib.sha256(score_input).hexdigest() == hashes["score"]["score_map"]
     assert result["status"] == "DRAFT_PENDING_TASK_VALIDATION"
     assert result["source_verification"]["denominator"] == {
-        "unit": "source_file", "planned": 13, "valid": 13,
+        "unit": "source_file", "planned": 16, "valid": 16,
         "failed": 0, "abstained": 0, "not_run": 0,
     }
     assert result["physical_score"] is None
@@ -393,7 +412,7 @@ def test_pion_source_byte_gate_abstains_if_one_receipt_file_is_tampered(tmp_path
     )
 
     assert result["status"] == "ABSTAIN_SOURCE_BYTES"
-    assert result["source_verification"]["denominator"]["planned"] == 13
-    assert result["source_verification"]["denominator"]["valid"] == 12
+    assert result["source_verification"]["denominator"]["planned"] == 16
+    assert result["source_verification"]["denominator"]["valid"] == 15
     assert result["source_verification"]["denominator"]["failed"] == 1
     assert state.status["statistical"] == "abstained"

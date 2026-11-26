@@ -36,7 +36,8 @@ _SCORE_SOURCE_KEYS = frozenset({
 })
 _ANCHOR_SOURCE_KEYS = frozenset({
     "manifest", "scalar_map", "coverage_receipt", "common_bias_receipt",
-    "independence_receipt", "score_anchor_independence_receipt", "review_receipt",
+    "anchor_chain_receipt", "gamma_ps_receipt", "initial_law_tv_receipt",
+    "support_receipt", "score_anchor_independence_receipt", "review_receipt",
 })
 
 
@@ -91,14 +92,14 @@ def _expected_fields(anchor_scalar_map_id: str,
         "anchor": {
             "task": "pion_projection",
             "evidence_kind": "anchor_coverage",
-            "chain.state_unit": "independent stationary anchor unit",
+            "chain.state_unit": "saved gauge-configuration state",
             "observable.map_id": anchor_scalar_map_id,
             "observable.map_sha256": anchor_scalar_map_sha256,
             "observable.support.lower": anchor["support_interval"][0],
             "observable.support.upper": anchor["support_interval"][1],
             "observable.support.unit": score["units"],
             "method.name": anchor["method"],
-            "dependence.mode": "iid",
+            "dependence.mode": "markov",
             "confidence.family_id": anchor_family_id,
             "confidence.alpha_total": family["alpha_total"],
             "confidence.alpha_allocated": family["alpha_anchor"],
@@ -128,7 +129,7 @@ def _validate_denominators(receipt: object) -> list[str]:
         "score_family_blocks": (
             protocol["dependence_design"]["planned_scored_blocks"] * family_size
         ),
-        "anchor_units": protocol["anchor_design"]["independent_stationary_units_required"],
+        "anchor_units": protocol["anchor_design"]["planned_anchor_units"],
     }
     if set(normalized["denominators"]) != set(planned):
         reasons.append(
@@ -192,10 +193,8 @@ def _validate_source_hash_links(envelopes: object,
         map_key = "score_map" if route == "score" else "scalar_map"
         if hashes[map_key] != normalized["observable"]["map_sha256"]:
             reasons.append(f"{route}: required observable-map hash does not bind the envelope map")
-        if (route == "anchor"
-                and hashes["independence_receipt"]
-                != normalized["dependence"]["independence_receipt_sha256"]):
-            reasons.append("anchor: IID source hash does not bind its independence receipt")
+        if route == "anchor" and normalized["dependence"]["mode"] != "markov":
+            reasons.append("anchor: selected route requires a Markov-chain envelope")
     return reasons
 
 
@@ -226,8 +225,21 @@ def _validate_protocol_claims(envelopes: object) -> list[str]:
         "post_burn_in_tv_bound_per_comparison"
     ]:
         reasons.append("score: post-burn-in TV bound exceeds the selected maximum")
-    if anchor["dependence"]["mode"] != "iid":
-        reasons.append("anchor: the selected primary route requires bounded IID units")
+    anchor_dependence = anchor["dependence"]
+    anchor_design = protocol["anchor_design"]
+    if anchor_dependence["mode"] != "markov":
+        reasons.append("anchor: selected primary route requires a bounded Markov chain")
+    else:
+        if anchor_dependence["gamma_ps_lower"] < anchor_design[
+            "gamma_ps_lower_bound_requirement"
+        ]:
+            reasons.append("anchor: gamma_ps lower bound is below the selected minimum")
+        if anchor_dependence["burn_in"]["count"] < anchor_design["burn_in_units"]:
+            reasons.append("anchor: burn-in is shorter than the selected state count")
+        if anchor_dependence["tv_bound_after_burn_in"] > anchor_design[
+            "post_burn_in_tv_bound"
+        ]:
+            reasons.append("anchor: post-burn-in TV bound exceeds the selected maximum")
     return reasons
 
 
@@ -254,7 +266,7 @@ def apply_pion_statistical_evidence_gate(
     lets the task reader and gate share retained bytes. Neither authenticates
     hash authority or scientific claims. The adapter requires the operator,
     reference and numerical stages to be validated first and accepts only the
-    selected 12,000 family-block scores plus 1,000 anchor units. A complete
+    selected 12,000 family-block scores plus 4,000 anchor Markov states. A complete
     result advances ``statistical`` to ``draft`` only.
     """
     if (not hasattr(run_state, "status") or not hasattr(run_state, "summary")

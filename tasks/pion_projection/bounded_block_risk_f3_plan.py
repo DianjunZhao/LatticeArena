@@ -1,4 +1,4 @@
-"""F=3 analytic-only sensitivity for the selected Pion block-risk plan.
+"""F=3 analytic-only sensitivity using the selected Markov-anchor design.
 
 No observations, correlators, receipts, sealed splits, or GPU/QUDA inputs are
 read. The score mean is set to its mathematical maximum of one only to show an
@@ -19,10 +19,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from .bounded_block_risk_contract import selected_protocol
+from .bounded_block_risk_anchor_markov import markov_anchor_bound
 from .bounded_block_risk_markov_gap import markov_gap_radius_after_initial_tv
 
 
-DEFAULT_OUT = Path(__file__).resolve().parent / "F3_markov_sensitivity_v1"
+DEFAULT_OUT = Path(__file__).resolve().parent / "F3_markov_sensitivity_markov_anchor_v2"
 BLOCKS = (20, 100, 500, 1000, 2000, 4000, 8000)
 GAMMAS = (0.05, 0.1, 0.2, 0.5, 1.0)
 TV_BOUNDS = (0.0, 0.001, 0.005, 0.01, 0.013333333333333334, 0.015, 0.02)
@@ -30,10 +31,19 @@ TV_BOUNDS = (0.0, 0.001, 0.005, 0.01, 0.013333333333333334, 0.015, 0.02)
 
 def _anchor_score_penalty(plan: dict) -> float:
     anchor = plan["anchor_design"]
-    alpha = float(anchor["alpha"])
-    n = int(anchor["independent_stationary_units_required"])
-    common_bias = float(anchor["common_bias_bound_C_max_over_R"])
-    return 2.0 * (math.sqrt(math.log(2.0 / alpha) / (2.0 * n)) + common_bias)
+    result = markov_anchor_bound(
+        sample_count=anchor["planned_anchor_units"],
+        gamma_ps_lower=anchor["gamma_ps_lower_bound_requirement"],
+        alpha_anchor=anchor["alpha"],
+        support=tuple(anchor["support_interval"]),
+        common_bias_bound=(plan["score"]["R"]
+                           * anchor["common_bias_bound_C_max_over_R"]),
+        initial_law_tv_bound=anchor["post_burn_in_tv_bound"],
+        burn_in_units=anchor["burn_in_units"],
+        stationary_start=False,
+        score_scale_R=plan["score"]["R"],
+    )
+    return result["normalized_score_shift_2B_over_R"]
 
 
 def rows() -> list[dict]:
@@ -155,7 +165,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
     ax.set_title(r"$\gamma_{ps}=0.2$, F=3")
     ax.grid(True, alpha=0.25)
     ax.legend(fontsize=8)
-    fig.suptitle("Pion bounded block-risk: selected F=3 method sensitivity (analytic only)")
+    fig.suptitle("Pion bounded block-risk: F=3 sensitivity with Markov anchor (analytic only)")
     svg_path = out / "sensitivity.svg"
     fig.savefig(svg_path)
     plt.close(fig)
@@ -184,7 +194,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "",
         "## Selected design and formula",
         "",
-        "The figure and table use the selected three-comparison family (`F=3`), `alpha_score=0.04`, `alpha_anchor=0.01`, normalized effect threshold `0.05`, and bounded-IID anchor requirement of 1000 independent stationary units. The anchor correction is computed from the stated Hoeffding radius and `C/R=0.01`; it is a design budget, not an observed anchor error.",
+        "The selected three-comparison family (`F=3`), `alpha_score=0.04`, `alpha_anchor=0.01`, and normalized effect threshold `0.05` are combined with the chosen conditional Markov-anchor plan (`n_A=4000`, `gamma_A>=0.20`, 8 burn-in states, post-burn-in TV `<=0.001`, support `[0.1,3.0]`, `C/R=0.01`). The anchor interval uses family size 1; TV consumes `0.001` of `alpha_anchor`. The fixed scalar map and its target-bias bridge remain unresolved, so this is formula planning only and the evaluator must abstain.",
         "",
         "For each assumed `N`, pseudo-gap lower bound and per-comparison TV bound, the existing corrected fixed-score Markov helper evaluates the stationary Bernstein radius using remaining score alpha `0.04 - F*TV`. The optimistic best-case LCB is `1 - epsilon - 2*TV - 2B/R`, with score mean fixed at its mathematical maximum 1. A parameter combination is abstained if `F*TV >= alpha_score`; an LCB that is defined but below 0.05 is reported as unreachable even under this best-case mean.",
         "",
@@ -197,7 +207,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "```text",
         "frozen E-chain reference and score map -> reviewed length-5 block-chain conditions",
         "  -> gamma_ps lower bound + burn-in/TV receipt -> reserve F*TV and compute Markov radius",
-        "  -> independent bounded-IID anchor coverage + C bound -> subtract 2B/R",
+        "  -> conditional Markov anchor scalar map + gamma/TV/support/C receipts -> subtract 2B/R",
         "  -> evaluate full N planned blocks (failed blocks stay -1) -> LCB > 0.05 or ABSTAIN",
         "  -> separate confirmation authorization and physical review; score remains null until then",
         "```",
@@ -209,13 +219,13 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "- Independent candidate-blind E-chain correlator receipt and successful reference/model gate.",
         "- Reviewed score-specific block-chain and `gamma_ps >= 0.20` lower-bound evidence; block spacing alone is insufficient.",
         "- Burn-in 8 / post-burn-in TV `<=0.001` receipt for every comparison.",
-        "- 1000 independent stationary bounded anchor units, coverage receipt, common-bias `C/R<=0.01` evidence, and conditional-independence review.",
+        "- Fixed bounded anchor scalar map with target-bias bridge, 4000 post-burn-in anchor states, anchor-chain gap/TV/support receipts, common-bias `C/R<=0.01` evidence, and conditional-independence review. The 1000-unit IID Hoeffding route is only a separately receipted fallback.",
         "- Authorized unsealed confirmation data and independent review. Production data and GPU/QUDA remain unauthorized.",
         "",
     ]
     (out / "README.md").write_text("\n".join(README))
     protocol = {
-        "schema": "pion-f3-markov-sensitivity-v1",
+        "schema": "pion-f3-markov-sensitivity-v2",
         "status": "ANALYTIC_ONLY_NOT_READY",
         "selected_protocol": plan,
         "grid": {"blocks": BLOCKS, "gamma_ps_lower_assumed": GAMMAS,
