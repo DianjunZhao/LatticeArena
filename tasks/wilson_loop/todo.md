@@ -660,3 +660,41 @@ q_v(T) = Σ_{n>0} |Z_n(v0)/Z_0(v0)|² exp[-(E_n-E_0)T],  T∈{5,6}.
 图文流程：`校验 B80 与 stress 输入 hashes -> 固定六类合成 panel 与 per-panel covariance -> 三态 joint GLS -> 解析重参数化固定 q 做约束 profile -> 记录 960 项 P/V/F/A、边界与失败原因 -> 仅对有效项报告点态 coverage/MC interval -> F 认证 abstain`。本节 7 项定向测试通过；本轮全仓 CPU suite **413 passed**，Wilson 定向 suite **178 passed**，Optimize+Wilson 定向 suite **330 passed**。README 与覆盖图可由冻结的 CSV 用 `--refresh-derived` 重建，不重新拟合；协议会记录这项 derived-only 刷新。图、数字与输入范围均为 synthetic CPU evidence，不支持 production Wilson 的误差或污染界。
 
 剩余工作不是再扩大 B 或隐去失败：若仍要保留 profile 研究，只能先用独立实现审阅及已知参数解析 toy 检查数值算法，再预先冻结 multi-start 或一维 q-profile 路线并按全分母校准；若 yield/coverage 仍差则删除候选。完成物理 F lane 仍需要 owner/reviewer 审阅后的 raw cross-correlator snapshot、overlap/gap 与有限-$N_t$ 热污染 `h`、mixed-sector `x`、同源 paired force/reference 误差预算以及其独立数据/授权收据；在用户指定的数据封存状态下不读取任何 sealed split，也不启动 GPU/QUDA。
+
+### 2026-11-26 block-length sensitivity 预注册（执行前冻结；已完成）
+
+为补完 B40/B80 handoff 中“只有先验固定方案才做 `L` 敏感度”的剩余 CPU 项，先固定比较族 `L={6,8,10}`：`L=8` 使用既有 B40/B80 报告，新增只跑 `L=6` 与 `L=10`；三个值在 baseline 结果之后做的是**同一组六情景 synthetic holdout 上的描述性方法敏感度**，不构成独立确认或新的覆盖率校准。`L=6/10` 分别位于既定 `L=8` 两侧各2个配置块，不按此次扫描结果再改候选值。
+
+冻结的共同设置：六个既有场景、前40 calibration / 后40 holdout panels、每 cell 40 个 circular moving-block refits、相同 panel/bootstrap-index seed 流、97.5% 上界次序统计量 `rank=40`；失败 q draw 继续视为 `+infinity`，不能从分母删掉。逐格并列 P/V/F/A、coverage 与 Wilson MC interval、有效区间比例和 median upper/true；按 op0/op2、T=5/6 画四面板覆盖图。报告须显式注明三个 L 共用相同 holdout，且 `L=8` 的原 B40 结果已被看过；不据此挑出“最佳 L”、不调整下一个确认方案，也不送入 q reader/F gate。
+
+停止规则：完成这两个预固定 scan 后，不再继续用同一 generator/holdout 调 block length 或 B；无论某个 L 的有限样本点覆盖如何，全部仍为 diagnostic-only。只有获得新的独立 calibration panels、明确的 dependence/coverage 目标与独立 review 后，才讨论新的候选。真实 F lane 的谱、热项 `h`、mixed 项 `x`、force/reference budget 与授权边界保持上一段状态。
+
+### 2026-11-26 block-length sensitivity 扫描完成：L=6/8/10 均保持 diagnostic-only
+
+按上方冻结方案完成[总览报告、逐格表和覆盖图](f_lane_joint_spectral_mbb_length_sensitivity_20261126_v1/README.md)，代码为[`f_lane_joint_spectral_mbb_length_sensitivity.py`](f_lane_joint_spectral_mbb_length_sensitivity.py)，测试为[`test_wilson_f_lane_joint_spectral_mbb_length_sensitivity.py`](../../tests/test_wilson_f_lane_joint_spectral_mbb_length_sensitivity.py)。`L=8` 复用先前已看过的 B=40 结果；仅新跑 `L=6,10`。同一 240 个 deterministic holdout panels、40 个 calibration panels/scenario、40 个 holdout panels/scenario、每 panel `B=40`、上界 rank 40 不变。三个长度共用 `9,600/9,600` 个 `(scenario, panel, bootstrap-index)` seed keys；每个 L 的圆形 chunk layout 按其 block length 改变。该 seed coupling 与相同面板配对使结果适合描述配置敏感度，但不是独立重复。
+
+![L=6/8/10 的逐点覆盖与 Wilson Monte Carlo 区间](f_lane_joint_spectral_mbb_length_sensitivity_20261126_v1/coverage_by_L.png)
+
+| L | q interval planned/valid/failed/abstained | bootstrap refit planned/valid/failed |
+|---:|---:|---:|
+| 6 | 960/860/0/100 | 9,600/9,522/78 |
+| 8 | 960/860/0/100 | 9,600/9,510/90 |
+| 10 | 960/852/0/108 | 9,600/9,512/88 |
+| 三长度重复分析项合计 | 2,880/2,572/0/308 | 不是独立的 2,880 个样本 |
+
+三长度都复用同一 240 holdout panels；因此合计 interval 行是重复分析条目，不得当作 720 个独立 panel。分情景、四个 operator/time q cell 的 coverage 均为**条件于有效区间**，完整逐格 `n/40`、95% Wilson MC intervals、median upper/truth 和相对 L=8 的差值在 `length_sensitivity.csv`：
+
+| 情景 | L=6 valid / coverage 范围 | L=8 valid / coverage 范围 | L=10 valid / coverage 范围 |
+|---|---:|---:|---:|
+| matched 三态 IID | 160/160；0.975–1.000 | 160/160；0.975–1.000 | 160/160；0.975–1.000 |
+| 遗漏第四态 | 160/160；0.950 | 160/160；0.975–1.000 | 160/160；0.925–0.950 |
+| 近简并能隙 | 152/160；0.921–0.947 | 160/160；0.925 | 160/160；0.925 |
+| 小 ground overlap | 96/160；0.917 | 92/160；0.957 | 92/160；0.913–0.957 |
+| AR(1), rho=0.75 | 132/160；0.909 | 128/160；0.875–0.969 | 120/160；0.967–1.000 |
+| Student-t5 IID | 160/160；0.950–1.000 | 160/160；0.950–1.000 | 160/160；0.975 |
+
+解读：此扫描没有给出一个跨压力情景全面占优的 L。`L=10` 的 AR(1) 条件覆盖较高，但该场景 160 个 q interval 中仅 120 个有效；`L=8` 在遗漏第四态场景较高；小 overlap 的 yield 在三个 L 都偏低；近简并覆盖约 0.92–0.95。每格仅 40 个 holdout panel，MC 区间较宽，且扫描重复使用同一 synthetic holdout。图中 `x` 若出现代表零有效区间，y=0.5 仅作绘图占位；此图这次的所有 MBB cell 均有至少一个有效区间。故不从已观察 holdout 选 L、不继续调 B/L，也不把结果送入 q reader/F gate。
+
+首次生成总图时，Wilson 上端点 `0.9999999999999999` 与覆盖点 `1.0` 出现 1 ulp 的浮点次序差，导致 matplotlib 拒绝负误差条。所有 L=6/10 拟合与 bootstrap CSV 已完成并留存；随后仅对通过 SHA-256 的冻结子报告重建总表和图，绘图端点只在 `1e-12` roundoff 内扩展以包含点估计，实质不相容仍会报错；没有重拟合或改变规则。报告明确记录这是 derived-only recovery。
+
+本轮 `py_compile` 通过；本文件 6 项定向测试通过；PR #6 全仓 CPU suite **419 passed**；`git diff --check` 通过。顶层产物 hash **6/6**、L=6 和 L=10 各 **12/12** 匹配，9,600/9,600 seed keys 一致。以上仅为 synthetic CPU 方法敏感度：物理 Wilson measurement `0/0/0/0`、认证门 `1/0/0/1`，维持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。下一步不再增加同一 generator/holdout 的 L/B 扫描；只在取得独立 calibration panels、授权 raw cross-correlator/spectrum/thermal/mixed/reference receipts 和独立 reviewer 后，推进物理 C/F lane。
