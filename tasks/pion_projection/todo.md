@@ -554,3 +554,19 @@ Pion 实际数组读取入口 [`common.load_data`](common.py) 也新增可选 sn
 新报告 [`anchor_bias_feasibility_markov_anchor_20261126_v2`](../../results/pion_projection/anchor_bias_feasibility_markov_anchor_20261126_v2/README.md) 用 101 个确定性 `C/R∈[0,1]` 情景更新可行性图。计划随机半径为 `0.202040 R`，`C/R=0.01` 时最好情形 LCB=`0.187605`；即使假定 score 均值达到数学最大值 1，`C/R` 也必须 `<0.078803` 才可能越过 `0.05` 门。仅由共同支持 `[0.1,3.0]` 得到的平凡界 `C/R<=1` 时，最好情形 LCB=`-1.792395`。公式分母 `101/101/0/0`；物理输入 `1/0/0/1`，`physical_score=null`。
 
 文字流程：`冻结 Markov anchor defaults -> 用 corrected pseudo-gap helper 算单一 shared anchor 区间（TV 只消耗 alpha） -> 加入候选 common-bias C -> 反解 threshold 可行上限并作图 -> 查缺 scalar map / target bridge / receipts -> physical gate ABSTAIN`。专项用例 **3 passed**；PR #5 当前完整 CPU suite **258 passed**。该修正只关闭了规划诊断沿用 IID 公式的实现错误；anchor 标量映射、独立 E reference、anchor/score 链 gap/TV/独立性与 `C/R<=0.01` 证明仍缺，继续保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed、不运行 GPU/QUDA。
+
+### 2026-11-26 候选 anchor 标量图与两态谱污染门
+
+为推进“每个 anchor state 必须产生一个固定有界标量”这一软件/方法缺口，新增 [`anchor_scalar_map_bias_diagnostic.py`](anchor_scalar_map_bias_diagnostic.py) 和[图文报告包](anchor_scalar_map_bias_20261126_v1/README.md)。候选 map 选用每个预声明 anchor block 的零动量 folded-PP cosh 有效质量
+
+```text
+m_eff(4) = acosh((C_fold(3)+C_fold(5))/(2 C_fold(4))),  T=16
+```
+
+当 denominator/argument 非法、非有限或结果不在 `[0.1,3.0] a_t m_pi` 时整个 anchor receipt 拒绝；不 clipping、不删除 block。这个 map 是候选而非被接受的物理 estimator。
+
+诊断对正两态谱 `C(t)=A0[e^(-m0 t)+e^(-m0(16-t))]+A1[e^(-m1 t)+e^(-m1(16-t))]` 扫描 `m0={0.1,0.25,0.5,1,2}`、90 个 gap 和 81 个 `A1/A0` 值，共 `27,945` 个满足支持域的确定性谱 cell；`19,115/27,945` 在**无统计噪声的 ensemble-mean correlator map**上满足建议 `C<=0.029=0.01R`。以 `m0=0.5` 为例，gap=`0.05/0.10/0.25/0.50/1.00` 时允许的 `A1/A0` 上限约为 `1.61/0.56/0.28/0.29/0.72`。阈值对 gap 并非单调，因为 map 固定在 `t=4`，激发态随时间的指数压低也改变。总图白线是 `m_eff(4)-m0=0.029`；橙虚线是 gap=`0.029`。图显示不少谱区域要求较小的激发 overlap，但也有大 gap 时 `t=4` 的指数抑制允许较大 overlap。
+
+**不能据此填入 `C`。**本扫描计算的是先求 ensemble-mean correlator 再取非线性 `m_eff`，而 anchor Markov 界约束的是 block scalar 的均值；`E[m_eff(C_block)]` 与 `m_eff(E[C_block])` 不相等。报告还没有有限样本噪声、thermal/model mismatch、PP 与 candidate-blind joint PP/A4P target 差异或 block-chain coverage。因此 `C<=0.029` 必须另有独立的 overlap/gap 与 map-to-joint-fit bias receipt；采样 min/max 或本图通过的合成 cell 都不能替代它。现有 Markov anchor 数值仍是条件计划，物理 anchor receipt `0/0/0/1`，Pion 保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
+
+文字流程：`固定 blockwise folded-PP map -> 正两态谱上扫描 gap/overlap -> 图示满足 C<=0.029 的谱域 -> 加入 blockwise 非线性偏差、统计噪声和 joint-fit target 差异 -> 需要独立 bias/support receipt -> 缺失则 ABSTAIN`。执行命令：`python -m tasks.pion_projection.anchor_scalar_map_bias_diagnostic --output NEW_DIRECTORY`。下一位执行者应先由独立 reviewer 判断该候选 map 是否可作为 anchor；若认可，再从获准且未封存的独立 anchor/E inputs 估计并界定 `E[m_eff(C_block)]-m*`，报告 block 标量直方图、chain trace/依赖诊断、逐块无效数及 bias envelope。若不能证明 `C<=0.029` 或固定 support，则拒绝该 map，不继续加合成网格；不读取 sealed split、不启动 GPU/QUDA。
