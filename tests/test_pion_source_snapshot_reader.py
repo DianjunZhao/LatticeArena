@@ -263,6 +263,59 @@ def test_develop_uses_only_snapshot_bytes_and_labels_snapshot_submission(tmp_pat
         "development_measurements": sha256(measurement_bytes).hexdigest(),
     }
     assert frozen["calibration"]["n_development_blocks"] == len(expected_blocks)
+    diagnostic = json.loads((output / "development_diagnostic.json").read_text())
+    assert diagnostic["schema"] == "pion-development-snapshot-diagnostic-v1"
+    assert diagnostic["classification"] == "OPEN_DEVELOPMENT_DIAGNOSTIC_NOT_CONFIRMATION"
+    assert diagnostic["development_source_sha256"] == sha256(measurement_bytes).hexdigest()
+    assert diagnostic["development_array_sha256"] == sha256(
+        np.ascontiguousarray(raw).tobytes()
+    ).hexdigest()
+    assert diagnostic["development_configuration_ids_sha256"] == fingerprint(
+        list(map(int, ids))
+    )
+    assert diagnostic["source_files"]["development_measurements"]["sha256"] == sha256(
+        measurement_bytes
+    ).hexdigest()
+    assert diagnostic["denominators"]["captured_development_source_file"] == {
+        "planned": 2, "valid": 2, "failed": 0, "abstained": 0,
+    }
+    assert diagnostic["denominators"]["development_configuration"] == {
+        "planned": len(ids), "valid": len(ids), "failed": 0, "abstained": 0,
+    }
+    assert diagnostic["denominators"]["development_block"] == {
+        "planned": len(expected_blocks), "valid": len(expected_blocks),
+        "failed": 0, "abstained": 0,
+    }
+    assert diagnostic["denominators"]["finite_development_risk_summary"] == {
+        "planned": len(protocol["powers"]) + 1,
+        "valid": len(protocol["powers"]) + 1, "failed": 0, "abstained": 0,
+    }
+    for name, record in diagnostic["output_files"].items():
+        assert sha256((output / name).read_bytes()).hexdigest() == record["sha256"]
+    assert "same captured correlators" in (output / "README.md").read_text()
+    assert "physical_score`: `null`" in (output / "README.md").read_text()
+    verification = experiment.verify_snapshot_development_artifacts(
+        output, source_snapshot=snapshot,
+        source_names={
+            "development_provenance": "provenance",
+            "development_measurements": "dev_npz",
+        },
+    )
+    assert verification["status"] == "SNAPSHOT_ARTIFACTS_VERIFIED_NOT_CERTIFIED"
+    assert verification["input_source_denominator"] == {
+        "planned": 2, "valid": 2, "failed": 0, "abstained": 0,
+    }
+    original_readme = (output / "README.md").read_bytes()
+    (output / "README.md").write_bytes(original_readme + b"tamper")
+    with pytest.raises(ValueError, match="output hash mismatch: README.md"):
+        experiment.verify_snapshot_development_artifacts(
+            output, source_snapshot=snapshot,
+            source_names={
+                "development_provenance": "provenance",
+                "development_measurements": "dev_npz",
+            },
+        )
+    (output / "README.md").write_bytes(original_readme)
     assert not (output / "validation.npz").exists()
     assert (input_root / "validation.npz").read_bytes() == sealed_sentinel
     from tasks.pion_projection.candidate import run_candidate
