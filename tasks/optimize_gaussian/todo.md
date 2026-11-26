@@ -4,6 +4,16 @@
 
 研究合同已给出可审阅的方法默认值：D04 用独立、candidate-blind E-chain PP/A4P 联合拟合；D06 保留 trainable-$W$ 对同预算 SLSQP 和 degree-4 Chebyshev 两项对比、`F=2`、`r_star=10/9`；bounded block-risk 是用户已接受的并列 estimand；D11 degree-4 Bernstein/Chebyshev 强谱算符和 160-call 单任务预算也已写入合同。D06 bounded-risk Markov 路线现除两态 reversible stress 外，又有非可逆 19 态已知-gap/初始-TV 图文校准，但仍只是合成覆盖证据。Wilson F-lane 有限-$N_t$ q/h/x sector 对应也已作为独立审阅前的方法提案登记，见 [`tasks/wilson_loop/todo.md`](../wilson_loop/todo.md)。TODO 仍开着，因为 E-reference 与配对 solver receipts、独立统计/算符审阅、生产成本测量和相应授权缺失。维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`；不读封存 split、不启动 GPU/QUDA。下方早期时间戳条目保留审计历史，方法选择以本节和文末最新 handoff 为准。
 
+## 下一次执行包（默认研究输入已自选）
+
+不要再重复同一合成 generator 的 panel、block length 或 seed 扫描。下一步只接入**明确获准的 development/calibration bytes**；没有完整 bytes 与来源/审阅收据时，继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
+
+1. **D04 reference package：**独立于 Optimize score/evaluation chain 的 candidate-blind E-chain；包含零动量 PP-even 与 local A4P-odd correlators、升序 configuration/trajectory IDs、`S16T16`/Wilson/`kappa=0.14`/时间边界与协议 hash、源文件 SHA-256。按 `research_contract_v1.json` 固定 joint two-state PP(n=0,8,16)+A4P 拟合：主窗 `t=3..8`，`tmin={2,3,4}`、`nstates={2,3}`，25% 对角 shrinkage 与 `1e-10` 特征值 floor；不得按 arm 改窗或协方差。D04 必须同时满足相对 mass error `<=5%`、`p>=0.01`、PP/A4P 与窗口/模型差异 `<=2.5` paired SE、无边界命中；任一失败就不计算确认性风险比。
+2. **D06 三臂 paired package：**相同 macroblock IDs/配置/随机数计划上的 trainable-W、同预算 SLSQP、degree-4 Chebyshev；锁定 order 与时间点 `(2,3,4,5)`，每个 block 保存三臂四时 q 值、failure mask、solver status、objective/gradient calls、residual/KKT 和分项时间。主判定保留 `rho_SLSQP=R_SLSQP/R_W` 与 `rho_Cheb=R_Cheb/R_W` 两项，`r_star=10/9`、总单侧 alpha `0.05` 对两项 Bonferroni 分配、10,000 paired draws、block length `{2,5,10}` 的 lower-bound hull 必须对两项都超过 `10/9`；零/非法风险直接 `ABSTAIN_RATIO_UNDEFINED`，失败臂按冻结 penalty 留在分母。Markov 路线另外需要同一 paired macroblock chain 的独立 `gamma_ps`、burn-in、post-burn-in TV 和固定 score-support receipts；它不能由轨迹间距或 ESS 代替。
+3. **D11 operator package：**同一 source snapshot 绑定 spatial link bytes、维度/边界、operator code、SU(3) provenance/determinant-unitarity receipt 与 `H`/source metadata；按合同的 degree-4 Bernstein controls、`H∈[-12,0]`、`y=I+H/12`、`P4(y)=sum b_i C(4,i)y^i(1-y)^(4-i)`、`0<=b0<=...<=b4=1` 和 `G^2 P4(H) G^2` 计算。160 objective/gradient-call cap 内同 budget，不 clipping、不以数学 U(3) 谱界冒充物理 SU(3) provenance。
+
+**图文验收物：**同一配对 panel 的两项 log-risk-ratio 区间图（标出 `10/9` 门和完整分母）；每臂 calls/time/residual/KKT/训练与 setup 成本分解图；D04 所有窗口/态数诊断；D11 positivity、spectral response 与来源 hash 流程图。报告必须保留 `planned/valid/failed/abstained`，并说明数据 split、CPU/GPU、精度、线程数和是否计入训练成本。Independent review 与相应数据/设备授权仍是进入真实评估前的条件；不能用新 schema 或合成图声称物理 gate 通过。
+
 ### 2026-11-26 当前 CPU 验证快照
 
 当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **152 passed**；包含 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、D04/D11 same-snapshot summary parser、新增严格 JSON/content-hash 用例、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。2026-11-26 本轮重跑 Wilson 专项集为 **184 passed**，Optimize+Wilson 定向集合 **336 passed**（Optimize 152、Wilson 184），PR #6 完整 CPU suite **419 passed**。PR #5 Pion 全仓 CPU suite **258 passed**；Pion TODO 与其工作树分开更新。所有结果只代表 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。

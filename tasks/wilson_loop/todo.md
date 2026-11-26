@@ -8,6 +8,16 @@
 
 本文件 156 个 Markdown links 均已可解析：当前 checkout 内的目标保持相对路径；原历史报告/决策文件已从当前 checkout 移除的 72 个链接，现固定指向 fork 中仍可达的 Git commit permalink。历史正文、数字与结论未改写；这些旧报告仍只作为其原有范围内的历史诊断，不是新的物理证据。
 
+## 下一次执行包（C/F 主 estimand 与门限已自选）
+
+停止同一 synthetic generator/holdout 上的 block-length、bootstrap 次数或 seed 扫描。下一步只在有 owner/reviewer 审核和授权的 calibration source package 到位后接线；完整 source hashes 只能证明字节身份，不能替代 coverage、污染或物理解释收据。
+
+1. **C：有限-$T$ Creutz。**保持单独主点 `stout_rho0.1_n5, R=2, T=5`，按当前 map `chi=-log(W(3,6) W(2,5)/(W(3,5) W(2,6)))` 组合四个同配置 loop means；source 包绑定 manifest、loop NPZ 与 summary，明确同一 calibration split、configuration/trajectory IDs、kernel/R/T 轴、action、geometry、边界、loop normalization 和 hash。现有 [`c_lane_snapshot_reader.py`](c_lane_snapshot_reader.py) 可从同一 immutable snapshot 重算区间摘要并交给 gate；它不认证 interval coverage。推断门保持两 lane family `alpha_C=0.025`、paired circular block bootstrap `L={2,5,10}`、每长度 10,000 draws、invalid fraction `<=1%`、hull half-width `<=0.02`；还必须另交独立 Markov gap/TV 或已证明 finite-dependence envelope、coverage receipt 与 C map/sign reviewer。缺任一项就保留 C-lane `ABSTAIN`。
+2. **F：基态离散静态力。**保持 `R_mid=2.5` 的 stout-minus-identity ground-state force，与 C finite-$T$ observable 分开。最小原始输入为同一 paired calibration configurations 上 `R={2,3}`、三个 bare operator `identity / APE(alpha=0.4,n=5) / spatial stout(rho=0.10,n=5)` 的完整 `3x3` cross-correlator matrices；分别提供 `N_t=16` 与 matched `N_t=32` manifest/bytes、`t=1..7`、矩阵指标顺序、trajectory/config IDs、action/geometry/boundary 和 operator/link provenance。当前版本化 raw-matrix reader 只做 schema 检查与 GEVP projection；它没有输出经校准的 kernel-indexed `q` upper bound，也没有 physical F evaluator。下一位应先让 joint fit 从同一 snapshot 读出各 bare operator 的 ground/excited overlap，再单独形成 `q`、matched-`N_t=32` thermal `h`、mixed `x` 与 spectral-model bounds；不能把 GEVP 的单一投影态复制成三个 operator 的 q 证据。
+3. **F force-level 门。**同一 chain 上提供 force interval 与正 reference-force 的 paired draws、reference fit、完整 planned fit/window/family 分母；`q/h/x/model` 四项须给 simultaneous envelopes 并通过 8-corner propagation 到 `a_s*a_t*F`。固定系统项上限为 `1.5%/1.5%/1.0%/1.0%`、系统合计 `<=5%`、统计 half-width `<=5%`、线性合计 `<=10%`，且 reference-force simultaneous lower bound `>0`；统计/系统 family allocation 按 `evidence_adapter.py` 合同收据，不得将同源误差按独立项平方和缩小。
+
+**图文验收物：**C 给出四 loop means 与 ratio 符号的数据流图、依赖/coverage 收据、按 `L=2/5/10` 的区间 hull 和 invalid fraction 图；F 给出 `3x3` cross-correlator eigenvalue/condition 与时间的图、按 kernel/R/Nt 分面的 `q/h/x` upper-envelope 图，以及传播到 force 单位的 8-corner waterfall/预算图。每图写明真实/合成来源、source hash、split、`planned/valid/failed/abstained` 分母和是否有独立 truth。没有获准 calibration bytes、coverage/contamination receipts、独立 reviewer 或设备授权时，不启动生产拟合/GPU、不打开 sealed/confirmation 数据；C/F 均维持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+
 ### 2026-11-26 F-lane q/h/x kernel 的线性可辨识性诊断（合成输入）
 
 新增 [`f_lane_qhx_design_identifiability.py`](f_lane_qhx_design_identifiability.py)、[数值表、奇异值图和复现说明](f_lane_qhx_design_identifiability_20261126_v1/README.md)，并加入 [`test_wilson_f_lane_qhx_design_identifiability.py`](../../tests/test_wilson_f_lane_qhx_design_identifiability.py)。这里固定 finite-`N_t` toy 的手设能量，按五个未知修正系数构造
