@@ -58,7 +58,13 @@ def test_pion_measurement_bundle_checks_split_identity(tmp_path):
         make_split(tmp_path, p, split)
     result = bundle_for(tmp_path)
     assert result['capabilities']['linear_response']
-    assert task_spec_for(p)['source']['position'] == p['source']
+    task = task_spec_for(p)
+    assert task['source']['position'] == p['source']
+    assert 'core/npz_safety.py' in task['dependencies']
+    assert 'core/source_integrity.py' in task['dependencies']
+    assert 'core/specs.py' in task['dependencies']
+    assert 'tasks/pion_projection/common.py' in task['dependencies']
+    assert 'tasks/pion_projection/candidate.py' in task['dependencies']
     assert operator_contract_for()['axes'] == '(z,y,x,3,nrhs)'
     z = tmp_path / 'validation.npz'
     with np.load(z) as data:

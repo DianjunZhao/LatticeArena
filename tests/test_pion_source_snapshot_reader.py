@@ -11,7 +11,7 @@ import pytest
 
 from core.source_integrity import capture_source_snapshot
 from tasks.pion_projection.common import fingerprint, load_data
-from tasks.pion_projection.spec import bundle_for
+from tasks.pion_projection.spec import bundle_for, task_spec_for
 from tasks.pion_projection.common import protocol as default_protocol
 from tasks.pion_projection import experiment
 
@@ -126,6 +126,8 @@ def test_development_bundle_uses_only_captured_bytes_and_excludes_other_splits(t
     np.testing.assert_array_equal(result["arrays"]["development"], expected)
     manifest = result["manifest"]
     assert manifest["source_read_mode"] == "immutable_snapshot"
+    assert "core/source_integrity.py" in manifest["code"]
+    assert "core/npz_safety.py" in manifest["code"]
     assert manifest["source_files"]["development_measurements"]["sha256"] == sha256(
         measurement_bytes
     ).hexdigest()
@@ -255,6 +257,7 @@ def test_develop_uses_only_snapshot_bytes_and_labels_snapshot_submission(tmp_pat
     frozen = json.loads((output / "submission.json").read_text())
     assert frozen["development_source_read_mode"] == "immutable_snapshot"
     assert frozen["development_sha256"] == sha256(measurement_bytes).hexdigest()
+    assert frozen["analysis_task_spec_sha256"] == fingerprint(task_spec_for(protocol))
     assert frozen["development_source_hashes"] == {
         "development_provenance": sha256(provenance_bytes).hexdigest(),
         "development_measurements": sha256(measurement_bytes).hexdigest(),
@@ -264,6 +267,13 @@ def test_develop_uses_only_snapshot_bytes_and_labels_snapshot_submission(tmp_pat
     assert (input_root / "validation.npz").read_bytes() == sealed_sentinel
     from tasks.pion_projection.candidate import run_candidate
 
+    frozen["analysis_task_spec_sha256"] = "0" * 64
+    (output / "submission.json").write_text(json.dumps(frozen))
+    with pytest.raises(ValueError, match="analysis task/source dependency contract changed"):
+        run_candidate(output, "unused-definition.json", split="development")
+
+    frozen["analysis_task_spec_sha256"] = fingerprint(task_spec_for(protocol))
+    (output / "submission.json").write_text(json.dumps(frozen))
     with pytest.raises(ValueError, match="Snapshot-only development"):
         run_candidate(output, "unused-definition.json", split="development")
     with pytest.raises(ValueError, match="Snapshot-only development"):
@@ -283,4 +293,20 @@ def test_snapshot_loader_refuses_validation_and_gap_splits(tmp_path):
                 tmp_path, split, {}, source_snapshot=snapshot,
                 source_name="validation",
             )
+
+
+def test_evaluate_rejects_stale_snapshot_reader_contract_before_loading_splits(tmp_path):
+    protocol = default_protocol()
+    development_bytes = b"not parsed: dependency mismatch must stop first"
+    (tmp_path / "development.npz").write_bytes(development_bytes)
+    (tmp_path / "submission.json").write_text(json.dumps({
+        "protocol_hash": fingerprint(protocol),
+        "development_sha256": sha256(development_bytes).hexdigest(),
+        "analysis_task_spec_sha256": "0" * 64,
+    }))
+
+    with pytest.raises(ValueError, match="analysis task/source dependency contract changed"):
+        experiment.evaluate(tmp_path)
+
+    assert not (tmp_path / "validation.npz").exists()
 

@@ -13,7 +13,30 @@ from core.source_integrity import SourceByteSnapshot
 from .common import load_data
 
 
+def _source_dependencies():
+    """Hash the code that defines both the task and its snapshot read path."""
+    root = Path(__file__).resolve().parents[2]
+    paths = {
+        'tasks/pion_projection/spec.py': Path(__file__),
+        'tasks/pion_projection/common.py': Path(__file__).with_name('common.py'),
+        'tasks/pion_projection/experiment.py': Path(__file__).with_name('experiment.py'),
+        'tasks/pion_projection/candidate.py': Path(__file__).with_name('candidate.py'),
+        'core/io.py': root / 'core' / 'io.py',
+        'core/measurement.py': root / 'core' / 'measurement.py',
+        'core/specs.py': root / 'core' / 'specs.py',
+        'core/source_integrity.py': root / 'core' / 'source_integrity.py',
+        'core/npz_safety.py': root / 'core' / 'npz_safety.py',
+    }
+    return {name: digest(path) for name, path in paths.items()}
+
+
 def task_spec_for(protocol):
+    dependencies = {
+        'protocol': fingerprint(protocol),
+        'kernels': digest(Path(__file__).with_name('kernels.py')),
+        'statistics': digest(Path(__file__).with_name('statistics.py')),
+        **_source_dependencies(),
+    }
     return task_spec(
         name='pion_projection', observable='zero-momentum pseudoscalar two-point function',
         geometry=list(protocol['geometry']),
@@ -24,9 +47,7 @@ def task_spec_for(protocol):
         reference={'kind': 'single', 'window': protocol['reference_windows'][protocol['reference_nominal_window']]},
         metric={'name': 'conditional perturbation risk', 'score_window': list(protocol['score_window'])},
         budget={'bootstrap_samples': protocol['bootstrap_samples'], 'block_length': protocol['block_length']},
-        dependencies={'protocol': fingerprint(protocol),
-                      'kernels': digest(Path(__file__).with_name('kernels.py')),
-                      'statistics': digest(Path(__file__).with_name('statistics.py'))},
+        dependencies=dependencies,
     )
 
 
@@ -84,6 +105,7 @@ def bundle_for(run=None, *, source_snapshot=None, source_names=None):
         inputs[split] = hashlib.sha256(np.ascontiguousarray(data).tobytes()).hexdigest()
     code = {name: digest(Path(__file__).with_name(name)) for name in
             ('kernels.py', 'statistics.py', 'experiment.py')}
+    code.update(_source_dependencies())
     run_spec = task_spec_for(protocol)
     manifest = {'protocol_hash': fingerprint(protocol), 'splits': splits, 'ids': ids_hash,
                 'inputs': inputs, 'code': code, 'powers': protocol['powers'],
@@ -144,6 +166,7 @@ def bundle_for_development_snapshot(snapshot, *, provenance_source, development_
     }
     code = {name: digest(Path(__file__).with_name(name)) for name in
             ('kernels.py', 'statistics.py', 'experiment.py')}
+    code.update(_source_dependencies())
     run_spec = task_spec_for(protocol)
     manifest = {
         'protocol_hash': fingerprint(protocol), 'splits': splits, 'ids': ids_hash,

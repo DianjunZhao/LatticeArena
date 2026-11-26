@@ -15,6 +15,7 @@ import numpy as np
 from .common import digest, fingerprint, indices, load_data, protocol, write_json
 from .statistics import ReferenceFit, blocks, bootstrap_indices, fold, risk
 from .experiment import late_metric, nested_intervals, pion_mass_check
+from .spec import task_spec_for
 from . import kernels, path_kernel
 
 
@@ -47,6 +48,10 @@ def run_candidate(output, definition_path, split, verify_only=False, *, candidat
     submission_path = output / 'submission.json'
     if submission_path.is_file():
         preliminary = json.loads(submission_path.read_text())
+        frozen_spec_hash = preliminary.get('analysis_task_spec_sha256')
+        if (frozen_spec_hash is not None
+                and frozen_spec_hash != fingerprint(task_spec_for(protocol()))):
+            raise ValueError('Frozen analysis task/source dependency contract changed')
         if (preliminary.get('development_source_read_mode') == 'immutable_snapshot'
                 and not (output / 'development.npz').is_file()):
             raise ValueError(

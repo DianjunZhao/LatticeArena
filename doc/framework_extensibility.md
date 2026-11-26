@@ -187,9 +187,14 @@ larger measurement arrays need a streaming design. Because an NPZ compressed
 size does not bound its expanded arrays, `core/npz_safety.py` preflights ZIP
 members, NPY headers and total uncompressed size (64 MiB default) before a
 snapshot reader calls `numpy.load`; Pion's `common.load_data` uses this check
-before loading its captured development NPZ. Existing evaluator call sites
-still use path-based routes and do not pass a shared snapshot to the task gate.
-Neither route authenticates digest authority or physics.
+before loading its captured development NPZ. Snapshot-based TaskSpecs and
+bundle manifests should also bind the parser, capture and safety-helper source
+hashes; Pion's development bundle and frozen submission now record that code
+identity, and the candidate path checks it before importing GPU/MPI/QUDA.
+The development fit can use a retained snapshot, while legacy and later
+validation/evaluation call sites still include path-based routes and do not
+share one snapshot end-to-end. Neither route authenticates digest authority or
+physics.
 `apply_evidence_gate` revalidates a
 shared `RunReceipt`: missing/unrun denominator units or envelope errors send the
 requested `RunState` stage to `abstained`; a complete schema plus complete

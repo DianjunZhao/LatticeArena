@@ -10,7 +10,7 @@ from core.source_integrity import SourceByteSnapshot
 
 from .common import digest, fingerprint, load_data, protocol, write_json
 from .statistics import (ReferenceFit, blocks, bootstrap_indices, fold, inverse_covariance, risk)
-from .spec import bundle_for
+from .spec import bundle_for, task_spec_for
 
 
 def late_metric(data, weights, p):
@@ -149,6 +149,7 @@ def develop(output, *, source_snapshot=None, source_names=None):
                    'agent_signed_mixture': weights.tolist()}
     metrics = {name: late_metric(data, w, p).tolist() for name, w in submissions.items()}
     frozen = {'protocol_hash': fingerprint(p), 'development_sha256': development_sha,
+              'analysis_task_spec_sha256': fingerprint(task_spec_for(p)),
               'statistics_sha256': digest(Path(__file__).with_name('statistics.py')),
               'kernel_sha256': digest(Path(__file__).with_name('kernels.py')),
               'development_source_read_mode': source_read_mode,
@@ -249,6 +250,9 @@ def evaluate(output):
         )
     if frozen['protocol_hash'] != fingerprint(p) or frozen['development_sha256'] != digest(output/'development.npz'):
         raise ValueError('Frozen protocol or development data changed')
+    if (frozen.get('analysis_task_spec_sha256') is not None
+            and frozen['analysis_task_spec_sha256'] != fingerprint(task_spec_for(p))):
+        raise ValueError('Frozen analysis task/source dependency contract changed')
     if frozen['statistics_sha256'] != digest(Path(__file__).with_name('statistics.py')) or frozen['kernel_sha256'] != digest(Path(__file__).with_name('kernels.py')):
         raise ValueError('Frozen scoring/kernel implementation changed')
     dev = blocks(fold(load_data(output, 'development')), p['block_length'])

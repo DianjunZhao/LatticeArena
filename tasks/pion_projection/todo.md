@@ -496,3 +496,9 @@ Pion 实际数组读取入口 [`common.load_data`](common.py) 也新增可选 sn
 文字流程：`显式 development NPZ snapshot -> ZIP central-directory / NPY header 预检 -> 64 MiB uncompressed cap -> NumPy -> IDs/protocol/shape/finite 校验 -> development fit 输入`。source-integrity fixture 覆盖正常压缩、膨胀拒绝、伪造大 shape、object array 与重复成员；Pion source snapshot + bounded-risk contract 聚焦套件 **60 passed**，PR #5 全仓 CPU suite **256 passed**，包括 Pion reader 在 NumPy 解析前拒绝不一致 NPY 长度。它们全部是合成输入，真实 measurement source 分母仍为 `0/0/0/0`，sealed split 仍未读取。
 
 这关闭的是 immutable development NPZ 的解压资源上限缺口，不会切换 path-based evaluator，也不证明 measurement 来源、E reference、anchor support、独立性、Markov gap/TV 或 common-bias `C`。高于预算的数据将来需要单独设计有界 streaming parser；当前仍保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
+
+### 2026-11-26 snapshot reader 代码版本绑定
+
+新增的安全解析 helper 之前已被 `common.load_data(snapshot=...)` 调用，但 `TaskSpec.dependencies` 和 bundle `manifest.code` 没有记录它及字节捕获/bundle 构造代码。现在 Pion `TaskSpec` 与 bundle manifest 都计算并绑定 `spec.py`、`common.py`、`experiment.py`、`candidate.py`、`core/io.py`、`core/measurement.py`、`core/specs.py`、`core/source_integrity.py`、`core/npz_safety.py` 的 SHA-256；development frozen submission 也记录 TaskSpec 依赖指纹，`evaluate` 检查它，candidate 在导入 GPU/MPI/QUDA 前检查它。path compatibility 仍是独立旧路线，未因此被声明为 snapshot-safe。
+
+文字流程：`Pion protocol + fit/risk source + spec/common/experiment/candidate + core schema/source-integrity/NPZ parser -> TaskSpec dependency map -> bundle/frozen submission fingerprints -> captured development bytes -> development-only bundle`。测试现检查安全 parser、snapshot capture、bundle builder 与 evaluator/runner source 的绑定，并核对冻结 TaskSpec 指纹；还验证错 hash 会在 candidate 导入 GPU/MPI/QUDA 前拒绝，以及 evaluate 在读取 measurement splits 前因 stale fingerprint 停止。Pion 全仓 CPU suite **257 passed**；该项是 source-version bookkeeping，真实 Pion measurement、E reference、anchor map 与 statistical receipts denominator 仍 `0/0/0/0`，不改变 `NOT_READY/UNCERTIFIED` 或 `physical_score=null`。
