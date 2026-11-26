@@ -57,6 +57,30 @@ def test_projected_q_is_invariant_to_vector_scale_and_phase():
     assert q_scaled == pytest.approx(q, rel=1e-13)
 
 
+def test_projected_q_is_invariant_under_invertible_operator_basis_change():
+    transform = np.array([
+        [1.0, 0.2, 0.0],
+        [0.0, 1.0, 0.3],
+        [0.1, 0.0, 1.0],
+    ])
+    transformed_overlaps = OVERLAPS_4X3 @ transform.T
+    original_c1 = correlation_matrix(TOY_ENERGIES_4, OVERLAPS_4X3, 1)
+    original_c2 = correlation_matrix(TOY_ENERGIES_4, OVERLAPS_4X3, 2)
+    transformed_c1 = transform @ original_c1 @ transform.T
+    transformed_c2 = transform @ original_c2 @ transform.T
+    original_vector, _ = principal_gevp_vector(original_c2, original_c1)
+    transformed_vector, _ = principal_gevp_vector(transformed_c2, transformed_c1)
+    original_q = spectral_q(
+        TOY_ENERGIES_4,
+        projected_state_overlaps(OVERLAPS_4X3, original_vector), 5,
+    )
+    transformed_q = spectral_q(
+        TOY_ENERGIES_4,
+        projected_state_overlaps(transformed_overlaps, transformed_vector), 5,
+    )
+    assert transformed_q == pytest.approx(original_q, rel=1e-12)
+
+
 def test_rejects_singular_metric_and_zero_ground_overlap():
     with pytest.raises(ValueError, match="positive definite"):
         principal_gevp_vector(np.eye(3), np.diag([1.0, 1.0, 0.0]))
