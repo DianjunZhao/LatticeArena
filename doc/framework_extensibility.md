@@ -183,10 +183,13 @@ the metadata gate; a complete result still advances only to `draft`.
 hash-matching immutable bytes (64 MiB default total cap), and allows a task
 reader to parse and pass the same snapshot to the gate. Snapshot verification
 re-hashes those retained bytes and identifies `read_mode=immutable_snapshot`;
-larger measurement arrays need a streaming design. Pion's `common.load_data`
-can now load an NPZ directly from snapshot bytes, but existing evaluator call
-sites still use the path-based route and do not pass that snapshot to the task
-gate. Neither route authenticates digest authority or physics.
+larger measurement arrays need a streaming design. Because an NPZ compressed
+size does not bound its expanded arrays, `core/npz_safety.py` preflights ZIP
+members, NPY headers and total uncompressed size (64 MiB default) before a
+snapshot reader calls `numpy.load`; Pion's `common.load_data` uses this check
+before loading its captured development NPZ. Existing evaluator call sites
+still use path-based routes and do not pass a shared snapshot to the task gate.
+Neither route authenticates digest authority or physics.
 `apply_evidence_gate` revalidates a
 shared `RunReceipt`: missing/unrun denominator units or envelope errors send the
 requested `RunState` stage to `abstained`; a complete schema plus complete

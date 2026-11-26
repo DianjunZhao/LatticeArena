@@ -4,6 +4,7 @@ import json
 from hashlib import sha256
 from io import BytesIO
 from types import SimpleNamespace
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import numpy as np
 import pytest
@@ -53,6 +54,34 @@ def test_load_data_requires_a_named_snapshot_source(tmp_path):
     snapshot = capture_source_snapshot(tmp_path, {"dev": sha256(b"x").hexdigest()}, {})
     with pytest.raises(ValueError, match="source_name is required"):
         load_data(tmp_path, "development", {}, source_snapshot=snapshot)
+
+
+def test_snapshot_load_data_rejects_inconsistent_npy_size_before_numpy_load(tmp_path):
+    header = BytesIO()
+    np.lib.format.write_array_header_1_0(
+        header,
+        {"descr": np.dtype("<f8").str, "fortran_order": False,
+         "shape": (10**8,)},
+    )
+    payload_stream = BytesIO()
+    with ZipFile(payload_stream, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr("correlators.npy", header.getvalue() + b"\\x00")
+    payload = payload_stream.getvalue()
+    (tmp_path / "development.npz").write_bytes(payload)
+    snapshot = capture_source_snapshot(
+        tmp_path,
+        {"development_measurements": sha256(payload).hexdigest()},
+        {"development_measurements": "development.npz"},
+    )
+
+    with pytest.raises(ValueError, match="NPY header size mismatch"):
+        load_data(
+            tmp_path,
+            "development",
+            {"development": [2, 3], "powers": [0, 2], "geometry": [4, 4, 4, 4]},
+            source_snapshot=snapshot,
+            source_name="development_measurements",
+        )
 
 
 def test_development_bundle_uses_only_captured_bytes_and_excludes_other_splits(tmp_path):

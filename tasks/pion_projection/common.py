@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 
 from core.io import digest, fingerprint, write_json  # noqa: F401  (re-export)
+from core.npz_safety import validate_npz_payload
 from core.source_integrity import SourceByteSnapshot
 
 HERE = Path(__file__).resolve().parent
@@ -35,7 +36,9 @@ def load_data(output, split, p=None, *, source_snapshot=None, source_name=None):
             )
         if not isinstance(source_name, str) or not source_name.strip():
             raise ValueError('source_name is required when loading from a source snapshot')
-        stream = BytesIO(source_snapshot.read_bytes(source_name))
+        payload = source_snapshot.read_bytes(source_name)
+        validate_npz_payload(payload)
+        stream = BytesIO(payload)
     else:
         if source_name is not None:
             raise ValueError('source_name is only valid together with source_snapshot')

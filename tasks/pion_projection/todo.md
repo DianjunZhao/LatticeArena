@@ -488,3 +488,11 @@ Pion 实际数组读取入口 [`common.load_data`](common.py) 也新增可选 sn
 文字流程：`开发 split provenance + NPZ -> bounded immutable snapshot -> protocol/hash/ID/shape/finite 校验 -> experiment.develop 的 fold/block/reference/risk 输入 -> 新目录保存 source-hash-bound development 结果 -> 未获准且未提供独立验证事务时 evaluate 停止`。snapshot synthetic fixture 的 source-file denominator=`2/2/0/0`、configuration denominator=`30/30/0/0`；在修改原路径后仍读捕获 bytes。fit/risk/optimizer 测试桩逐项断言收到的数组等于捕获 development bytes 经协议 fold/block 变换得到的输入，并检查 protocol；同时覆盖哈希传播、no-clobber 与封存 split 拒绝，不判断物理拟合数值。`tests/test_pion_source_snapshot_reader.py` **6 passed**，本轮 PR #5 checkout 全仓 CPU suite **251 passed**。
 
 仍未接入 `candidate.py`、`axial.py`、`ranking.py` 的完整 production reader，snapshot-only 结果也没有 E-reference、anchor scalar map、score/anchor 独立性、`gamma_ps`/TV 或 common-bias `C` 收据；所以此接线仍是 development 输入路径，不是统计/物理 gate，也不证明 evaluator 输出由同一 snapshot 派生。所有真实 Pion measurement/source denominator 本轮为 `0/0/0/0`，未读 E/gap/validation/shared holdout、缓存或 GPU；保持 `NOT_READY/UNCERTIFIED` 与 `physical_score=null`。下一软件阶段可在同一 reader 对象上增加明确的 development fit/risk summary 反算和 source hash consistency；不要把这一阶段接成默认 validation evaluator。
+
+### 2026-11-26 immutable NPZ 解压预算预检
+
+`SourceByteSnapshot` 的默认 64 MiB 限制只覆盖压缩文件字节数；Pion development NPZ 在 snapshot 模式中现会先调用 [`core/npz_safety.validate_npz_payload`](../../core/npz_safety.py)，再把同一 captured bytes 传给 `numpy.load`。预检拒绝重复/嵌套/非 `.npy` ZIP member、object dtype、NPY header 和成员长度不一致，以及超过 64 MiB 的解压总量，避免高压缩比 NPZ 绕过内存预算。
+
+文字流程：`显式 development NPZ snapshot -> ZIP central-directory / NPY header 预检 -> 64 MiB uncompressed cap -> NumPy -> IDs/protocol/shape/finite 校验 -> development fit 输入`。source-integrity fixture 覆盖正常压缩、膨胀拒绝、伪造大 shape、object array 与重复成员；Pion source snapshot + bounded-risk contract 聚焦套件 **60 passed**，PR #5 全仓 CPU suite **256 passed**，包括 Pion reader 在 NumPy 解析前拒绝不一致 NPY 长度。它们全部是合成输入，真实 measurement source 分母仍为 `0/0/0/0`，sealed split 仍未读取。
+
+这关闭的是 immutable development NPZ 的解压资源上限缺口，不会切换 path-based evaluator，也不证明 measurement 来源、E reference、anchor support、独立性、Markov gap/TV 或 common-bias `C`。高于预算的数据将来需要单独设计有界 streaming parser；当前仍保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
