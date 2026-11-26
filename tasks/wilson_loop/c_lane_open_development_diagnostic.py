@@ -22,6 +22,7 @@ import numpy as np
 
 from core.io import fingerprint
 from core.source_integrity import SourceByteSnapshot
+from core.npz_safety import validate_npz_payload
 
 
 GENERATION = "dd38c39f21982307c5abc2d5093b93c2aa12ef8848d6f9136519b1f8054b619e"
@@ -103,6 +104,7 @@ def _parse_transaction_bytes(npz_bytes: bytes, provenance_bytes: bytes,
     if (kernel.get("kind"), kernel.get("rho"), kernel.get("steps")) != ("stout", 0.1, 5):
         raise ValueError("kernel parameters do not match the selected stout C lane")
 
+    validate_npz_payload(npz_bytes)
     with np.load(BytesIO(npz_bytes), allow_pickle=False) as archive:
         ids = np.array(archive["ids"], copy=True)
         loops = np.array(archive["loops"], copy=True)
@@ -209,7 +211,9 @@ def circular_block_indices(n: int, length: int, draws: int, seed: int) -> np.nda
     return ((starts[..., None] + offsets) % n).reshape(draws, -1)[:, :n]
 
 
-def analyze(values: np.ndarray):
+def analyze(values: np.ndarray, *, seed_base: int = SEED_BASE):
+    if isinstance(seed_base, bool) or not isinstance(seed_base, int) or seed_base < 0:
+        raise ValueError("seed_base must be a nonnegative integer")
     means = values.mean(axis=0)
     required_means = np.asarray([means[2, 2], means[1, 1], means[2, 1], means[1, 2]])
     point_valid = bool(np.all(np.isfinite(required_means)) and np.all(required_means > 0))
@@ -219,7 +223,7 @@ def analyze(values: np.ndarray):
     intervals = []
     qlo, qhi = ALPHA_LANE / 2, 1 - ALPHA_LANE / 2
     for length in BLOCK_LENGTHS:
-        seed = SEED_BASE + length
+        seed = seed_base + length
         indices = circular_block_indices(len(values), length, N_DRAWS, seed)
         sampled = values[indices]
         draw_means = sampled.mean(axis=1)

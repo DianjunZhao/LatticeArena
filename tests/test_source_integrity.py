@@ -1,4 +1,6 @@
 import hashlib
+from io import BytesIO
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 
@@ -7,6 +9,7 @@ from core.source_integrity import (
     verify_source_bytes,
     verify_source_snapshot,
 )
+from core.npz_safety import validate_npz_payload
 
 
 def _sha(data: bytes) -> str:
@@ -203,3 +206,55 @@ def test_source_snapshot_rejects_unmapped_paths_and_root_escapes(tmp_path):
             tmp_path, {"expected": _sha(b"inside")},
             {"unexpected": "expected.bin"},
         )
+
+
+def test_npz_preflight_accepts_small_numeric_archive_and_reports_expansion():
+    stream = BytesIO()
+    import numpy as np
+    np.savez_compressed(stream, ids=np.arange(4096), values=np.zeros((4096, 3)))
+
+    result = validate_npz_payload(stream.getvalue())
+
+    assert result["member_count"] == 2
+    assert result["uncompressed_bytes"] > len(stream.getvalue())
+
+
+def test_npz_preflight_rejects_compressed_expansion_before_numpy_load():
+    stream = BytesIO()
+    import numpy as np
+    np.savez_compressed(stream, values=np.zeros(4096, dtype=np.float64))
+
+    with pytest.raises(ValueError, match="uncompressed size limit"):
+        validate_npz_payload(stream.getvalue(), max_uncompressed_bytes=1024)
+
+
+def test_npz_preflight_rejects_header_claiming_more_data_than_archive_contains():
+    header = BytesIO()
+    import numpy as np
+    np.lib.format.write_array_header_1_0(
+        header,
+        {"descr": np.dtype("<f8").str, "fortran_order": False,
+         "shape": (10**8,)},
+    )
+    stream = BytesIO()
+    with ZipFile(stream, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr("oversized.npy", header.getvalue() + b"\\x00")
+
+    with pytest.raises(ValueError, match="size mismatch"):
+        validate_npz_payload(stream.getvalue())
+
+
+def test_npz_preflight_rejects_object_arrays_and_duplicate_members():
+    import numpy as np
+    objects = BytesIO()
+    np.savez(objects, values=np.asarray([{"not": "allowed"}], dtype=object))
+    with pytest.raises(ValueError, match="object arrays"):
+        validate_npz_payload(objects.getvalue())
+
+    duplicate = BytesIO()
+    with pytest.warns(UserWarning, match="Duplicate name"):
+        with ZipFile(duplicate, "w", compression=ZIP_DEFLATED) as archive:
+            archive.writestr("same.npy", b"first")
+            archive.writestr("same.npy", b"second")
+    with pytest.raises(ValueError, match="duplicate member"):
+        validate_npz_payload(duplicate.getvalue())

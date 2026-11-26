@@ -16,6 +16,7 @@ from typing import Any
 import numpy as np
 
 from core.source_integrity import SourceByteSnapshot
+from core.npz_safety import validate_npz_payload
 from .bounded_block_risk import ARMS, TIMES, bounded_block_scores
 from .bounded_block_risk_markov import bounded_block_risk_markov_decision
 
@@ -113,6 +114,7 @@ def read_bounded_block_risk_snapshot(
         )
 
     try:
+        validate_npz_payload(payload)
         with np.load(BytesIO(payload), allow_pickle=False) as archive:
             if set(archive.files) != _REQUIRED_ARRAYS:
                 return _abstention(

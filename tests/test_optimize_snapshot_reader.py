@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 from io import BytesIO
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import numpy as np
 
@@ -98,3 +99,25 @@ def test_optimize_d06_reader_rejects_arm_reordering_and_invalid_unfailed_blocks(
         "valid": 11, "failed": 1, "abstained": 0,
     }
     assert result["invalid_block_ids"] == [104]
+
+
+def test_optimize_d06_reader_abstains_before_loading_inflated_npz_arrays(tmp_path):
+    import numpy as np
+    header = BytesIO()
+    np.lib.format.write_array_header_1_0(
+        header,
+        {"descr": np.dtype("<f8").str, "fortran_order": False,
+         "shape": (10**8,)},
+    )
+    stream = BytesIO()
+    with ZipFile(stream, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr("scores.npy", header.getvalue() + b"\\x00")
+    snapshot = _snapshot(tmp_path, stream.getvalue())
+
+    result = read_bounded_block_risk_snapshot(
+        snapshot, source_name="paired_scores", split_id="D06-calibration-open",
+    )
+
+    assert result["status"] == "ABSTAIN_NPZ_PARSE_FAILED"
+    assert result["source_denominator"]["failed"] == 1
+    assert result["physical_score"] is None

@@ -32,6 +32,7 @@ from tasks.wilson_loop.c_lane_snapshot_reader import (
     apply_wilson_creutz_snapshot_gate,
 )
 from tasks.wilson_loop.c_lane_open_development_diagnostic import (
+    BLOCK_LENGTHS,
     N_DRAWS as C_N_DRAWS,
     analyze as analyze_creutz_values,
 )
@@ -121,7 +122,8 @@ def _creutz_fixture(*, split="C-calibration-open", halfwidth=0.01):
     return envelope, receipt, summary, hashes
 
 
-def _creutz_snapshot_fixture(tmp_path, *, split="C-calibration-open", summary_delta=0.0):
+def _creutz_snapshot_fixture(tmp_path, *, split="C-calibration-open", summary_delta=0.0,
+                            summary_seed_base=None):
     envelope, receipt, _summary, _hashes = _creutz_fixture(split=split)
     protocol = selected_protocol()
     c_lane = protocol["finite_T_Creutz"]
@@ -162,7 +164,8 @@ def _creutz_snapshot_fixture(tmp_path, *, split="C-calibration-open", summary_de
         loops=loops,
     )
     measurement_bytes = npz_stream.getvalue()
-    analyzed = analyze_creutz_values(stout)
+    seed_base = protocol["finite_T_Creutz"]["bootstrap_seed_base"]
+    analyzed = analyze_creutz_values(stout, seed_base=seed_base)
     _means, _point, _point_valid, rows, _draws, lower, upper, halfwidth, _passed = analyzed
     invalid = sum(row["invalid_draws"] for row in rows)
     summary = {
@@ -173,6 +176,19 @@ def _creutz_snapshot_fixture(tmp_path, *, split="C-calibration-open", summary_de
         "halfwidth": (upper - lower) / 2 + summary_delta / 2,
         "invalid_draws": invalid,
         "planned_draws": len(rows) * C_N_DRAWS,
+        "resampling_protocol": {
+            "method": "paired circular moving-block bootstrap",
+            "block_lengths": list(BLOCK_LENGTHS),
+            "draws_per_length": C_N_DRAWS,
+            "alpha_lane": protocol["familywise_inference"]["alpha_each_lane"],
+            "invalid_fraction_max": protocol["familywise_inference"][
+                "block_bootstrap_invalid_draw_fraction_max"
+            ],
+            "precision_halfwidth_target": c_lane["precision_halfwidth_target"],
+            "seed_base": seed_base if summary_seed_base is None else summary_seed_base,
+            "seed_rule": "seed = seed_base + block_length",
+            "interval_level": 0.975,
+        },
     }
     summary_bytes = json.dumps(
         summary, sort_keys=True, separators=(",", ":"), allow_nan=False
@@ -521,6 +537,11 @@ def test_creutz_snapshot_reader_recomputes_interval_from_same_loop_bytes(tmp_pat
     assert reader["status"] == "ARRAY_REDUCED_NOT_CERTIFIED"
     assert reader["source_hashes"]["loop_measurements"] == hashlib.sha256(measurement_bytes).hexdigest()
     assert reader["summary_consistency"] == "MATCHED_TO_CAPTURED_LOOP_MATRIX"
+    selected = selected_protocol()
+    assert reader["resampling_protocol"]["seed_base"] == selected[
+        "finite_T_Creutz"]["bootstrap_seed_base"]
+    assert reader["resampling_protocol"]["seed_rule"] == "seed = seed_base + block_length"
+    assert reader["resampling_protocol"]["block_lengths"] == [2, 5, 10]
     assert reader["source_denominator"] == {
         "unit": "C calibration input file", "planned": 3,
         "valid": 3, "failed": 0, "abstained": 0,
@@ -551,6 +572,22 @@ def test_creutz_snapshot_reader_rejects_stale_summary_and_closed_split(tmp_path)
     )
     assert result["status"] == "ABSTAIN_WILSON_C_LANE"
     assert result["creutz_snapshot_reader"]["status"] == "ABSTAIN_C_SUMMARY_MISMATCH"
+    assert result["physical_score"] is None
+
+
+def test_creutz_snapshot_reader_rejects_unmatched_bootstrap_seed(tmp_path):
+    selected_seed = selected_protocol()["finite_T_Creutz"]["bootstrap_seed_base"]
+    envelope, receipt, hashes, snapshot, _measurement_bytes = _creutz_snapshot_fixture(
+        tmp_path, summary_seed_base=selected_seed + 1,
+    )
+
+    result = apply_wilson_creutz_snapshot_gate(
+        _ready_state("operator", "numerical"), envelope, receipt,
+        required_source_hashes=hashes, source_snapshot=snapshot,
+    )
+
+    assert result["status"] == "ABSTAIN_WILSON_C_LANE"
+    assert result["creutz_snapshot_reader"]["status"] == "ABSTAIN_C_SUMMARY_RESAMPLING"
     assert result["physical_score"] is None
 
     closed_root = tmp_path / "closed"

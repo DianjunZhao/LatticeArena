@@ -237,6 +237,12 @@ well as the older path-verification call. A task reader can now parse from the
 snapshot and pass that exact object to its gate, avoiding a path reopen between
 verification and computation.
 
+The compressed source-byte budget does not constrain NPZ expansion. Snapshot
+NPZ readers therefore call `core/npz_safety.py` before `numpy.load`; it checks
+flat unique ZIP members, bounded NPY headers, array payload lengths and a 64 MiB
+default total uncompressed budget. Inputs exceeding that expanded budget need a
+separately reviewed streaming reader rather than a larger implicit allocation.
+
 This interface is not yet connected to the live measurement/evaluator readers
 in the PR branches. The path-verification compatibility route still cannot
 prove that a separate parser used the hashed bytes, and even a snapshot does not

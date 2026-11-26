@@ -414,3 +414,21 @@ shared [`core/source_integrity.py`](../../core/source_integrity.py) 现提供有
 边界：reader 的 strict manifest/NPZ/summary schema 是本轮实现的数据接口约定，尚未从真实 measurement producer 的输出核准。确定 bootstrap seed 目前沿用既有 retrospective diagnostic 的 `20261125 + block_length`，当前 lane contract 冻结了 block lengths/draw count/alpha，却未单独冻结 seed；不得把此 seed 说成已审阅的研究决定。虽可重算 interval summary，bootstrap coverage calibration、依赖 gap/TV、输入 HMC provenance、review/authorization 内容仍由外部收据负责；示例的 `DRAFT_PENDING_TASK_VALIDATION` 也绝非统计或物理认证。实际 gauge/loop 输入读取仍为 `0/0/0/0`，未运行 GPU/QUDA。
 
 后续软件工作：先让经审阅的 production measurement exporter 输出并冻结这些 manifest/NPZ schema、source hash 与 seed；另写测试覆盖 exporter↔reader agreement、所有 summary 字段/每个 block-length 的失败率、source map 缺项/错 hash、非有限或非正 ensemble means 和 byte-budget 超限。随后由独立 reviewer 审 C-lane block-bootstrap coverage 与 Creutz 公式；只有授权且独立的 calibration measurement/coverage receipts 到位后才能接入物理 lane。D0–99 retrospective 包永不因新 reader 改标为 calibration，validation/gap/shared holdout/confirmation 仍关闭。
+
+### 2026-11-26 immutable NPZ 解压预算防护
+
+C calibration loop reader、D0–99 retrospective snapshot parser 和 Optimize D06 q-matrix reader 现都在 `numpy.load` 前调用 [`core.npz_safety.validate_npz_payload`](../../core/npz_safety.py)。它验证 NPZ 成员为唯一、扁平的 `.npy` 项，读取受限 NPY header 检查 dtype/shape/声明长度，拒绝 object array，并将 ZIP 解压总量限制在 64 MiB。这个上限与 source snapshot 的压缩字节预算是两道不同检查；压缩小文件不能借高膨胀比迫使 NumPy 分配超预算数组。
+
+文字流程：`captured compressed bytes -> ZIP/NPY 结构预检 -> 解压总量、成员计数与 array-header 长度通过 -> 原 task parser -> split/manifest/axis/inference checks`。shared preflight fixtures 覆盖正常压缩、膨胀拒绝、巨大 shape 欺骗、object dtype 和重复 member；连同 Optimize/C reader 回归定向 **33 passed**，PR #6 全仓 CPU suite **305 passed**。所有正向数据是合成 NPZ；C/F calibration 和实际 loop/spectrum source 分母仍为 `0/0/0/0`。
+
+该防护只约束 NPZ snapshot parser 的预分配资源，不校验 ZIP CRC 之外的授权、data provenance、measurement producer 或物理语义；超过 64 MiB 解压预算的未来 GEVP/thermal 原始数据需设计流式读取并独立复核，不能为适配而取消预算。仍缺 C reader 与受审 production exporter/schema 的一致性、F 的原始 GEVP/thermal parser、coverage/contamination receipts 与研究审阅；`NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 不变。
+
+### 2026-11-26 C lane bootstrap seed 与摘要 schema 冻结
+
+当前 C reader 之前沿用 retrospective diagnostic 的 `SEED_BASE + block_length`，但 calibration 摘要没有声明 seed，故相同 JSON schema 可能代表不同随机数流。现将该计算默认提升到 `wilson-two-lane-selected-v2`：`bootstrap_seed_base=20261125`，每个 `L∈{2,5,10}` 的 NumPy `default_rng(seed_base+L)` 生成圆形 block indices；每个长度 10,000 draws，`alpha_lane=0.025`、central interval level 0.975、无效 draw 最大比例 0.01、halfwidth 目标 0.02。这个 seed 只是沿用已存在的 deterministic default 以固定复现路径，不是按观测结果挑 seed，也不解决 bootstrap coverage calibration。
+
+`wilson-c-creutz-interval-summary-v2` 现要求 summary 同时声明方法、block lengths、draw 数、alpha、invalid-fraction cap、precision target、seed base/rule 和 interval level；reader 从选择合同取得 seed，以该值重算 interval，再与 snapshot 中声明的 resampling protocol 和区间/分母逐项比对。与合同不符的 seed 会在 interval 计算后被拒绝，不进入 C evidence gate。文字流程：`selected protocol v2 -> (L, draws, alpha, caps, seed rule) -> snapshot loop bytes -> deterministic paired bootstrap -> compare v2 summary + denominator -> gate or ABSTAIN`。
+
+新增 synthetic 负控改变摘要 seed，验证其返回 `ABSTAIN_C_SUMMARY_RESAMPLING`；正控断言 reader 输出的 seed、block lengths 与选定合同一致。C lane + lane contract + C development reader 定向 suite **34 passed**；正向测量仍是 12 个常数 loop fixture，source/configuration/draw denominator 为 `3/3/0/0`、`12/12/0/0`、`30,000/30,000/0/0`，不验证 coverage 或有效样本数。实际 C calibration 文件分母仍 `0/0/0/0`，没有 GPU/QUDA、sealed split 或物理测量。
+
+这关闭的是 seed 未声明导致的重现歧义；统计校准、独立 dependence/gap/TV receipt、真实 calibration exporter 对 v2 schema 的符合、独立 reviewer 与授权仍未完成。finite-`T` Creutz 和 ground-state force 仍是分开的 estimand；状态保持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。

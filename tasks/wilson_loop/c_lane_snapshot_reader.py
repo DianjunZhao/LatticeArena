@@ -16,12 +16,15 @@ from typing import Any
 import numpy as np
 
 from core.source_integrity import SourceByteSnapshot
+from core.npz_safety import validate_npz_payload
 
 from .c_lane_open_development_diagnostic import (
+    ALPHA_LANE,
     BLOCK_LENGTHS,
+    HALFWIDTH_TARGET,
+    INVALID_LIMIT,
     N_DRAWS,
     R_VALUES,
-    SEED_BASE,
     T_VALUES,
     analyze as analyze_creutz_values,
 )
@@ -34,7 +37,7 @@ from .lane_contract import selected_protocol
 
 MEASUREMENT_SCHEMA = "wilson-c-calibration-loop-matrix-v1"
 MANIFEST_SCHEMA = "wilson-c-calibration-manifest-v1"
-SUMMARY_SCHEMA = "wilson-c-creutz-interval-summary-v1"
+SUMMARY_SCHEMA = "wilson-c-creutz-interval-summary-v2"
 _MEASUREMENT_KEYS = frozenset({
     "schema", "split_id", "config_ids", "kernel_ids", "r_values", "t_values",
     "manifest_sha256", "loops",
@@ -46,7 +49,7 @@ _MANIFEST_KEYS = frozenset({
 })
 _SUMMARY_KEYS = frozenset({
     "schema", "units", "hull_lower", "hull_upper", "halfwidth",
-    "invalid_draws", "planned_draws",
+    "invalid_draws", "planned_draws", "resampling_protocol",
 })
 _NAMES = ("manifest", "loop_measurements", "interval_summary")
 _CLOSED_SPLIT_MARKERS = ("gap", "validation", "holdout", "sealed", "confirmation")
@@ -163,6 +166,35 @@ def read_creutz_calibration_snapshot(
     selected = selected_protocol()
     common = selected["ensemble_design"]
     c_lane = selected["finite_T_Creutz"]
+    inference = selected["familywise_inference"]
+    seed_base = c_lane["bootstrap_seed_base"]
+    contract_lengths = (inference.get("primary_circular_block_length"),
+                        *inference.get("sensitivity_block_lengths", []))
+    if (inference.get("block_bootstrap_draws") != N_DRAWS
+            or tuple(sorted(contract_lengths)) != tuple(sorted(BLOCK_LENGTHS))
+            or inference.get("alpha_each_lane") != ALPHA_LANE
+            or inference.get("block_bootstrap_invalid_draw_fraction_max") != INVALID_LIMIT
+            or c_lane.get("bootstrap_invalid_draw_fraction_max") != INVALID_LIMIT
+            or c_lane.get("precision_halfwidth_target") != HALFWIDTH_TARGET):
+        return abstain("ABSTAIN_C_RESAMPLING_CONTRACT", "selected C draws/block lengths/alpha/precision differ from the implemented interval procedure")
+    if (isinstance(seed_base, bool) or not isinstance(seed_base, int)
+            or seed_base < 0):
+        return abstain("ABSTAIN_C_RESAMPLING_CONTRACT", "selected C bootstrap seed base must be a nonnegative integer")
+    resampling_protocol = {
+        "method": "paired circular moving-block bootstrap",
+        "block_lengths": list(BLOCK_LENGTHS),
+        "draws_per_length": N_DRAWS,
+        "alpha_lane": ALPHA_LANE,
+        "invalid_fraction_max": INVALID_LIMIT,
+        "precision_halfwidth_target": HALFWIDTH_TARGET,
+        "seed_base": seed_base,
+        "seed_rule": "seed = seed_base + block_length",
+        "interval_level": 0.975,
+    }
+    if (seed_base != inference.get("block_bootstrap_seed_base")
+            or c_lane.get("bootstrap_seed_rule") != inference.get("block_bootstrap_seed_rule")
+            or c_lane.get("bootstrap_seed_rule") != resampling_protocol["seed_rule"]):
+        return abstain("ABSTAIN_C_RESAMPLING_CONTRACT", "selected C seed rule differs from the family inference contract")
     if (manifest.get("geometry") != common["geometry"]
             or manifest.get("action") != "Wilson gauge action, beta=6"
             or manifest.get("boundary_conditions") != common["boundary_conditions"]
@@ -178,6 +210,7 @@ def read_creutz_calibration_snapshot(
         return abstain("ABSTAIN_C_KERNEL_MISMATCH", "selected stout kernel parameters differ from rho=0.1, n=5")
 
     try:
+        validate_npz_payload(payloads["loop_measurements"])
         with np.load(BytesIO(payloads["loop_measurements"]), allow_pickle=False) as archive:
             if set(archive.files) != _MEASUREMENT_KEYS:
                 return abstain("ABSTAIN_C_MEASUREMENT_SCHEMA", "measurement NPZ keys differ from the frozen reader")
@@ -227,7 +260,10 @@ def read_creutz_calibration_snapshot(
                        config_count=n_config)
 
     try:
-        analyzed = analyze_creutz_values(np.asarray(loops[:, int(kernel_matches[0]), :, :], dtype=np.float64))
+        analyzed = analyze_creutz_values(
+            np.asarray(loops[:, int(kernel_matches[0]), :, :], dtype=np.float64),
+            seed_base=seed_base,
+        )
     except (TypeError, ValueError, OverflowError, FloatingPointError) as exc:
         return abstain("ABSTAIN_C_ANALYSIS_FAILED", f"selected Creutz analysis failed: {type(exc).__name__}",
                        config_count=n_config)
@@ -247,6 +283,7 @@ def read_creutz_calibration_snapshot(
         "halfwidth": hull_halfwidth,
         "invalid_draws": invalid_draws,
         "planned_draws": planned_draws,
+        "resampling_protocol": resampling_protocol,
         "summary_sha256": hashlib.sha256(payloads["interval_summary"]).hexdigest(),
     }
     if not point_valid or hull_low is None or hull_high is None or hull_halfwidth is None:
@@ -256,6 +293,9 @@ def read_creutz_calibration_snapshot(
         if not _finite(saved_summary.get(name)) or abs(float(saved_summary[name]) - float(derived[name])) > 1e-12:
             return abstain("ABSTAIN_C_SUMMARY_MISMATCH", f"saved interval summary {name} differs from the captured loop analysis",
                            config_count=n_config, draw_denominator=draw_denominator)
+    if saved_summary.get("resampling_protocol") != resampling_protocol:
+        return abstain("ABSTAIN_C_SUMMARY_RESAMPLING", "saved interval summary does not declare the selected block lengths, draws, seed rule, and level",
+                       config_count=n_config, draw_denominator=draw_denominator)
     if (saved_summary.get("units") != "dimensionless"
             or type(saved_summary.get("invalid_draws")) is not int
             or type(saved_summary.get("planned_draws")) is not int
@@ -292,9 +332,12 @@ def read_creutz_calibration_snapshot(
             "same_indices_for_all_four_loop_means": True,
             "block_lengths": list(BLOCK_LENGTHS),
             "draws_per_length": N_DRAWS,
-            "seed_rule": f"seed = {SEED_BASE} + block_length",
+            "seed_base": seed_base,
+            "seed_rule": resampling_protocol["seed_rule"],
             "interval_level": 0.975,
-            "invalid_rule": "any required draw mean is nonpositive or nonfinite; retain in planned denominator",
+        "invalid_fraction_max": INVALID_LIMIT,
+        "precision_halfwidth_target": HALFWIDTH_TARGET,
+        "invalid_rule": "any required draw mean is nonpositive or nonfinite; retain in planned denominator",
         },
         "source_denominator": denominator.copy(),
         "configuration_denominator": {

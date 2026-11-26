@@ -557,3 +557,11 @@ reader 现在还从同一 snapshots 严格解析 `optimize-paired-macroblock-cha
 文字流程：`历史 RunSpec hashes -> 路径式 train.main -> 旧 fit/dev_val/test 与 bootstrap objective` 与当前 `D06 immutable snapshot q-matrix + chain/gap/TV receipts -> Markov bound` 在读取事务、split 语义和统计 estimand 上不相接；本轮静态审计 planned/valid/failed/abstained=`3/3/0/0`（三个旧模块 inspected），物理文件读取=`0/0/0/0`。继续软件接线应实现新协议的 evaluator/parser并从同一 bytes snapshot 派生 q 矩阵、失败分母、receipt 摘要和证据摘要；旧 runner 仅作 hard-timeout 参考。不得为满足“有 runner”而重建旧 `train.py` 或访问真实/封存输入。
 
 本次 Wilson reader 的全仓 CPU 回归为 **299 passed**；这验证软件行为，不解决 E-reference、真实 gap/TV receipt、paired solver/cost、D11 SU(3) 审阅、production RunSpec 或授权。状态仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
+
+### 2026-11-26 immutable NPZ 的解压预算预检
+
+`SourceByteSnapshot` 限制的是被捕获的压缩文件总字节，但 `.npz` 是 ZIP 容器，单靠压缩字节上限不能限制 NumPy 解包/分配的数组大小。新增 [`core/npz_safety.py`](../../core/npz_safety.py)：在 `numpy.load` 前检查 ZIP 成员数/重复名/路径、每个 NPY header 的 shape 与 dtype、header 推出的 payload 长度和总 uncompressed bytes；拒绝 object array，默认解压预算 64 MiB。当前 Optimize D06 q-matrix、Wilson C-calibration loop matrix 与 retrospective C-development snapshot parser 均先走此检查。超预算数组不进入 NumPy 分配路径。
+
+文字流程：`压缩 snapshot bytes -> ZIP central-directory / NPY header 预检 -> 64 MiB 解压预算与实际成员长度相符 -> 才允许 numpy.load -> task-specific schema/hash/split gate`。新 synthetic regression 覆盖正常压缩 NPZ、低压缩率膨胀拒绝、header 声称巨大 shape 但 payload 不足、object dtype 和重复成员；Optimize reader 与 Wilson reader 的 immutable snapshot 路径仍复用同一 captured bytes。当前 PR #6 定向 source/Optimize/Wilson suite 为 **33 passed**，全仓 CPU suite **305 passed**。物理输入读取仍 `0/0/0/0`，没有读取 loop/GEVP/thermal 或 sealed data，也没有 GPU/QUDA。
+
+限制：64 MiB 是 parser 的内存保护默认，不是物理数据完整性或来源证明；高于该预算的未来谱/相关函数输入应另做有界流式 reader 与显式审阅，不应调大上限绕过。JSON summary 和非 NPZ source 仍由各自 parser 负责；此改动不补 C/F production exporter、q/h/x 推导、D04 reference 或 Optimize solver receipts。所有 lane 继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`。

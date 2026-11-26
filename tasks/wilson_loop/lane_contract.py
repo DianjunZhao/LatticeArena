@@ -51,7 +51,7 @@ def open_gate_run_state() -> dict[str, Any]:
 def selected_protocol() -> dict[str, Any]:
     """Return selected C/F method defaults without inventing evidence receipts."""
     return {
-        "protocol_id": "wilson-two-lane-selected-v1",
+        "protocol_id": "wilson-two-lane-selected-v2",
         "status": "METHOD_DEFAULTS_SELECTED_EVIDENCE_NOT_READY",
         "ensemble_design": {
             "geometry": [16, 16, 16, 16],
@@ -67,6 +67,9 @@ def selected_protocol() -> dict[str, Any]:
             "co_primary_lanes": ["finite_T_Creutz", "ground_state_discrete_static_force"],
             "alpha_each_lane": 0.025,
             "block_bootstrap_draws": 10000,
+            "block_bootstrap_seed_base": 20261125,
+            "block_bootstrap_seed_rule": "seed = seed_base + block_length",
+            "block_bootstrap_invalid_draw_fraction_max": 0.01,
             "primary_circular_block_length": 5,
             "sensitivity_block_lengths": [2, 10],
             "interval_rule": "hull of the required block-length intervals",
@@ -91,6 +94,9 @@ def selected_protocol() -> dict[str, Any]:
             "loop_mean_rule": "compute paired ensemble means first; take logs only for positive means",
             "precision_halfwidth_target": 0.02,
             "precision_units": "dimensionless",
+            "bootstrap_seed_base": 20261125,
+            "bootstrap_seed_rule": "seed = seed_base + block_length",
+            "bootstrap_invalid_draw_fraction_max": 0.01,
             "data_receipt_sha256": None,
             "paired_split_manifest_sha256": None,
         },
@@ -197,6 +203,9 @@ def empty_contract() -> dict[str, Any]:
                     ),
                     "alpha_total": 0.025,
                     "alpha_allocations": {"finite_T_Creutz_two_sided_interval": 0.025},
+                    "bootstrap_seed_base": 20261125,
+                    "bootstrap_seed_rule": "seed = seed_base + block_length",
+                    "bootstrap_invalid_draw_fraction_max": 0.01,
                     "precision_target": 0.02,
                     "precision_units": CREUTZ_UNITS,
                     "multiplicity_method": "Bonferroni allocation across the two co-primary lanes",
