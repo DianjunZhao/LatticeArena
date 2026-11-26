@@ -104,6 +104,16 @@ def test_reader_rejects_geometry_temporal_extent_mismatch(tmp_path):
         _read(snapshot)
 
 
+def test_reader_does_not_require_each_noisy_block_projection_to_be_positive(tmp_path):
+    def one_negative_t0_block(arrays):
+        arrays["correlator_matrices"][0, 0, 0, 0] *= -0.5
+    snapshot, _, _ = _transaction(tmp_path, mutate_npz=one_negative_t0_block)
+    result = _read(snapshot)
+    projected = result["projected_correlators"][:, 0, 0, 0]
+    assert projected[0] < 0
+    assert projected.mean() > 0
+
+
 @pytest.mark.parametrize("kind, message", [
     ("non_hermitian", "must be Hermitian"),
     ("nonfinite", "must be finite"),
@@ -129,6 +139,16 @@ def test_reader_requires_complete_snapshot_source_map(tmp_path):
     with pytest.raises(ValueError, match="map exactly manifest and matrix_npz"):
         diagnostic.read_raw_matrix_snapshot(snapshot, source_names={"manifest": "manifest_bytes"},
                                             split_id="synthetic_calibration_open")
+
+
+def test_reader_rejects_empty_split_id(tmp_path):
+    snapshot, _, _ = _transaction(tmp_path)
+    with pytest.raises(ValueError, match="split_id must be a nonempty string"):
+        diagnostic.read_raw_matrix_snapshot(
+            snapshot,
+            source_names={"manifest": "manifest_bytes", "matrix_npz": "matrix_bytes"},
+            split_id="",
+        )
 
 
 def test_report_hashes_figure_and_keeps_certification_gate_abstained(tmp_path):

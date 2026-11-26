@@ -128,8 +128,12 @@ def read_raw_matrix_snapshot(
     """Read one manifest+NPZ transaction from exactly the captured bytes."""
     if not isinstance(snapshot, SourceByteSnapshot):
         raise ValueError("snapshot must be a SourceByteSnapshot")
+    if not isinstance(split_id, str) or not split_id.strip():
+        raise ValueError("split_id must be a nonempty string")
     if not isinstance(source_names, dict) or set(source_names) != SOURCE_ROLES:
         raise ValueError("source_names must map exactly manifest and matrix_npz roles")
+    if any(not isinstance(name, str) or not name.strip() for name in source_names.values()):
+        raise ValueError("source_names values must be nonempty snapshot source names")
     if len(set(source_names.values())) != 2:
         raise ValueError("manifest and matrix_npz must be distinct snapshot sources")
     payloads = {role: snapshot.read_bytes(name) for role, name in source_names.items()}
@@ -162,9 +166,11 @@ def read_raw_matrix_snapshot(
         raise ValueError("block_ids must be a unique integer vector with at least two blocks")
     if arrays["kernel_ids"].tolist() != list(KERNELS):
         raise ValueError("NPZ operator axis is missing, reordered, or unexpected")
-    if not np.array_equal(arrays["R_values"], np.asarray(R_VALUES, dtype=np.int64)):
+    if (arrays["R_values"].dtype.kind not in "iu"
+            or not np.array_equal(arrays["R_values"], np.asarray(R_VALUES, dtype=np.int64))):
         raise ValueError("NPZ R axis is missing, reordered, or unexpected")
-    if not np.array_equal(arrays["time_slices"], np.asarray(TIME_SLICES, dtype=np.int64)):
+    if (arrays["time_slices"].dtype.kind not in "iu"
+            or not np.array_equal(arrays["time_slices"], np.asarray(TIME_SLICES, dtype=np.int64))):
         raise ValueError("NPZ time axis is missing, reordered, or unexpected")
     matrices = arrays["correlator_matrices"]
     expected_shape = (block_ids.size, len(KERNELS), len(R_VALUES), len(TIME_SLICES), 3, 3)
@@ -209,8 +215,6 @@ def read_raw_matrix_snapshot(
             }
             for time_index, time in enumerate(TIME_SLICES):
                 block_values = projected[:, kernel_index, radius_index, time_index]
-                if np.any(block_values <= 0):
-                    raise ValueError(f"projected block correlator must be positive: {key}, t={time}")
                 records.append({
                     "kernel_id": kernel_id, "R": radius, "time": time,
                     "mean_projected_C": float(np.mean(block_values)),
