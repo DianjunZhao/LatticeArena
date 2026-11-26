@@ -524,3 +524,9 @@ Pion 实际数组读取入口 [`common.load_data`](common.py) 也新增可选 sn
 文字流程：`2 captured D-development source files -> same-byte protocol/ID/shape/finite/NPZ-budget checks -> folded development blocks -> existing reference-fit/bootstrap + basis/mixture risk calculations -> source, array, ID and output hashes + denominators -> verifier: all byte identities agree or raise -> diagnostic only`。synthetic regression fixture 中 source files `2/2/0/0`、配置 `30/30/0/0`、block `6/6/0/0`、finite risk summary `4/4/0/0`；逐项重算并核验 manifest 中四个输出文件的哈希，另将 README 改写一字节验证 verifier 拒绝 stale artifact。捕获后改写输入路径仍以原 snapshot bytes 产生结果，且 output 不包含 validation NPZ；`tests/test_pion_source_snapshot_reader.py` **8 passed**，完整 PR #5 CPU suite **257 passed**。此流程只验证合成 development transaction 的 byte→array→summary 可追溯性，不认证来源授权、独立抽样、E-reference、anchor/common-bias 或物理依赖界；没有读取真实输入、validation/gap/holdout/confirmation 或 GPU。Pion 继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。
 
 当前可用的本地 development-only 纯软件检查已包含 source/report verifier。下一阶段需要先有独立审阅和获准的 reference/anchor/dependence receipts，再设计物理 evaluator；不得把 snapshot-only development 输出接成默认 validation evaluator，也不得开启封存输入。
+
+### 2026-11-26 PR #5 / PR #6 TaskSpec 兼容性复核
+
+为检查 PR #6 新增的通用 `core/specs.py` 校验是否会破坏 PR #5 的 Pion 调用，本轮将 PR #5 当前 tracked HEAD 导出到临时目录，只用 PR #6 版本替换该目录中的 `core/specs.py`，随后运行完整 CPU suite：**257 passed**。原 PR #5 工作树和输入文件未改动，临时目录已清理。这验证当前 Pion TaskSpec 能通过 PR #6 的 split-range 非重叠校验及 Optimize operator-contract allowlist；它不是两个 PR 的实际合并，也不证明生产 evaluator 或物理门通过。
+
+跨分支静态比对还确认 `core/evidence.py`、`core/receipts.py`、`core/source_integrity.py`、`core/npz_safety.py` 和对应 evidence/receipt tests 内容相同；`core/state.py` 的差异只改变相同状态转移集合的排版。`core/specs.py` 的剩余分叉是 PR #6 增加的范围校验和 Optimize 专属 contract 名称，Pion 兼容性已由上述 overlay suite 验证。GitHub 对 PR #5/#6 均未报告 CI checks，实际 mergeability 仍需 GitHub 合并状态确认。此次没有读取任何 Pion measurement/reference/anchor bytes；`NOT_READY/UNCERTIFIED`、`physical_score=null` 与 sealed-data closed 不变。
