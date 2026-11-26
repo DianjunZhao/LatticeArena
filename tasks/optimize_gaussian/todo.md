@@ -6,7 +6,7 @@
 
 ### 2026-11-26 当前 CPU 验证快照
 
-当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **152 passed**；包含 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、D04/D11 same-snapshot summary parser、新增严格 JSON/content-hash 用例、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。加入 Wilson joint-GLS 覆盖、raw-matrix fit 接线、六场景 joint-spectrum stress、B=40/B=80 MBB、profile-likelihood 失败诊断及报告刷新回归后，Optimize+Wilson 定向集合为 **330 passed**（Optimize 152、Wilson 178），PR #6 完整 CPU suite 为 **413 passed**（2026-11-26）。PR #5 的 Pion 全仓 CPU suite 为 **257 passed**；Pion TODO 与其工作树本轮未改动。所有结果只代表 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
+当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **152 passed**；包含 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、D04/D11 same-snapshot summary parser、新增严格 JSON/content-hash 用例、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。2026-11-26 本轮重跑 Wilson 专项集为 **184 passed**，Optimize+Wilson 定向集合 **336 passed**（Optimize 152、Wilson 184），PR #6 完整 CPU suite **419 passed**。PR #5 Pion 全仓 CPU suite **258 passed**；Pion TODO 与其工作树分开更新。所有结果只代表 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
 
 ### 2026-11-26 trainable-W / SLSQP / degree-4 Chebyshev 扩样比较
 

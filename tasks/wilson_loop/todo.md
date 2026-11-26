@@ -2,7 +2,7 @@
 
 ### 当前 CPU 验证快照（2026-11-26）
 
-PR #6 当前 Wilson 定向文件集 `tests/test_wilson*.py` 为 **178 passed**；Optimize+Wilson 定向集合为 **330 passed**（Optimize 152），PR #6 全仓 CPU suite 为 **413 passed**（2026-11-26）。PR #5 Pion 最近一次全仓 CPU suite 为 **257 passed**，其工作树本轮未改动。以上只核验 CPU 软件/合成公式；没有读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+2026-11-26 本轮重跑 PR #6 的 Wilson 定向文件集 `tests/test_wilson*.py`：**184 passed**；Optimize+Wilson 定向集合 **336 passed**（Optimize 152、Wilson 184），PR #6 全仓 CPU suite **419 passed**。PR #5 Pion 全仓 CPU suite **258 passed**。这些结果只核验 CPU 软件/合成公式；没有读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
 
 ### 2026-11-26 F-lane q/h/x kernel 的线性可辨识性诊断（合成输入）
 
