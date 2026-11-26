@@ -6,7 +6,7 @@
 
 ### 2026-11-26 当前 CPU 验证快照
 
-当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **152 passed**；包含 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、D04/D11 same-snapshot summary parser、新增严格 JSON/content-hash 用例、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。加入本轮 Wilson joint-GLS 覆盖与 raw-matrix fit 接线测试后，PR #6 完整 CPU suite 复跑为 **389 passed**、Wilson 文件集为 **154 passed**（2026-11-26）。PR #5 的 Pion 全仓 CPU suite 本轮也复跑为 **257 passed**，其工作树未改动。所有结果只代表 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
+当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **152 passed**；包含 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、D04/D11 same-snapshot summary parser、新增严格 JSON/content-hash 用例、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。加入 Wilson joint-GLS 覆盖、raw-matrix fit 接线和本轮 5 项 joint-spectrum stress 回归后，PR #6 完整 CPU suite 为 **394 passed**、Wilson 定向文件集为 **159 passed**（2026-11-26）。PR #5 的 Pion 全仓 CPU suite 为 **257 passed**，其工作树未改动。所有结果只代表 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
 
 ### 2026-11-26 trainable-W / SLSQP / degree-4 Chebyshev 扩样比较
 
