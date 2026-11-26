@@ -432,3 +432,9 @@ C calibration loop reader、D0–99 retrospective snapshot parser 和 Optimize D
 新增 synthetic 负控改变摘要 seed，验证其返回 `ABSTAIN_C_SUMMARY_RESAMPLING`；正控断言 reader 输出的 seed、block lengths 与选定合同一致。C lane + lane contract + C development reader 定向 suite **34 passed**；正向测量仍是 12 个常数 loop fixture，source/configuration/draw denominator 为 `3/3/0/0`、`12/12/0/0`、`30,000/30,000/0/0`，不验证 coverage 或有效样本数。实际 C calibration 文件分母仍 `0/0/0/0`，没有 GPU/QUDA、sealed split 或物理测量。
 
 这关闭的是 seed 未声明导致的重现歧义；统计校准、独立 dependence/gap/TV receipt、真实 calibration exporter 对 v2 schema 的符合、独立 reviewer 与授权仍未完成。finite-`T` Creutz 和 ground-state force 仍是分开的 estimand；状态保持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+
+### 2026-11-26 C-development 报告绑定其 NPZ 预检源码
+
+Retrospective C-development parser 现在在输出 `protocol.json` 和 `summary.json` 时记录诊断脚本与 `core/npz_safety.py` 两份 `analysis_source_sha256`，并将两份脚本副本放入新报告目录；`manifest.json` 以报告目录内相对路径覆盖每个文本、CSV、NPZ、PNG 和源码快照。这样即使输出写到项目目录之外，manifest 仍可自包含验证，不再依赖源文件恰好位于输出父目录。
+
+图文数据流：`pinned D0–99 transaction snapshot -> NPZ preflight/parser -> paired Creutz + bootstrap -> README/CSV/PNG + parser source snapshots -> relative artifact manifest`。Wilson snapshot reader、lane-contract 和 source-integrity focused suite **33 passed**；测试按 manifest 验证每个产物哈希，并确认保存的 helper hash 等于 protocol 记录；PR #6 全仓 CPU suite **306 passed**。输入仍是 synthetic regression fixture，D0–99 物理数据并未重读；此改动不改变 retrospective-only 标记，也不建立 calibration coverage、F 谱污染界或生产 reader，lane physical status 仍 abstained/uncertified。

@@ -565,3 +565,9 @@ reader 现在还从同一 snapshots 严格解析 `optimize-paired-macroblock-cha
 文字流程：`压缩 snapshot bytes -> ZIP central-directory / NPY header 预检 -> 64 MiB 解压预算与实际成员长度相符 -> 才允许 numpy.load -> task-specific schema/hash/split gate`。新 synthetic regression 覆盖正常压缩 NPZ、低压缩率膨胀拒绝、header 声称巨大 shape 但 payload 不足、object dtype 和重复成员；Optimize reader 与 Wilson reader 的 immutable snapshot 路径仍复用同一 captured bytes。当前 PR #6 定向 source/Optimize/Wilson suite 为 **33 passed**，全仓 CPU suite **305 passed**。物理输入读取仍 `0/0/0/0`，没有读取 loop/GEVP/thermal 或 sealed data，也没有 GPU/QUDA。
 
 限制：64 MiB 是 parser 的内存保护默认，不是物理数据完整性或来源证明；高于该预算的未来谱/相关函数输入应另做有界流式 reader 与显式审阅，不应调大上限绕过。JSON summary 和非 NPZ source 仍由各自 parser 负责；此改动不补 C/F production exporter、q/h/x 推导、D04 reference 或 Optimize solver receipts。所有 lane 继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
+
+### 2026-11-26 DRAFT 计划的读取依赖闭合
+
+复核发现 `source_reader.py` 已 import `core.npz_safety`、`core.source_integrity`、bounded-risk reducer 与 Markov 界，但 no-launch draft 的 `source_hashes` 没有完整列出这些可改变读入/风险结果的模块，报告快照也没有随附全部依赖。现已扩展 `draft_plan.py` 的依赖表和报告快照，纳入 core I/O/receipt/spec/state/source-integrity/NPZ-safety，以及 bounded-risk/Markov、candidate、Chebyshev、risk-statistics 和 q-matrix reader。
+
+文字流程：`D04/D06/D11 contract + reducer/reader/integrity/parser/core schema sources -> SHA-256 dependency map + source snapshots -> DRAFT_NO_LAUNCH`。新增报告测试逐项校验 artifact hashes，并确认 `core/npz_safety.py` 与 `core/source_integrity.py` 的 snapshot 存在；focused Optimize + snapshot + integrity suite **19 passed**，PR #6 全仓 CPU suite **306 passed**。这改善源码可追溯性，不产生新的 D06 scores、gap/TV receipts、D04 reference draws、SLSQP/learned-W 比较或 GPU evidence；planned physical gates 仍 `5/0/0/5`，sealed split 不读，`physical_score=null`。

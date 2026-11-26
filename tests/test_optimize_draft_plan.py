@@ -1,4 +1,7 @@
-from tasks.optimize_gaussian.draft_plan import build_plan
+import hashlib
+import json
+
+from tasks.optimize_gaussian.draft_plan import build_plan, build_report
 
 
 def test_selected_f2_contrasts_are_bound_to_fail_closed_no_launch_plan():
@@ -25,6 +28,9 @@ def test_selected_f2_contrasts_are_bound_to_fail_closed_no_launch_plan():
     assert run["launch_allowed"] is False
     assert "risk_statistics.py" in plan["source_hashes"]
     assert "source_reader.py" in plan["source_hashes"]
+    assert "core/npz_safety.py" in plan["source_hashes"]
+    assert "core/source_integrity.py" in plan["source_hashes"]
+    assert "bounded_block_risk_markov.py" in plan["source_hashes"]
     assert "an evaluator that generates paired outer block-bootstrap and inner D04 draws" in plan["not_established"]
     assert plan["physical_score"] is None
     assert run["physical_score"] is None
@@ -34,3 +40,17 @@ def test_selected_f2_contrasts_are_bound_to_fail_closed_no_launch_plan():
         "planned": 5, "valid": 0, "failed": 0, "abstained": 5,
         "unit": "operator/reference/numerical/statistical/comparison certification stages",
     }
+
+
+def test_draft_report_copies_the_hashed_snapshot_reader_dependencies(tmp_path):
+    output = tmp_path / "draft-report"
+    result = build_report(output)
+    plan = json.loads((output / "run_plan.json").read_text())
+    artifacts = json.loads((output / "artifact_hashes.json").read_text())
+
+    assert result["status"] == "DRAFT_NO_LAUNCH"
+    assert "core/npz_safety.py" in plan["source_hashes"]
+    assert "snapshot_core_npz_safety.py" in artifacts
+    assert "snapshot_core_source_integrity.py" in artifacts
+    for name, expected in artifacts.items():
+        assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected

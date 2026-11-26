@@ -242,9 +242,15 @@ NPZ readers therefore call `core/npz_safety.py` before `numpy.load`; it checks
 flat unique ZIP members, bounded NPY headers, array payload lengths and a 64 MiB
 default total uncompressed budget. Inputs exceeding that expanded budget need a
 separately reviewed streaming reader rather than a larger implicit allocation.
+Snapshot-using reports should bind the reader, capture code and safety helper in
+their TaskSpec/source dependency map, and copy relevant sources into the hashed
+artifact bundle. The Pion development snapshot bundle does this; Optimize's
+no-launch draft binds the D06 parser stack, and Wilson's retrospective C report
+stores its parser sources.
 
-This interface is not yet connected to the live measurement/evaluator readers
-in the PR branches. The path-verification compatibility route still cannot
+Pion development fitting and the selected Optimize/Wilson snapshot diagnostics
+can consume retained bytes, but no production solver/evaluator emits reviewed
+physical receipts yet. The path-verification compatibility route still cannot
 prove that a separate parser used the hashed bytes, and even a snapshot does not
 authenticate expected-hash authority, reviewer identity, provenance,
 independence or scientific claims. Synthetic fixtures opt out of byte checks

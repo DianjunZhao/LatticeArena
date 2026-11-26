@@ -23,6 +23,7 @@ import numpy as np
 from core.io import fingerprint
 from core.source_integrity import SourceByteSnapshot
 from core.npz_safety import validate_npz_payload
+from core import npz_safety as npz_safety_module
 
 
 GENERATION = "dd38c39f21982307c5abc2d5093b93c2aa12ef8848d6f9136519b1f8054b619e"
@@ -347,6 +348,8 @@ def run(input_dir: Path | None, output_dir: Path, *,
     output_dir.mkdir(parents=True, exist_ok=False)
     source_path = Path(__file__).resolve()
     source_sha = sha256_file(source_path)
+    npz_safety_path = Path(npz_safety_module.__file__).resolve()
+    npz_safety_sha = sha256_file(npz_safety_path)
 
     point_means = {
         "W(3,6)": float(means[2, 2]),
@@ -387,6 +390,10 @@ def run(input_dir: Path | None, output_dir: Path, *,
             "interpretation": "empirical preflight checks only; bootstrap assumptions/coverage are not established",
         },
         "source_script_sha256": source_sha,
+        "analysis_source_sha256": {
+            "tasks/wilson_loop/c_lane_open_development_diagnostic.py": source_sha,
+            "core/npz_safety.py": npz_safety_sha,
+        },
         "numpy_version": np.__version__,
         "matplotlib_version": matplotlib.__version__,
     }
@@ -415,6 +422,7 @@ def run(input_dir: Path | None, output_dir: Path, *,
         "bootstrap_coverage_gate": "NOT_ESTABLISHED: block lengths and draw count do not prove dependence assumptions or interval coverage",
         "f_lane_status": "UNCHANGED_UNCERTIFIED: this package has Nt=16 loops only; it has no independent GEVP receipt or matched Nt=32 thermal data",
         "data_hashes": hashes,
+        "analysis_source_sha256": protocol["analysis_source_sha256"],
     }
 
     write_json(output_dir / "protocol.json", protocol)
@@ -425,6 +433,10 @@ def run(input_dir: Path | None, output_dir: Path, *,
         writer.writeheader()
         writer.writerows(rows)
     np.savez_compressed(output_dir / "bootstrap_estimates.npz", **draws)
+    (output_dir / "snapshot_c_lane_open_development_diagnostic.py").write_bytes(
+        source_path.read_bytes()
+    )
+    (output_dir / "snapshot_core_npz_safety.py").write_bytes(npz_safety_path.read_bytes())
     make_plot(output_dir / "c_lane_bootstrap_intervals.png", point, point_valid,
               rows, hull_low, hull_high, hull_halfwidth)
 
@@ -434,7 +446,7 @@ def run(input_dir: Path | None, output_dir: Path, *,
 
 ## Data boundary and identity
 
-This run reads only the pinned D-chain development transaction, IDs 0–99: `development.npz`, `development_provenance.json`, and `development.commit.json`. The NPZ, provenance, generation, loop-array fingerprint, and frozen source fingerprints are checked before analysis. Validation, gap, shared holdout, and confirmation files are never opened. Input hashes are recorded in `summary.json` and `protocol.json`; bootstrap estimates and this source are covered by `manifest.json`.
+This run reads only the pinned D-chain development transaction, IDs 0–99: `development.npz`, `development_provenance.json`, and `development.commit.json`. The NPZ, provenance, generation, loop-array fingerprint, and frozen source fingerprints are checked before analysis. Validation, gap, shared holdout, and confirmation files are never opened. Input hashes are recorded in `summary.json` and `protocol.json`; bootstrap estimates plus snapshots of the diagnostic script and exact `core/npz_safety.py` preflight source are covered by `manifest.json` and `analysis_source_sha256`.
 
 The open package is 16^4, beta=6, periodic in all directions, with `N_t=16`. The selected spatial kernel is `{KERNEL_ID}` (stout rho=0.1, five steps). Four loop means use the same IDs and, in each bootstrap draw, the same sampled configuration indices:
 
@@ -480,12 +492,14 @@ The default output directory is next to this report and fails closed if it alrea
     manifest_files = [
         output_dir / "README.md", output_dir / "protocol.json", output_dir / "summary.json",
         output_dir / "intervals.csv", output_dir / "bootstrap_estimates.npz",
-        output_dir / "c_lane_bootstrap_intervals.png", source_path,
+        output_dir / "c_lane_bootstrap_intervals.png",
+        output_dir / "snapshot_c_lane_open_development_diagnostic.py",
+        output_dir / "snapshot_core_npz_safety.py",
     ]
     manifest = {
         "schema": "latticearena-diagnostic-manifest-v1",
         "status": summary["status"],
-        "files": {str(path.relative_to(output_dir.parent)): sha256_file(path)
+        "files": {str(path.relative_to(output_dir)): sha256_file(path)
                   for path in manifest_files},
     }
     write_json(output_dir / "manifest.json", manifest)
