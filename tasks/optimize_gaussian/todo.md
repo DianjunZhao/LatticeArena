@@ -6,7 +6,7 @@
 
 ### 2026-11-26 当前 CPU 验证快照
 
-当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **144 passed**；包含新 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。PR #6 完整 CPU suite 为 **317 passed**，其中 Wilson lane/file suite 为 **90 passed**；PR #5 的 Pion 分支独立全仓 suite 为 **257 passed**。这些数只代表当前源码的 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
+当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **144 passed**；包含新 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。新增 Wilson moving-GEVP truncation diagnostic 后，PR #6 完整 CPU suite 为 **321 passed**，其中 Wilson lane/file suite 为 **94 passed**；PR #5 的 Pion 分支独立全仓 suite 为 **257 passed**。这些数只代表当前源码的 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
 
 ### 2026-11-25：D06 percentile hull synthetic coverage pilot 显示欠覆盖
 
@@ -590,7 +590,7 @@ reader 现在还从同一 snapshots 严格解析 `optimize-paired-macroblock-cha
 
 这项接线取代本 TODO 较早的“reader 输出尚未由 adapter 重算”段落，但不等于真实 Optimize evaluator 已接通：当前分支仍无 production RunSpec builder/worker 或训练入口；D04 summary、D11 operator summary 仍是调用方传入且没有基于生产原始输入的同快照 evaluator。下一步只可在独立审阅后的新 evaluator 协议下补这些 parser/receipt 接线；真实 E-reference、paired solver/cost、gap/TV 与 SU(3) production receipts 以及数据/GPU 授权未到前，不训练、不启动 GPU、不读 sealed splits。trainable-W vs 同预算 SLSQP 与 trainable-W vs degree-4 Chebyshev 两项比较继续并列保留。
 
-### 2026-11-26 当前 PR 头与跨 PR 兼容性复核
+### 2026-11-26 GEVP diagnostic 之前的跨 PR 兼容性复核
 
 在 PR #6 文档收尾提交 `a838eda` 上重新运行 `PYTHONPATH=. pytest -q`：**317 passed**（完整 CPU suite）。另将 PR #5 当前 tracked HEAD 放入临时归档，仅覆盖成 PR #6 的 `core/specs.py` 后运行完整 Pion suite：**257 passed**；临时目录已删除，Pion 工作树未改写。两个分支选定共享模块中，`core/evidence.py`、`core/receipts.py`、`core/source_integrity.py`、`core/npz_safety.py` 与 evidence/receipt tests 内容逐字一致；`core/state.py` 的差异仅为相同状态转移集合的排版；`core/specs.py` 的差异是 PR #6 新增 split-range 校验与 Optimize operator-contract 名称，Pion overlay suite 验证了向后兼容。`test_source_integrity.py` 的跨分支差异仅是 import/空行排版。
 
