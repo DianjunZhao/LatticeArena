@@ -1,5 +1,25 @@
 # wilson_loop：CPU 验收结论与下一阶段
 
+### 2026-11-26 F-lane q/h/x kernel 的线性可辨识性诊断（合成输入）
+
+新增 [`f_lane_qhx_design_identifiability.py`](f_lane_qhx_design_identifiability.py)、[数值表、奇异值图和复现说明](f_lane_qhx_design_identifiability_20261126_v1/README.md)，并加入 [`test_wilson_f_lane_qhx_design_identifiability.py`](../../tests/test_wilson_f_lane_qhx_design_identifiability.py)。这里固定 finite-`N_t` toy 的手设能量，按五个未知修正系数构造
+
+```text
+K_mn(T,N_t) = exp[-eps_m (N_t-T) - (V_n-V_0)T]
+columns = q_static_1, q_static_2, h_vacuum_1, x_mixed_1, x_mixed_2
+grid = R=2,3; T=3..7; N_t=16 only, 32 only, or the paired 16+32 design
+```
+
+![有限-$N_t$ q/h/x 设计矩阵的奇异值和条件数](f_lane_qhx_design_identifiability_20261126_v1/design_singular_values.png)
+
+对手设能量的 6 个主设计 cell，`R=2` 的单位列归一化条件数从 `N_t=16` 单独时 `9.63e3` 降到配对 `N_t=16,32` 时 `24.9`；`R=3` 从 `8.59e3` 降到 `25.9`。raw 条件数对应约 `2.24e6 → 6.71e3` 和 `1.92e6 → 6.70e3`。这说明在这组固定能量下，不同 `N_t` 的行提供了有用的列形状差异。另一面，toy 的 `N_t=32` thermal/mixed 列范数只有 `N_t=16` 的约 `1.21e-3`（约小 829 倍）；单位列归一化移除了这个绝对信号惩罚，所以不能拿 shape-only 条件数宣称生产上 h/x 可测。
+
+附加简并压力检查显示：静态能量间隔设为 `1e-6`（`a_t E` 单位）时，配对设计仍数值满秩，但归一化条件数约 `8.71e6`；精确简并时数值秩降到 3，条件数按定义记为 null。报告记录 raw/scaled 两种 SVD 数值秩容差。测试检查了配对设计、thermal/mixed 振幅压低、精确/近简并、非法输入、欠定矩阵和输出 hash。
+
+当前证据等级：`ran: PYTHONPATH=. PYTHONDONTWRITEBYTECODE=1 /Users/zhaodianjun/.venv/bin/pytest -q -p no:cacheprovider tests/test_wilson_f_lane_qhx_design_identifiability.py`，本次修正后的 13 项测试通过；Wilson 文件集合计 `135 passed`，PR #6 全仓 CPU suite `368 passed`。固定能量设计 cell `6/6/0/0`，物理测量 `0/0/0/0`，认证门 `1/0/0/1`（planned/valid/failed/abstained）。这只是固定能量下的线性 kernel 几何；未使用真实谱、测量协方差、bootstrap 或 coverage，未拟合 q/h/x，也不收紧任何物理界。
+
+**接下来实施者应做：**(1) 先由独立 reviewer 对照 Wilson exporter 确认插入时间、边界条件和 source/sink 指标，再冻结每个 `K_mn` 的生产输入定义；(2) 仅对已授权、未封存的 raw matrix snapshot 估计 block covariance，在每个 bootstrap replica 中同时做 joint fit，并报告 raw、协方差白化和按列缩放的 profile/Fisher 信息、近简并诊断及覆盖率；(3) 用现行 force/error-budget gate 反推生产 h/x 的允许上界，不从这份 toy 条件数指定阈值；(4) 若不同 `N_t` 的 thermal/mixed mode 在协方差白化后仍无法与拟合误差/力误差预算分开，则输出 abstain，并调整可执行的 `N_t,T` 设计后重新校准。继续保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，不读取封存 split。
+
 ### 2026-11-26 F-lane kernel-indexed q 对象已选定为裸 smearing 基算符
 
 我把之前留下的“kernel-indexed q 到底对应裸 basis overlap 还是 GEVP composite overlap”定为一个可执行方法默认值：`q_k(R,T)` 对应产生该 kernel correlator 的**裸 smearing 基算符**。原因是合同中的 force q cells 按 stout / identity kernel 分行；每个 q 必须与同一 kernel 的相关函数和 force corner 一一对应。一次 GEVP 求出的线性组合是另一个复合算符，不能复制成各 kernel 的 q。GEVP 仍可用于状态识别、joint-fit 初始化和截断敏感度检查。
