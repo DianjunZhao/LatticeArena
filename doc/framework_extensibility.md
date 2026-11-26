@@ -364,12 +364,14 @@ The current PR #6 follow-up adds two narrower reader patterns that expose
 different extension needs: Optimize D04 now starts from raw PP/A4P arrays in an
 immutable snapshot and executes a fixed joint-fit grid, while the Wilson F-lane
 transfer-trace consumer starts from a caller-supplied fitted spectrum summary
-and checks the proposed q/h/x algebra. The first still lacks dependence-aware
-mass errors and a gate-ready E-reference receipt; the second still lacks the
-raw `C_ij` parser and covariance-aware spectrum fitter. Together these show a
-reusable framework gap: the shared layer can preserve exact input bytes and
-denominators, but each task must still own its semantic-axis parser, estimator,
-fit diagnostics, uncertainty calibration and physical receipt. A future shared
-fit-output schema is useful only after the Wilson raw exporter and Optimize
-reference reader agree on genuinely common fields; forcing them into one generic
-fit object now could hide distinct channel, symmetry and boundary conventions.
+and checks the proposed q/h/x algebra. The Optimize reader still lacks
+dependence-aware mass errors and a gate-ready E-reference receipt. Wilson
+already has a separate raw `C_ij` snapshot reader and a forward static-sector
+joint-GLS candidate; the missing bridge is a reviewed two-sector finite-`N_t`
+fit that derives vacuum energies and transition overlaps from those same bytes.
+Together these show a reusable framework gap: the shared layer can preserve
+exact input bytes and denominators, but each task must still own its
+semantic-axis parser, estimator, fit diagnostics, uncertainty calibration and
+physical receipt. A shared fit-output schema should be considered only after
+the Wilson exporter and Optimize reference reader establish genuinely common
+fields while retaining their channel, symmetry and boundary conventions.

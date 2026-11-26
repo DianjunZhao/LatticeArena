@@ -14,9 +14,19 @@ flowchart LR
   F --> Q[Compute q, h, x for R/kernel/T/Nt]
   Q --> R[Check full trace against 1+q+h+x]
   R --> D[Diagnostic only; physical_score is null]
-  D -. missing .-> U[Raw C_ij parser and covariance-aware joint fit]
+  D -. missing .-> U[Two-sector finite-Nt fit linked to raw C_ij bytes]
   U -. missing .-> B[Coverage, thermal/mixed receipts, force budget]
 ```
+
+The repository already has a separate raw-matrix snapshot reader and a
+candidate full-matrix GLS fit for the forward static-source q term
+(`f_lane_raw_matrix_snapshot_diagnostic.py` and
+`f_lane_raw_matrix_joint_fit_diagnostic.py`). That candidate fits 2/3 static
+states and reports pointwise delta-method q errors, but it does not fit the
+vacuum-sector energies `eps_m` or the two-sector transition overlaps `A_i,mn`
+required here; its interval calibration is also explicitly not certified. The
+new consumer therefore does not duplicate that reader/fit or imply that its
+output already supplies this transfer-trace summary.
 
 For each selected cell, the reader uses the proposed diagonal trace
 
@@ -54,12 +64,15 @@ Wilson production or sealed bytes are opened.
 
 ## What remains open
 
-The reader accepts a supplied spectrum/overlap JSON summary. It does not parse
-raw `C_ij(R,t)` data, run the proposed 2/3-state joint finite-`Nt` fit, estimate
-covariance or uncertainty, calibrate coverage, bound omitted states, or make a
-matched-`Nt=32` thermal / mixed-sector receipt. Independent review must first
-check the production insertion-time, source/sink, boundary-trace and
-normalization conventions. The force-unit error budget, production access and
-authorization are separate gates. The task remains
+The reader accepts a supplied spectrum/overlap JSON summary. It does not fit
+that two-sector summary from raw `C_ij(R,t)`, estimate uncertainty, calibrate
+coverage, bound omitted states, or make a matched-`Nt=32` thermal /
+mixed-sector receipt. The next software task is to extend the existing raw
+matrix candidate fit under an independently reviewed exporter definition so it
+emits the two-sector energies/overlaps from the same captured bytes, then
+connect that output to this q/h/x consumer. Independent review must first check
+the production insertion-time, source/sink, boundary-trace and normalization
+conventions. The force-unit error budget, production access and authorization
+are separate gates. The task remains
 `NOT_READY/UNCERTIFIED`, F=`GROUND_STATE_FORCE_UNCERTIFIED`, and
 `physical_score=null`.
