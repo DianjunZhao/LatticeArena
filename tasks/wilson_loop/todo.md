@@ -1,5 +1,9 @@
 # wilson_loop：CPU 验收结论与下一阶段
 
+### 当前 CPU 验证快照（2026-11-26）
+
+PR #6 当前 Wilson 定向文件集 `tests/test_wilson*.py` 为 **178 passed**；Optimize+Wilson 定向集合为 **330 passed**（Optimize 152），PR #6 全仓 CPU suite 为 **413 passed**（2026-11-26）。PR #5 Pion 最近一次全仓 CPU suite 为 **257 passed**，其工作树本轮未改动。以上只核验 CPU 软件/合成公式；没有读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+
 ### 2026-11-26 F-lane q/h/x kernel 的线性可辨识性诊断（合成输入）
 
 新增 [`f_lane_qhx_design_identifiability.py`](f_lane_qhx_design_identifiability.py)、[数值表、奇异值图和复现说明](f_lane_qhx_design_identifiability_20261126_v1/README.md)，并加入 [`test_wilson_f_lane_qhx_design_identifiability.py`](../../tests/test_wilson_f_lane_qhx_design_identifiability.py)。这里固定 finite-`N_t` toy 的手设能量，按五个未知修正系数构造
@@ -607,3 +611,52 @@ q_v(T) = Σ_{n>0} |Z_n(v0)/Z_0(v0)|² exp[-(E_n-E_0)T],  T∈{5,6}.
 文字流程：`六种 truth/noise/dependence scenario -> 每 panel 96 correlated/noisy 3x3 matrices -> 固定三态 full-covariance GLS fit -> 前40 panel 校准 (q_true-qhat)/SE -> 后40 panel 分别计算 delta/conformal pointwise upper -> 覆盖率/区间宽度/Wilson MC 图与完整分母 -> certification abstains`。`tests/test_wilson_f_lane_joint_spectral_stress_diagnostic.py` **6 passed**；PR #6 完整 CPU suite **395 passed**，Wilson 定向 suite **160 passed**（本轮 Wilson 专项计数为旧 154 项 + 新增 6 项）；本报告 9 个产物 SHA-256 全匹配，`git diff --check` 通过。物理测量分母 `0/0/0/0`，认证门 `1/0/0/1`。
 
 解释与边界：在选定 synthetic scenario 内，split-conformal 的 panel-level exchangeability 在这些有限 holdout 中通常比 delta 规则稳健；它使用模拟 truth 校准，不能直接移植到物理样本。独立 panel 内的 AR(1) 序列不破坏跨 panel exchangeability，但它让 IID delta SE 严重低估不确定度；同样也说明真实分析必须估计链相关时间或采用有证据支持的依赖区间。Student-t5 结果没有重现严重欠覆盖，说明本次偏差主要由模型失配、弱 overlap 与块相关驱动，不能笼统归因于“非高斯”。近简并谱令 joint fit 条件数中位数升至约 `850`（对照 matched 约 `364`），且 conformal 上界明显增宽。当前实验尚未比较 moving-block bootstrap/profile-likelihood，也未纳入 finite-`N_t` 热项 `h`、mixed `x`、生产正谱适用性和全 familywise q/h/x envelope；不得将点态 synthetic conformal 上界送入 q reader/F gate。保持双 estimand 分离：C 使用有限-$T$ Creutz，F 使用基态静态力；两者均 `NOT_READY/UNCERTIFIED`，F 为 `GROUND_STATE_FORCE_UNCERTIFIED`，`physical_score=null`。下一个 CPU 诊断应在同六个预设 scenario 上加 moving-block bootstrap/profile-likelihood，逐 panel 记录失败和 abstention；生产推进仍须等独立 reviewer、获准 calibration snapshot 与污染 receipts。
+
+### 2026-11-26 joint GLS 区间的 circular moving-block bootstrap 对照
+
+按上节的 CPU-only handoff，新增 [`f_lane_joint_spectral_mbb_diagnostic.py`](f_lane_joint_spectral_mbb_diagnostic.py)、[`test_wilson_f_lane_joint_spectral_mbb_diagnostic.py`](../../tests/test_wilson_f_lane_joint_spectral_mbb_diagnostic.py) 和[图文报告](f_lane_joint_spectral_mbb_20261126_v1/README.md)。输入是经 artifact/source SHA-256 核验的六场景 synthetic GLS stress bundle。每场景固定使用独立前 40 panels 校准 split-conformal、后 40 panels 测试；在每个留出 panel 的 96 个顺序 block 上以 circular moving-block 重抽、固定 block length `L=8`、每 panel `B=40` 次，并对每次重抽完整重拟合三态 full-covariance GLS。`L=8` 依据 AR(1) `rho=0.75` 的约 7-block integrated correlation scale 预先固定，所有情景共用；没有用测试结果调参。MBB 单侧 97.5% 使用 `ceil((B+1)*0.975)` 次序统计量，因此 `B=40` 时取样本最大值；任何失败/缺失的 q bootstrap 值按 `+infinity` 处理，抽样数不足或所选次序统计量无穷即 abstain。此 `B` 的尾部解析度很粗，结果是方法 pilot。
+
+总分母为 holdout panel `240/240/0/0`、bootstrap refit `9600/9510/90/0`、q bootstrap estimates `38400/38040/360/0`、MBB q intervals `960/860/0/100`（均为 planned/valid/failed/abstained）；90 次失败拟合来自 small-`Z0` `77` 次与 AR(1) `13` 次。small-`Z0` 有 `68/160` 个 q interval abstain（每个 cell 17/40），AR(1) 有 `32/160` abstain（每个 cell 8/40）；其它四个场景各 `160/160` 有效。条件于有效区间的 MBB 覆盖范围分别为 matched `0.975–1.000`、omitted-4th `0.975–1.000`、near-degenerate `0.925`、small-`Z0` `0.957`（仅 `23/40` 有效）、AR(1) `0.875–0.969`（`32/40` 有效）、Student-t5 `0.950–1.000`。同一留出样本的 conformal 范围分别为 `1.000`、`0.975–1.000`、`1.000`、`0.925–0.975`、`0.975`、`1.000`；Wilson 95% Monte Carlo 区间和中位上界/真值比均逐 cell 保存在 `method_comparison.csv`。
+
+![六情景的逐点上界覆盖比较](f_lane_joint_spectral_mbb_20261126_v1/method_coverage.png)
+
+结论仅限这些模拟：moving-block 处理 AR(1) 的点估计比 IID delta 明显改善，但 operator 0 的覆盖为 `0.875` 且有 20% cell abstention，未达到目标；近简并场景 MBB 为 `0.925`，明显低于同样本 conformal 的 `1.000`，所以不应把 MBB 提升为 F-lane 认证候选。small-`Z0` 的 `0.957` 覆盖只基于约 58% 可报告区间，不能忽略其高失败/弃权率。Split-conformal 在这些合成 panel 上总体较好，但仍依赖 calibration/holdout panel exchangeability 和模拟真值，不能转作真实链保证。该 MBB 是基于拟合 qhat 的重抽分位数，不校正三态模型结构性偏差，也不包含 thermal `h`、mixed `x`、正谱适用性、q/h/x familywise 多重性或 production contamination。
+
+图文流程：`验证六场景来源 hashes -> 固定 40 校准 / 40 留出 -> 对留出每 panel 做 L=8 circular block resampling × 40 -> 失败值记 +infinity -> 重拟合 3-state GLS 并形成逐点 q upper -> delta/conformal/MBB 同样本比较 coverage、MC 区间、宽度与 abstention -> 物理认证 abstain`。新增测试 **6 passed**，覆盖 circular chunk adjacency/seed 确定性、有限样本秩、失败弃权、输入 source hash、报告图文、分母和 no-clobber；Optimize+Wilson 定向集合 `318 passed`（Optimize `152`、Wilson `166`），PR #6 全仓 CPU suite `401 passed`。报告目录 **11/11** artifact hashes 一致，代码 source hashes 匹配；本轮未读取 Wilson measurement/封存 split/GPU，物理分母 `0/0/0/0`，认证 `1/0/0/1`，状态保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。剩余 CPU 项改为较高 `B` 的尾部稳定性、小范围事先固定的 `L` 敏感度，以及 profile-likelihood 对照；若这些方法仍在 near-gap / small-overlap / AR(1) cell 欠覆盖或高弃权，就全部维持 diagnostic-only。之后真实推进仍需同字节 production correlator、有限-$N_t$ `h`、mixed `x`、reference-force 与独立 review/授权。
+
+### 2026-11-26 joint GLS 区间的 B=80 moving-block bootstrap 尾部稳定性复核
+
+依照上一节“只补尾部抽样数，不重调 L”的方案，新增 [`f_lane_joint_spectral_mbb_b80_diagnostic.py`](f_lane_joint_spectral_mbb_b80_diagnostic.py)、[`test_wilson_f_lane_joint_spectral_mbb_b80_diagnostic.py`](../../tests/test_wilson_f_lane_joint_spectral_mbb_b80_diagnostic.py) 与[图文报告](f_lane_joint_spectral_mbb_b80_20261126_v1/README.md)。脚本先逐项验证 B=40 报告的 artifact/source hashes，原样复用 bootstrap indices `0:40`，再按原 seed 公式只补 indices `40:80`；六个 scenario、40 个独立 holdout panel/场景、`L=8` 和 q 家族定义均不变。B=80 的 97.5% 次序统计量 rank=`79`，有失败值仍按 `+infinity` 保留，所以一次失败不必然导致弃权，两个或更多失败可能将 rank 推到无穷值。该方案只改善尾部分辨率，不提供新的有限样本 coverage 定理。
+
+全量分母：新增重拟合 `9600/9520/80/0`、新增 q estimates `38400/38080/320/0`；合并原 B=40 与新增抽样后，B=80 refits=`19200/19030/170/0`、q estimates=`76800/76120/680/0`；B=80 q intervals=`960/876/0/84`（planned/valid/failed/abstained）。相较 B=40 的 100 个区间弃权，B=80 降至 84；small-`Z0` 仍每 q cell `25/40` 可报告、`15/40` 弃权，AR(1) 每 cell `34/40` 可报告、`6/40` 弃权。
+
+条件于有效区间的 B=80 覆盖率范围：matched `1.000`、omitted-4th `0.975–1.000`、near-degenerate `0.925`、small-`Z0` `0.960–1.000`、AR(1) `0.912–1.000`、Student-t5 `0.950–1.000`。其中 near-gap 与 B=40 一样保持 `0.925`，说明加大 B 没有解决这一失覆盖；AR(1) 比 B=40 的 `0.875–0.969` 有改善，但部分 cell 仍达不到 0.975 且存在弃权。small-`Z0` 仅约 `62.5%` intervals 可报告，故其较高的条件覆盖不能单独作为可用性证据。图中的每格仍只有 40 个 outer holdout panels，Wilson Monte Carlo 区间宽；逐格 coverage、MC 区间、区间宽度和 P/V/F/A 分母在 `method_comparison.csv`。
+
+![B=40 与 B=80 点态覆盖比较](f_lane_joint_spectral_mbb_b80_20261126_v1/method_coverage.png)
+
+解释：增加 bootstrap 次数只让经验尾分位更细，不能修复三态拟合遗漏态的偏差、近简并谱的识别困难或真实链依赖未知。MBB 仍不如同场景 split-conformal 稳健，且 conformal 也只对声明的跨 panel exchangeability 条件成立；两者均不得送入 q reader/F gate。报告 hashes **12/12** 一致，来源文件与协议 hashes 匹配；B=80 smoke **5 passed**；Optimize+Wilson 定向集合 **323 passed**（Optimize 152、Wilson 171），PR #6 全仓 CPU suite **406 passed**。文字流程：`验证 B40 report -> 复用相同留出 panel 的40个既有 draws -> 固定 seed 补40个 draws -> rank79 合成 B80 upper -> 对比覆盖、宽度、弃权 -> 认证仍 abstain`。物理 measurement 分母 `0/0/0/0`、认证 `1/0/0/1`，继续 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+
+后续 CPU 工作缩小为 profile-likelihood 上界对照，以及只有在先验固定区间方案下才做的 L 敏感度；若 profile 也不能在 near-gap / small-overlap / AR(1) 场景同时达到覆盖并控制弃权，应停止继续调纯 bootstrap 参数，保留 abstain 并等待真实 calibration/source receipts、污染项和独立 review。
+
+### 2026-11-26 F-lane profile-likelihood 对照完成：失败率使其保持 diagnostic-only
+
+已完成 [`f_lane_joint_spectral_profile_diagnostic.py`](f_lane_joint_spectral_profile_diagnostic.py) 的完整合成 CPU pilot，并生成[图文报告](f_lane_joint_spectral_profile_20261126_v1/README.md)、[逐区间与逐格 CSV](f_lane_joint_spectral_profile_20261126_v1/profile_intervals.csv)及[覆盖图](f_lane_joint_spectral_profile_20261126_v1/method_coverage.png)。区间定义为固定每 panel regularized covariance 的三态 joint-GLS profile：最大化 $q$，约束 `chi2(q)-chi2_min <= 3.841458820694`。该 cutoff 在 regular Wilks 假设下对应双侧95% LR set 的上端点；这里既没有有限样本保证，也没有 profile 对协方差估计误差的传播。拟合用解析 model/profile-transform/constraint Jacobian 的 SLSQP；报告 source snapshot、输入报告和各 artifact hashes 均可核对。图中 `x` 表示该 cell 无有效区间，画在 $y=0.5$ 仅为视觉占位，**不是 50% 覆盖率**。
+
+全量 planned/valid/failed/abstained 分母为 `960/432/528/0`；holdout panel 为 `240/240/0/0`，物理测量 `0/0/0/0`，认证门 `1/0/0/1`。528 个失败中，452 次达到 1000 iteration 上限、54 次报告 positive directional derivative、20 次约束不兼容、2 次 LSQ 子问题奇异；失败记录的 iteration 中位数/最大值为 `704/1000`，其中102次同时触及参数边界。由于失败状态优先级高于边界弃权，此次单独计为 abstained 的是0；边界触碰已保留在逐行收据。
+
+逐情景诊断（profile coverage 均条件于有效区间；每个 operator/time cell 计划40个）：
+
+| 情景 | valid/failed/abstained | op0 T5 / T6 覆盖率（有效数） | op2 T5 / T6 覆盖率（有效数） |
+|---|---:|---:|---:|
+| matched 三态 IID | 82/78/0 | 0.969 (32), 0.974 (38) | 1.000 (5), 0.857 (7) |
+| 遗漏第四态 | 88/72/0 | 0.861 (36), 0.868 (38) | 0.875 (8), 0.667 (6) |
+| 近简并能隙 | 37/123/0 | 0.875 (16), 0.800 (15) | 0.800 (5), 1.000 (1) |
+| 小 ground overlap | 35/125/0 | 0.800 (15), 0.850 (20) | 无有效区间 (0), 无有效区间 (0) |
+| AR(1), rho=0.75 | 106/54/0 | 0.459 (37), 0.525 (40) | 0.846 (13), 0.625 (16) |
+| Student-t5 IID | 84/76/0 | 0.971 (34), 0.974 (39) | 1.000 (5), 1.000 (6) |
+
+文字结论：遗漏态与 AR(1) 下显著欠覆盖；近简并和小 overlap 有大量失败，成功区间的条件覆盖不能代表全部计划样本。与同一 panel 上的 B=80 MBB / split-conformal 对照相比，本 profile 方法在遗漏态、近简并及 AR(1) 都没有显示可接受的 coverage-and-yield 组合；`method_comparison.csv` 给出每格 MC interval 和有效分母。故停止把 profile-likelihood 作为 q 上界候选，不将其送进 `spectral_q_bound_reader.py` 或 F gate，也不通过只筛成功 optimizer 结果声称覆盖已校准。F 仍 `GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+
+图文流程：`校验 B80 与 stress 输入 hashes -> 固定六类合成 panel 与 per-panel covariance -> 三态 joint GLS -> 解析重参数化固定 q 做约束 profile -> 记录 960 项 P/V/F/A、边界与失败原因 -> 仅对有效项报告点态 coverage/MC interval -> F 认证 abstain`。本节 7 项定向测试通过；本轮全仓 CPU suite **413 passed**，Wilson 定向 suite **178 passed**，Optimize+Wilson 定向 suite **330 passed**。README 与覆盖图可由冻结的 CSV 用 `--refresh-derived` 重建，不重新拟合；协议会记录这项 derived-only 刷新。图、数字与输入范围均为 synthetic CPU evidence，不支持 production Wilson 的误差或污染界。
+
+剩余工作不是再扩大 B 或隐去失败：若仍要保留 profile 研究，只能先用独立实现审阅及已知参数解析 toy 检查数值算法，再预先冻结 multi-start 或一维 q-profile 路线并按全分母校准；若 yield/coverage 仍差则删除候选。完成物理 F lane 仍需要 owner/reviewer 审阅后的 raw cross-correlator snapshot、overlap/gap 与有限-$N_t$ 热污染 `h`、mixed-sector `x`、同源 paired force/reference 误差预算以及其独立数据/授权收据；在用户指定的数据封存状态下不读取任何 sealed split，也不启动 GPU/QUDA。
