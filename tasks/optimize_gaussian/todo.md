@@ -571,3 +571,9 @@ reader 现在还从同一 snapshots 严格解析 `optimize-paired-macroblock-cha
 复核发现 `source_reader.py` 已 import `core.npz_safety`、`core.source_integrity`、bounded-risk reducer 与 Markov 界，但 no-launch draft 的 `source_hashes` 没有完整列出这些可改变读入/风险结果的模块，报告快照也没有随附全部依赖。现已扩展 `draft_plan.py` 的依赖表和报告快照，纳入 core I/O/receipt/spec/state/source-integrity/NPZ-safety，以及 bounded-risk/Markov、candidate、Chebyshev、risk-statistics 和 q-matrix reader。
 
 文字流程：`D04/D06/D11 contract + reducer/reader/integrity/parser/core schema sources -> SHA-256 dependency map + source snapshots -> DRAFT_NO_LAUNCH`。新增报告测试逐项校验 artifact hashes，并确认 `core/npz_safety.py` 与 `core/source_integrity.py` 的 snapshot 存在；focused Optimize + snapshot + integrity suite **19 passed**，PR #6 全仓 CPU suite **306 passed**。这改善源码可追溯性，不产生新的 D06 scores、gap/TV receipts、D04 reference draws、SLSQP/learned-W 比较或 GPU evidence；planned physical gates 仍 `5/0/0/5`，sealed split 不读，`physical_score=null`。
+
+### 2026-11-26 Optimize no-launch draft 绑定 learned-W 原型身份
+
+复核 PR #6 的 `draft_plan.py` 时发现一个来源图缺项：TaskSpec 已声明 `trainable_W` 为主臂，却未在 `source_hashes` 或复制的报告源码快照中绑定其实现依赖。现将 [`trainable_w.py`](trainable_w.py) 与 [`features.py`](features.py) 同时加入哈希依赖表和 no-launch 报告快照，报告文案明确说明这只是 CPU coefficient/operator prototype，其 coefficient-MSE 目标不是选定物理 risk，也没有接到生产训练臂。随后又将改变 D04/D06/D11 gate 行为的 `evidence_adapter.py`、`core/evidence.py` 和 `core/receipts.py` 加入同一依赖图与快照。这样后续审阅者能区分“方法合同里列了 trainable-W”与“已绑定某个可审查的参数化和证据门版本”，同时避免把原型写成已完成的公平风险对照。
+
+文字流程：`selected F=2 + D04/D06/D11 contract -> hash trainable-W/features + reducers/readers + task/shared evidence gates -> copy exact sources into DRAFT_NO_LAUNCH report -> no production objective/solver/data => all physical gates remain abstained`。`tests/test_optimize_draft_plan.py` **2 passed**，覆盖依赖哈希键与生成报告快照；包含 gate-dependency 补丁后的完整仓库 CPU suite **315 passed**、Wilson 定向 suite **88 passed**。这一改动不运行模型、不生成新 paired score，不改变同预算 SLSQP 和 degree-4 Chebyshev 两项对照，不打开 sealed IDs，不启动 GPU/QUDA；D04/D06/D11 与 physical score 仍未就绪。

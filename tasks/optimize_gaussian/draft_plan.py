@@ -44,12 +44,16 @@ def build_plan() -> dict[str, Any]:
         "contract.py": TASK_DIR / "contract.py",
         "candidate_contract.py": TASK_DIR / "candidate_contract.py",
         "chebyshev_baseline.py": TASK_DIR / "chebyshev_baseline.py",
+        "trainable_w.py": TASK_DIR / "trainable_w.py",
+        "features.py": TASK_DIR / "features.py",
         "risk_statistics.py": TASK_DIR / "risk_statistics.py",
+        "evidence_adapter.py": TASK_DIR / "evidence_adapter.py",
         "source_reader.py": TASK_DIR / "source_reader.py",
         "bounded_block_risk.py": TASK_DIR / "bounded_block_risk.py",
         "bounded_block_risk_markov.py": TASK_DIR / "bounded_block_risk_markov.py",
         "kernels.py": TASK_DIR / "kernels.py",
         "core/io.py": ROOT / "core/io.py",
+        "core/evidence.py": ROOT / "core/evidence.py",
         "core/receipts.py": ROOT / "core/receipts.py",
         "core/specs.py": ROOT / "core/specs.py",
         "core/source_integrity.py": ROOT / "core/source_integrity.py",
@@ -189,14 +193,18 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict:
         "core_specs.py": ROOT / "core/specs.py",
         "core_state.py": ROOT / "core/state.py",
         "core_io.py": ROOT / "core/io.py",
+        "core_evidence.py": ROOT / "core/evidence.py",
         "core_receipts.py": ROOT / "core/receipts.py",
         "core_source_integrity.py": ROOT / "core/source_integrity.py",
         "core_npz_safety.py": ROOT / "core/npz_safety.py",
         "candidate_contract.py": TASK_DIR / "candidate_contract.py",
+        "trainable_w.py": TASK_DIR / "trainable_w.py",
+        "features.py": TASK_DIR / "features.py",
         "bounded_block_risk.py": TASK_DIR / "bounded_block_risk.py",
         "bounded_block_risk_markov.py": TASK_DIR / "bounded_block_risk_markov.py",
         "chebyshev_baseline.py": TASK_DIR / "chebyshev_baseline.py",
         "risk_statistics.py": TASK_DIR / "risk_statistics.py",
+        "evidence_adapter.py": TASK_DIR / "evidence_adapter.py",
         "source_reader.py": TASK_DIR / "source_reader.py",
     }
     for name, source in shutil_snapshot.items():
@@ -211,12 +219,12 @@ The selected research contract is now represented in LatticeArena's generic `cor
 
 The generic `validation` range is explicitly limited to the already-open D60-D99 **development-selection** role. It is not final confirmation. Sealed roles are not included in the plan. The ranges are metadata only; no data bytes, manifests, anchor chain, gap, validation or holdout files were opened.
 
-The source hash map binds the D04/D06 reducers, bounded-risk and Markov formulas, snapshot reader, source-integrity code, and `core/npz_safety.py`. The latter checks NPZ ZIP/NPY structure and the decompressed-byte budget before NumPy allocates arrays. These dependencies are also copied into the report snapshots, so the parser that accepts bytes is tied to the diagnostic artifact. The reducers use fixed selected constants, paired draw-ID checks, full planned denominators, no epsilon repair, and abstention on incomplete or invalid draws. The D06 reader consumes one explicitly captured calibration NPZ, checks its schema, split, ordered arms/times, and macroblock IDs, then derives the three-arm bounded score matrix; a declared optimizer failure receives the preselected loss 1 while remaining in the assigned-arm denominator. This CPU reader has no path fallback and rejects closed split names. None of these modules launches solvers or establishes macroblock independence.
+The source hash map binds the selected trainable-W CPU parameterization and directional features as well as the D04/D06 reducers, bounded-risk and Markov formulas, evidence adapter, snapshot reader, shared evidence gate, receipt/state models, source-integrity code, and `core/npz_safety.py`. The trainable-W implementation is still an isolated coefficient/operator prototype; its coefficient-MSE target is not the selected physical risk and it is not wired as the production training arm. Those files are copied into the report snapshots to make this distinction and code identity reviewable. The NPZ safety helper checks ZIP/NPY structure and the decompressed-byte budget before NumPy allocates arrays. The reducers use fixed selected constants, paired draw-ID checks, full planned denominators, no epsilon repair, and abstention on incomplete or invalid draws. The D06 reader consumes one explicitly captured calibration NPZ, checks its schema, split, ordered arms/times, and macroblock IDs, then derives the three-arm bounded score matrix; a declared optimizer failure receives the preselected loss 1 while remaining in the assigned-arm denominator. This CPU reader has no path fallback and rejects closed split names. None of these modules launches solvers or establishes macroblock independence.
 
 ## Text flow
 
 ```text
-selected research contract + reducer/reader/integrity/NPZ parser sources -> SHA-256 dependency map and source snapshots
+selected contract + trainable-W prototype/features + reducer/reader/integrity/NPZ parser sources -> SHA-256 map and source snapshots
   -> generic TaskSpec (D0-D59 fit; D60-D99 development selection)
   -> D06 snapshot NPZ -> fixed arm/time/ID checks -> bounded paired block scores
   -> D04/D06 array reducers remain source-bound; production draw generation is not wired
