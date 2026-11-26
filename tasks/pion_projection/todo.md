@@ -529,7 +529,7 @@ Pion 实际数组读取入口 [`common.load_data`](common.py) 也新增可选 sn
 
 为检查 PR #6 新增的通用 `core/specs.py` 校验是否会破坏 PR #5 的 Pion 调用，本轮将 PR #5 当前 tracked HEAD 导出到临时目录，只用 PR #6 版本替换该目录中的 `core/specs.py`，随后运行完整 CPU suite：**257 passed**。原 PR #5 工作树和输入文件未改动，临时目录已清理。这验证当前 Pion TaskSpec 能通过 PR #6 的 split-range 非重叠校验及 Optimize operator-contract allowlist；它不是两个 PR 的实际合并，也不证明生产 evaluator 或物理门通过。
 
-跨分支静态比对还确认 `core/evidence.py`、`core/receipts.py`、`core/source_integrity.py`、`core/npz_safety.py` 和对应 evidence/receipt tests 内容相同；`core/state.py` 的差异只改变相同状态转移集合的排版。`core/specs.py` 的剩余分叉是 PR #6 增加的范围校验和 Optimize 专属 contract 名称，Pion 兼容性已由上述 overlay suite 验证。GitHub 对 PR #5/#6 均未报告 CI checks；PR 的当前 GitHub 状态仍应在提交更新后复核。此次没有读取任何 Pion measurement/reference/anchor bytes；`NOT_READY/UNCERTIFIED`、`physical_score=null` 与 sealed-data closed 不变。
+跨分支静态比对还确认 `core/evidence.py`、`core/receipts.py`、`core/source_integrity.py`、`core/npz_safety.py` 和对应 evidence/receipt tests 内容相同；`core/state.py` 的差异只改变相同状态转移集合的排版。`core/specs.py` 的剩余分叉是 PR #6 增加的范围校验和 Optimize 专属 contract 名称，Pion 兼容性已由上述 overlay suite 验证。此次没有读取任何 Pion measurement/reference/anchor bytes；`NOT_READY/UNCERTIFIED`、`physical_score=null` 与 sealed-data closed 不变。
 
 ### 2026-11-26 后续可做项复核：development 软件门已闭合，物理映射仍缺输入
 
