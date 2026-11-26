@@ -34,6 +34,7 @@ GENERATORS = (
 TARGET_FAMILIES = ("spectral_heat", "local_environment")
 NOISE_LEVELS = (0.0, 0.02)
 REPLICATES = 3
+PANEL_BOOTSTRAP_DRAWS = 5000
 FIT_LINKS = 2
 HELDOUT_LINKS = 2
 CALL_BUDGETS = (32, 128)
@@ -232,7 +233,44 @@ def _case_key(generator: str, target: str, noise: float, replicate: int) -> str:
     return f"{generator}__{target}__noise{noise:.2f}__rep{replicate}"
 
 
-def _build_plots(out: Path, panels: list[dict]) -> None:
+def _group_seed(key: tuple[str, str, float], contrast: str) -> int:
+    encoded = f"{key[0]}|{key[1]}|{key[2]:.17g}|{contrast}".encode("utf-8")
+    return int.from_bytes(hashlib.sha256(encoded).digest()[:8], "big")
+
+
+def _bootstrap_median_interval(values: object, *, seed: int,
+                               draws: int = PANEL_BOOTSTRAP_DRAWS) -> tuple[float, float]:
+    """Describe Monte Carlo uncertainty of a median across independent panels."""
+    data = np.asarray(values, dtype=float)
+    if data.ndim != 1 or data.size < 2 or not np.isfinite(data).all():
+        raise ValueError("panel values must be a finite vector with at least two entries")
+    if isinstance(draws, bool) or not isinstance(draws, int) or draws < 100:
+        raise ValueError("draws must be an integer of at least 100")
+    indices = np.random.default_rng(seed).integers(0, data.size, size=(draws, data.size))
+    medians = np.median(data[indices], axis=1)
+    low, high = np.quantile(medians, [0.025, 0.975])
+    return float(low), float(high)
+
+
+def _make_seed_plan(replicates: int) -> list[dict]:
+    if isinstance(replicates, bool) or not isinstance(replicates, int) or replicates < 2:
+        raise ValueError("replicates must be an integer of at least 2")
+    plan = []
+    for gi, (generator, _) in enumerate(GENERATORS):
+        for ti, target in enumerate(TARGET_FAMILIES):
+            for ni, noise in enumerate(NOISE_LEVELS):
+                for replicate in range(replicates):
+                    plan.append({
+                        "generator": generator,
+                        "target_family": target,
+                        "noise_level": noise,
+                        "replicate": replicate,
+                        "seed": 2026112300 + gi * 10000 + ti * 1000 + ni * 100 + replicate,
+                    })
+    return plan
+
+
+def _build_plots(out: Path, panels: list[dict], *, bootstrap_draws: int) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -249,32 +287,72 @@ def _build_plots(out: Path, panels: list[dict]) -> None:
                       and run["budget"] == max(CALL_BUDGETS))
         ratio2 = max(joint["heldout_loss"], 1e-30) / max(fixed2["heldout_loss"], 1e-30)
         ratio6 = max(joint["heldout_loss"], 1e-30) / max(fixed6["heldout_loss"], 1e-30)
-        grouped.setdefault(key, {"fixed_width2": [], "fixed_width6": []})
+        grouped.setdefault(key, {"fixed_width2": [], "fixed_width6": [], "chebyshev4": []})
         grouped[key]["fixed_width2"].append(math.log10(ratio2))
         grouped[key]["fixed_width6"].append(math.log10(ratio6))
+        if panel["target_family"] == "spectral_heat":
+            chebyshev4 = next(row["heldout_loss"] for row in panel["spectral_baselines"]
+                              if row["degree"] == 4)
+            grouped[key]["chebyshev4"].append(math.log10(
+                max(joint["heldout_loss"], 1e-30) / max(chebyshev4, 1e-30)))
 
-    fig, ax = plt.subplots(figsize=(14, 5.5), layout="constrained")
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6), layout="constrained",
+                             gridspec_kw={"width_ratios": [2.1, 1.0]})
     keys = sorted(grouped)
-    labels = []
     for index, key in enumerate(keys):
         for contrast, offset, color, marker, label in (
             ("fixed_width2", -0.12, "#0072B2", "o", "joint W / fixed W width 2"),
             ("fixed_width6", 0.12, "#CC79A7", "s", "joint W / fixed W width 6"),
         ):
             values = grouped[key][contrast]
+            ax = axes[0]
             ax.scatter(np.full(len(values), index + offset), values,
                        color=color, marker=marker, alpha=0.75,
                        label=label if index == 0 else None)
+            low, high = _bootstrap_median_interval(
+                values, seed=_group_seed(key, contrast), draws=bootstrap_draws,
+            )
+            median = float(np.median(values))
             ax.plot([index + offset - 0.06, index + offset + 0.06],
-                    [float(np.median(values))] * 2, color=color, lw=2)
-        labels.append(f"{key[0]}\n{key[1]}\nσ={key[2]:g}")
+                    [median] * 2, color=color, lw=2)
+            ax.vlines(index + offset, low, high, color=color, linewidth=1.2, alpha=0.9)
+    generator_labels = {"haar_like": "Haar", "weak_field_eps0.08": "weak-08",
+                        "weak_field_eps0.25": "weak-25"}
+    target_labels = {"local_environment": "local", "spectral_heat": "spectral"}
+    fixed_labels = [f"{generator_labels[key[0]]}\n{target_labels[key[1]]}\nnoise={key[2]:g}"
+                    for key in keys]
+    ax = axes[0]
     ax.axhline(0.0, color="black", ls="--", lw=1,
                label="equal heldout error; below favors joint W")
-    ax.set_xticks(range(len(keys)), labels, rotation=0, fontsize=7)
+    ax.set_xticks(range(len(keys)), fixed_labels, rotation=0, fontsize=7)
     ax.set_ylabel("log10(heldout loss: joint W / fixed W arm)")
-    ax.set_title("Paired heldout contrasts; SLSQP, call cap 128; independent synthetic panels")
+    ax.set_title("SLSQP contrasts at call cap 128")
     ax.grid(axis="y", alpha=0.25)
     ax.legend(fontsize=8)
+
+    cheb_keys = [key for key in keys if key[1] == "spectral_heat"]
+    ax = axes[1]
+    for index, key in enumerate(cheb_keys):
+        values = grouped[key]["chebyshev4"]
+        color = "#009E73"
+        ax.scatter(np.full(len(values), index), values, color=color,
+                   marker="^", alpha=0.65,
+                   label="joint W / degree-4 Chebyshev" if index == 0 else None)
+        low, high = _bootstrap_median_interval(
+            values, seed=_group_seed(key, "chebyshev4"), draws=bootstrap_draws,
+        )
+        median = float(np.median(values))
+        ax.plot([index - 0.12, index + 0.12], [median] * 2, color=color, lw=2)
+        ax.vlines(index, low, high, color=color, linewidth=1.2, alpha=0.9)
+    ax.axhline(0.0, color="black", ls="--", lw=1,
+               label="equal heldout error; below favors joint W")
+    cheb_labels = [f"{generator_labels[key[0]]}\nnoise={key[2]:g}" for key in cheb_keys]
+    ax.set_xticks(range(len(cheb_keys)), cheb_labels, fontsize=8)
+    ax.set_ylabel("log10(heldout loss: joint W / Chebyshev-4)")
+    ax.set_title("Target-matched strong spectral comparator")
+    ax.grid(axis="y", alpha=0.25)
+    ax.legend(fontsize=8)
+    fig.suptitle("Paired heldout contrasts; vertical bars are panel-bootstrap median bands")
     fig.savefig(out / "paired_loss_ratios.png", dpi=175)
     plt.close(fig)
 
@@ -329,7 +407,15 @@ def _build_plots(out: Path, panels: list[dict]) -> None:
             ax.grid(alpha=0.2)
     axes[0, 0].legend(fontsize=7)
     axes[1, 0].legend(fontsize=7)
-    fig.suptitle("Budget sensitivity; medians over three synthetic panels, no confidence claim")
+    panel_counts = {sum(1 for panel in panels
+                        if panel["generator"] == generator
+                        and panel["target_family"] == target
+                        and panel["noise_level"] == noise)
+                    for generator, _ in GENERATORS
+                    for target in TARGET_FAMILIES
+                    for noise in NOISE_LEVELS}
+    count_label = str(next(iter(panel_counts))) if len(panel_counts) == 1 else "unequal numbers of"
+    fig.suptitle(f"Budget sensitivity; medians over {count_label} synthetic panels per cell")
     fig.savefig(out / "budget_convergence.png", dpi=175)
     plt.close(fig)
 
@@ -372,14 +458,14 @@ def _build_plots(out: Path, panels: list[dict]) -> None:
     plt.close(fig)
 
 
-def _group_summary(panels: list[dict]) -> list[dict]:
+def _group_summary(panels: list[dict], *, bootstrap_draws: int) -> list[dict]:
     groups = {}
     for panel in panels:
         key = (panel["generator"], panel["target_family"], panel["noise_level"])
         groups.setdefault(key, []).append(panel)
     rows = []
     for (generator, target, noise), members in sorted(groups.items()):
-        joint_runs, fixed2_runs, fixed6_runs = [], [], []
+        joint_runs, fixed2_runs, fixed6_runs, chebyshev4_losses = [], [], [], []
         for panel in members:
             joint_runs.append(next(row for row in panel["solver_runs"]
                                    if row["arm"] == "joint_W_SLSQP"
@@ -390,12 +476,30 @@ def _group_summary(panels: list[dict]) -> list[dict]:
             fixed6_runs.append(next(row for row in panel["solver_runs"]
                                     if row["arm"] == "fixed_W_width6_SLSQP"
                                     and row["budget"] == max(CALL_BUDGETS)))
+            if target == "spectral_heat":
+                chebyshev4_losses.append(next(row["heldout_loss"]
+                                              for row in panel["spectral_baselines"]
+                                              if row["degree"] == 4))
         log_ratios2 = [math.log10(max(j["heldout_loss"], 1e-30)
                                   / max(f["heldout_loss"], 1e-30))
                        for j, f in zip(joint_runs, fixed2_runs)]
         log_ratios6 = [math.log10(max(j["heldout_loss"], 1e-30)
                                   / max(f["heldout_loss"], 1e-30))
                        for j, f in zip(joint_runs, fixed6_runs)]
+        log_ratios_cheb4 = ([math.log10(max(j["heldout_loss"], 1e-30)
+                                        / max(c, 1e-30))
+                             for j, c in zip(joint_runs, chebyshev4_losses)]
+                            if target == "spectral_heat" else [])
+        key = (generator, target, noise)
+        ci2 = _bootstrap_median_interval(
+            log_ratios2, seed=_group_seed(key, "fixed_width2"), draws=bootstrap_draws,
+        )
+        ci6 = _bootstrap_median_interval(
+            log_ratios6, seed=_group_seed(key, "fixed_width6"), draws=bootstrap_draws,
+        )
+        ci_cheb4 = (_bootstrap_median_interval(
+            log_ratios_cheb4, seed=_group_seed(key, "chebyshev4"), draws=bootstrap_draws,
+        ) if log_ratios_cheb4 else (None, None))
         rows.append({
             "generator": generator,
             "target_family": target,
@@ -405,34 +509,39 @@ def _group_summary(panels: list[dict]) -> list[dict]:
             "fixed_w_width2_slsqp_median_heldout_loss_cap128": float(np.median([r["heldout_loss"] for r in fixed2_runs])),
             "fixed_w_width6_slsqp_median_heldout_loss_cap128": float(np.median([r["heldout_loss"] for r in fixed6_runs])),
             "median_log10_joint_over_fixed_width2": float(np.median(log_ratios2)),
+            "panel_bootstrap_95_low_log10_joint_over_fixed_width2": ci2[0],
+            "panel_bootstrap_95_high_log10_joint_over_fixed_width2": ci2[1],
+            "joint_w_lower_loss_fraction_vs_fixed_width2": float(np.mean(np.asarray(log_ratios2) < 0)),
             "min_log10_joint_over_fixed_width2": float(np.min(log_ratios2)),
             "max_log10_joint_over_fixed_width2": float(np.max(log_ratios2)),
             "median_log10_joint_over_fixed_width6_equal_scalar_count": float(np.median(log_ratios6)),
+            "panel_bootstrap_95_low_log10_joint_over_fixed_width6": ci6[0],
+            "panel_bootstrap_95_high_log10_joint_over_fixed_width6": ci6[1],
+            "joint_w_lower_loss_fraction_vs_fixed_width6": float(np.mean(np.asarray(log_ratios6) < 0)),
             "min_log10_joint_over_fixed_width6_equal_scalar_count": float(np.min(log_ratios6)),
             "max_log10_joint_over_fixed_width6_equal_scalar_count": float(np.max(log_ratios6)),
+            "median_log10_joint_over_chebyshev4": (float(np.median(log_ratios_cheb4))
+                                                   if log_ratios_cheb4 else None),
+            "panel_bootstrap_95_low_log10_joint_over_chebyshev4": ci_cheb4[0],
+            "panel_bootstrap_95_high_log10_joint_over_chebyshev4": ci_cheb4[1],
+            "joint_w_lower_loss_fraction_vs_chebyshev4": (
+                float(np.mean(np.asarray(log_ratios_cheb4) < 0)) if log_ratios_cheb4 else None
+            ),
             "joint_slsqp_median_calls": float(np.median([r["calls"] for r in joint_runs])),
             "joint_slsqp_median_optimizer_seconds": float(np.median([r["optimization_seconds"] for r in joint_runs])),
             "joint_slsqp_median_projected_gradient": float(np.median([r["projected_gradient_norm"] for r in joint_runs])),
-            "classification": "descriptive synthetic panel summary; not an interval or significance test",
+            "classification": "panel-bootstrap interval for synthetic median only; not coverage calibrated and not physical inference",
         })
     return rows
 
 
-def run(output: str | Path = DEFAULT_OUT) -> dict:
+def run(output: str | Path = DEFAULT_OUT, *, replicates: int = REPLICATES,
+        bootstrap_draws: int = PANEL_BOOTSTRAP_DRAWS) -> dict:
     out = Path(output)
     out.mkdir(parents=True, exist_ok=False)
-    seed_plan = []
-    for gi, (generator, _) in enumerate(GENERATORS):
-        for ti, target in enumerate(TARGET_FAMILIES):
-            for ni, noise in enumerate(NOISE_LEVELS):
-                for replicate in range(REPLICATES):
-                    seed_plan.append({
-                        "generator": generator,
-                        "target_family": target,
-                        "noise_level": noise,
-                        "replicate": replicate,
-                        "seed": 2026112300 + gi * 10000 + ti * 1000 + ni * 100 + replicate,
-                    })
+    if isinstance(bootstrap_draws, bool) or not isinstance(bootstrap_draws, int) or bootstrap_draws < 100:
+        raise ValueError("bootstrap_draws must be an integer of at least 100")
+    seed_plan = _make_seed_plan(replicates)
     source_files = ["trainable_w_stress_diagnostic.py", "trainable_w.py",
                     "trainable_w_operator_diagnostic.py", "trainable_w_diagnostic.py",
                     "features.py", "kernels.py"]
@@ -446,7 +555,8 @@ def run(output: str | Path = DEFAULT_OUT) -> dict:
         ],
         "target_families": list(TARGET_FAMILIES),
         "target_noise_relative_frobenius": list(NOISE_LEVELS),
-        "replicates_per_cell": REPLICATES,
+        "replicates_per_cell": replicates,
+        "panel_bootstrap_draws_for_median_bands": bootstrap_draws,
         "fit_links_per_panel": FIT_LINKS,
         "heldout_links_per_panel": HELDOUT_LINKS,
         "call_budgets": list(CALL_BUDGETS),
@@ -463,7 +573,7 @@ def run(output: str | Path = DEFAULT_OUT) -> dict:
         },
         "versions": {"python": platform.python_version(), "numpy": np.__version__,
                      "scipy": scipy.__version__},
-        "limitations": "3 panels per cell; no physical gauge ensemble, inferential interval, GPU timing, or production contract; optimizer seconds exclude input/target setup and postchecks",
+        "limitations": "synthetic panels only; panel-bootstrap bands describe Monte Carlo uncertainty of cell medians and are not coverage calibrated; no physical gauge ensemble, physical confidence interval, GPU timing, or production contract; optimizer seconds exclude input/target setup and postchecks",
     }
     (out / "protocol.json").write_text(json.dumps(protocol, indent=2) + "\n")
     for name in source_files:
@@ -537,8 +647,8 @@ def run(output: str | Path = DEFAULT_OUT) -> dict:
             rng_inputs[f"{_case_key(item['generator'], item['target_family'], item['noise_level'], item['replicate'])}_{population}_features"] = np.stack([row["z"] for row in rows])
 
     np.savez_compressed(out / "synthetic_inputs.npz", **rng_inputs)
-    _build_plots(out, panels)
-    paired = _group_summary(panels)
+    _build_plots(out, panels, bootstrap_draws=bootstrap_draws)
+    paired = _group_summary(panels, bootstrap_draws=bootstrap_draws)
     with (out / "paired_summary.csv").open("w", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=list(paired[0]),
                                 lineterminator="\n")
@@ -588,11 +698,11 @@ def run(output: str | Path = DEFAULT_OUT) -> dict:
     lines = [
         "# Trainable-W synthetic generator/noise/conditioning stress diagnostic",
         "",
-        "**SYNTHETIC ALGORITHM DIAGNOSTIC ONLY. `physical_score=null`.** No production gauge ensemble, sealed IDs, GPU, or QUDA data were accessed. Three panels per cell support descriptive stress testing only; no confidence or significance claim is made.",
+        f"**SYNTHETIC ALGORITHM DIAGNOSTIC ONLY. `physical_score=null`.** No production gauge ensemble, sealed IDs, GPU, or QUDA data were accessed. There are {replicates} independently seeded panels per cell; panel-bootstrap bands describe Monte Carlo uncertainty of cell medians only and are not coverage-calibrated confidence intervals.",
         "",
         "## Design",
         "",
-        "The fixed grid crosses three independent link generators (`haar_like`, and weak-field links with `epsilon=0.08` or `0.25`), two independently defined targets (`spectral_heat`, and a gauge-covariant local-environment polynomial that varies over links), two relative operator-noise levels (`0`, `0.02`), and three seeds per cell. Each panel has two fit and two independently generated heldout links. Noise is a Hermitian link-hopping operator perturbation scaled to the requested fraction of target Frobenius norm.",
+        f"The fixed grid crosses three independent link generators (`haar_like`, and weak-field links with `epsilon=0.08` or `0.25`), two independently defined targets (`spectral_heat`, and a gauge-covariant local-environment polynomial that varies over links), two relative operator-noise levels (`0`, `0.02`), and {replicates} seeds per cell. Each panel has two fit and two independently generated heldout links. Noise is a Hermitian link-hopping operator perturbation scaled to the requested fraction of target Frobenius norm.",
         "",
         "Every panel pairs the same fit/heldout inputs, initial parameters, and bounds across joint trainable-W SLSQP, joint trainable-W L-BFGS-B, fixed-W width-2 SLSQP, and fixed-W width-6 SLSQP at call caps 32 and 128. Width-6 fixed W matches the seven fitted scalar count of joint width-2, though it changes the feature realization. Objective/gradient calls are capped per solver fit; optimizer seconds exclude data/target construction and postchecks. All traces, status, calls, projected-gradient residuals, target diagnostics, and raw inputs are retained.",
         "",
@@ -602,7 +712,7 @@ def run(output: str | Path = DEFAULT_OUT) -> dict:
         "",
         "![Paired heldout loss ratios](paired_loss_ratios.png)",
         "",
-        "Each point is one independent synthetic panel at the 128-call cap. Blue circles compare joint-W SLSQP with fixed-W width 2 (three fitted scalars); pink squares compare with fixed-W width 6 (seven fitted scalars, matching joint width 2). Values below zero favor joint W. The second comparison controls parameter count but changes the random feature realization. Median ticks are descriptive only. See `paired_summary.csv` for both contrasts, ranges, calls, fit times, and projected-gradient residuals; ranges are not confidence intervals.",
+        f"Each point is one independent synthetic panel at the 128-call cap. Blue circles compare joint-W SLSQP with fixed-W width 2 (three fitted scalars); pink squares compare with fixed-W width 6 (seven fitted scalars, matching joint width 2); green triangles compare joint-W SLSQP with degree-4 Chebyshev on spectral-heat targets. Values below zero favor joint W. Vertical bars are seeded percentile bootstrap bands for each cell's median log-ratio across its {replicates} synthetic panels; they describe Monte Carlo uncertainty under this generator only, are not coverage calibrated, and are not physical confidence intervals. The equal-count comparison changes random feature realization.",
         "",
         "![Budget convergence by target and generator](budget_convergence.png)",
         "",
@@ -616,11 +726,11 @@ def run(output: str | Path = DEFAULT_OUT) -> dict:
         "",
         f"Planned/valid/failed/abstained synthetic panels: `{denominator_summary['planned_panels']}/{denominator_summary['valid_panels']}/{denominator_summary['failed_panels']}/{denominator_summary['abstained_panels']}`. Planned/returned solver fits: `{denominator_summary['planned_solver_runs']}/{denominator_summary['returned_solver_runs']}`; budget stops: `{denominator_summary['budget_stops']}`; solver non-success: `{denominator_summary['solver_non_success']}`; excluded samples: `{denominator_summary['excluded_samples']}`. Link counts and solver counts are separate denominators in `raw.json`.",
         "",
-        "A small panel count cannot determine a population effect or select a physical loss. Synthetic noise and feature conditioning only probe robustness of this implementation and objective. The selected F=2 comparisons remain trainable-W against same-budget SLSQP and against the fixed strong spectral baseline; these data do not satisfy D04 reference, D06 `r_star`, D11 operator contract, or production GPU authorization.",
+        "Synthetic panel-median bands are descriptive Monte Carlo sensitivity summaries; they are not calibrated intervals for future physical performance. The fixed degree-4 Chebyshev comparison is meaningful here only for the spectral-heat target that generated that family, and its direct linear least-squares fit does not share SLSQP call cost. These experiments do not satisfy D04 reference, D06 `r_star`, D11 operator contract, or production GPU authorization.",
         "",
         "## Rebuild",
         "",
-        "Generate a fresh output directory with `python -B -m tasks.optimize_gaussian.trainable_w_stress_diagnostic --output NEW_DIRECTORY`.",
+        f"Generate a fresh output directory with `python -B -m tasks.optimize_gaussian.trainable_w_stress_diagnostic --output NEW_DIRECTORY --replicates {replicates} --bootstrap-draws {bootstrap_draws}`.",
     ]
     (out / "README.md").write_text("\n".join(lines) + "\n")
     hashes = {
@@ -637,8 +747,13 @@ def run(output: str | Path = DEFAULT_OUT) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--replicates", type=int, default=REPLICATES,
+                        help="independent panels per generator/target/noise cell (minimum 2)")
+    parser.add_argument("--bootstrap-draws", type=int, default=PANEL_BOOTSTRAP_DRAWS,
+                        help="resamples for descriptive cell-median bands (minimum 100)")
     args = parser.parse_args()
-    summary = run(args.output)
+    summary = run(args.output, replicates=args.replicates,
+                  bootstrap_draws=args.bootstrap_draws)
     print(json.dumps({
         "classification": summary["classification"],
         "denominators": summary["denominators"],

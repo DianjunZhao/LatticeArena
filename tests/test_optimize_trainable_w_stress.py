@@ -7,7 +7,9 @@ from tasks.optimize_gaussian.trainable_w_operator_diagnostic import (
     solve,
 )
 from tasks.optimize_gaussian.trainable_w_stress_diagnostic import (
+    _bootstrap_median_interval,
     _feature_condition,
+    _make_seed_plan,
     fit_local_polynomial_baseline,
     make_case,
     weak_field_links,
@@ -85,3 +87,26 @@ def test_solver_retains_call_cap_and_non_success_diagnostics():
     assert "budget_exhausted" in result
     assert "solver_success" in result
     assert np.isfinite(result["projected_gradient_norm"])
+
+
+def test_replication_plan_is_balanced_and_seeded_per_cell():
+    plan = _make_seed_plan(5)
+    assert len(plan) == 3 * 2 * 2 * 5
+    assert len({row["seed"] for row in plan}) == len(plan)
+    cells = {}
+    for row in plan:
+        key = (row["generator"], row["target_family"], row["noise_level"])
+        cells[key] = cells.get(key, 0) + 1
+    assert set(cells.values()) == {5}
+    with pytest.raises(ValueError, match="at least 2"):
+        _make_seed_plan(1)
+
+
+def test_panel_median_bootstrap_band_is_deterministic_and_validated():
+    values = np.array([-0.3, -0.1, 0.2, 0.4, 0.8])
+    first = _bootstrap_median_interval(values, seed=51012, draws=1000)
+    second = _bootstrap_median_interval(values, seed=51012, draws=1000)
+    assert first == second
+    assert first[0] <= first[1]
+    with pytest.raises(ValueError, match="at least two"):
+        _bootstrap_median_interval([1.0], seed=1)

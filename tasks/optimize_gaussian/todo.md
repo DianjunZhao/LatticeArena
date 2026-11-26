@@ -6,7 +6,17 @@
 
 ### 2026-11-26 当前 CPU 验证快照
 
-当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **150 passed**；包含 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、D04/D11 same-snapshot summary parser、新增严格 JSON/content-hash 用例、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。加入本轮 F-lane q/h/x 设计诊断后，PR #6 全仓 CPU suite 为 **368 passed**、Wilson 文件集 **135 passed**（2026-11-26）。PR #5 当前 Pion 专项文件集 `tests/test_pion*.py` **201 passed** 是另一工作树的上一轮快照，本轮未修改或重跑 PR #5。上述结果只代表对应源码的 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
+当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **152 passed**；包含 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、D04/D11 same-snapshot summary parser、新增严格 JSON/content-hash 用例、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。加入本轮 Wilson joint-GLS 覆盖与 raw-matrix fit 接线测试后，PR #6 完整 CPU suite 复跑为 **389 passed**、Wilson 文件集为 **154 passed**（2026-11-26）。PR #5 的 Pion 全仓 CPU suite 本轮也复跑为 **257 passed**，其工作树未改动。所有结果只代表 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
+
+### 2026-11-26 trainable-W / SLSQP / degree-4 Chebyshev 扩样比较
+
+为避免旧版每 cell 仅 3 个合成 panel 就判断 learned-W 稳定性，将 [`trainable_w_stress_diagnostic.py`](trainable_w_stress_diagnostic.py) 扩成可预设独立 panel 数，并增加 cell-median 配对 bootstrap bands 和 Chebyshev-4 的直接 heldout contrast。紧凑可审阅包（含 240 行逐 panel 配对表、协议、三张图和 SHA-256）在[报告目录](trainable_w_replication_20261126_v1/README.md)；完整 trace 与合成输入数组由 `protocol.json` 指定的 seed/source 可重建到本机 `results/` 输出目录。
+
+扩样固定每格 20 个独立 synthetic panel，共 12 格、240 panels；每 panel 两个 fit link + 两个独立 heldout link，并行配对 trainable-W SLSQP、trainable-W L-BFGS-B、固定-W width-2 SLSQP、与 joint width-2 参数数目相同的 fixed-W width-6 SLSQP，call caps 为 32/128。`spectral_heat` 目标额外对照 degree-4 Chebyshev；它在同一 fit/heldout links 上用线性最小二乘拟合，不与非线性 SLSQP 匹配 calls/walltime。图把近 1 的 SLSQP 对照与更宽动态范围的 Chebyshev 对照分开。每格 median 的 10,000-resample percentile band 仅描述这组合成生成器下 Monte Carlo 中位数不确定度，没有 coverage calibration，也不是物理置信区间。
+
+结果：panels `240/240/0/0`，fit links `480/480/0/0`，heldout links `480/480/0/0`，solver fits `1920/1920` 返回；566 次达到 call cap 且 optimizer 非 success，全部保留为有限预算观察，没有丢弃。local-environment 六格中，trainable-W 相对 fixed-W width-2 的每格 win fraction 为 `0.30–1.00`（格均值 `0.63`）；对等参数数目 fixed-W width-6 为 `0.30–0.65`（格均值 `0.45`），不支持稳定的 learned-W 优势。spectral-heat 六格相对 width-2 / width-6 的 win fraction 分别为 `0.35–0.50` / `0.50–0.75`。对刻意由谱热核生成的 `spectral_heat` 目标，Chebyshev-4 每格中位 heldout loss 都较低：trainable-W/Chebyshev loss ratio 的 cell median 范围约 `16–8.3×10^6`，六格几何平均约 `4.3×10^3`；所有 cell 的 bootstrap log-ratio lower band 仍大于 0。noise=2% 时中位比降为约 `16–35`，无噪声下差距扩大到约 `7.1×10^4–8.3×10^6`。这说明目标家族与强谱基相匹配时谱基有明显优势；不说明物理 smear 的排名，也不证明相同成本下 Chebyshev 更优。
+
+测试覆盖 seed-plan 均衡/唯一性、bootstrap band 确定性和输入拒绝；本轮 focused `tests/test_optimize_trainable_w_stress.py` **9 passed**。合成输出 hash、图和描述均自包含于报告包。下一步仍需新 gauge-independent DGP 与真实 operator/score evaluator 才能判断 learned smear 的物理能力；先由独立 reviewer 核对合成 loss 是否可作为筛选代理，再取得独立 E-chain D04 reference 和授权后，才能将两项用户选定对照（trainable-W vs 同预算 SLSQP、trainable-W vs degree-4 Chebyshev）接入 production。保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`，不读 sealed split、不启动 GPU/QUDA。
 
 ### 2026-11-25：D06 percentile hull synthetic coverage pilot 显示欠覆盖
 
