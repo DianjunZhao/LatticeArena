@@ -87,7 +87,8 @@
         ]
       ],
       "within_panel_ar1_rho": 0.0,
-      "approx_effective_blocks": 96.0
+      "approx_effective_blocks": 96.0,
+      "innovation_distribution": "multivariate Gaussian"
     },
     "omitted_4th_state": {
       "description": "four-state truth fitted with three states; fourth state omitted",
@@ -159,7 +160,8 @@
         ]
       ],
       "within_panel_ar1_rho": 0.0,
-      "approx_effective_blocks": 96.0
+      "approx_effective_blocks": 96.0,
+      "innovation_distribution": "multivariate Gaussian"
     },
     "near_degenerate_first_gap": {
       "description": "three-state truth with E1-E0=0.025 fitted with three states",
@@ -216,7 +218,8 @@
         ]
       ],
       "within_panel_ar1_rho": 0.0,
-      "approx_effective_blocks": 96.0
+      "approx_effective_blocks": 96.0,
+      "innovation_distribution": "multivariate Gaussian"
     },
     "small_ground_overlap_operator_2": {
       "description": "three-state truth with |Z0(operator 2)|=0.04",
@@ -273,7 +276,8 @@
         ]
       ],
       "within_panel_ar1_rho": 0.0,
-      "approx_effective_blocks": 96.0
+      "approx_effective_blocks": 96.0,
+      "innovation_distribution": "multivariate Gaussian"
     },
     "ar1_block_rho_0p75": {
       "description": "three-state truth; stationary AR(1) dependence rho=0.75 within each panel",
@@ -330,11 +334,70 @@
         ]
       ],
       "within_panel_ar1_rho": 0.75,
-      "approx_effective_blocks": 13.714285714285714
+      "approx_effective_blocks": 13.714285714285714,
+      "innovation_distribution": "multivariate Gaussian"
+    },
+    "student_t5_independent": {
+      "description": "three-state truth; independent multivariate Student-t innovations with 5 degrees of freedom",
+      "truth_states": 3,
+      "fit_states": 3,
+      "true_energies": [
+        0.18,
+        0.32,
+        0.49
+      ],
+      "first_gap": 0.14,
+      "overlaps_real_imag": [
+        [
+          [
+            1.0,
+            0.0
+          ],
+          [
+            0.8,
+            0.04
+          ],
+          [
+            0.55,
+            -0.03
+          ]
+        ],
+        [
+          [
+            0.72,
+            0.0
+          ],
+          [
+            -0.35,
+            0.02
+          ],
+          [
+            0.6,
+            0.05
+          ]
+        ],
+        [
+          [
+            0.45,
+            0.0
+          ],
+          [
+            0.62,
+            -0.06
+          ],
+          [
+            -0.5,
+            0.03
+          ]
+        ]
+      ],
+      "within_panel_ar1_rho": 0.0,
+      "approx_effective_blocks": 96.0,
+      "innovation_distribution": "multivariate Student-t df=5 scaled to the declared covariance"
     }
   },
   "source_sha256": {
-    "f_lane_joint_spectral_stress_diagnostic.py": "5dfab187735e75157a1595308e73572ca9b1ce004302db552451b668aad178a1",
+    "f_lane_joint_spectral_stress_diagnostic.py": "df7a83d5a72f1c41d79b063bdacbcfec165a68fe7704179642dbb6cf57d7090f",
     "f_lane_joint_spectral_gls_diagnostic.py": "ec4493db7f4a267a78122acdc95559a1f8cea6d041644fd2dd1a2ccb297adc6f"
   },
   "omitted": [

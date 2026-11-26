@@ -32,21 +32,38 @@ def test_ar1_panel_generator_is_reproducible_and_serially_correlated():
     assert observed == pytest.approx(0.75, abs=0.22)
 
 
+def test_student_t5_generator_is_reproducible_and_heavy_tailed():
+    first = stress._generate_panel(991, n_blocks=1000,
+                                   scenario="student_t5_independent")
+    second = stress._generate_panel(991, n_blocks=1000,
+                                    scenario="student_t5_independent")
+    assert np.array_equal(first, second)
+    energies, overlaps, _, _ = stress._scenario("student_t5_independent")
+    mean = np.concatenate([
+        joint._matrix_vector(matrix)
+        for matrix in stress._spectrum_matrices(energies, overlaps)
+    ])
+    residual = first[:, 0] - mean[0]
+    standardized = residual / np.std(residual, ddof=1)
+    sample_kurtosis = float(np.mean(standardized ** 4))
+    assert sample_kurtosis > 4.0
+
+
 def test_small_sample_stress_report_preserves_abstention_and_hashes(tmp_path):
     output = tmp_path / "wilson-stress-report"
     result = stress.run(output, panels_per_scenario=20, n_blocks=stress.N_BLOCKS)
     denominator = result["denominators"]
-    assert denominator["synthetic_panels_planned"] == 100
-    assert denominator["q_cells_planned"] == 400
+    assert denominator["synthetic_panels_planned"] == len(stress.SCENARIOS) * 20
+    assert denominator["q_cells_planned"] == len(stress.SCENARIOS) * 20 * 4
     assert (denominator["q_cells_valid"] + denominator["q_cells_failed"]
-            + denominator["q_cells_abstained"] == 400)
-    assert denominator["conformal_strata_planned"] == 20
+            + denominator["q_cells_abstained"] == len(stress.SCENARIOS) * 20 * 4)
+    assert denominator["conformal_strata_planned"] == len(stress.SCENARIOS) * 4
     assert denominator["conformal_strata_finite_multiplier"] == 0
-    assert denominator["conformal_strata_abstained"] == 20
+    assert denominator["conformal_strata_abstained"] == len(stress.SCENARIOS) * 4
     assert denominator["conformal_holdout_valid"] == 0
     assert (denominator["conformal_holdout_valid"]
             + denominator["conformal_holdout_failed"]
-            + denominator["conformal_holdout_abstained"] == 200)
+            + denominator["conformal_holdout_abstained"] == len(stress.SCENARIOS) * 10 * 4)
     assert denominator["physical_measurements_planned"] == 0
     assert denominator["certification_abstained"] == 1
     assert result["physical_score"] is None

@@ -37,6 +37,7 @@ SCENARIOS = (
     "near_degenerate_first_gap",
     "small_ground_overlap_operator_2",
     "ar1_block_rho_0p75",
+    "student_t5_independent",
 )
 
 
@@ -61,6 +62,8 @@ def _scenario(name: str) -> tuple[np.ndarray, np.ndarray, float, str]:
     elif name == "ar1_block_rho_0p75":
         rho = 0.75
         description = "three-state truth; stationary AR(1) dependence rho=0.75 within each panel"
+    elif name == "student_t5_independent":
+        description = "three-state truth; independent multivariate Student-t innovations with 5 degrees of freedom"
     elif name != "matched_3state_independent":
         raise ValueError(f"unknown stress scenario: {name}")
     return energies, overlaps, rho, description
@@ -108,9 +111,15 @@ def _generate_panel(seed: int, *, n_blocks: int, scenario: str) -> np.ndarray:
     correlation = np.kron(time_correlation, component_correlation)
     innovation_covariance = np.outer(scales, scales) * correlation
     rng = np.random.default_rng(seed)
-    innovations = rng.multivariate_normal(
-        np.zeros(center.size), innovation_covariance, size=n_blocks,
-    )
+    if scenario == "student_t5_independent":
+        factor = np.linalg.cholesky(innovation_covariance)
+        normal = rng.standard_normal(size=(n_blocks, center.size)) @ factor.T
+        chi_square = rng.chisquare(5, size=n_blocks)
+        innovations = normal * np.sqrt(3.0 / chi_square)[:, None]
+    else:
+        innovations = rng.multivariate_normal(
+            np.zeros(center.size), innovation_covariance, size=n_blocks,
+        )
     if rho:
         deviations = np.empty_like(innovations)
         deviations[0] = innovations[0]
@@ -124,7 +133,7 @@ def _generate_panel(seed: int, *, n_blocks: int, scenario: str) -> np.ndarray:
 
 def _coverage_plot(rows: list[dict[str, Any]], output: Path) -> None:
     fig, axes = plt.subplots(2, 2, figsize=(14, 9), layout="constrained")
-    labels = ["matched", "4th omitted", "near gap", "small Z0", "AR(1) 0.75"]
+    labels = ["matched", "4th omitted", "near gap", "small Z0", "AR(1) 0.75", "Student-t5"]
     positions = np.arange(len(SCENARIOS), dtype=float)
     colors = {"delta": "#0072B2", "split_conformal": "#D55E00"}
     offsets = {"delta": -0.09, "split_conformal": 0.09}
@@ -169,7 +178,7 @@ def _coverage_plot(rows: list[dict[str, Any]], output: Path) -> None:
 
 def _conservatism_plot(rows: list[dict[str, Any]], output: Path) -> None:
     fig, axes = plt.subplots(2, 2, figsize=(14, 9), layout="constrained")
-    labels = ["matched", "4th omitted", "near gap", "small Z0", "AR(1) 0.75"]
+    labels = ["matched", "4th omitted", "near gap", "small Z0", "AR(1) 0.75", "Student-t5"]
     positions = np.arange(len(SCENARIOS), dtype=float)
     for row_index, operator_index in enumerate(joint.Q_OPERATORS):
         for col_index, time in enumerate(joint.Q_TIMES):
@@ -231,6 +240,8 @@ def run(output: str | Path = DEFAULT_OUT, *,
                                      for row in overlaps],
             "within_panel_ar1_rho": rho,
             "approx_effective_blocks": float(n_blocks * (1.0 - rho) / (1.0 + rho)),
+            "innovation_distribution": ("multivariate Student-t df=5 scaled to the declared covariance"
+                                        if name == "student_t5_independent" else "multivariate Gaussian"),
         }
     protocol = {
         "schema": "wilson-f-joint-spectral-stress-v1",
@@ -488,7 +499,7 @@ def run(output: str | Path = DEFAULT_OUT, *,
         "",
         f"The run has {len(SCENARIOS)} truth scenarios, `{panels_per_scenario}` independent panels per scenario, `{n_blocks}` blocks per panel, relative noise `{RELATIVE_NOISE}`, and a fixed three-state GLS fit over `t=1..7`. Bare q cells are operators `{joint.Q_OPERATORS}` at `T={joint.Q_TIMES}`. The first `{split_at}` panel IDs in each scenario calibrate the one-sided split-conformal score; the remaining `{panels_per_scenario - split_at}` are holdout. The two intervals compared are pointwise `qhat+1.95996*SE_delta` and split-conformal `qhat+c*SE_delta`.",
         "",
-        "The stress cases are: matched three-state independent Gaussian blocks; a four-state truth fitted with three states; a near-degenerate first gap `E1-E0=0.025`; a small bare ground overlap `|Z0(operator 2)|=0.04`; and stationary AR(1) block dependence `rho=0.75`. The AR(1) case has approximate effective block count `N(1-rho)/(1+rho)`; the GLS standard error still uses the existing iid sample-covariance rule, so this is an intentional stress of that assumption.",
+        "The stress cases are: matched three-state independent Gaussian blocks; a four-state truth fitted with three states; a near-degenerate first gap `E1-E0=0.025`; a small bare ground overlap `|Z0(operator 2)|=0.04`; stationary AR(1) block dependence `rho=0.75`; and independent multivariate Student-t innovations with 5 degrees of freedom, rescaled to the same covariance. The AR(1) case has approximate effective block count `N(1-rho)/(1+rho)`; the GLS standard error still uses the existing iid sample-covariance rule, so this is an intentional stress of that assumption.",
         "",
         "## Results",
         "",
@@ -507,9 +518,9 @@ def run(output: str | Path = DEFAULT_OUT, *,
         "",
         "Text flow: `fixed truth scenario -> 96 same-panel correlated matrix blocks -> fit three-state full-covariance GLS -> compute q estimate/delta SE -> calibrate only on panel IDs 0:40 -> evaluate on disjoint IDs 40:80 -> preserve fit, calibration, holdout and abstention denominators -> certification abstains`.",
         "",
-        "This tests only interval behavior for controlled positive spectra. It does not validate the assumed positive spectral model for production Wilson loops, finite-`N_t` thermal `h`, mixed-sector `x`, force/reference propagation, chain receipts, or simultaneous familywise q/h/x coverage. The generator uses independent panels; dependence is within each AR(1) panel. Full state profile likelihood, moving-block bootstrap, model-averaged intervals, and q/h/x familywise calibration remain open software research. No output from this report may enter `spectral_q_bound_reader` or the force gate.",
+        "This tests only interval behavior for controlled positive spectra. It does not validate the assumed positive spectral model for production Wilson loops, finite-`N_t` thermal `h`, mixed-sector `x`, force/reference propagation, chain receipts, or simultaneous familywise q/h/x coverage. The generator uses independent panels; dependence is within each AR(1) panel, while Student-t tails are independent across blocks. Full state profile likelihood, moving-block bootstrap, model-averaged intervals, and q/h/x familywise calibration remain open software research. No output from this report may enter `spectral_q_bound_reader` or the force gate.",
         "",
-        "Next software work, if the chosen interval is still under study: add a moving-block bootstrap/profile-likelihood comparator and report its failed-fit and interval-abstention denominators under the same five scenarios. Production work still requires reviewed definitions, authorized immutable calibration bytes and independent contamination receipts. Keep `NOT_READY/UNCERTIFIED`, `GROUND_STATE_FORCE_UNCERTIFIED`, and `physical_score=null`.",
+        "Next software work, if the chosen interval is still under study: add a moving-block bootstrap/profile-likelihood comparator and report its failed-fit and interval-abstention denominators under the same six scenarios. Production work still requires reviewed definitions, authorized immutable calibration bytes and independent contamination receipts. Keep `NOT_READY/UNCERTIFIED`, `GROUND_STATE_FORCE_UNCERTIFIED`, and `physical_score=null`.",
         "",
         "Reproduce with `PYTHONPATH=. python -B -m tasks.wilson_loop.f_lane_joint_spectral_stress_diagnostic --output tasks/wilson_loop/f_lane_joint_spectral_stress_20261126_v1 --panels-per-scenario 80 --n-blocks 96`. Source/artifact hashes and full scenario values are recorded in `protocol.json`, `summary.json`, and `artifact_hashes.json`.",
     ]
