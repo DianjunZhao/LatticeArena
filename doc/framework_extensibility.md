@@ -131,8 +131,11 @@ The generic split preflight is `split name + inclusive integer [start,end] -> va
   corrected Markov lower bounds, reconciles chain/gap/TV receipt bytes and
   denominators, then passes the same snapshots to the atomic evidence gate.
   Its positive and negative examples are synthetic; the production RunSpec,
-  D04 raw-reference evaluator, D11 production-link evaluator and training
-  worker remain absent.
+  full D04 raw-reference gate evaluator, D11 production-link evaluator and
+  training worker remain absent. A new D04 CPU diagnostic reader parses
+  PP/A4P arrays from an immutable snapshot and executes the six joint-fit
+  variants, but does not compute dependence-aware fit uncertainty, validate
+  E-chain receipts, or emit the gate-ready D04 summary.
 - **Wilson loop:** the selected method defaults now keep finite-`T` Creutz and
   ground-state discrete force as separate estimands. They can share paired IDs
   while using different inference and systematic-error gates. The fixed q/h/x
@@ -356,3 +359,17 @@ these method diagnostics, but they do not demonstrate chain assumptions or
 physical coverage. The three TODOs stay open for independent review, verified
 task-specific receipts and authorization. CPU checks establish software/algebra
 behavior only, not GPU/MPI physics validation.
+
+The current PR #6 follow-up adds two narrower reader patterns that expose
+different extension needs: Optimize D04 now starts from raw PP/A4P arrays in an
+immutable snapshot and executes a fixed joint-fit grid, while the Wilson F-lane
+transfer-trace consumer starts from a caller-supplied fitted spectrum summary
+and checks the proposed q/h/x algebra. The first still lacks dependence-aware
+mass errors and a gate-ready E-reference receipt; the second still lacks the
+raw `C_ij` parser and covariance-aware spectrum fitter. Together these show a
+reusable framework gap: the shared layer can preserve exact input bytes and
+denominators, but each task must still own its semantic-axis parser, estimator,
+fit diagnostics, uncertainty calibration and physical receipt. A future shared
+fit-output schema is useful only after the Wilson raw exporter and Optimize
+reference reader agree on genuinely common fields; forcing them into one generic
+fit object now could hide distinct channel, symmetry and boundary conventions.

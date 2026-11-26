@@ -4,6 +4,14 @@
 
 研究合同已给出可审阅的方法默认值：D04 用独立、candidate-blind E-chain PP/A4P 联合拟合；D06 保留 trainable-$W$ 对同预算 SLSQP 和 degree-4 Chebyshev 两项对比、`F=2`、`r_star=10/9`；bounded block-risk 是用户已接受的并列 estimand；D11 degree-4 Bernstein/Chebyshev 强谱算符和 160-call 单任务预算也已写入合同。D06 bounded-risk Markov 路线现除两态 reversible stress 外，又有非可逆 19 态已知-gap/初始-TV 图文校准，但仍只是合成覆盖证据。Wilson F-lane 有限-$N_t$ q/h/x sector 对应也已作为独立审阅前的方法提案登记，见 [`tasks/wilson_loop/todo.md`](../wilson_loop/todo.md)。TODO 仍开着，因为 E-reference 与配对 solver receipts、独立统计/算符审阅、生产成本测量和相应授权缺失。维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`；不读封存 split、不启动 GPU/QUDA。下方早期时间戳条目保留审计历史，方法选择以本节和文末最新 handoff 为准。
 
+### 2026-11-26 D04 raw E-chain reader 与联合拟合诊断
+
+新增 [`d04_raw_reference.py`](d04_raw_reference.py)：从同一 `SourceByteSnapshot` 读取严格 schema 的 manifest、source-protocol JSON 与 raw correlator NPZ；核对 protocol bytes 是否匹配 manifest 摘要，并核对 `S16T16`/quenched Wilson/`kappa=0.14`、PP channel/dimension order、升序 config/trajectory IDs、全部 source hashes 和 closed split；明确拒绝 complex data 而不隐式取实部。按合同作 PP-even 与 A4P-odd fold，共用 `t=2..8` covariance、25% 对角 shrinkage 和 `1e-10` relative eigenvalue floor，跑六种 `tmin={2,3,4}` × `nstates={2,3}` joint fit，每种三 deterministic starts，并记录不收敛、边界和近简并谱诊断。图文/结果范围见[报告](d04_raw_reference_cpu_20261126_v1/README.md)。
+
+synthetic fixture 的六拟合分母为 `6/6/0/0`，18 个 multistart 中 17 个收敛、1 个失败；`tmin=3` 两态拟合恢复输入 `a_t m_0=0.32` 为 `0.3200056`。三态拟合出现小能隙，报告保留该弱可识别警告。测试也覆盖捕获后改写源文件、folding、封存 split、坏 ID、complex 数据、stale bytes 与 protocol hash 不匹配；本次新增定向测试 **7 passed**。所有这些都是合成 CPU 软件证据。
+
+这个入口仍**不输出 gate-ready summary**：没有依赖感知 bootstrap mass error、PP/A4P/window/model 的 paired-SE 位移、依赖收据核验、真实 provenance/reviewer/authorization，也未证明拟合 GOF 的有限样本校准。接下来先以独立代码/物理审阅复核 PP/A4P 符号、channel source/sink 约定、block bootstrap 与 mass-shift 统计定义；随后把确切 raw receipt 与 D04 envelope 从同一次读取派生并接同 snapshot gate。没有经审阅的获准 E-chain bytes 前不生成 reference pass，不读 sealed data、不启动 GPU/QUDA，`NOT_READY/UNCERTIFIED`、`physical_score=null` 不变。
+
 ## 下一次执行包（默认研究输入已自选）
 
 不要再重复同一合成 generator 的 panel、block length 或 seed 扫描。下一步只接入**明确获准的 development/calibration bytes**；没有完整 bytes 与来源/审阅收据时，继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
@@ -16,7 +24,7 @@
 
 ### 2026-11-26 当前 CPU 验证快照
 
-当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **152 passed**；包含 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、D04/D11 same-snapshot summary parser、新增严格 JSON/content-hash 用例、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。2026-11-26 本轮重跑 Wilson 专项集为 **184 passed**，Optimize+Wilson 定向集合 **336 passed**（Optimize 152、Wilson 184），PR #6 完整 CPU suite **419 passed**。PR #5 Pion 全仓 CPU suite **258 passed**；Pion TODO 与其工作树分开更新。所有结果只代表 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
+当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **159 passed**；Wilson 专项文件集 `tests/test_wilson*.py` 为 **193 passed**（包含本轮新增的 9 个 transfer-trace reader checks）。Optimize+Wilson 定向集合为 **352 passed**，PR #6 当前完整 CPU suite **435 passed**。PR #5 Pion 当前完整 CPU suite **265 passed**（包含 anchor scalar reader 7 项及 map fingerprint 断言）；Pion TODO 与其工作树分开更新。所有结果只代表 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
 
 ### 2026-11-26 历史附件链接审计
 

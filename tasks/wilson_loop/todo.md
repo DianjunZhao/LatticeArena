@@ -2,7 +2,7 @@
 
 ### 当前 CPU 验证快照（2026-11-26）
 
-2026-11-26 本轮重跑 PR #6 的 Wilson 定向文件集 `tests/test_wilson*.py`：**184 passed**；Optimize+Wilson 定向集合 **336 passed**（Optimize 152、Wilson 184），PR #6 全仓 CPU suite **419 passed**。PR #5 Pion 全仓 CPU suite **258 passed**。这些结果只核验 CPU 软件/合成公式；没有读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+2026-11-26 本轮重跑 PR #6 的 Wilson 定向文件集 `tests/test_wilson*.py`：**193 passed**；Optimize+Wilson 定向集合 **352 passed**（Optimize 159、Wilson 193），PR #6 全仓 CPU suite **435 passed**。PR #5 Pion 全仓 CPU suite **265 passed**。这些结果只核验 CPU 软件/合成公式；没有读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
 
 ### 2026-11-26 历史附件链接审计
 
@@ -17,6 +17,14 @@
 3. **F force-level 门。**同一 chain 上提供 force interval 与正 reference-force 的 paired draws、reference fit、完整 planned fit/window/family 分母；`q/h/x/model` 四项须给 simultaneous envelopes 并通过 8-corner propagation 到 `a_s*a_t*F`。固定系统项上限为 `1.5%/1.5%/1.0%/1.0%`、系统合计 `<=5%`、统计 half-width `<=5%`、线性合计 `<=10%`，且 reference-force simultaneous lower bound `>0`；统计/系统 family allocation 按 `evidence_adapter.py` 合同收据，不得将同源误差按独立项平方和缩小。
 
 **图文验收物：**C 给出四 loop means 与 ratio 符号的数据流图、依赖/coverage 收据、按 `L=2/5/10` 的区间 hull 和 invalid fraction 图；F 给出 `3x3` cross-correlator eigenvalue/condition 与时间的图、按 kernel/R/Nt 分面的 `q/h/x` upper-envelope 图，以及传播到 force 单位的 8-corner waterfall/预算图。每图写明真实/合成来源、source hash、split、`planned/valid/failed/abstained` 分母和是否有独立 truth。没有获准 calibration bytes、coverage/contamination receipts、独立 reviewer 或设备授权时，不启动生产拟合/GPU、不打开 sealed/confirmation 数据；C/F 均维持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+
+### 2026-11-26 F-lane 有限-$N_t$ transfer-trace snapshot reader
+
+新增 [`f_lane_transfer_trace_reader.py`](f_lane_transfer_trace_reader.py)，让已选的有限-$N_t$ transfer-trace q/h/x 定义有一个严格的 CPU consumer：它只从同一个 `SourceByteSnapshot` 读取 manifest、fit-summary JSON 和 lane contract bytes，核对 open F calibration split、`S16T16`/Wilson-$\beta=6$、`R={2,3}`、三个 kernel 的有序语义、`T={5,6}`、`N_t={16,32}`、source/fit hashes 以及 contract 中 `two_sector_transfer_trace_qhx_v1` 和 kernel→裸基算符映射。对调用方提供的有序真空能谱、静态能谱和复 overlap pairs，它逐格计算 `q (m=0,n>0)`、`h (m>0,n=0)`、`x (m>0,n>0)`，并把完整 trace ratio 与 `1+q+h+x` 对照。没有路径二次读取、physical score 或 certification 输出。
+
+文字流程：`同一 snapshot 的 manifest + protocol + 拟合 summary -> hash/schema/split/轴序验证 -> 按所选 transfer trace 计算 q/h/x -> 直接 trace 恒等式核对 -> diagnostic only`。确定性合成 fixture 的 captured source files 为 `3/3/0/0`，`R×kernel×T×N_t` cells 为 `24/24/0/0`，全部 sector 非负且重构残差 `<1e-12`；生产 measurement `0/0/0/0`，F-lane certification gate `1/0/0/1`。新增 `tests/test_wilson_f_lane_transfer_trace_reader.py` **9 passed**，覆盖捕获后路径替换、封存 split、fit/protocol hashes、错 kernel 映射、错误谱序、额外 R 行和 overlap 形状。图式数据流、公式、denominator 与边界见[synthetic reader report](f_lane_transfer_trace_reader_cpu_20261126_v1/README.md)。
+
+此增量只消费**调用方已经拟合好的** spectrum/overlap summary，不解析原始 `C_ij(R,t)`、不执行 2/3-state joint fit、不估计 covariance/误差/coverage、不生成 q/h/x simultaneous upper bound，也没有得到 matched-`N_t=32` thermal `h`、mixed `x`、truncation 或 force-unit receipt。reader 对应的 endpoint/time-origin factorization 仍需独立 reviewer 对照生产 exporter 核验；方法合同虽已给出可审阅默认值，不能据此视为物理解释已成立。下一软件边界是基于 reviewer 核准的 exporter 定义，将 raw matrix snapshot→covariance-aware joint spectrum fit→same-snapshot q/h/x upper-bound receipt 接通，再用 exact/omitted-state/near-degenerate/near-singular synthetic fixtures 做覆盖校准；真实 reference、污染界、独立审阅和授权未齐之前不读 production/sealed 数据、不启动 GPU/QUDA，维持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
 
 ### 2026-11-26 F-lane q/h/x kernel 的线性可辨识性诊断（合成输入）
 
