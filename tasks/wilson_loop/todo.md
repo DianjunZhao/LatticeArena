@@ -1,5 +1,35 @@
 # wilson_loop：CPU 验收结论与下一阶段
 
+### 2026-11-26 F-lane kernel-indexed q 对象已选定为裸 smearing 基算符
+
+我把之前留下的“kernel-indexed q 到底对应裸 basis overlap 还是 GEVP composite overlap”定为一个可执行方法默认值：`q_k(R,T)` 对应产生该 kernel correlator 的**裸 smearing 基算符**。原因是合同中的 force q cells 按 stout / identity kernel 分行；每个 q 必须与同一 kernel 的相关函数和 force corner 一一对应。一次 GEVP 求出的线性组合是另一个复合算符，不能复制成各 kernel 的 q。GEVP 仍可用于状态识别、joint-fit 初始化和截断敏感度检查。
+
+| kernel ID | joint `C_ij` fit 的 basis operator ID | q cell 用途 |
+|---|---|---|
+| `identity` | `identity` | force candidate/reference 比较 |
+| `ape_alpha0.4_n5` | `APE` | 描述性对照，不计入 force systematic family |
+| `spatial_stout_rho0.10_n5` | `stout` | force candidate/reference 比较 |
+
+精确定义写入 [`lane_contract_v2.json`](lane_contract_v2.json)：
+
+```text
+C_ij(R,t) = Σ_n Z_ni(R) Z*_nj(R) exp[-E_n(R)t]
+ratio_upper[n] bounds |Z_nk(R)/Z_0k(R)|²
+q_k(R,T) = Σ_(n>0) |Z_nk(R)/Z_0k(R)|² exp[-(E_n(R)-E_0(R))T]
+```
+
+这里的 ratio 上界来自**对同一 R 的整张 3×3 cross-correlator 矩阵做联合谱拟合**，不是从三个对角数组拼出矩阵。选择裸 basis 定义把 kernel-indexed observable、overlap ratio 和 force q corner 接在一起；[GEVP 方法原文](https://arxiv.org/abs/0902.1265)说明 GEVP 本身构造输入插值算符的线性组合，因此 bare operator 与 GEVP composite 的 overlap 对象不能混称。方法选择是我的研究默认值，仍需要独立 reviewer 审核本任务的算符与正谱约定，不能当作生产授权或认证。
+
+新增 [`q_cell_semantics_diagnostic.py`](q_cell_semantics_diagnostic.py) 与[图文 toy 报告](../../results/wilson_loop/q_cell_semantics_diagnostic_20261126_v1/README.md)。确定性四态 toy 在 `T=5` 的 identity / APE / stout bare q 分别为 `0.407 / 0.288 / 0.988`，`T=6` 为 `0.319 / 0.215 / 0.774`；同一 toy 的 `td=2` GEVP-composite q 是 `8.882 / 7.711`。这个差距说明若不写明 overlap 对象，同一个谱会产生不可互换的 q；它**不**说明真实 GEVP 更差，也不决定生产污染大小。图显示了对象映射，纵轴为对数尺度。
+
+![裸 basis 与 GEVP composite q 的对象差异](../../results/wilson_loop/q_cell_semantics_diagnostic_20261126_v1/q_bare_basis_vs_gevp.png)
+
+reader 的 fit input schema 已升为 `wilson-f-bare-basis-overlap-support-v2`：必须显式给 `overlap_definition_id`，并对每个 variant 核验 `kernel_id → basis_operator_id`；旧 v1 或错误映射会 abstain。聚焦合同/reader 测试 **27 passed**；把 force-snapshot 集成夹具同步到 v2 后，Wilson 全集 **112 passed**、PR #6 当前 checkout 全仓 CPU suite **345 passed**。报告分母为 selected bare operator×T `4/4/0/0`、描述性 APE `2/2/0/0`、独立 GEVP composite diagnostic `2/2/0/0`、物理测量 `0/0/0/0`、认证门 `1/0/0/1`（planned/valid/failed/abstained）。
+
+这也补充了 LatticeArena 的通用扩展方向：矩阵 schema 除 shape 外应绑定有序语义轴、operator/object ID、单位和转换来源；共享设计建议见 [`framework_extensibility.md`](../../doc/framework_extensibility.md#extension-point-semantic-array-axes-and-derived-objects)。当前 reader 仍是 task-specific 校验，不宣称已有通用 typed-array runtime。
+
+**仍未完成：**该默认值要经独立 physics review；需要受审的 raw cross-correlator exporter 和同一 snapshot 的 `C_ij` bytes、joint finite-`N_t` 2/3-state fit、平方 overlap/gap 的 simultaneous one-sided coverage、遗漏态/近简并与近零 `Z_0` 的敏感度、matched-`N_t=32` thermal `h`、mixed-sector `x`、谱截断以及 force/reference paired intervals。玩具数值不能填 receipt。旧版报告中“mapping unresolved”是当时状态快照，现由本节的 method default 取代；其数据-free/uncertified 限制仍有效。继续保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，不打开封存数据、不启动 GPU/QUDA。
+
 ### 2026-11-26 本 checkout 回归核验
 
 新增 raw-matrix snapshot projection reader 后，当前 PR #6 worktree 的完整 Wilson 测试文件集 `tests/test_wilson*.py` 为 **111 passed**，截至本次 Optimize reader 增量后的完整 repository CPU suite 为 **344 passed**（2026-11-26）。Wilson 测试覆盖 lane contract、force-budget propagation、Markov 支持界、finite-`N_t` 代数、toy/randomized fixtures、C/F task adapter 的默认 source-byte fail-closed 行为，以及 GEVP 截断、overlap 对象和 raw-matrix snapshot 投影诊断；只确认软件和指定 toy 公式，不提供 C/F measurement、独立 q/h/x/GEVP/thermal receipt 或 coverage/calibration 证据。新 reader 使用同一 immutable `SourceByteSnapshot`，并在 `numpy.load` 前做 NPZ 资源预检；它只从 synthetic cross-correlator 生成投影 correlator，不做谱拟合、不产出 q 区间，也未接入物理 gate。Wilson adapter 默认要求 source root 与显式路径 map，source bytes 匹配后最多将 gate 推进到 draft；它仍未接入实际生产 RunSpec/source reader。PR #5 的共享 [`core/evidence.py` metadata contract](https://github.com/Greyyy-HJC/LatticeArena/blob/c7a4c9b2c8858d1fdf3499966a2223c45427bbc6/core/evidence.py)包含单 envelope 和 multi-envelope bundle gate；PR #5 的 Pion adapter/诊断另行保留。字节一致不认证真实来源、reviewer 独立性或物理内容。2026-11-26 查询 GitHub 时 PR #6 为 OPEN、`MERGEABLE/CLEAN`，未报告 checks；这只是当时状态。现有图文分析和 lane-specific 未决项如下文，仍保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
@@ -12,7 +42,7 @@
 
 图中 24 个四态 forward-spectrum synthetic blocks 各生成两个 R 的 `t=1..7` 投影曲线；阴影是确定性 toy 的 10–90% block spread，只作描述，**不是置信区间或独立性证据**。更正后分母 planned/valid/failed/abstained：source files `2/2/0/0`；R projection `2/2/0/0`；R×time values `14/14/0/0`；物理 q/interval/certification `1/0/0/1`。物理 measurement/spectrum 输入为 `0/0/0/0`。报告同时记录 `physical_score=null`、`GROUND_STATE_FORCE_UNCERTIFIED`。聚焦测试 **11 passed**，Wilson 测试全集 **111 passed**，截至 Optimize reader 增量后的全仓 CPU suite **344 passed**（2026-11-26）。
 
-重要缺口被此接线具体化：当前 repo 没有 raw cross-correlator exporter，现存各 kernel 的对角 Wilson-loop 序列不能推回缺失的非对角 `C_ij`。manifest 规定生产 exporter 必须实际测量并固定 sink/source 指标及 smearing basis；不能把对角元素复制成矩阵。每个 R 的 GEVP 向量生成一个 composite operator，它不能被复制成三个 kernel-indexed q 值；现有 q-bound reader 的 kernel-indexed q cell 语义仍需独立审定为 bare-basis overlap 或另一明确对象。新 reader 不拟合 state overlaps/gaps，不传播 paired interval，不处理有限-`N_t` backward/thermal `h`、mixed `x`、谱模型误差或 force/reference uncertainty。合成输入与图只验证 schema、hash/split fail-closed 和线性代数；不可用于估计生产污染或接入 gate。
+本段报告生成时的缺口是：repo 没有 raw cross-correlator exporter，现存各 kernel 的对角 Wilson-loop 序列不能推回缺失的非对角 `C_ij`；manifest 要求 exporter 实际测量并固定 sink/source 指标及 smearing basis，不能复制对角元素。关于 q cell 对象的语义已由上方 2026-11-26 更新选定为裸 basis overlap；raw matrix reader 仍不拟合 state overlaps/gaps、不传播 paired interval、不处理有限-`N_t` backward/thermal `h`、mixed `x`、谱模型误差或 force/reference uncertainty。该 synthetic reader 只验证 schema、hash/split fail-closed 和线性代数，不估计生产污染或接入 gate。
 
 **接续次序：**先由独立 reviewer 审 `C_ij` 定义、cross-term 生产测量与 `td` 候选，再开发有统计协方差的 GEVP/state-overlap fit 和成对 interval reducer；coverage 至少覆盖 exact three-state recovery、omitted-state bias、近简并/近奇异矩阵、finite-`N_t` 双向谱、small `Z_0(v)`、bootstrap 与覆盖率。随后才把真实同 snapshot raw matrix/fit receipts 接入 q-bound reader；仍须另有 matched-`N_t=32` thermal、mixed-sector、spectral truncation、reference-force 下界、独立 coverage/review 与数据授权。完成这些以前维持 `NOT_READY/UNCERTIFIED`、`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，不读封存 split、不启动 GPU/QUDA。
 
@@ -495,4 +525,4 @@ q_v(T) = Σ_{n>0} |Z_n(v0)/Z_0(v0)|² exp[-(E_n-E_0)T],  T∈{5,6}.
 
 图文流程：`exact 4-state spectrum + 3 bare operators -> solve (td,t0) principal vector -> C(t0)-normalize and fix phase -> derive projected Z_n -> q(T=5,6) -> compare original-basis objects and td choices -> reviewer candidate only; F remains uncertified`。分母：原始算符×T 单元 `6/6/0/0`，GEVP `td×T` 单元 `16/16/0/0`，物理 correlator/spectrum 输入 `0/0/0/0`，认证门 `1/0/0/1`（planned/valid/failed/abstained）。新增测试验证三态恰满秩时 excited overlaps 消去、第四态截断时 q 对象/td 敏感、向量缩放/相位与可逆 operator-basis 变换不改 q，以及奇异 metric/零基态 overlap 拒绝；新增定向测试 **6 passed**，全复跑结果见本节最新验证快照。
 
-下一步可由独立物理 reviewer 先审 `C_ij` 与投影 overlap 的共轭/指标约定、`td=2` 的物理适用性和 q-bound 上界含义；认可后再出 `lane_contract_v3` 并实现同一 `SourceByteSnapshot` 的 raw 3×3 matrix → covariance-aware GEVP/state-overlap fit → paired interval reader。覆盖应增加有噪声 bootstrap、有限-`N_t` 双向谱、近简并态、接近零的 `Z_0(v0)`、投影向量换相位/基变换和估计覆盖率诊断。没有这些受审合同、同字节 raw correlator、matched-`N_t=32` 热项、mixed `x`、force/reference intervals、独立 coverage/review 与授权之前，不能由 toy 数据填入 `q`，不能连接 F gate；继续 `GROUND_STATE_FORCE_UNCERTIFIED`、`NOT_READY/UNCERTIFIED`、`physical_score=null`。
+本段固定 GEVP-projected q 是历史候选，现不作为 kernel-indexed q 的合同对象；当前对象选择见本文顶部。独立物理 reviewer 仍需审 `C_ij` 共轭/指标约定、裸 kernel↔basis 映射、正谱适用性，以及 `td=2` 作为拟合辅助/状态标签是否合适；实现侧仍需同一 `SourceByteSnapshot` 的 raw 3×3 matrix → covariance-aware joint state/overlap fit → paired interval reader。覆盖要包括有噪声 bootstrap、有限-`N_t` 双向谱、近简并态、接近零的 `Z_0(k)`、GEVP 投影向量换相位/基变换和估计覆盖率。没有受审合同、同字节 raw correlator、matched-`N_t=32` 热项、mixed `x`、force/reference intervals、独立 coverage/review 与授权之前，不能由 toy 数据填入 `q`，不能连接 F gate；继续 `GROUND_STATE_FORCE_UNCERTIFIED`、`NOT_READY/UNCERTIFIED`、`physical_score=null`。

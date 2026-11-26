@@ -6,7 +6,7 @@
 
 ### 2026-11-26 当前 CPU 验证快照
 
-当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **150 passed**；包含 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、D04/D11 same-snapshot summary parser、新增严格 JSON/content-hash 用例、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。PR #6 完整 CPU suite **344 passed**、Wilson 文件集 **111 passed**；PR #5 当前 Pion 专项文件集 `tests/test_pion*.py` **201 passed**（该子集复跑，不是本轮 PR #5 全仓复跑）。这些数只代表当前源码的 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
+当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **150 passed**；包含 D06 q-matrix/Markov receipt snapshot reader、D04/D11 fail-closed adapters、D04/D11 same-snapshot summary parser、新增严格 JSON/content-hash 用例、同预算 SLSQP 与 degree-4 Chebyshev 合同/算符测试。Wilson q-object contract/schema v2 增量后，PR #6 完整 CPU suite **345 passed**、Wilson 文件集 **112 passed**。PR #5 当前 Pion 专项文件集 `tests/test_pion*.py` **201 passed** 是另一工作树已有快照，本轮未修改或重跑 PR #5。上述结果只代表对应源码的 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
 
 ### 2026-11-25：D06 percentile hull synthetic coverage pilot 显示欠覆盖
 

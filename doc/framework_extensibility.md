@@ -316,6 +316,21 @@ textual data-flow/decision diagram, plus planned/valid/failed/abstained
 denominators at every relevant unit of analysis. Solver cap-stops, statistical
 failures and protocol abstentions are distinct states and should stay visible.
 
+## Extension point: semantic array axes and derived objects
+
+The Wilson cross-correlator work exposed a reusable contract requirement that
+is not yet a shared runtime abstraction: a numerical array needs ordered,
+named semantic axes as well as a shape. For the F-lane matrix this is
+`[block,R,t,sink_operator,source_operator]` plus the exact ordered basis IDs;
+the q reducer separately declares which bare operator each kernel ID denotes.
+A derived GEVP-composite operator has a different object identity and cannot be
+copied into multiple bare-kernel cells just because it came from the same
+matrix. The current protection lives in task-level readers, not a generic array
+API. A future shared contract could validate axis IDs, object/estimator ID,
+units, transformation lineage, and source snapshot together before a reducer
+accepts values. This should be introduced only when at least two task readers
+can use the same semantics without weakening their physics-specific checks.
+
 ## Current integration boundary
 
 The current `main` has a Pion pilot, but these additions remain analytic,
@@ -331,9 +346,12 @@ selected contrasts and a conditional Markov route for its distinct bounded
 block-risk estimand; its real E-reference and solver receipts remain absent.
 Wilson now has both selected lane defaults, a v9 structural mapping report,
 force-budget propagation, C-lane Markov support sensitivity, lane-specific C/F
-metadata adapters, and a snapshot-derived q(T) to force-budget consistency
-check; its production loop, GEVP, thermal and contamination receipts remain
-absent. Figures/text flows, denominators and artifact hashes accompany
+metadata adapters, a snapshot-derived q(T) to force-budget consistency check,
+and an explicit kernel-to-bare-operator q object mapping; its production loop,
+joint GEVP/overlap fit, thermal and contamination receipts remain absent. The
+new mapping is a method default under independent review, while the reader
+enforces its object ID and operator-axis mapping. Figures/text flows,
+denominators and artifact hashes accompany
 these method diagnostics, but they do not demonstrate chain assumptions or
 physical coverage. The three TODOs stay open for independent review, verified
 task-specific receipts and authorization. CPU checks establish software/algebra

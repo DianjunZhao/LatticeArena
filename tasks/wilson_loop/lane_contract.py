@@ -40,6 +40,38 @@ OPEN_RUN_GATES = {
 }
 
 
+def q_overlap_contract() -> dict[str, Any]:
+    """Return the selected kernel-indexed q object and its operator mapping."""
+    return {
+        "definition_id": "bare_basis_squared_overlap_ratio_v1",
+        "kernel_to_basis_operator": {
+            "identity": "identity",
+            "ape_alpha0.4_n5": "APE",
+            "spatial_stout_rho0.10_n5": "stout",
+        },
+        "matrix_convention": (
+            "C_ij(R,t)=sum_n Z_ni(R) * conjugate(Z_nj(R)) * exp(-E_n(R)*t)"
+        ),
+        "operator_overlap_convention": "Z_nk(R)=<n|O_k(R)|0> for the ordered bare smearing operator O_k",
+        "ratio_upper_semantics": "one-sided upper bound on |Z_nk(R)/Z_0k(R)|^2",
+        "q_definition": (
+            "q_k(R,T)=sum_{n>0} |Z_nk(R)/Z_0k(R)|^2 * "
+            "exp(-(E_n(R)-E_0(R))*T)"
+        ),
+        "fit_source": "joint finite-Nt spectral fit to the measured 3x3 C_ij(R,t) matrix",
+        "gevp_role": (
+            "GEVP may initialize, label, and stress-test joint spectral fits; its "
+            "single composite projected operator is separate and must not be copied "
+            "into identity, APE, or stout kernel-indexed q cells"
+        ),
+        "scope": (
+            "positive forward-spectrum q term only; finite-Nt backward/thermal, "
+            "mixed-sector, fit-truncation, and interval-coverage bounds remain separate"
+        ),
+        "status": "PROPOSED_METHOD_DEFAULT_REQUIRES_INDEPENDENT_REVIEW",
+    }
+
+
 def open_gate_run_state() -> dict[str, Any]:
     """Project the current two-lane physical blockers into the generic state model."""
     state = RunState()
@@ -110,6 +142,7 @@ def selected_protocol() -> dict[str, Any]:
             "units": LATTICE_FORCE_UNITS,
             "spectral_evidence_plan": {
                 "basis": ["identity", "APE", "stout"],
+                "q_overlap_contract": q_overlap_contract(),
                 "gevp_dimension": 3,
                 "t0": 1, "td": 2,
                 "R_values": [2, 3],
@@ -126,7 +159,8 @@ def selected_protocol() -> dict[str, Any]:
                     "q_envelope": (
                         "for each selected kernel and R, take the maximum over "
                         "all tmin=3,4,5 and 2/3-state variants of "
-                        "sum_n overlap_ratio_upper[n]*exp(-gap_lower[n]*T)"
+                        "sum_n overlap_ratio_upper[n]*exp(-gap_lower[n]*T); "
+                        "overlap_ratio_upper bounds |Z_nk/Z_0k|^2 for that bare basis operator"
                     ),
                     "within_cell_interval_family": (
                         "Bonferroni over 24 endpoint slots per q cell "
@@ -298,6 +332,7 @@ def empty_contract() -> dict[str, Any]:
                 ],
                 "spectral_evidence_plan": {
                     "basis": ["identity", "APE", "stout"], "gevp_dimension": 3,
+                    "q_overlap_contract": q_overlap_contract(),
                     "t0": 1, "td": 2, "R_values": [2, 3],
                     "joint_finite_Nt_state_count_checks": [2, 3],
                     "fit_window": [3, 7], "tmin_checks": [3, 4, 5],
@@ -311,7 +346,8 @@ def empty_contract() -> dict[str, Any]:
                         "q_envelope": (
                             "for each selected kernel and R, take the maximum over "
                             "all tmin=3,4,5 and 2/3-state variants of "
-                            "sum_n overlap_ratio_upper[n]*exp(-gap_lower[n]*T)"
+                            "sum_n overlap_ratio_upper[n]*exp(-gap_lower[n]*T); "
+                            "overlap_ratio_upper bounds |Z_nk/Z_0k|^2 for that bare basis operator"
                         ),
                         "within_cell_interval_family": (
                             "Bonferroni over 24 endpoint slots per q cell "

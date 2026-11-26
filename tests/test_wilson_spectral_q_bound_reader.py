@@ -34,6 +34,11 @@ def _fit_support(*, split_id="F-calibration"):
                     variants.append({
                         "variant_id": f"{kernel}-R{radius}-tmin{tmin}-n{n_states}",
                         "kernel_id": kernel,
+                        "basis_operator_id": {
+                            "identity": "identity",
+                            "ape_alpha0.4_n5": "APE",
+                            "spatial_stout_rho0.10_n5": "stout",
+                        }[kernel],
                         "R": radius,
                         "n_states": n_states,
                         "tmin": tmin,
@@ -46,10 +51,16 @@ def _fit_support(*, split_id="F-calibration"):
         "classification": "fit_receipt_reducer_input_not_raw_measurement",
         "split_id": split_id,
         "units": UNITS,
+        "overlap_definition_id": "bare_basis_squared_overlap_ratio_v1",
         "positive_forward_spectral_sum_assumption": True,
         "gevp": {
             "dimension": 3,
             "basis_kernel_ids": list(KERNELS),
+            "basis_operator_ids": [
+                {"identity": "identity", "ape_alpha0.4_n5": "APE",
+                 "spatial_stout_rho0.10_n5": "stout"}[kernel]
+                for kernel in KERNELS
+            ],
             "t0": 1,
             "td": 2,
             "R_values": list(R_VALUES),
@@ -95,6 +106,7 @@ def test_derives_q_from_all_fit_variants_and_keeps_lanes_uncertified(tmp_path):
     }
     assert result["descriptive_ape_cell_denominator"]["planned"] == 4
     assert result["descriptive_ape_cell_denominator"]["valid"] == 4
+    assert result["overlap_definition_id"] == "bare_basis_squared_overlap_ratio_v1"
     assert result["physical_score"] is None and not result["certified"]
     stout_r2_t5 = next(
         row for row in result["q_corner_bounds"]
@@ -104,6 +116,8 @@ def test_derives_q_from_all_fit_variants_and_keeps_lanes_uncertified(tmp_path):
     expected = 0.17 * math.exp(-0.15 * 5) + 0.05 * math.exp(-0.1 * 5)
     assert stout_r2_t5["dominating_tmin"] == 5
     assert stout_r2_t5["dominating_state_count"] == 3
+    assert stout_r2_t5["basis_operator_id"] == "stout"
+    assert stout_r2_t5["overlap_definition_id"] == "bare_basis_squared_overlap_ratio_v1"
     assert abs(stout_r2_t5["q_upper"] - expected) < 1e-15
     assert result["force_qhx_corner_order"] == [
         "spatial_stout_rho0.10_n5", "identity",
@@ -148,6 +162,25 @@ def test_confidence_alpha_and_state_count_array_mismatch_fail_closed(tmp_path):
     result = _read(tmp_path, document)
     assert result["status"] == "ABSTAIN_F_SPECTRUM_VARIANTS"
     assert result["fit_variant_denominator"]["failed"] == 1
+
+
+def test_kernel_indexed_q_requires_its_own_bare_basis_overlap_object(tmp_path):
+    document = _fit_support()
+    assert _read(tmp_path, document)["status"] == "Q_BOUND_DERIVED_NOT_CERTIFIED"
+
+    document = _fit_support()
+    document["fit_variants"][0]["basis_operator_id"] = "stout"
+    result = _read(tmp_path, document)
+    assert result["status"] == "ABSTAIN_F_SPECTRUM_VARIANTS"
+    assert result["fit_variant_denominator"] == {
+        "unit": "prespecified_GEVP_fit_variant", "planned": 36,
+        "valid": 35, "failed": 1, "abstained": 0,
+    }
+
+    document = _fit_support()
+    document["overlap_definition_id"] = "gevp_projected_composite_v1"
+    result = _read(tmp_path, document)
+    assert result["status"] == "ABSTAIN_F_SPECTRUM_CONTENT"
 
 
 def test_duplicate_fit_variant_does_not_fill_a_missing_cell(tmp_path):

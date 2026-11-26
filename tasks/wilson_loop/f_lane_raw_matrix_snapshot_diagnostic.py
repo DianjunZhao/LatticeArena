@@ -394,7 +394,7 @@ def build(output_dir: Path = DEFAULT_OUT) -> dict[str, Any]:
             "gevp": "C(td)v=lambda C(t0)v; largest eigenvalue vector, C(t0)-normalized",
             "projection": "v^dagger C_block(R,t) v using one ensemble-mean vector per R cell",
             "output": "one projected composite operator per R plus condition diagnostics; no per-basis q, fit, or interval",
-            "q_semantics": "This composite projection cannot be assigned to each basis kernel's q cell; the independent q-bound contract still needs a reviewed overlap-object mapping",
+            "q_semantics": "Kernel-indexed q cells use the squared excited/ground overlap ratios of their mapped bare basis operator, obtained from a joint fit to C_ij; this GEVP projection is a separate composite-operator diagnostic",
         },
         "toy_model": {
             "spectrum": np.asarray(TOY_ENERGIES_4, dtype=float).tolist(),
@@ -407,7 +407,7 @@ def build(output_dir: Path = DEFAULT_OUT) -> dict[str, Any]:
             "synthetic input only; no Wilson measurement or production source bytes were read",
             "the repository has no raw cross-correlator producer; diagonal loop arrays cannot reconstruct missing off-diagonal elements",
             "the matrix basis uses three ordered smearing IDs; do not add an outer kernel axis or interpret one projected vector as three per-kernel q values",
-            "the q-bound contract asks for kernel-indexed q cells; mapping those cells to basis-operator or GEVP-composite overlaps remains unresolved",
+            "the selected method default maps identity/APE/stout kernel IDs to their bare basis operators for q; independent review and production matrix-fit evidence remain open",
             "synthetic block spread is descriptive and is not a confidence interval or independence claim",
             "captured-byte digest equality does not authenticate who issued the expected digests",
             "no state-overlap/gap fit, q upper bound, coverage calibration, finite-Nt backward term, thermal h, mixed x, force propagation, or physical gate",
@@ -443,7 +443,7 @@ The panels show the two R values. Bands are the 10–90% spread across 24 determ
 
 `captured manifest + NPZ bytes → strict schema/hash/split/axis validation → NPZ preflight → mean C(t0), C(td) per R → fixed principal GEVP → block projection → CSV/figure`.
 
-The GEVP projection is one composite operator per R. It must not be copied into three separate identity/APE/stout q cells. The selected q-bound contract is kernel-indexed, so a reviewed fit must decide whether those q cells refer to the bare basis overlaps or another precisely defined operator object. No fit of energies or overlaps, q envelope, interval, coverage calibration, finite-`N_t` backward propagation, thermal `h`, mixed `x`, force propagation, or physical gate is implemented. The repository also lacks a raw cross-correlator producer; diagonal loop arrays do not determine off-diagonal matrix elements.
+The GEVP projection is one composite operator per R. It must not be copied into three separate identity/APE/stout q cells. The selected method default maps the kernel-indexed q cells to the corresponding bare basis operators; a future joint fit of `C_ij` supplies each operator's squared excited/ground overlap ratios. The GEVP remains a state-identification and sensitivity diagnostic, not the q object. This mapping is a proposal requiring independent review. No fit of energies or overlaps, q envelope, interval, coverage calibration, finite-`N_t` backward propagation, thermal `h`, mixed `x`, force propagation, or physical gate is implemented. The repository also lacks a raw cross-correlator producer; diagonal loop arrays do not determine off-diagonal matrix elements.
 
 Denominators (planned/valid/failed/abstained): source files `{result['denominators']['source_files']['planned']}/{result['denominators']['source_files']['valid']}/{result['denominators']['source_files']['failed']}/{result['denominators']['source_files']['abstained']}`; R projection cells `{result['denominators']['R_projection_cells']['planned']}/{result['denominators']['R_projection_cells']['valid']}/{result['denominators']['R_projection_cells']['failed']}/{result['denominators']['R_projection_cells']['abstained']}`; R×time values `{result['denominators']['R_time_values']['planned']}/{result['denominators']['R_time_values']['valid']}/{result['denominators']['R_time_values']['failed']}/{result['denominators']['R_time_values']['abstained']}`; physical measurement inputs `0/0/0/0`; physical q/interval/certification `{result['denominators']['physical_q_interval_or_certification']['planned']}/{result['denominators']['physical_q_interval_or_certification']['valid']}/{result['denominators']['physical_q_interval_or_certification']['failed']}/{result['denominators']['physical_q_interval_or_certification']['abstained']}`.
 

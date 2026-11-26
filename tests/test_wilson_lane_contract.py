@@ -31,6 +31,14 @@ def test_null_draft_stays_not_ready_with_two_separate_estimands():
     assert protocol["ground_state_discrete_static_force"]["evidence_receipts"][
         "thermal_h_Nt32"] is None
     spectral = protocol["ground_state_discrete_static_force"]["spectral_evidence_plan"]
+    q_contract = spectral["q_overlap_contract"]
+    assert q_contract["definition_id"] == "bare_basis_squared_overlap_ratio_v1"
+    assert q_contract["kernel_to_basis_operator"] == {
+        "identity": "identity",
+        "ape_alpha0.4_n5": "APE",
+        "spatial_stout_rho0.10_n5": "stout",
+    }
+    assert "must not be copied" in q_contract["gevp_role"]
     contamination = spectral["contamination_stencil"]
     assert contamination["primary_effective_energy_T"] == 5
     assert contamination["loop_time_extents"] == [5, 6]

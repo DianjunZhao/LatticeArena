@@ -14,16 +14,23 @@ from pathlib import Path
 from typing import Any
 
 from core.source_integrity import SourceByteSnapshot
-from .lane_contract import selected_protocol
+from .lane_contract import q_overlap_contract, selected_protocol
 
 
-SCHEMA = "wilson-f-gevp-overlap-support-v1"
-UNITS = "overlap ratios dimensionless; energy gaps in a_t*DeltaE"
+SCHEMA = "wilson-f-bare-basis-overlap-support-v2"
+RESULT_SCHEMA = "wilson-f-spectral-q-bound-read-v2"
+UNITS = "squared overlap ratios dimensionless; energy gaps in a_t*DeltaE"
 KERNELS = (
     "identity",
     "ape_alpha0.4_n5",
     "spatial_stout_rho0.10_n5",
 )
+KERNEL_TO_BASIS_OPERATOR = {
+    "identity": "identity",
+    "ape_alpha0.4_n5": "APE",
+    "spatial_stout_rho0.10_n5": "stout",
+}
+OVERLAP_DEFINITION_ID = q_overlap_contract()["definition_id"]
 SELECTED_FORCE_KERNELS = ("identity", "spatial_stout_rho0.10_n5")
 FORCE_Q_KERNEL_ORDER = ("spatial_stout_rho0.10_n5", "identity")
 R_VALUES = (2, 3)
@@ -70,7 +77,7 @@ def _abstain(status: str, reason: str, *, source_status: str = "valid",
              variants_valid: int = 0, variants_failed: int = 0,
              variants_abstained: int = EXPECTED_FIT_VARIANTS) -> dict[str, Any]:
     return {
-        "schema": "wilson-f-spectral-q-bound-read-v1",
+        "schema": RESULT_SCHEMA,
         "status": status,
         "reason": reason,
         "fit_variant_denominator": {
@@ -99,6 +106,7 @@ def _expected_gevp_metadata() -> dict[str, Any]:
     return {
         "dimension": 3,
         "basis_kernel_ids": list(KERNELS),
+        "basis_operator_ids": [KERNEL_TO_BASIS_OPERATOR[kernel] for kernel in KERNELS],
         "t0": 1,
         "td": 2,
         "R_values": list(R_VALUES),
@@ -123,7 +131,7 @@ def _validate_top_level(document: object, split_id: str) -> dict[str, Any]:
     if not isinstance(document, dict):
         raise ValueError("root must be a JSON object")
     required = {
-        "schema", "classification", "split_id", "units",
+        "schema", "classification", "split_id", "units", "overlap_definition_id",
         "positive_forward_spectral_sum_assumption", "gevp",
         "confidence_allocation", "fit_variants",
     }
@@ -135,6 +143,8 @@ def _validate_top_level(document: object, split_id: str) -> dict[str, Any]:
         raise ValueError("classification must identify a derived fit-receipt input")
     if document["units"] != UNITS:
         raise ValueError(f"units must be {UNITS!r}")
+    if document["overlap_definition_id"] != OVERLAP_DEFINITION_ID:
+        raise ValueError("overlap definition differs from the selected bare-basis q contract")
     if document["split_id"] != split_id:
         raise ValueError("snapshot split_id differs from the caller's frozen split")
     lowered = split_id.lower()
@@ -200,7 +210,7 @@ def _validate_variants(rows: object) -> tuple[dict[tuple[str, int, int, int], di
     }
     required = {
         "variant_id", "kernel_id", "R", "n_states", "tmin", "fit_window",
-        "overlap_ratio_upper", "gap_lower",
+        "basis_operator_id", "overlap_ratio_upper", "gap_lower",
     }
     for row in rows:
         key = None
@@ -221,6 +231,8 @@ def _validate_variants(rows: object) -> tuple[dict[tuple[str, int, int, int], di
                 raise ValueError("variant_id must be nonempty")
             if kernel not in KERNELS:
                 raise ValueError("unknown GEVP basis operator")
+            if row["basis_operator_id"] != KERNEL_TO_BASIS_OPERATOR[kernel]:
+                raise ValueError("fit overlap object does not match the kernel's bare basis operator")
             if not _is_int(radius) or radius not in R_VALUES:
                 raise ValueError("R must be one of the selected integer radii")
             if not _is_int(n_states) or n_states not in STATE_COUNTS:
@@ -274,14 +286,15 @@ def read_spectral_q_bounds(
     split_id: str,
     expected_source_sha256: str,
 ) -> dict[str, Any]:
-    """Recompute q(T) bounds from one captured 36-variant GEVP fit receipt.
+    """Recompute q(T) bounds from one captured 36-variant joint-matrix fit receipt.
 
-    The q envelope for each selected kernel, R, and T in {5,6} is the maximum
-    over tmin={3,4,5} and n_states={2,3} of
-    ``sum_n ratio_upper[n] * exp(-gap_lower[n] * T)``. APE is retained as a
-    descriptive GEVP-basis diagnostic but is not counted as a force-systematic
-    q cell. This parser verifies the selected confidence-allocation metadata;
-    it cannot establish coverage of the upstream one-sided intervals.
+    Each kernel's q uses the squared excited/ground overlap ratios for its own
+    bare basis operator, jointly fitted from the full 3x3 cross-correlator
+    matrix. The GEVP composite operator is a distinct object and is never
+    copied into these kernel-indexed cells. APE is retained as a descriptive
+    basis diagnostic, not a force-systematic q cell. The parser verifies the
+    selected confidence-allocation metadata; it cannot establish coverage of
+    the upstream one-sided intervals.
     """
     if not isinstance(snapshot, SourceByteSnapshot):
         return _abstain("ABSTAIN_F_SPECTRUM_SNAPSHOT", "snapshot has the wrong type",
@@ -358,6 +371,8 @@ def read_spectral_q_bounds(
                 maximum = max(candidates, key=lambda item: item[0])
                 q_rows.append({
                     "kernel_id": kernel,
+                    "basis_operator_id": KERNEL_TO_BASIS_OPERATOR[kernel],
+                    "overlap_definition_id": OVERLAP_DEFINITION_ID,
                     "R": radius,
                     "T": time_extent,
                     "q_upper": maximum[0],
@@ -384,11 +399,12 @@ def read_spectral_q_bounds(
     }
 
     return {
-        "schema": "wilson-f-spectral-q-bound-read-v1",
+        "schema": RESULT_SCHEMA,
         "status": "Q_BOUND_DERIVED_NOT_CERTIFIED",
         "classification": "derived_from_synthetic_or_external_fit_receipt; not raw measurement",
         "split_id": split_id,
         "units": UNITS,
+        "overlap_definition_id": OVERLAP_DEFINITION_ID,
         "source_read_mode": "immutable_snapshot",
         "source_sha256": observed,
         "fit_variant_denominator": denominator,
@@ -409,14 +425,15 @@ def read_spectral_q_bounds(
         "certified": False,
         "text_flow": [
             "one hash-matched calibration fit-support JSON captured as immutable bytes",
-            "strictly validate the 36 selected kernel/R/tmin/state-count variants and nested alpha rule",
+            "strictly validate the 36 selected kernel-to-bare-operator/R/tmin/state-count variants and nested alpha rule",
+            "derive each kernel q from that bare operator's squared overlap ratios; keep GEVP-composite q separate",
             "for each kernel/R/T=5,6 compute sum(ratio_upper*exp(-gap_lower*T))",
             "take the maximum across all six time-window/state-count variants",
             "return eight identity/stout force q cells plus four descriptive APE cells",
             "leave force gate abstained until the fit receipt, h/x bounds, force draws, and reviews are independently verified",
         ],
         "limitations": [
-            "does not read raw correlation matrices or solve the GEVP",
+            "does not read raw correlation matrices, solve the GEVP, or fit the joint state-overlap matrix",
             "does not fit energies/overlaps or construct one-sided confidence bounds",
             "cannot authenticate the positive spectral representation or upstream interval coverage",
             "does not derive thermal h, mixed x, model truncation, force intervals, or positive reference force",
