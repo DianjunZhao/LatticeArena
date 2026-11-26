@@ -67,6 +67,7 @@ def test_pion_measurement_bundle_checks_split_identity(tmp_path):
     assert 'tasks/pion_projection/candidate.py' in task['dependencies']
     assert 'tasks/pion_projection/path_kernel.py' in task['dependencies']
     assert 'tasks/pion_projection/evidence_adapter.py' in task['dependencies']
+    assert 'tasks/pion_projection/anchor_scalar_reader.py' in task['dependencies']
     assert 'tasks/pion_projection/bounded_block_risk_contract.py' in task['dependencies']
     assert 'tasks/pion_projection/bounded_block_risk_contract_v1.json' in task['dependencies']
     assert 'tasks/pion_projection/bounded_block_risk_score.py' in task['dependencies']

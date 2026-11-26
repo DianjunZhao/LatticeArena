@@ -27,7 +27,7 @@ MAP_TIME = 4
 SUPPORT = (0.1, 3.0)
 RISK_SCALE = 2.9
 COMMON_BIAS_LIMIT = 0.01 * RISK_SCALE
-DEFAULT_OUT = Path(__file__).resolve().parent / "anchor_scalar_map_bias_20261126_v1"
+DEFAULT_OUT = Path(__file__).resolve().parent / "anchor_scalar_map_bias_20261126_v2"
 
 
 def folded_pp(t: int, mass0: float, mass1: float, amplitude_ratio: float) -> float:
@@ -54,9 +54,9 @@ def effective_mass_at_four(mass0: float, gap: float, amplitude_ratio: float) -> 
     c4 = folded_pp(4, mass0, mass1, amplitude_ratio)
     c5 = folded_pp(5, mass0, mass1, amplitude_ratio)
     argument = (c3 + c5) / (2.0 * c4)
-    if not math.isfinite(argument) or argument < 1.0 - 1e-12:
+    if not math.isfinite(argument) or argument < 1.0:
         raise ValueError("folded-PP cosh effective-mass argument is invalid")
-    mapped = math.acosh(max(1.0, argument))
+    mapped = math.acosh(argument)
     if not SUPPORT[0] <= mapped <= SUPPORT[1]:
         raise ValueError("mapped anchor scalar falls outside the frozen support")
     return mapped
@@ -108,7 +108,7 @@ def build(output: Path) -> dict[str, Any]:
                 })
 
     with (output / "bias_grid.csv").open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -125,7 +125,7 @@ def build(output: Path) -> dict[str, Any]:
                 "gap_below_bias_limit": bool(gap <= COMMON_BIAS_LIMIT),
             })
     with (output / "overlap_thresholds.csv").open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(threshold_rows[0]))
+        writer = csv.DictWriter(handle, fieldnames=list(threshold_rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(threshold_rows)
 
@@ -241,7 +241,7 @@ For each predeclared anchor block, form the zero-momentum folded pseudoscalar co
 m_eff(4) = acosh((C_fold(3) + C_fold(5)) / (2 C_fold(4)))
 ```
 
-The candidate support is `[0.1, 3.0]` in `a_t m_pi`. A nonpositive denominator, argument below one beyond roundoff, nonfinite value, or mapped value outside support is an abstention; values are never clipped or silently dropped. This choice follows the fixed `T=16` folded-PP convention. It is only a candidate map for independent review.
+The candidate support is `[0.1, 3.0]` in `a_t m_pi`. A nonpositive denominator, argument below one, nonfinite value, or mapped value outside support is an abstention; values are never clipped or silently dropped. This choice follows the fixed `T=16` folded-PP convention. It is only a candidate map for independent review.
 
 ## Two-state diagnostic
 

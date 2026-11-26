@@ -23,6 +23,7 @@ def _source_dependencies():
         'tasks/pion_projection/candidate.py': Path(__file__).with_name('candidate.py'),
         'tasks/pion_projection/path_kernel.py': Path(__file__).with_name('path_kernel.py'),
         'tasks/pion_projection/evidence_adapter.py': Path(__file__).with_name('evidence_adapter.py'),
+        'tasks/pion_projection/anchor_scalar_reader.py': Path(__file__).with_name('anchor_scalar_reader.py'),
         'tasks/pion_projection/bounded_block_risk_contract.py': Path(__file__).with_name('bounded_block_risk_contract.py'),
         'tasks/pion_projection/bounded_block_risk_contract_v1.json': Path(__file__).with_name('bounded_block_risk_contract_v1.json'),
         'tasks/pion_projection/bounded_block_risk_score.py': Path(__file__).with_name('bounded_block_risk_score.py'),

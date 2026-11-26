@@ -63,7 +63,9 @@ The generic split preflight is `split name + inclusive integer [start,end] -> va
   estimand, transform, conditional bound and open decision fields while leaving
   the score-family threshold and conditional dependence assumptions explicit,
   while the actual score-chain/anchor-chain receipts and scalar anchor map remain
-  absent. The synthetic coverage MCs compare a known finite-
+  absent. A candidate per-state folded-PP scalar map and snapshot reader now
+  exist, but the map-to-target bias bridge and independently reviewed anchor
+  receipts remain absent. The synthetic coverage MCs compare a known finite-
   dependence graph with an IID misspecification and add an independent,
   known-variance anchor interval with explicit `alpha_score/alpha_anchor`
   allocation. A separate exact two-point enumeration contrasts the known-
