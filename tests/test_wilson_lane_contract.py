@@ -3,6 +3,7 @@ import hashlib
 import json
 
 from tasks.wilson_loop.lane_contract import (
+    CONTRACT_PATH,
     _synthetic_contract,
     build,
     empty_contract,
@@ -29,6 +30,29 @@ def test_null_draft_stays_not_ready_with_two_separate_estimands():
     assert protocol["ground_state_discrete_static_force"]["midpoint_R"] == 2.5
     assert protocol["ground_state_discrete_static_force"]["evidence_receipts"][
         "thermal_h_Nt32"] is None
+    spectral = protocol["ground_state_discrete_static_force"]["spectral_evidence_plan"]
+    contamination = spectral["contamination_stencil"]
+    assert contamination["primary_effective_energy_T"] == 5
+    assert contamination["loop_time_extents"] == [5, 6]
+    assert set(contamination["loop_time_extents"]).issubset(
+        range(*[spectral["fit_window"][0], spectral["fit_window"][1] + 1])
+    )
+    assert contamination["status"] == (
+        "PROPOSED_METHOD_DEFAULT_REQUIRES_INDEPENDENT_REVIEW"
+    )
+    assert protocol["gates"]["ground_state_force_certified"] is False
+
+
+def test_selected_protocol_json_and_runtime_contract_share_contamination_stencil():
+    frozen = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+    runtime = selected_protocol()
+    draft = empty_contract()
+    assert frozen["selected_protocol"] == runtime
+    assert frozen["lanes"]["ground_state_discrete_static_force"][
+        "spectral_evidence_plan"
+    ] == draft["lanes"]["ground_state_discrete_static_force"][
+        "spectral_evidence_plan"
+    ]
 
 
 def test_selected_lattice_force_draft_does_not_require_physical_scale_conversion():

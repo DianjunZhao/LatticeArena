@@ -116,6 +116,27 @@ def selected_protocol() -> dict[str, Any]:
                 "joint_finite_Nt_state_count_checks": [2, 3],
                 "fit_window": [3, 7],
                 "tmin_checks": [3, 4, 5],
+                "contamination_stencil": {
+                    "primary_effective_energy_T": 5,
+                    "loop_time_extents": [5, 6],
+                    "rationale": (
+                        "T=5 and T+1=6 lie inside every selected fit window "
+                        "[tmin,7] for tmin=3,4,5"
+                    ),
+                    "q_envelope": (
+                        "for each selected kernel and R, take the maximum over "
+                        "all tmin=3,4,5 and 2/3-state variants of "
+                        "sum_n overlap_ratio_upper[n]*exp(-gap_lower[n]*T)"
+                    ),
+                    "within_cell_interval_family": (
+                        "Bonferroni over 24 endpoint slots per q cell "
+                        "(6 fit variants x up to 2 excited states x 2 one-sided "
+                        "endpoints); 2-state variants use one excited state, "
+                        "unused slots are not reassigned, and "
+                        "alpha_endpoint=systematic_cell_alpha/24"
+                    ),
+                    "status": "PROPOSED_METHOD_DEFAULT_REQUIRES_INDEPENDENT_REVIEW",
+                },
                 "matched_thermal_Nt": 32,
             },
             "relative_error_budget": {
@@ -280,6 +301,27 @@ def empty_contract() -> dict[str, Any]:
                     "t0": 1, "td": 2, "R_values": [2, 3],
                     "joint_finite_Nt_state_count_checks": [2, 3],
                     "fit_window": [3, 7], "tmin_checks": [3, 4, 5],
+                    "contamination_stencil": {
+                        "primary_effective_energy_T": 5,
+                        "loop_time_extents": [5, 6],
+                        "rationale": (
+                            "T=5 and T+1=6 lie inside every selected fit window "
+                            "[tmin,7] for tmin=3,4,5"
+                        ),
+                        "q_envelope": (
+                            "for each selected kernel and R, take the maximum over "
+                            "all tmin=3,4,5 and 2/3-state variants of "
+                            "sum_n overlap_ratio_upper[n]*exp(-gap_lower[n]*T)"
+                        ),
+                        "within_cell_interval_family": (
+                            "Bonferroni over 24 endpoint slots per q cell "
+                            "(6 fit variants x up to 2 excited states x 2 one-sided "
+                            "endpoints); 2-state variants use one excited state, "
+                            "unused slots are not reassigned, and "
+                            "alpha_endpoint=systematic_cell_alpha/24"
+                        ),
+                        "status": "PROPOSED_METHOD_DEFAULT_REQUIRES_INDEPENDENT_REVIEW",
+                    },
                     "matched_thermal_Nt": 32,
                 },
                 "inference": {

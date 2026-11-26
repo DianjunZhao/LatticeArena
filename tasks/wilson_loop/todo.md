@@ -438,3 +438,19 @@ C calibration loop reader、D0–99 retrospective snapshot parser 和 Optimize D
 Retrospective C-development parser 现在在输出 `protocol.json` 和 `summary.json` 时记录诊断脚本与 `core/npz_safety.py` 两份 `analysis_source_sha256`，并将两份脚本副本放入新报告目录；`manifest.json` 以报告目录内相对路径覆盖每个文本、CSV、NPZ、PNG 和源码快照。这样即使输出写到项目目录之外，manifest 仍可自包含验证，不再依赖源文件恰好位于输出父目录。
 
 图文数据流：`pinned D0–99 transaction snapshot -> NPZ preflight/parser -> paired Creutz + bootstrap -> README/CSV/PNG + parser source snapshots -> relative artifact manifest`。Wilson snapshot reader、lane-contract 和 source-integrity focused suite **33 passed**；测试按 manifest 验证每个产物哈希，并确认保存的 helper hash 等于 protocol 记录；PR #6 全仓 CPU suite **306 passed**。输入仍是 synthetic regression fixture，D0–99 物理数据并未重读；此改动不改变 retrospective-only 标记，也不建立 calibration coverage、F 谱污染界或生产 reader，lane physical status 仍 abstained/uncertified。
+
+### 2026-11-26 F-lane 污染时间点与 GEVP overlap 上界 reducer
+
+**补上的协议坐标：**旧 F 合同写了 3×3 GEVP 的 fit window `[3,7]`、`tmin={3,4,5}` 与 8 个 `q/h/x` loop corners（两个 kernel、`R=2,3`、`T,T+1`），却没有说明这 8 个角点使用哪个 `T`。这会让生产 parser 各自挑时间，导致边界数值不再对应同一 estimand。现提出 `T=5`、`T+1=6`：两点都在 `[3,7]` 内，也都落入全部三个 `[tmin,7]` 变体的实测窗口；这是协议方法默认值，仍待独立物理/统计 reviewer 审阅，未标成确认性物理输入。
+
+新增 [`spectral_q_bound_reader.py`](spectral_q_bound_reader.py)，只接受 immutable snapshot 中严格格式的**已拟合 support receipt**，不接受路径 fallback。它要求 identity/APE/stout × `R=2,3` × `tmin=3,4,5` × 2/3-state 的 36 个 fit variants；对每个 kernel/R/T 计算正谱上界
+
+```text
+q_upper(T) = max_over_(tmin,state_count) sum_n ratio_upper[n] * exp(-gap_lower[n] * T),  T in {5,6}
+```
+
+选中的 identity 与 stout 产生 8 个可按力 stencil 顺序消费的 q cells，APE 另列 4 个描述性 basis cells。每个 q cell 的 alpha 按 systematics family `0.0125/28` 分配，再对 6 个 fit variants × 最多 2 个 excited states × ratio/gap 两侧端点预留 24 个 Bonferroni slots；二态模型未用的 slots 不重新分配。reader 检查 schema、units、split、source bytes/hash、variant completeness 和 alpha metadata，并返回最大值对应的 fit variant，**不验证**上游 marginal interval coverage 或正谱假设是否适用于真实 Wilson-loop correlator。
+
+文字流程：`one captured fit-support receipt -> 36/36 GEVP fit variants + alpha/split/hash preflight -> 各 kernel/R/T=5,6 的 ratio_U exp(-gap_L*T) -> 六种时间窗/态数取最大 -> identity/stout 8 q cells + APE 4 descriptive cells -> 仅可送后续同源 force reducer，仍未认证`。合成正控 denominator 为 fit variants `36/36/0/0`、selected q cells `8/8/0/0`、APE cells `4/4/0/0`；缺 fit、重复 variant、状态数组错长、alpha 改写、错 hash 和 gap/validation/sealed split 都 fail closed。lane-contract + 新 reader 定向 suite **26 passed**；完整仓库 CPU suite **315 passed**，`git diff --check` 通过。这些只验证 reducer 与草案结构，synthetic ratios/gaps 不是谱测量、覆盖率校准或污染证据；`physical_score=null`。
+
+尚未实现/验证：raw correlation-matrix immutable reader、3×3 GEVP 与 overlap/gap interval producer、生产上游 interval 的联合覆盖、`N_t=32` thermal `h`、mixed `x`、模型截断四格、force/reference bootstrap 从原始 paired loops 同源重算，以及独立 reviewer/owner authorization。此 reader 暂不接 F gate，以免 derived q receipt 与 gate 中注册的源 hash 路由发生脱节；下一步需将 raw matrix parser 与 receipt producer 绑定到同一 `SourceByteSnapshot`，并令 F envelope 直接消费该 reader 输出后做 route/hash 一致性核验。不得用本合成接口打开封存数据或启动 GPU/QUDA；F 继续 `GROUND_STATE_FORCE_UNCERTIFIED`，C finite-`T` Creutz 仍为不同 estimand，双 lane `NOT_READY/UNCERTIFIED`。
