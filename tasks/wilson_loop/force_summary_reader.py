@@ -18,14 +18,19 @@ from core.source_integrity import SourceByteSnapshot
 from .evidence_adapter import _F_ROUTES, apply_wilson_force_gate
 from .force_budget import propagate_force_budget
 from .lane_contract import LATTICE_FORCE_UNITS
+from .spectral_q_bound_reader import (
+    FORCE_Q_CORNER_LABELS,
+    FORCE_Q_KERNEL_ORDER,
+    read_spectral_q_bounds,
+)
 
 
-SCHEMA = "wilson-f-force-summary-input-v1"
+SCHEMA = "wilson-f-force-summary-input-v2"
 _REQUIRED = frozenset({
     "schema", "units", "positive_reference_force_lower",
     "statistical_halfwidth", "model_truncation_bound",
     "invalid_force_interval_draws", "invalid_reference_force_draws",
-    "qhx_corner_bounds",
+    "force_kernel_order", "force_corner_order", "qhx_corner_bounds",
 })
 
 
@@ -68,6 +73,16 @@ def _parse_summary_bytes(payload: bytes, source_sha256: str) -> tuple[dict[str, 
         raise ValueError(f"force summary schema must be {SCHEMA!r}")
     if raw.get("units") != LATTICE_FORCE_UNITS:
         raise ValueError(f"force summary units must be {LATTICE_FORCE_UNITS!r}")
+    expected_kernel_order = list(FORCE_Q_KERNEL_ORDER)
+    if raw.get("force_kernel_order") != expected_kernel_order:
+        raise ValueError(
+            f"force_kernel_order must be exactly {expected_kernel_order!r}"
+        )
+    expected_corner_order = list(FORCE_Q_CORNER_LABELS)
+    if raw.get("force_corner_order") != expected_corner_order:
+        raise ValueError(
+            f"force_corner_order must be exactly {expected_corner_order!r}"
+        )
 
     reference = _finite_number(
         raw["positive_reference_force_lower"], "positive_reference_force_lower"
@@ -107,6 +122,11 @@ def _parse_summary_bytes(payload: bytes, source_sha256: str) -> tuple[dict[str, 
         "units": LATTICE_FORCE_UNITS,
         "positive_reference_force_lower": reference,
         "statistical_halfwidth": statistical,
+        "force_kernel_order": expected_kernel_order,
+        "force_corner_order": expected_corner_order,
+        "qhx_corner_bounds": {
+            name: [list(row) for row in qhx[name]] for name in ("q", "h", "x")
+        },
         "force_component_bounds": components,
         "systematic_total_bound": systematic,
         "total_linear_bound": systematic + statistical,
@@ -122,6 +142,8 @@ def _parse_summary_bytes(payload: bytes, source_sha256: str) -> tuple[dict[str, 
         "source_sha256": source_sha256,
         "positive_reference_force_lower": reference,
         "statistical_halfwidth": statistical,
+        "force_kernel_order": expected_kernel_order,
+        "force_corner_order": expected_corner_order,
         "q_h_x_force_unit_bounds": components,
         "model_truncation_bound": model,
         "systematic_total_bound": systematic,
@@ -134,7 +156,7 @@ def _parse_summary_bytes(payload: bytes, source_sha256: str) -> tuple[dict[str, 
         },
         "text_flow": [
             "six route snapshots -> parse the identical force-summary bytes",
-            "validate units, scalar bounds, invalid-draw counts, and 2x4 q/h/x corners",
+            "validate units, scalar bounds, invalid-draw counts, explicit kernel/corner order, and 2x4 q/h/x corners",
             "recompute sum(log1p(q)), sum(log1p(h)), sum(log1p(x)), model, and total bounds",
             "pass the derived summary and the same snapshots to the F evidence gate",
             "complete metadata and bytes can reach draft only; physical score remains null",
@@ -142,6 +164,7 @@ def _parse_summary_bytes(payload: bytes, source_sha256: str) -> tuple[dict[str, 
         "limitations": [
             "does not derive force intervals or positive-reference bounds from raw loops",
             "does not validate the GEVP, matched-Nt32 thermal, mixed-sector, or model receipts",
+            "schema v2 requires q/h/x rows in stout-then-identity order and columns R2_T5, R2_T6, R3_T5, R3_T6",
             "does not authenticate input authority, reviewer identity, or independence",
             "does not certify the ground-state force or set a physical score",
         ],
@@ -245,22 +268,120 @@ def apply_wilson_force_snapshot_gate(
     required_source_hashes_by_envelope: object,
     source_snapshots_by_envelope: object,
 ) -> dict[str, Any]:
-    """Derive the F force summary from captured bytes, then run the existing gate."""
+    """Bind spectral q(T) and force-summary bounds to one F snapshot bundle."""
+    routes = required_source_hashes_by_envelope
+    snapshots = source_snapshots_by_envelope
+    q_envelope = envelopes.get("q_excited") if isinstance(envelopes, Mapping) else None
+    q_hashes = routes.get("q_excited") if isinstance(routes, Mapping) else None
+    q_snapshot = snapshots.get("q_excited") if isinstance(snapshots, Mapping) else None
+    q_chain = q_envelope.get("chain") if isinstance(q_envelope, Mapping) else None
+    q_split = q_chain.get("split_id") if isinstance(q_chain, Mapping) else None
+    q_receipt_hash = q_hashes.get("gevp_receipt") if isinstance(q_hashes, Mapping) else None
+    if isinstance(q_snapshot, SourceByteSnapshot) and isinstance(q_receipt_hash, str):
+        q_reader = read_spectral_q_bounds(
+            q_snapshot,
+            source_name="gevp_receipt",
+            split_id=q_split,
+            expected_source_sha256=q_receipt_hash,
+        )
+    else:
+        q_reader = {
+            "status": "ABSTAIN_F_SPECTRUM_ROUTE_MAP",
+            "reason": "q_excited must bind a captured GEVP fit-support receipt",
+            "source_denominator": {
+                "unit": "immutable_snapshot_source_file", "planned": 1,
+                "valid": 0, "failed": 0, "abstained": 1,
+            },
+            "selected_q_cell_denominator": {
+                "unit": "selected_kernel_R_time_q_cell", "planned": 8,
+                "valid": 0, "failed": 0, "abstained": 8,
+            },
+            "certified": False, "physical_score": None,
+        }
     read = read_force_summary_snapshots(
-        source_snapshots_by_envelope, required_source_hashes_by_envelope
+        snapshots, routes
     )
-    if read.get("status") != "F_SUMMARY_READ_NOT_CERTIFIED":
+    q_reconciliation = None
+    if (q_reader.get("status") == "Q_BOUND_DERIVED_NOT_CERTIFIED"
+            and read.get("status") == "F_SUMMARY_READ_NOT_CERTIFIED"):
+        supplied = read["summary"].get("qhx_corner_bounds", {}).get("q")
+        order = q_reader.get("force_qhx_corner_order")
+        bounds = q_reader.get("force_q_corner_bounds")
+        reasons = []
+        valid_corners = 0
+        failed_corners = 0
+        abstained_corners = 0
+        if (not isinstance(supplied, list) or len(supplied) != 2
+                or not isinstance(order, list) or len(order) != 2
+                or not isinstance(bounds, Mapping)):
+            reasons.append("force q corners or spectral q corner map is malformed")
+            abstained_corners = 8
+        else:
+            for kernel_index, kernel in enumerate(order):
+                row = supplied[kernel_index]
+                lower = bounds.get(kernel)
+                if (not isinstance(row, list) or len(row) != 4
+                        or not isinstance(lower, list) or len(lower) != 4):
+                    reasons.append(f"{kernel}: expected four q corners in the selected force order")
+                    abstained_corners += 4
+                    continue
+                for corner_index, (value, floor) in enumerate(zip(row, lower)):
+                    if (isinstance(value, bool) or not isinstance(value, (int, float))
+                            or not math.isfinite(float(value))
+                            or isinstance(floor, bool) or not isinstance(floor, (int, float))
+                            or not math.isfinite(float(floor))):
+                        reasons.append(f"{kernel} q corner {corner_index} is not finite numeric input")
+                        failed_corners += 1
+                        continue
+                    tolerance = 8.0 * math.ulp(max(1.0, abs(float(value)), abs(float(floor))))
+                    if float(value) + tolerance < float(floor):
+                        reasons.append(
+                            f"{kernel} q corner {corner_index} is below the captured spectral q upper bound"
+                        )
+                        failed_corners += 1
+                    else:
+                        valid_corners += 1
+        q_reconciliation = {
+            "status": "Q_FORCE_CORNERS_RECONCILED" if not reasons else "ABSTAIN_Q_BELOW_SPECTRAL_BOUND",
+            "kernel_order": order,
+            "corner_denominator": {
+                "unit": "selected_spectral_q_force_corner", "planned": 8,
+                "valid": valid_corners, "failed": failed_corners,
+                "abstained": abstained_corners,
+            },
+            "reasons": reasons,
+            "certified": False,
+            "physical_score": None,
+        }
+    else:
+        q_reconciliation = {
+            "status": "ABSTAIN_SPECTRAL_Q_READER",
+            "kernel_order": None,
+            "corner_denominator": {
+                "unit": "selected_spectral_q_force_corner", "planned": 8,
+                "valid": 0, "failed": 0, "abstained": 8,
+            },
+            "reasons": ["spectral q reader and force summary must both pass before F gating"],
+            "certified": False,
+            "physical_score": None,
+        }
+
+    if (read.get("status") != "F_SUMMARY_READ_NOT_CERTIFIED"
+            or q_reader.get("status") != "Q_BOUND_DERIVED_NOT_CERTIFIED"
+            or q_reconciliation.get("status") != "Q_FORCE_CORNERS_RECONCILED"):
         result = apply_wilson_force_gate(
             run_state, envelopes, receipt, None,
-            required_source_hashes_by_envelope=required_source_hashes_by_envelope,
-            source_snapshots_by_envelope=source_snapshots_by_envelope,
+            required_source_hashes_by_envelope=routes,
+            source_snapshots_by_envelope=snapshots,
         )
         result["force_summary_reader"] = read
+        result["spectral_q_reader"] = q_reader
+        result["spectral_q_reconciliation"] = q_reconciliation
         return result
     result = apply_wilson_force_gate(
         run_state, envelopes, receipt, read["summary"],
-        required_source_hashes_by_envelope=required_source_hashes_by_envelope,
-        source_snapshots_by_envelope=source_snapshots_by_envelope,
+        required_source_hashes_by_envelope=routes,
+        source_snapshots_by_envelope=snapshots,
     )
     result["force_summary_reader"] = {
         "status": read["status"],
@@ -270,4 +391,18 @@ def apply_wilson_force_snapshot_gate(
         "certified": False,
         "physical_score": None,
     }
+    result["spectral_q_reader"] = {
+        "status": q_reader["status"],
+        "source_sha256": q_reader.get("source_sha256"),
+        "fit_variant_denominator": q_reader.get("fit_variant_denominator"),
+        "selected_q_cell_denominator": q_reader.get("selected_q_cell_denominator"),
+        "force_qhx_corner_order": q_reader.get("force_qhx_corner_order"),
+        "force_qhx_corner_labels": q_reader.get("force_qhx_corner_labels"),
+        "force_q_corner_bounds": q_reader.get("force_q_corner_bounds"),
+        "text_flow": q_reader.get("text_flow"),
+        "limitations": q_reader.get("limitations"),
+        "certified": False,
+        "physical_score": None,
+    }
+    result["spectral_q_reconciliation"] = q_reconciliation
     return result

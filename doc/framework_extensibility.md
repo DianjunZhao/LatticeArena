@@ -92,8 +92,11 @@ The generic split preflight is `split name + inclusive integer [start,end] -> va
   statistical independence. The Pion-owned adapter in PR #5 binds the selected
   anchor scalar map, target-chain score and common-bias receipt metadata before
   a statistical draft; actual receipt bytes and claims still need external
-  verification. Clipping changes the estimand and must be frozen before
-  confirmation data.
+  verification. Its `TaskSpec` fingerprint now also includes the bounded-risk
+  JSON contract, fixed score helper and transitive pseudo-gap implementation;
+  this closes source-version identity, not the still-missing scalar map or
+  anchor/reference evidence. Clipping changes the estimand and must be frozen
+  before confirmation data.
 - **Optimize Gaussian:** the versioned research contract now records selected
   method defaults: candidate-blind independent E-chain PP/A4P reference fit,
   `r_star=10/9`, and two contrasts (trainable-W versus same-budget SLSQP and
@@ -123,7 +126,13 @@ The generic split preflight is `split name + inclusive integer [start,end] -> va
   bounded-block D06 contrasts plus their shared denominator, and D11 SU(3)
   operator metadata to the shared gate and requires an explicit-path byte check
   by default; it does not connect the real source reader or implement the
-  training/evaluation runner.
+  training/evaluation runner. A separate D06 calibration snapshot entrypoint
+  now parses the captured q-matrix, recomputes all three arm scores and the
+  corrected Markov lower bounds, reconciles chain/gap/TV receipt bytes and
+  denominators, then passes the same snapshots to the atomic evidence gate.
+  Its positive and negative examples are synthetic; the production RunSpec,
+  D04 raw-reference evaluator, D11 production-link evaluator and training
+  worker remain absent.
 - **Wilson loop:** the selected method defaults now keep finite-`T` Creutz and
   ground-state discrete force as separate estimands. They can share paired IDs
   while using different inference and systematic-error gates. The fixed q/h/x
@@ -141,7 +150,14 @@ The generic split preflight is `split name + inclusive integer [start,end] -> va
   independent force/reference/spectral/thermal receipts to separate lane
   states. It checks selected denominators and force-unit budgets, then stops at
   `draft`; `RunState` itself does not infer spectral, thermal or mixed-sector
-  bounds.
+  bounds. The F spectral q reader now consumes a captured fit-support receipt
+  through the `q_excited` route; the force-summary reader checks all eight q
+  corners against the derived q(T=5,6) upper bounds before recalculating the
+  q/h/x-to-force budget and passing the same snapshot bundle to the F gate.
+  Its v2 JSON contract names the kernel-row order and each `(R,T)` column;
+  reversed or missing order declarations abstain before the corner comparison.
+  This still does not fit raw correlators or a 3x3 GEVP, establish upstream
+  interval coverage, or derive thermal h and mixed x.
 
 ## Cross-task extension: typed dependence and physics evidence
 
@@ -244,9 +260,11 @@ default total uncompressed budget. Inputs exceeding that expanded budget need a
 separately reviewed streaming reader rather than a larger implicit allocation.
 Snapshot-using reports should bind the reader, capture code and safety helper in
 their TaskSpec/source dependency map, and copy relevant sources into the hashed
-artifact bundle. The Pion development snapshot bundle does this; Optimize's
-no-launch draft binds the D06 parser stack, and Wilson's retrospective C report
-stores its parser sources.
+artifact bundle. The Pion development snapshot bundle does this and now emits a
+development-only diagnostic that cross-checks source, decoded-array,
+configuration-ID and output-artifact hashes; Optimize's no-launch draft binds
+the D06 parser stack, and Wilson's retrospective C report stores its parser
+sources.
 
 Pion development fitting and the selected Optimize/Wilson snapshot diagnostics
 can consume retained bytes, but no production solver/evaluator emits reviewed
@@ -266,11 +284,14 @@ synthetic positive metadata fixtures declare their opt-out. Optimize maps both b
 shared positive denominator to one bundle, while D04 and D11 retain separate
 stages. Wilson keeps C and F receipts in separate lane-specific states. The
 adapters advance only to `draft`; byte matching does not authenticate receipt
-authority or certify statistical/physical claims. The current PR #6 focused
-Optimize/Wilson adapter plus shared evidence/source-integrity set reports
-**52 passed** and its full CPU suite reports **284 passed**. PR #5 separately
-reports **43 passed** for its Pion/shared focused set and **247 passed** for its
-full CPU suite. Snapshot fixtures use synthetic files only. No production
+authority or certify statistical/physical claims. Current PR #6 verification reports **21 passed** for the Optimize D06
+reader/adapter subset, **23 passed** for the Wilson force/q-reader subset,
+**90 passed** for all Wilson tests and **317 passed** for the full CPU suite.
+The Wilson force-summary v2 schema binds q/h/x row order to the canonical kernel
+IDs and column order to `(R,T)=(2,5),(2,6),(3,5),(3,6)`; reversal tests fail
+closed before q reconciliation.
+PR #5 reports **201 passed** for its Pion-specific suite and **257 passed** for
+its full CPU suite. Snapshot fixtures use synthetic files only. No production
 receipt was supplied. Connecting real readers to snapshots, independent review
 of task checks, and numerical/physics evaluators remain future work.
 
@@ -309,9 +330,10 @@ Optimize now has two
 selected contrasts and a conditional Markov route for its distinct bounded
 block-risk estimand; its real E-reference and solver receipts remain absent.
 Wilson now has both selected lane defaults, a v9 structural mapping report,
-force-budget propagation, C-lane Markov support sensitivity and lane-specific
-C/F metadata adapters; its production loop, spectrum and contamination receipts
-remain absent. Figures/text flows, denominators and artifact hashes accompany
+force-budget propagation, C-lane Markov support sensitivity, lane-specific C/F
+metadata adapters, and a snapshot-derived q(T) to force-budget consistency
+check; its production loop, GEVP, thermal and contamination receipts remain
+absent. Figures/text flows, denominators and artifact hashes accompany
 these method diagnostics, but they do not demonstrate chain assumptions or
 physical coverage. The three TODOs stay open for independent review, verified
 task-specific receipts and authorization. CPU checks establish software/algebra

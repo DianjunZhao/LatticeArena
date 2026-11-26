@@ -25,6 +25,19 @@ from tasks.wilson_loop.lane_contract import selected_protocol
 from tasks.wilson_loop.force_summary_reader import (
     apply_wilson_force_snapshot_gate,
 )
+from tasks.wilson_loop.spectral_q_bound_reader import (
+    CONTAMINATION_TIMES,
+    ENDPOINT_SLOTS_PER_Q_CELL,
+    FORCE_Q_CORNER_LABELS,
+    FORCE_Q_KERNEL_ORDER,
+    FIT_WINDOW,
+    KERNELS,
+    R_VALUES,
+    SCHEMA as Q_SUPPORT_SCHEMA,
+    STATE_COUNTS,
+    TMIN_VALUES,
+    UNITS as Q_SUPPORT_UNITS,
+)
 from tasks.wilson_loop.c_lane_snapshot_reader import (
     MANIFEST_SCHEMA as C_MANIFEST_SCHEMA,
     MEASUREMENT_SCHEMA as C_MEASUREMENT_SCHEMA,
@@ -40,6 +53,57 @@ from tasks.wilson_loop.c_lane_open_development_diagnostic import (
 
 H = [f"{i:064x}" for i in range(1, 60)]
 PAIRED_DRAWS = 30_000
+
+
+def _q_fit_support_payload(split_id="F-calibration-open"):
+    cell_alpha = 0.0125 / 28
+    variants = []
+    for kernel in KERNELS:
+        for radius in R_VALUES:
+            for tmin in TMIN_VALUES:
+                for n_states in STATE_COUNTS:
+                    ratios = [0.0001]
+                    gaps = [0.2]
+                    if n_states == 3:
+                        ratios.append(0.00005)
+                        gaps.append(0.1)
+                    variants.append({
+                        "variant_id": f"{kernel}-R{radius}-tmin{tmin}-n{n_states}",
+                        "kernel_id": kernel,
+                        "R": radius,
+                        "n_states": n_states,
+                        "tmin": tmin,
+                        "fit_window": [tmin, FIT_WINDOW[1]],
+                        "overlap_ratio_upper": ratios,
+                        "gap_lower": gaps,
+                    })
+    document = {
+        "schema": Q_SUPPORT_SCHEMA,
+        "classification": "fit_receipt_reducer_input_not_raw_measurement",
+        "split_id": split_id,
+        "units": Q_SUPPORT_UNITS,
+        "positive_forward_spectral_sum_assumption": True,
+        "gevp": {
+            "dimension": 3,
+            "basis_kernel_ids": list(KERNELS),
+            "t0": 1,
+            "td": 2,
+            "R_values": list(R_VALUES),
+            "state_counts": list(STATE_COUNTS),
+            "fit_window": list(FIT_WINDOW),
+            "tmin_checks": list(TMIN_VALUES),
+            "contamination_times": list(CONTAMINATION_TIMES),
+        },
+        "confidence_allocation": {
+            "method": "Bonferroni_one_sided_marginal_bounds_within_each_q_cell",
+            "systematic_cell_alpha": cell_alpha,
+            "endpoint_slots_per_q_cell": ENDPOINT_SLOTS_PER_Q_CELL,
+            "endpoint_alpha": cell_alpha / ENDPOINT_SLOTS_PER_Q_CELL,
+            "unused_endpoint_slots_reassigned": False,
+        },
+        "fit_variants": variants,
+    }
+    return (json.dumps(document, sort_keys=True, separators=(",", ":")) + "\n").encode()
 
 
 def _review(digest):
@@ -363,13 +427,15 @@ def _force_summary_snapshot_bundle(tmp_path, *, summary_override=None):
     envelopes, receipt, _summary, routes = _force_fixture()
     protocol = selected_protocol()
     raw_summary = {
-        "schema": "wilson-f-force-summary-input-v1",
+        "schema": "wilson-f-force-summary-input-v2",
         "units": "dimensionless lattice force a_s*a_t*F",
         "positive_reference_force_lower": 1.0,
         "statistical_halfwidth": 0.03,
         "model_truncation_bound": 0.005,
         "invalid_force_interval_draws": 0,
         "invalid_reference_force_draws": 0,
+        "force_kernel_order": list(FORCE_Q_KERNEL_ORDER),
+        "force_corner_order": list(FORCE_Q_CORNER_LABELS),
         "qhx_corner_bounds": {
             "q": [[0.001] * 4 for _ in range(2)],
             "h": [[0.001] * 4 for _ in range(2)],
@@ -384,8 +450,13 @@ def _force_summary_snapshot_bundle(tmp_path, *, summary_override=None):
     (tmp_path / "force-summary.json").write_bytes(summary_bytes)
     common_bytes = b"synthetic shared Wilson F evidence receipts"
     (tmp_path / "common.bin").write_bytes(common_bytes)
+    q_support_bytes = _q_fit_support_payload(
+        split_id=envelopes["q_excited"]["chain"]["split_id"]
+    )
+    (tmp_path / "q-fit-support.json").write_bytes(q_support_bytes)
     summary_hash = hashlib.sha256(summary_bytes).hexdigest()
     common_hash = hashlib.sha256(common_bytes).hexdigest()
+    q_support_hash = hashlib.sha256(q_support_bytes).hexdigest()
     source_paths = {}
 
     for route in _F_ROUTES:
@@ -405,7 +476,8 @@ def _force_summary_snapshot_bundle(tmp_path, *, summary_override=None):
         (tmp_path / map_name).write_bytes(map_bytes)
         route_hashes = {
             name: (force_map_sha256(route) if name == "observable_map"
-                   else summary_hash if name == "force_summary" else common_hash)
+                   else summary_hash if name == "force_summary"
+                   else q_support_hash if name == "gevp_receipt" else common_hash)
             for name in routes[route]
         }
         routes[route] = route_hashes
@@ -415,6 +487,7 @@ def _force_summary_snapshot_bundle(tmp_path, *, summary_override=None):
         source_paths[route] = {
             name: (map_name if name == "observable_map"
                    else "force-summary.json" if name == "force_summary"
+                   else "q-fit-support.json" if name == "gevp_receipt"
                    else "common.bin")
             for name in route_hashes
         }
@@ -763,6 +836,8 @@ def test_force_snapshot_reader_recomputes_qhx_force_bounds_from_captured_bytes(t
     }
     assert reader["diagnostic"]["source_sha256"] == hashlib.sha256(summary_bytes).hexdigest()
     assert reader["diagnostic"]["source_read_mode"] == "immutable_snapshot"
+    assert reader["diagnostic"]["force_kernel_order"] == list(FORCE_Q_KERNEL_ORDER)
+    assert reader["diagnostic"]["force_corner_order"] == list(FORCE_Q_CORNER_LABELS)
     components = reader["diagnostic"]["q_h_x_force_unit_bounds"]
     assert abs(components["excited_state_force"] - 8 * math.log1p(0.001)) < 1e-14
     assert abs(components["finite_T_thermal"] - 8 * math.log1p(0.001)) < 1e-14
@@ -772,10 +847,119 @@ def test_force_snapshot_reader_recomputes_qhx_force_bounds_from_captured_bytes(t
         "statistical_gate_pass": True, "total_gate_pass": True,
     }
     assert reader["diagnostic"]["text_flow"]
+    q_reader = result["spectral_q_reader"]
+    assert q_reader["status"] == "Q_BOUND_DERIVED_NOT_CERTIFIED"
+    assert q_reader["fit_variant_denominator"] == {
+        "unit": "prespecified_GEVP_fit_variant", "planned": 36,
+        "valid": 36, "failed": 0, "abstained": 0,
+    }
+    assert q_reader["selected_q_cell_denominator"]["valid"] == 8
+    assert q_reader["force_qhx_corner_order"] == list(FORCE_Q_KERNEL_ORDER)
+    assert q_reader["force_qhx_corner_labels"] == list(FORCE_Q_CORNER_LABELS)
+    assert result["spectral_q_reconciliation"] == {
+        "status": "Q_FORCE_CORNERS_RECONCILED",
+        "kernel_order": list(FORCE_Q_KERNEL_ORDER),
+        "corner_denominator": {
+            "unit": "selected_spectral_q_force_corner", "planned": 8,
+            "valid": 8, "failed": 0, "abstained": 0,
+        },
+        "reasons": [], "certified": False, "physical_score": None,
+    }
     assert result["source_verification"]["denominator"] == {
         "unit": "source_file", "planned": 53, "valid": 53,
         "failed": 0, "abstained": 0, "not_run": 0,
     }
+
+
+def test_force_snapshot_gate_rejects_q_corners_below_same_snapshot_spectral_bound(tmp_path):
+    summary = {
+        "schema": "wilson-f-force-summary-input-v2",
+        "units": "dimensionless lattice force a_s*a_t*F",
+        "positive_reference_force_lower": 1.0,
+        "statistical_halfwidth": 0.03,
+        "model_truncation_bound": 0.005,
+        "invalid_force_interval_draws": 0,
+        "invalid_reference_force_draws": 0,
+        "force_kernel_order": list(FORCE_Q_KERNEL_ORDER),
+        "force_corner_order": list(FORCE_Q_CORNER_LABELS),
+        "qhx_corner_bounds": {
+            "q": [[0.0] * 4 for _ in range(2)],
+            "h": [[0.001] * 4 for _ in range(2)],
+            "x": [[0.0005] * 4 for _ in range(2)],
+        },
+    }
+    envelopes, receipt, routes, snapshots, _summary_bytes = _force_summary_snapshot_bundle(
+        tmp_path, summary_override=summary,
+    )
+    state = _ready_state("operator", "reference", "numerical")
+    result = apply_wilson_force_snapshot_gate(
+        state, envelopes, receipt,
+        required_source_hashes_by_envelope=routes,
+        source_snapshots_by_envelope=snapshots,
+    )
+
+    assert result["status"] == "ABSTAIN_WILSON_F_LANE"
+    assert state.status["statistical"] == "abstained"
+    assert result["spectral_q_reader"]["status"] == "Q_BOUND_DERIVED_NOT_CERTIFIED"
+    reconciliation = result["spectral_q_reconciliation"]
+    assert reconciliation["status"] == "ABSTAIN_Q_BELOW_SPECTRAL_BOUND"
+    assert reconciliation["corner_denominator"] == {
+        "unit": "selected_spectral_q_force_corner", "planned": 8,
+        "valid": 0, "failed": 8, "abstained": 0,
+    }
+    assert any("below the captured spectral q upper bound" in reason
+               for reason in reconciliation["reasons"])
+    assert result["physical_score"] is None and result["certified"] is False
+
+
+def test_force_snapshot_reader_rejects_reversed_kernel_or_corner_order(tmp_path):
+    base_summary = {
+        "schema": "wilson-f-force-summary-input-v2",
+        "units": "dimensionless lattice force a_s*a_t*F",
+        "positive_reference_force_lower": 1.0,
+        "statistical_halfwidth": 0.03,
+        "model_truncation_bound": 0.005,
+        "invalid_force_interval_draws": 0,
+        "invalid_reference_force_draws": 0,
+        "force_kernel_order": list(FORCE_Q_KERNEL_ORDER),
+        "force_corner_order": list(FORCE_Q_CORNER_LABELS),
+        "qhx_corner_bounds": {
+            "q": [[0.001, 0.002, 0.003, 0.004] for _ in range(2)],
+            "h": [[0.001] * 4 for _ in range(2)],
+            "x": [[0.0005] * 4 for _ in range(2)],
+        },
+    }
+    for index, field in enumerate(("force_kernel_order", "force_corner_order")):
+        case_dir = tmp_path / str(index)
+        case_dir.mkdir()
+        summary = dict(base_summary)
+        summary[field] = list(reversed(base_summary[field]))
+        envelopes, receipt, routes, snapshots, _ = _force_summary_snapshot_bundle(
+            case_dir, summary_override=summary,
+        )
+        state = _ready_state("operator", "reference", "numerical")
+        result = apply_wilson_force_snapshot_gate(
+            state, envelopes, receipt,
+            required_source_hashes_by_envelope=routes,
+            source_snapshots_by_envelope=snapshots,
+        )
+
+        assert result["force_summary_reader"]["status"] == "ABSTAIN_F_SUMMARY_CONTENT"
+        assert field in result["force_summary_reader"]["reason"]
+        assert result["force_summary_reader"]["denominator"] == {
+            "unit": "F force-summary route", "planned": 6,
+            "valid": 6, "failed": 0, "abstained": 0,
+        }
+        assert result["force_summary_reader"]["bundle_denominator"] == {
+            "unit": "shared force-summary bundle", "planned": 1,
+            "valid": 0, "failed": 1, "abstained": 0,
+        }
+        assert result["spectral_q_reconciliation"]["corner_denominator"] == {
+            "unit": "selected_spectral_q_force_corner", "planned": 8,
+            "valid": 0, "failed": 0, "abstained": 8,
+        }
+        assert state.status["statistical"] == "abstained"
+        assert result["physical_score"] is None and result["certified"] is False
 
 
 def test_force_snapshot_reader_rejects_mismatched_summary_routes_and_bad_qhx(tmp_path):
@@ -795,13 +979,15 @@ def test_force_snapshot_reader_rejects_mismatched_summary_routes_and_bad_qhx(tmp
     bad_root = tmp_path / "bad"
     bad_root.mkdir()
     bad_summary = {
-        "schema": "wilson-f-force-summary-input-v1",
+        "schema": "wilson-f-force-summary-input-v2",
         "units": "dimensionless lattice force a_s*a_t*F",
         "positive_reference_force_lower": 1.0,
         "statistical_halfwidth": 0.03,
         "model_truncation_bound": 0.005,
         "invalid_force_interval_draws": 0,
         "invalid_reference_force_draws": 0,
+        "force_kernel_order": list(FORCE_Q_KERNEL_ORDER),
+        "force_corner_order": list(FORCE_Q_CORNER_LABELS),
         "qhx_corner_bounds": {"q": None, "h": [[0.001] * 4],
                               "x": [[0.0005] * 4]},
     }

@@ -25,11 +25,15 @@ KERNELS = (
     "spatial_stout_rho0.10_n5",
 )
 SELECTED_FORCE_KERNELS = ("identity", "spatial_stout_rho0.10_n5")
+FORCE_Q_KERNEL_ORDER = ("spatial_stout_rho0.10_n5", "identity")
 R_VALUES = (2, 3)
 TMIN_VALUES = (3, 4, 5)
 STATE_COUNTS = (2, 3)
 FIT_WINDOW = (3, 7)
 CONTAMINATION_TIMES = (5, 6)
+FORCE_Q_CORNER_ORDER = ((2, 5), (2, 6), (3, 5), (3, 6))
+FORCE_Q_CORNER_LABELS = tuple(f"R{radius}_T{time_extent}"
+                              for radius, time_extent in FORCE_Q_CORNER_ORDER)
 ENDPOINT_SLOTS_PER_Q_CELL = 24
 Q_CELL_COUNT = len(SELECTED_FORCE_KERNELS) * len(R_VALUES) * len(CONTAMINATION_TIMES)
 EXPECTED_FIT_VARIANTS = len(KERNELS) * len(R_VALUES) * len(TMIN_VALUES) * len(STATE_COUNTS)
@@ -370,13 +374,11 @@ def read_spectral_q_bounds(
                 else:
                     descriptive_valid += 1
 
-    force_order = ("spatial_stout_rho0.10_n5", "identity")
+    force_order = FORCE_Q_KERNEL_ORDER
     force_qhx_corners = {
         kernel: [
-            selected_lookup[(kernel, 2, 5)],
-            selected_lookup[(kernel, 2, 6)],
-            selected_lookup[(kernel, 3, 5)],
-            selected_lookup[(kernel, 3, 6)],
+            selected_lookup[(kernel, radius, time_extent)]
+            for radius, time_extent in FORCE_Q_CORNER_ORDER
         ]
         for kernel in force_order
     }
@@ -401,6 +403,7 @@ def read_spectral_q_bounds(
         "confidence_allocation": document["confidence_allocation"],
         "q_corner_bounds": q_rows,
         "force_qhx_corner_order": list(force_order),
+        "force_qhx_corner_labels": list(FORCE_Q_CORNER_LABELS),
         "force_q_corner_bounds": force_qhx_corners,
         "physical_score": None,
         "certified": False,
