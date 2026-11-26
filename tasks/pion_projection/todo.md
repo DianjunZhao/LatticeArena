@@ -2,7 +2,7 @@
 
 ### 当前控制状态（2026-11-26）
 
-`F=3`、bounded block-risk、score/anchor 错误预算和 Markov 备选路线均已有明确方案及图文敏感度诊断；通用 `core/evidence.py` 的 schema v2 校验 evidence/source hashes、reviewer role claim 与 independence-claim hash，并对缺项/错配 fail closed。Pion task adapter 将选定方法 defaults 和分母接到原子 bundle gate，默认要求显式 source root/path maps 并逐项核验当前读取字节，因此完整 statistical stage 最多到 `draft`。它只验证当前 bytes 与调用方 digest 一致，不认证 digest authority、reviewer 身份、统计独立性或物理有效性，也不计算物理 score。真实链的 `gamma_ps`/TV、E-reference、anchor scalar map、支持域/协方差或 common-bias `C` 收据仍缺。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`；按用户要求，E/gap/validation/shared holdout/confirmation 保持封存，不启动 GPU/QUDA。当前只可在收到身份绑定、获准的 receipts 后接 evaluator 和检查 fail-closed 路径；历史章节里的缺省输入表以新方案为准。
+`F=3`、bounded block-risk、score/anchor 错误预算和 Markov 备选路线均已有明确方案及图文敏感度诊断；研究默认值已自选为 `a_t m_pi`、`R=2.9`、clip `[-1,1]`、`delta_star=0.4205`、效应门 `0.05`、Markov 侧 `gamma_ps>=0.20`/burn-in `8`/`N=4000`/TV `<=0.001`、anchor IID `1000` 或 Markov `4000`，以及 `C/R<=0.01` 的拟议上限。无需再向用户询问这些可由研究设计决定的数值；它们仍是方法默认值，不是实测收据或外部授权。通用 `core/evidence.py` 的 schema v2 校验 evidence/source hashes、reviewer role claim 与 independence-claim hash，并对缺项/错配 fail closed。Pion task adapter 将选定方法 defaults 和分母接到原子 bundle gate，默认要求显式 source root/path maps 并逐项核验当前读取字节，因此完整 statistical stage 最多到 `draft`。它只验证当前 bytes 与调用方 digest 一致，不认证 digest authority、reviewer 身份、统计独立性或物理有效性，也不计算物理 score。真实链的 `gamma_ps`/TV、E-reference、anchor scalar map、支持域/协方差或 common-bias `C` 收据仍缺。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`；按用户要求，E/gap/validation/shared holdout/confirmation 保持封存，不启动 GPU/QUDA。下一步不是再选设计数值，而是核验实际 receipts/方法假设，并在确认具备有效 support、协方差和 bias bridge 后才接 evaluator；历史章节里的缺省输入表以新方案为准。
 
 ### 2026-11-25 接续复核：anchor-fit 区间桥仍不能安全实现
 
