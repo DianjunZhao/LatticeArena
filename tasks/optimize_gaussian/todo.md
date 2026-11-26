@@ -540,7 +540,7 @@ PR #6 当前的 `apply_evidence_bundle_gate` 把 D06 的 SLSQP、Chebyshev 与 t
 
 文字流程：`显式 D06 calibration snapshot -> NPZ schema/split/ID/arm/time preflight -> q[block,arm,t] -> failure arm 记损失 1、其它无效块计 failed -> bounded-block reducer -> diagnostic only`。合成捕获后改写原文件仍读 snapshot：source `1/1/0/0`，macroblock `12/12/0/0`，assigned arm-run `36/35/1/0`；损坏非失败臂使分母变为 `12/11/1/0` 并整块弃权，错 arm 顺序也拒绝。`tests/test_optimize_snapshot_reader.py`、D06 adapter 与 bounded-risk tests 定向套件 **27 passed**。这些是合成 bytes；没有 E/D 物理输入、生产求解器或独立链读入。
 
-`draft_plan.py` 已把新 reader 纳入来源 hash 并更新 no-launch 文字流程，但本分支仍没有 task runner；本 reader 只处理已生成 q 矩阵，不能生成配对 solver outcomes、依赖 gap/TV 收据、D04 reference draws、成本表或物理 envelope summary。reader 输出的 reducer 结果也尚未被 adapter 用来重算/比对 envelope 中的统计字段。因此软件剩余项缩小为：先定义并审阅生产 evaluator 的 q-matrix/receipt schema，再让同一 reader 生成的分数和失败分母直接构造待验证 envelope，adapter 从同一 route snapshot 校验这些字节；测试 route 三份 scores 一致、receipt denominator 与实际矩阵一致、source-hash map 完整/错配及 64 MiB 超限。此后仍需独立 reviewer 与获准 E-reference、真实 paired solver/cost/gap-TV/SU(3) receipts。保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`，不读 sealed split、不运行 GPU/QUDA。
+本段记录 q-matrix reader 初版时的边界：当时它只读已生成矩阵，reader 的 reducer 结果尚未由 adapter 重算；这些软件项随后已由文末“D06 同快照 reader 到原子 evidence gate 的接线核验”完成。当前分支仍没有 production Optimize RunSpec/worker、D04 原始 E-reference evaluator 或 D11 production-link evaluator，因此此历史 reader 仍不能生成真实配对 solver outcomes、reference draws、成本表或物理 evidence。后续只可在 reviewed evaluator contract 下完成这些 reader/RunSpec 接线，并通过同源 snapshot fixtures 验证；真实 E-reference、paired solver/cost/gap-TV/SU(3) receipts、独立审阅和授权仍是生产门。保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`，不读 sealed split、不运行 GPU/QUDA。
 
 ### 2026-11-26 D06 reader 与统计合同方法一致性修正
 
