@@ -529,4 +529,10 @@ Pion 实际数组读取入口 [`common.load_data`](common.py) 也新增可选 sn
 
 为检查 PR #6 新增的通用 `core/specs.py` 校验是否会破坏 PR #5 的 Pion 调用，本轮将 PR #5 当前 tracked HEAD 导出到临时目录，只用 PR #6 版本替换该目录中的 `core/specs.py`，随后运行完整 CPU suite：**257 passed**。原 PR #5 工作树和输入文件未改动，临时目录已清理。这验证当前 Pion TaskSpec 能通过 PR #6 的 split-range 非重叠校验及 Optimize operator-contract allowlist；它不是两个 PR 的实际合并，也不证明生产 evaluator 或物理门通过。
 
-跨分支静态比对还确认 `core/evidence.py`、`core/receipts.py`、`core/source_integrity.py`、`core/npz_safety.py` 和对应 evidence/receipt tests 内容相同；`core/state.py` 的差异只改变相同状态转移集合的排版。`core/specs.py` 的剩余分叉是 PR #6 增加的范围校验和 Optimize 专属 contract 名称，Pion 兼容性已由上述 overlay suite 验证。GitHub 对 PR #5/#6 均未报告 CI checks，实际 mergeability 仍需 GitHub 合并状态确认。此次没有读取任何 Pion measurement/reference/anchor bytes；`NOT_READY/UNCERTIFIED`、`physical_score=null` 与 sealed-data closed 不变。
+跨分支静态比对还确认 `core/evidence.py`、`core/receipts.py`、`core/source_integrity.py`、`core/npz_safety.py` 和对应 evidence/receipt tests 内容相同；`core/state.py` 的差异只改变相同状态转移集合的排版。`core/specs.py` 的剩余分叉是 PR #6 增加的范围校验和 Optimize 专属 contract 名称，Pion 兼容性已由上述 overlay suite 验证。GitHub 对 PR #5/#6 均未报告 CI checks；PR 的当前 GitHub 状态仍应在提交更新后复核。此次没有读取任何 Pion measurement/reference/anchor bytes；`NOT_READY/UNCERTIFIED`、`physical_score=null` 与 sealed-data closed 不变。
+
+### 2026-11-26 后续可做项复核：development 软件门已闭合，物理映射仍缺输入
+
+复核当前 tracked tree 后，没有新的 Pion correlator、E-chain reference 或 anchor-chain receipts 可供安全接线；本轮不检查被忽略的 propagator cache，也不打开 E/gap/validation/shared-holdout/confirmation。可复用的无封存数据工作已包含 development-only immutable snapshot → NPZ 预检 → fit/risk summary → artifact-hash verifier，以及 reader/gate 的同字节检查；不应重复生成同一类 synthetic fixture 来伪造物理推进。
+
+当前唯一有意义的下一步仍是拿到并独立审阅：(1) candidate-blind E-chain PP/A4P reference 和完整拟合/失败收据；(2) 每个 anchor state 可计算、固定支持域与协方差明确的 scalar map；(3) anchor/score chain 的身份、stationarity/burn-in、`gamma_ps` 或其他依赖界、TV 与独立性 receipts；(4) 将 anchor 目标连接到 `m*` 且可证明 `C/R≤0.01` 的 common-bias bridge。少任一项都不运行非线性区间映射或 physical evaluator，继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`。PR #5 Pion 全仓 CPU suite 本轮重新运行 **257 passed**，只表示代码回归，不代表上述输入已有。
