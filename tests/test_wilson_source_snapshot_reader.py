@@ -3,6 +3,7 @@ from __future__ import annotations
 from hashlib import sha256
 from io import BytesIO
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -144,8 +145,25 @@ def test_wilson_diagnostic_run_reuses_snapshot_and_writes_text_and_figure(tmp_pa
     _pin_synthetic_transaction(monkeypatch, transaction)
     monkeypatch.setattr(diagnostic, "N_DRAWS", 24)
     source_copy = tmp_path / "reader_source.py"
-    source_copy.write_text("# isolated synthetic-test source identity\n")
+    source_payloads = {
+        "snapshot_c_lane_open_development_diagnostic.py": b"# isolated synthetic-test source identity\n",
+        "snapshot_core_npz_safety.py": b"# isolated npz helper identity\n",
+        "snapshot_core_source_integrity.py": b"# isolated snapshot helper identity\n",
+    }
+    source_copy.write_bytes(
+        source_payloads["snapshot_c_lane_open_development_diagnostic.py"]
+    )
     monkeypatch.setattr(diagnostic, "__file__", str(source_copy))
+    npz_safety_source = tmp_path / "npz_safety_source.py"
+    npz_safety_source.write_bytes(source_payloads["snapshot_core_npz_safety.py"])
+    monkeypatch.setattr(
+        diagnostic.npz_safety_module, "__file__", str(npz_safety_source)
+    )
+    source_integrity_source = tmp_path / "source_integrity_source.py"
+    source_integrity_source.write_bytes(source_payloads["snapshot_core_source_integrity.py"])
+    monkeypatch.setattr(
+        diagnostic.source_integrity_module, "__file__", str(source_integrity_source)
+    )
     _, _, _, npz_bytes, provenance_bytes, commit_bytes = transaction
     payloads = {
         "development_npz": ("development.npz", npz_bytes),
@@ -161,6 +179,29 @@ def test_wilson_diagnostic_run_reuses_snapshot_and_writes_text_and_figure(tmp_pa
     )
     for filename, _ in payloads.values():
         (tmp_path / filename).write_bytes(b"replacement after capture")
+
+    code_paths = {
+        source_copy.resolve(), npz_safety_source.resolve(), source_integrity_source.resolve()
+    }
+    mutated_code_paths = set()
+    real_read_bytes = Path.read_bytes
+
+    def mutate_code_after_capture(path):
+        captured = real_read_bytes(path)
+        resolved = path.resolve()
+        if resolved in code_paths and resolved not in mutated_code_paths:
+            path.write_bytes(b"source changed after capture")
+            mutated_code_paths.add(resolved)
+        return captured
+
+    monkeypatch.setattr(Path, "read_bytes", mutate_code_after_capture)
+    load_transaction = diagnostic.load_transaction
+
+    def require_code_capture_before_input(*args, **kwargs):
+        assert mutated_code_paths == code_paths
+        return load_transaction(*args, **kwargs)
+
+    monkeypatch.setattr(diagnostic, "load_transaction", require_code_capture_before_input)
 
     output = tmp_path / "diagnostic"
     diagnostic.run(
@@ -179,6 +220,12 @@ def test_wilson_diagnostic_run_reuses_snapshot_and_writes_text_and_figure(tmp_pa
     assert protocol["analysis_source_sha256"]["core/source_integrity.py"] == sha256(
         (output / "snapshot_core_source_integrity.py").read_bytes()
     ).hexdigest()
+    assert protocol["source_script_sha256"] == sha256(
+        (output / "snapshot_c_lane_open_development_diagnostic.py").read_bytes()
+    ).hexdigest()
+    assert mutated_code_paths == code_paths
+    for filename, payload in source_payloads.items():
+        assert (output / filename).read_bytes() == payload
     assert summary["analysis_source_sha256"] == protocol["analysis_source_sha256"]
     assert (output / "c_lane_bootstrap_intervals.png").is_file()
     assert (output / "README.md").is_file()

@@ -440,9 +440,12 @@ already bound the helper, including the Wilson two-sector/raw-matrix reports,
 the transfer-trace snapshot, and Pion's frozen TaskSpec dependency map.
 
 Reusable flow: `task report generator -> enumerate direct and shared parser
-dependencies -> hash each dependency (retain the helper bytes where the report
-format supports snapshots) -> include source identities in the report
-integrity manifest -> test hashes against the saved bytes`. Historical report
+dependencies -> capture each dependency once before reading data -> hash and
+retain the same bytes (where the report format supports snapshots) -> include source identities in
+the report integrity manifest -> test hashes against the saved bytes`. Deriving
+a hash and its archived source copy from separate file reads leaves a race in
+which a report can claim different code from the code bytes it retains.
+Historical report
 packages remain immutable snapshots and should not be regenerated just to match
 new source maps. This audit improves code provenance only; source hashes do not
 establish data authority, independence, estimator validity, or calibration.

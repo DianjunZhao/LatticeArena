@@ -342,17 +342,21 @@ def run(input_dir: Path | None, output_dir: Path, *,
         source_names: dict[str, str] | None = None):
     if output_dir.exists():
         raise FileExistsError(f"refusing to overwrite existing output directory: {output_dir}")
+    source_path = Path(__file__).resolve()
+    source_bytes = source_path.read_bytes()
+    source_sha = hashlib.sha256(source_bytes).hexdigest()
+    source_integrity_path = Path(source_integrity_module.__file__).resolve()
+    source_integrity_bytes = source_integrity_path.read_bytes()
+    source_integrity_sha = hashlib.sha256(source_integrity_bytes).hexdigest()
+    npz_safety_path = Path(npz_safety_module.__file__).resolve()
+    npz_safety_bytes = npz_safety_path.read_bytes()
+    npz_safety_sha = hashlib.sha256(npz_safety_bytes).hexdigest()
+
     ids, loops, protocol_hash, trajectories, hashes = load_transaction(
         input_dir, source_snapshot=source_snapshot, source_names=source_names
     )
     means, point, point_valid, rows, draws, hull_low, hull_high, hull_halfwidth, gate_pass = analyze(loops)
     output_dir.mkdir(parents=True, exist_ok=False)
-    source_path = Path(__file__).resolve()
-    source_sha = sha256_file(source_path)
-    source_integrity_path = Path(source_integrity_module.__file__).resolve()
-    source_integrity_sha = sha256_file(source_integrity_path)
-    npz_safety_path = Path(npz_safety_module.__file__).resolve()
-    npz_safety_sha = sha256_file(npz_safety_path)
 
     point_means = {
         "W(3,6)": float(means[2, 2]),
@@ -438,11 +442,11 @@ def run(input_dir: Path | None, output_dir: Path, *,
         writer.writerows(rows)
     np.savez_compressed(output_dir / "bootstrap_estimates.npz", **draws)
     (output_dir / "snapshot_c_lane_open_development_diagnostic.py").write_bytes(
-        source_path.read_bytes()
+        source_bytes
     )
-    (output_dir / "snapshot_core_npz_safety.py").write_bytes(npz_safety_path.read_bytes())
+    (output_dir / "snapshot_core_npz_safety.py").write_bytes(npz_safety_bytes)
     (output_dir / "snapshot_core_source_integrity.py").write_bytes(
-        source_integrity_path.read_bytes()
+        source_integrity_bytes
     )
     make_plot(output_dir / "c_lane_bootstrap_intervals.png", point, point_valid,
               rows, hull_low, hull_high, hull_halfwidth)
