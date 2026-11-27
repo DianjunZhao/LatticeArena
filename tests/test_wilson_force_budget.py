@@ -73,3 +73,11 @@ def test_corner_shape_and_component_names_are_fail_closed():
     with pytest.raises(ValueError, match="exactly q, h, and x"):
         propagate_force_budget(_same_cap(0, 0, 0), 1.0,
                                 component_fractions={"q": 0.01, "h": 0.01})
+
+
+def test_qhx_bounds_reject_unregistered_components():
+    bounds = _same_cap(0, 0, 0)
+    bounds["unregistered_thermal_term"] = [[0.0] * 4] * 2
+
+    with pytest.raises(ValueError, match="qhx_bounds must contain exactly q, h, and x"):
+        propagate_force_budget(bounds, 1.0)

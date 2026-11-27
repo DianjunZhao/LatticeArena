@@ -824,3 +824,9 @@ source-map audit 发现 C-lane open-development generator 通过 `SourceByteSnap
 预注册的五格候选为：遗漏第三静态态、近简并双激发、弱基态 overlap、遗漏 vacuum 激发态、以及 AR(1)/不等协方差 stress。每格的真值参数与噪声机制仍须在独立生成前冻结；这里的 `606×5` 是样本量规划，不是新 calibration 结果，也不授权重跑既有 2×3 Gaussian generator。calibration/方法选择 panel 与 untouched validation panel 必须分开；若在验证集上同时比较多个区间方法，需在看结果前另作方法数校正，或只验证事先冻结的单一 procedure。
 
 文字流程：`冻结五个 DGP strata 与独立 seed manifests -> 每 panel 形成一个“72/72 均覆盖且拟合有效”的二项结果 -> 每格以 alpha=0.01 的 exact CP 下限验 0.95 -> 每格至少 588/606 成功 -> 五格均过且完整失败分母可审 -> 才能说 synthetic familywise coverage 达到预设精度`。规划枚举分母 `3/3/0/0`（三种方案均计算，无数据 panel）；真实 Wilson 输入仍 `0/0/0/0`，不形成 gate evidence。下一次只有在新的预注册 DGP/外部校准输入能改变区间方法决策时才执行；现有 no-go 数值、旧图和 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 均保持不变。
+
+### 2026-11-27 force-budget helper 的 q/h/x 键 fail-closed 补齐
+
+对 [`force_budget.py`](force_budget.py) 的直接调用边界做静态检查时发现：上层 `force_summary_reader` 已要求 `qhx_corner_bounds` 精确包含 `q/h/x`，但底层可复用的 `propagate_force_budget` 只读取这三个键，会静默忽略调用方附加的未注册污染项。现将精确键检查下沉到底层 helper；带 `thermal_extra` 等未知项的直接调用现在报错，避免跳过未进入预算的系统项。计算公式、fraction、reference-force LCB 与物理 gate 均未改变。
+
+文字流程：`qhx bound mapping -> 要求键集合恰为 {q,h,x} -> 每项两 kernel×四 loop-corner -> sum(log1p(bound)) -> 与候选 reference force LCB 比较`；附加键或缺项直接拒绝。`tests/test_wilson_force_budget.py tests/test_wilson_evidence_adapter.py` **29 passed**，覆盖新增未知键负例和现有 reader/gate 分母路径，`git diff --check` 通过。此项只关闭输入 schema 的旁路，不提供新的 `q/h/x`、有限-$N_t$ 热污染、模型截断或 force receipts；真实物理输入仍缺，F=`GROUND_STATE_FORCE_UNCERTIFIED`、`NOT_READY/UNCERTIFIED`、`physical_score=null` 保持不变。

@@ -68,6 +68,8 @@ def propagate_force_budget(
     `log(1+q+h+x) <= log(1+q)+log(1+h)+log(1+x)` yield separate, conservative
     q/h/x force-unit envelopes suitable for comparison with allocated budgets.
     """
+    if not isinstance(qhx_bounds, Mapping) or set(qhx_bounds) != {"q", "h", "x"}:
+        raise ValueError("qhx_bounds must contain exactly q, h, and x")
     reference = _positive(reference_force_lower, "reference_force_lower")
     qhx = {name: _flatten_corner_bounds(qhx_bounds[name], name)
            for name in ("q", "h", "x")}
