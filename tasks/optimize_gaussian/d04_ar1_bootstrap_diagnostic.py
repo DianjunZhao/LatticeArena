@@ -14,6 +14,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.optimize import minimize_scalar
 
 from tasks.optimize_gaussian import d04_gof_calibration_diagnostic as generator
 from tasks.optimize_gaussian import d04_parametric_bootstrap_diagnostic as bootstrap
@@ -84,6 +85,89 @@ def _estimate_common_rho(sample: np.ndarray) -> float:
     numerator = float(np.sum(centered[1:] * centered[:-1]))
     estimate = numerator / denominator
     return float(np.clip(estimate, -0.95, 0.95))
+
+
+def _profile_matrix_normal_deviance(sample: np.ndarray, rho: float) -> float:
+    """Return the profile deviance for a stationary matrix-normal AR(1).
+
+    Rows are ordered configurations and columns are features. The mean vector
+    and the unrestricted feature covariance are profiled out at each rho.
+    Constants independent of rho are omitted, so this is a comparison
+    objective rather than a calibrated likelihood-ratio statistic.
+    """
+    values = np.asarray(sample, dtype=float)
+    if values.ndim != 2 or values.shape[0] < 2 or values.shape[1] < 1:
+        raise ValueError("rho profile input must be a non-empty 2D panel")
+    if not np.all(np.isfinite(values)):
+        raise ValueError("rho profile input must be finite")
+    if isinstance(rho, (bool, np.bool_)) or not np.isfinite(rho):
+        raise ValueError("profile rho must be a finite scalar")
+    rho = float(rho)
+    if not -0.95 <= rho <= 0.95:
+        raise ValueError("profile rho must lie in [-0.95, 0.95]")
+
+    n_configurations, n_features = values.shape
+    lag = np.abs(np.subtract.outer(np.arange(n_configurations),
+                                   np.arange(n_configurations)))
+    row_covariance = np.power(rho, lag)
+    try:
+        chol = np.linalg.cholesky(row_covariance)
+        whitened = np.linalg.solve(chol, values)
+        whitened_one = np.linalg.solve(chol, np.ones(n_configurations))
+    except np.linalg.LinAlgError as exc:
+        raise ValueError("stationary AR(1) row covariance is not positive definite") from exc
+
+    mean_denominator = float(whitened_one @ whitened_one)
+    if not np.isfinite(mean_denominator) or mean_denominator <= 0.0:
+        raise ValueError("profiled GLS mean is unidentifiable")
+    mean = (whitened_one @ whitened) / mean_denominator
+    residual = whitened - whitened_one[:, None] * mean[None, :]
+    feature_scatter = residual.T @ residual
+    sign, logdet_scatter = np.linalg.slogdet(feature_scatter / n_configurations)
+    if sign <= 0.0 or not np.isfinite(logdet_scatter):
+        raise ValueError("profiled feature covariance is not positive definite")
+
+    logdet_row_covariance = 2.0 * float(np.sum(np.log(np.diag(chol))))
+    deviance = (n_features * logdet_row_covariance
+                + n_configurations * float(logdet_scatter))
+    if not np.isfinite(deviance):
+        raise ValueError("profile deviance is non-finite")
+    return float(deviance)
+
+
+def _profile_common_rho_candidate(sample: np.ndarray) -> dict[str, Any]:
+    """Fit a bounded scalar rho candidate under the stationary Gaussian model.
+
+    The bounded optimizer result is a candidate, not a certified global
+    optimum. A boundary solution must be treated as an abstention by callers.
+    """
+    lower, upper = -0.95, 0.95
+    objective = lambda value: _profile_matrix_normal_deviance(sample, float(value))
+    try:
+        result = minimize_scalar(
+            objective, bounds=(lower, upper), method="bounded",
+            options={"xatol": 1.0e-8, "maxiter": 500},
+        )
+    except (ValueError, FloatingPointError, np.linalg.LinAlgError) as exc:
+        raise ValueError("stationary matrix-normal rho profiling failed") from exc
+    if not result.success or not np.isfinite(result.fun):
+        raise ValueError("stationary matrix-normal rho profiling did not converge")
+
+    candidates = [
+        (lower, objective(lower)),
+        (float(result.x), float(result.fun)),
+        (upper, objective(upper)),
+    ]
+    rho_hat, deviance = min(candidates, key=lambda item: item[1])
+    boundary_tolerance = 1.0e-6
+    return {
+        "rho_candidate": float(rho_hat),
+        "profile_deviance": float(deviance),
+        "boundary_hit": bool(rho_hat <= lower + boundary_tolerance
+                              or rho_hat >= upper - boundary_tolerance),
+        "optimizer_success": bool(result.success),
+        "interpretation": "stationary common-rho Gaussian candidate; not calibrated",
+    }
 
 
 def _rho_mean_variance_inflation(rho: float, count: int) -> float:

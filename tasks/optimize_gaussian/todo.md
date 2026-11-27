@@ -782,3 +782,11 @@ NPZ 共享预检器现把 ZIP 不支持的压缩方式、加密成员和损坏 D
 ```
 
 下一位执行 agent 必须先获得 package 的显式来源/使用授权，并由未参与该实现的人复核 pooled rho、profile-likelihood 推导、协方差估计与拟合窗/符号约定；再从同一 immutable snapshot 生成三张图：① `p`-value ECDF 对 Uniform(0,1)，展示同时置信带；② `α=1%/5%` 的拒绝率点与精确区间，标 nominal line、分母及失败/abstain；③ pooled-OLS/profile-likelihood rho 对已知/可审参考 rho 的恢复图，并展示 profile 曲线、逐 feature lag-1 residual 和 strata。图下同时给出文本 denominator 流程和 CPU/precision/cost。此自审只关闭“源码假设尚未逐项核对”的文档缺口，不关闭独立审阅、D04 reference、production convention 或统计校准门；不读 sealed data，不启动 GPU/QUDA，`physical_score=null` 不变。
+
+### 2026-11-27 D04 stationary matrix-normal rho 候选的纯软件实现
+
+为把上一节公式从纸面推进到可审查代码，在 [`d04_ar1_bootstrap_diagnostic.py`](d04_ar1_bootstrap_diagnostic.py) 新增 `_profile_matrix_normal_deviance` 与 `_profile_common_rho_candidate`。给定已有的 `N×d` feature panel 和候选 rho，前者以 `R_ij=rho^|i-j|` 做 Cholesky whitening，profile GLS feature mean，再以 residual scatter 的 `S/N` profile full feature covariance，计算 `d log|R| + N log|S/N|`（省略与 rho 无关常数）；后者在 `[-0.95,0.95]` 做 bounded scalar optimization，并比较两个边界点，返回 candidate、deviance 和 `boundary_hit`。profiled covariance 不正定、输入非有限或优化失败时 fail closed。
+
+文字流程：`固定 N×d panel -> 构造 stationary AR(1) row covariance -> Cholesky whiten -> GLS profile mean -> profile full feature covariance -> bounded rho candidate + endpoint check -> 保存边界/失败状态`。新增 [`test_optimize_d04_ar1_profile_rho.py`](../../tests/test_optimize_d04_ar1_profile_rho.py) 用确定性代数 fixture 核对正/负 rho 的直接矩阵公式、feature 平移/缩放重参数下 rho 候选不变、奇异 profile covariance 被拒绝；与 p-value 分母回归合跑 `python -m pytest -q tests/test_optimize_d04_ar1_profile_rho.py tests/test_optimize_d04_bootstrap_pvalue.py` 为 **8 passed**，`git diff --check` 通过。
+
+这只实现了一个待校准 estimator 候选：bounded scalar optimizer 的返回值不构成 profile 目标全局最小的证明；未给 rho interval、未接入现有 AR(1) runner、未改变冻结 p-value 路径，也没有对报告 panel、随机 seed 或新 synthetic generator 运行它。下一步须在获准独立 calibration bytes 上检查整条 profile 曲线/多峰与边界、同 pooled OLS 对照 rho 恢复和 tail calibration，并画 rho/feature residual 诊断；独立统计审阅同意之前，现行估计器保持不变，D04 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
