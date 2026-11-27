@@ -4,7 +4,7 @@
 
 研究合同已给出可审阅的方法默认值：D04 用独立、candidate-blind E-chain PP/A4P 联合拟合；D06 保留 trainable-$W$ 对同预算 SLSQP 和 degree-4 Chebyshev 两项对比、`F=2`、`r_star=10/9`；bounded block-risk 是用户已接受的并列 estimand；D11 degree-4 Bernstein/Chebyshev 强谱算符和 160-call 单任务预算也已写入合同。D06 bounded-risk Markov 路线现除两态 reversible stress 外，又有非可逆 19 态已知-gap/初始-TV 图文校准，但仍只是合成覆盖证据。Wilson F-lane 有限-$N_t$ q/h/x sector 对应也已作为独立审阅前的方法提案登记，见 [`tasks/wilson_loop/todo.md`](../wilson_loop/todo.md)。TODO 仍开着，因为 E-reference 与配对 solver receipts、独立统计/算符审阅、生产成本测量和相应授权缺失。维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`；不读封存 split、不启动 GPU/QUDA。下方早期时间戳条目保留审计历史，方法选择以本节和文末最新 handoff 为准。
 
-2026-11-28 跨任务复核补充：Pion 的 `m_eff(4)` anchor 已有正两态谱精确不可识别性反例，并推导出一个仅在 per-unit positivity/质量上界成立时的充分污染阈值；Wilson F lane 新增 24 个遗漏静态态重复面板，显示固定 2×2 GLS delta 上界在该失配 toy 下 familywise 为 `0/24`。这些结论都不是 Optimize 的 reference 或 solver 数据，反而说明不能从相邻 task 的合成图替代 D04 E-reference、D06 paired macroblocks 或 D11 SU(3) receipt。本轮不重跑已有 Optimize synthetic 网格；在新授权输入之前，不再用 seed-only 扩样来制造“推进”。
+2026-11-28 跨任务复核补充：Pion 除 `m_eff(4)` 正两态谱不可识别性反例外，又构造出两组 ground mass 相差 `0.30`、振幅全正且在四个预选时间比值内约 `1.8e-15` 重合的周期谱；这仍只是方法反例，不是 Optimize 数据，也不替代其 D04 reference。Pion 另有仅在 per-unit positivity/质量上界成立时的充分污染阈值；Wilson F lane 的 24 个遗漏静态态重复面板显示固定 2×2 GLS delta 上界在该失配 toy 下 familywise 为 `0/24`。这些结论都不是 Optimize 的 reference 或 solver 数据，不能替代 D04 E-reference、D06 paired macroblocks 或 D11 SU(3) receipt。本轮不重跑已有 Optimize synthetic 网格；在新授权输入之前，不再用 seed-only 扩样来制造“推进”。
 
 ### 2026-11-26 D04 raw E-chain reader 与联合拟合诊断
 
