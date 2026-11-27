@@ -8,24 +8,15 @@ concentration assumptions.
 from __future__ import annotations
 
 import math
-from numbers import Real
 from typing import Any
 
 import numpy as np
 
-from core.numerics import as_real_float_array
+from core.numerics import as_finite_real, as_real_float_array
 
 
 def _finite_real(value: object, label: str) -> float:
-    if not isinstance(value, Real) or isinstance(value, bool):
-        raise ValueError(f"{label} must be a finite real number")
-    try:
-        result = float(value)
-    except (OverflowError, TypeError, ValueError) as exc:
-        raise ValueError(f"{label} must be a finite real number") from exc
-    if not math.isfinite(result):
-        raise ValueError(f"{label} must be a finite real number")
-    return result
+    return as_finite_real(value, name=label)
 
 
 def _target_interval(value: object) -> tuple[float, float]:

@@ -132,3 +132,19 @@ def test_prediction_inputs_reject_lossy_numeric_coercions(invalid_values, input_
 
     with pytest.raises(ValueError, match=input_name):
         bounded_block_risk_setwise(**arguments)
+
+
+@pytest.mark.parametrize("target_interval,score_scale_R", [
+    ([0, (1 << 53) + 1], 1.0),
+    ([0.0, 1.0], (1 << 53) + 1),
+])
+def test_scalar_inputs_reject_inexact_large_integer_coercions(
+    target_interval, score_scale_R,
+):
+    with pytest.raises(ValueError, match="not exactly representable"):
+        bounded_block_risk_setwise(
+            [0.0], [1.0],
+            valid_blocks=np.asarray([True]),
+            target_interval=target_interval,
+            score_scale_R=score_scale_R,
+        )
