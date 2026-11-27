@@ -181,17 +181,35 @@ def _score_map_bytes():
     return encoded
 
 
+def _common_bias_receipt_bytes(map_hash, *, bound=0.01, target_hash=H[14]):
+    payload = {
+        "schema": "pion-anchor-common-bias-receipt-v1",
+        "status": "reviewed_claim",
+        "map_id": ANCHOR_MAP_ID,
+        "map_sha256": map_hash,
+        "target_reference_sha256": target_hash,
+        "review_scope_sha256": H[11],
+        "quantity": "abs(E[anchor_scalar_map]-m_star)/R",
+        "bound_over_R": bound,
+        "support_interval": [0.1, 3.0],
+    }
+    return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+
+
 def _materialize_source_bytes(root, envelopes, hashes):
     paths = {}
-    anchor_map_hash = None
+    anchor_map_hash = hashlib.sha256(b"synthetic:anchor:scalar_map").hexdigest()
     for route in ("score", "anchor"):
         route_paths = {}
         for name in tuple(hashes[route]):
-            payload = (
-                _score_map_bytes()
-                if route == "score" and name == "score_map"
-                else f"synthetic:{route}:{name}".encode()
-            )
+            if route == "score" and name == "score_map":
+                payload = _score_map_bytes()
+            elif route == "anchor" and name == "scalar_map":
+                payload = b"synthetic:anchor:scalar_map"
+            elif route == "anchor" and name == "common_bias_receipt":
+                payload = _common_bias_receipt_bytes(anchor_map_hash)
+            else:
+                payload = f"synthetic:{route}:{name}".encode()
             digest = hashlib.sha256(payload).hexdigest()
             relative_path = f"{route}-{name}.bin"
             (root / relative_path).write_bytes(payload)
@@ -362,6 +380,11 @@ def test_pion_source_byte_gate_is_required_and_verified_bundle_stops_at_draft(tm
         "abstained": 0,
         "not_run": 0,
     }
+    assert result["common_bias_receipt_verification"]["status"] == "internally_consistent_claim"
+    assert result["common_bias_receipt_verification"]["denominator"] == {
+        "unit": "captured_common_bias_receipt_claim", "planned": 1,
+        "valid": 1, "failed": 0, "abstained": 0, "not_run": 0,
+    }
     assert result["run_state"]["status"]["statistical"] == "draft"
     assert result["physical_score"] is None
 
@@ -391,6 +414,7 @@ def test_pion_source_snapshot_bundle_survives_path_changes_after_reader_capture(
         "unit": "source_file", "planned": 16, "valid": 16,
         "failed": 0, "abstained": 0, "not_run": 0,
     }
+    assert result["common_bias_receipt_verification"]["denominator"]["valid"] == 1
     assert result["physical_score"] is None
 
 
@@ -416,3 +440,92 @@ def test_pion_source_byte_gate_abstains_if_one_receipt_file_is_tampered(tmp_path
     assert result["source_verification"]["denominator"]["valid"] == 15
     assert result["source_verification"]["denominator"]["failed"] == 1
     assert state.status["statistical"] == "abstained"
+
+
+def test_snapshot_common_bias_receipt_is_the_caller_c_over_r_source(tmp_path):
+    envelopes, hashes = _envelopes()
+    paths, anchor_map_hash = _materialize_source_bytes(tmp_path, envelopes, hashes)
+    receipt_path = tmp_path / paths["anchor"]["common_bias_receipt"]
+    receipt_path.write_bytes(_common_bias_receipt_bytes(anchor_map_hash, bound=0.005))
+    digest = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+    hashes["anchor"]["common_bias_receipt"] = digest
+    envelopes["anchor"]["source_hashes"]["common_bias_receipt"] = digest
+    snapshots = {
+        route: capture_source_snapshot(tmp_path, hashes[route], paths[route])
+        for route in ("score", "anchor")
+    }
+
+    result = _apply(
+        _ready_state(), envelopes, hashes,
+        common_bias=0.01, anchor_map_hash=anchor_map_hash,
+        source_snapshots_by_envelope=snapshots, require_source_bytes=True,
+    )
+
+    assert result["status"] == "ABSTAIN_PION_COMMON_BIAS_RECEIPT"
+    assert any("caller C/R differs" in reason for reason in result["reasons"])
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 16, "valid": 16,
+        "failed": 0, "abstained": 0, "not_run": 0,
+    }
+    assert result["common_bias_receipt_verification"]["denominator"] == {
+        "unit": "captured_common_bias_receipt_claim", "planned": 1,
+        "valid": 0, "failed": 1, "abstained": 0, "not_run": 0,
+    }
+    assert result["physical_score"] is None
+
+
+def test_snapshot_common_bias_receipt_must_bind_validated_reference(tmp_path):
+    envelopes, hashes = _envelopes()
+    paths, anchor_map_hash = _materialize_source_bytes(tmp_path, envelopes, hashes)
+    receipt_path = tmp_path / paths["anchor"]["common_bias_receipt"]
+    receipt_path.write_bytes(
+        _common_bias_receipt_bytes(anchor_map_hash, target_hash=H[13]),
+    )
+    digest = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+    hashes["anchor"]["common_bias_receipt"] = digest
+    envelopes["anchor"]["source_hashes"]["common_bias_receipt"] = digest
+    snapshots = {
+        route: capture_source_snapshot(tmp_path, hashes[route], paths[route])
+        for route in ("score", "anchor")
+    }
+
+    result = _apply(
+        _ready_state(), envelopes, hashes,
+        anchor_map_hash=anchor_map_hash,
+        source_snapshots_by_envelope=snapshots, require_source_bytes=True,
+    )
+
+    assert result["status"] == "ABSTAIN_PION_COMMON_BIAS_RECEIPT"
+    assert any("validated reference stage" in reason for reason in result["reasons"])
+    assert result["common_bias_receipt_verification"]["denominator"]["failed"] == 1
+
+
+def test_snapshot_common_bias_receipt_rejects_duplicate_json_keys(tmp_path):
+    envelopes, hashes = _envelopes()
+    paths, anchor_map_hash = _materialize_source_bytes(tmp_path, envelopes, hashes)
+    receipt_path = tmp_path / paths["anchor"]["common_bias_receipt"]
+    payload = _common_bias_receipt_bytes(anchor_map_hash).decode()
+    payload = payload.replace('"bound_over_R":0.01', '"bound_over_R":0.01,"bound_over_R":0.0')
+    receipt_path.write_text(payload)
+    digest = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+    hashes["anchor"]["common_bias_receipt"] = digest
+    envelopes["anchor"]["source_hashes"]["common_bias_receipt"] = digest
+    snapshots = {
+        route: capture_source_snapshot(tmp_path, hashes[route], paths[route])
+        for route in ("score", "anchor")
+    }
+
+    result = _apply(
+        _ready_state(), envelopes, hashes,
+        anchor_map_hash=anchor_map_hash,
+        source_snapshots_by_envelope=snapshots, require_source_bytes=True,
+    )
+
+    assert result["status"] == "ABSTAIN_PION_COMMON_BIAS_RECEIPT"
+    assert any("duplicate JSON key: bound_over_R" in reason for reason in result["reasons"])
+    assert result["source_verification"]["denominator"] == {
+        "unit": "source_file", "planned": 16, "valid": 16,
+        "failed": 0, "abstained": 0, "not_run": 0,
+    }
+    assert result["common_bias_receipt_verification"]["denominator"]["failed"] == 1
+    assert result["physical_score"] is None

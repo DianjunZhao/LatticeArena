@@ -578,3 +578,13 @@ m_eff(4) = acosh((C_fold(3)+C_fold(5))/(2 C_fold(4))),  T=16
 同轮发现早先的解析偏差脚本在 cosh argument 比 1 小最多 `1e-12` 时用 `max(1,arg)` 做了数值夹取，和“无 clipping”协议文字不一致。现已严格改为 `arg<1` 即拒绝，并从原脚本在新目录重建[解析敏感度报告 v2](anchor_scalar_map_bias_20261126_v2/README.md)；`27,945` 个谱格及 `19,115` 个通过候选 `C<=0.029` 的结果不变，代码和产物哈希属于 v2 快照，历史 v1 保留原样。
 
 文字流程：`hash-bound anchor snapshot -> strict raw schema/ID checks -> per-state fold/map -> valid/failed full denominator -> diagnostic only`。这项只关闭候选 map 的 CPU reader 和 clipping 不一致，不能证明 `E[m_eff(X)]` 与 global PP/A4P `m*` 的偏差 `<=0.029`、支持域对所有链状态成立、anchor/score 独立，或 gap/TV 收据有效。本次 PR #5 全仓 CPU suite **265 passed**；真实 anchor 输入分母仍 `0/0/0/0`。候选 map 和 common-bias receipt 继续等待独立审阅与授权。保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`，封存 split closed，不运行 GPU/QUDA。
+
+### 2026-11-27 common-bias receipt 与 source snapshot 的一致性诊断
+
+发现 adapter 虽核对 source-file hashes，却仍允许调用方单独传入 `common_bias_bound_over_R`；receipt 内的 `C/R`、目标 reference、anchor map 与 envelope review scope 没有绑定到同一份 captured bytes。现已在 source-bytes 路径中，让 adapter 和 bundle gate 共用相同的 `SourceByteSnapshot`：先按 gate 的 required hash map 重算完整来源分母，只有 `anchor::common_bias_receipt` 字节通过 hash 核验时才解析；随后严格拒绝重复 JSON key、非有限 JSON token、未知/缺失字段，并比对 `reviewed_claim`、map ID/hash、`RunState` 中已验证 reference-stage evidence hash、review scope、`abs(E[anchor_scalar_map]-m_star)/R` quantity、固定 `[0.1,3.0]` 支持区间，以及 receipt 的有限非负 `bound_over_R` 与调用值（绝对容差 `1e-15`）。
+
+文字流程：`score/anchor immutable snapshots -> 按 required hashes 核实 source-file 分母 -> 从同一 anchor snapshot 读取 common-bias JSON -> 绑定 map/reference/review/support/C/R -> 字段或字节不符即 ABSTAIN -> 全部内部链接相符最多 DRAFT`。返回诊断分开记录两个分母：完整合成 bundle 的 source files 为 `16/16/0/0`；receipt 内部一致性正例为 `1/1/0/0`，C/R 错配、reference 错绑和重复键负例各为 `1/0/1/0`；若来源文件本身哈希不符，则留在 source-byte 层（既有负例 `16/15/1/0`），不会把坏字节误计为语义收据失败。`tests/test_pion_evidence_adapter.py` **14 passed**；PR #5 全仓 CPU suite **268 passed**，`git diff --check` 通过。
+
+`authority=not_authenticated` 是刻意保留的边界：`internally_consistent_claim` 只表示同一份哈希绑定 bytes 的字段互相吻合，不认证 reviewer 身份/授权，不证明 `C/R<=0.01`，也不提供 anchor support、E-chain reference、chain gap/TV 或 score-anchor 独立性的物理证据。当前真实 source 与物理 receipt 分母仍 `0/0/0/0`，未读 sealed inputs、未运行 GPU/QUDA，RunState 仍只能到 `draft`，外层结论维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
+
+下一位实现者不要重复 synthetic schema/hash 网格。若仅有 CPU 软件工作，可审查 `evidence_adapter.py` 的 receipt 到 TaskSpec/code fingerprint 传递依赖以及 source-root/snapshot 两入口是否保持相同 abstention 语义；更进一步的 anchor 校准只能在取得**获准且未封存**的 candidate-blind reference、anchor-chain scalar、review/independence 和 `C/R` 论证后进行。随后需输出 block scalar 分布/trace、有效与失败完整分母、dependence/coverage 诊断和 `E[m_eff(C_block)]-m*` bias envelope；若缺少物理 source 或授权，不执行测量并继续标注 `NOT_READY/UNCERTIFIED`。

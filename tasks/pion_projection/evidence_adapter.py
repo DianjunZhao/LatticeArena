@@ -24,7 +24,11 @@ from core.evidence import (
     inspect_evidence_envelope,
 )
 from core.receipts import RECEIPT_SCHEMA, run_receipt as normalize_run_receipt
-from core.source_integrity import SourceByteSnapshot
+from core.source_integrity import (
+    SourceByteSnapshot,
+    capture_source_snapshot,
+    verify_source_snapshot,
+)
 from .bounded_block_risk_contract import selected_protocol
 
 
@@ -39,6 +43,12 @@ _ANCHOR_SOURCE_KEYS = frozenset({
     "anchor_chain_receipt", "gamma_ps_receipt", "initial_law_tv_receipt",
     "support_receipt", "score_anchor_independence_receipt", "review_receipt",
 })
+_COMMON_BIAS_RECEIPT_SCHEMA = "pion-anchor-common-bias-receipt-v1"
+_COMMON_BIAS_RECEIPT_KEYS = frozenset({
+    "schema", "status", "map_id", "map_sha256", "target_reference_sha256",
+    "review_scope_sha256", "quantity", "bound_over_R", "support_interval",
+})
+_COMMON_BIAS_QUANTITY = "abs(E[anchor_scalar_map]-m_star)/R"
 
 
 def _sha256(value: object) -> bool:
@@ -198,6 +208,122 @@ def _validate_source_hash_links(envelopes: object,
     return reasons
 
 
+def _snapshot_source_verification(
+    snapshots: dict[str, SourceByteSnapshot],
+    required_hashes: dict[str, dict[str, str]],
+) -> dict[str, Any]:
+    entries: dict[str, dict[str, Any]] = {}
+    for route in ("score", "anchor"):
+        verification = verify_source_snapshot(snapshots[route], required_hashes[route])
+        for name, entry in verification["entries"].items():
+            entries[f"{route}::{name}"] = dict(entry)
+    all_entries = list(entries.values())
+    counts = {
+        key: sum(entry.get("status") == key for entry in all_entries)
+        for key in ("valid", "failed", "abstained")
+    }
+    return {
+        "schema": "latticearena-source-byte-verification-v1",
+        "status": "verified" if counts["valid"] == len(all_entries) else "incomplete",
+        "read_mode": "immutable_snapshot",
+        "denominator": {
+            "unit": "source_file", "planned": len(all_entries),
+            **counts, "not_run": 0,
+        },
+        "entries": entries,
+    }
+
+
+def _common_bias_receipt_reasons(
+    payload: bytes,
+    *,
+    envelopes: object,
+    anchor_scalar_map_id: str,
+    anchor_scalar_map_sha256: str,
+    common_bias_bound_over_R: float,
+    target_reference_sha256: object,
+) -> list[str]:
+    """Check that the byte-bound C/R claim matches the current map/reference.
+
+    A successful check verifies internal links only. It does not authenticate
+    the reviewer or prove that the claimed common-bias bound is scientifically
+    valid; the evidence bundle can still advance only to draft.
+    """
+    reasons: list[str] = []
+
+    def no_duplicates(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON key: {key}")
+            result[key] = value
+        return result
+
+    try:
+        receipt = json.loads(
+            payload.decode("utf-8"), object_pairs_hook=no_duplicates,
+            parse_constant=lambda token: (_ for _ in ()).throw(
+                ValueError(f"non-finite JSON token {token}")),
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        return [f"anchor common-bias receipt is not strict JSON: {exc}"]
+    if not isinstance(receipt, dict) or set(receipt) != _COMMON_BIAS_RECEIPT_KEYS:
+        return ["anchor common-bias receipt keys do not match the selected schema"]
+    if receipt.get("schema") != _COMMON_BIAS_RECEIPT_SCHEMA:
+        reasons.append("anchor common-bias receipt schema mismatch")
+    if receipt.get("status") != "reviewed_claim":
+        reasons.append("anchor common-bias receipt must carry reviewed_claim status")
+    if receipt.get("map_id") != anchor_scalar_map_id:
+        reasons.append("anchor common-bias receipt map ID mismatch")
+    if receipt.get("map_sha256") != anchor_scalar_map_sha256:
+        reasons.append("anchor common-bias receipt map hash mismatch")
+    if (not _sha256(target_reference_sha256)
+            or receipt.get("target_reference_sha256") != target_reference_sha256):
+        reasons.append("anchor common-bias receipt does not bind the validated reference stage")
+    if receipt.get("quantity") != _COMMON_BIAS_QUANTITY:
+        reasons.append("anchor common-bias receipt quantity mismatch")
+    support = selected_protocol()["anchor_design"]["support_interval"]
+    if receipt.get("support_interval") != support:
+        reasons.append("anchor common-bias receipt support interval mismatch")
+    bound = receipt.get("bound_over_R")
+    if (not isinstance(bound, (int, float)) or isinstance(bound, bool)
+            or not math.isfinite(float(bound)) or bound < 0):
+        reasons.append("anchor common-bias receipt bound_over_R must be finite and nonnegative")
+    elif not math.isclose(float(bound), float(common_bias_bound_over_R),
+                          rel_tol=0.0, abs_tol=1e-15):
+        reasons.append("caller C/R differs from the captured common-bias receipt")
+    anchor_result = inspect_evidence_envelope(
+        envelopes.get("anchor") if isinstance(envelopes, dict) else None,
+        require_review=True,
+    )
+    if anchor_result["status"] == "SCHEMA_COMPLETE_NOT_CERTIFIED":
+        expected_scope = anchor_result["normalized_envelope"]["review"]["scope_sha256"]
+        if receipt.get("review_scope_sha256") != expected_scope:
+            reasons.append("anchor common-bias receipt review scope does not match the envelope")
+    else:
+        reasons.append("anchor envelope is unavailable for common-bias receipt binding")
+    return reasons
+
+
+def _common_bias_receipt_verification(reasons: list[str]) -> dict[str, Any]:
+    valid = not reasons
+    return {
+        "schema": "pion-anchor-common-bias-consistency-v1",
+        "status": "internally_consistent_claim" if valid else "rejected",
+        "claim_status": "reviewed_claim",
+        "authority": "not_authenticated",
+        "denominator": {
+            "unit": "captured_common_bias_receipt_claim",
+            "planned": 1,
+            "valid": int(valid),
+            "failed": int(not valid),
+            "abstained": 0,
+            "not_run": 0,
+        },
+        "reasons": list(reasons),
+    }
+
+
 def _validate_protocol_claims(envelopes: object) -> list[str]:
     if not isinstance(envelopes, dict) or set(envelopes) != {"score", "anchor"}:
         return ["evidence bundle must contain exactly score and anchor envelopes"]
@@ -260,13 +386,13 @@ def apply_pion_statistical_evidence_gate(
     """Apply the Pion statistical metadata gate and optionally verify bytes.
 
     The anchor map and evidence source hashes must come from externally reviewed
-    receipts. Production use requires explicit per-envelope paths or captured
-    snapshots; synthetic metadata fixtures may opt out. Path-mode byte
-    verification checks the bytes read during preflight, while snapshot mode
-    lets the task reader and gate share retained bytes. Neither authenticates
-    hash authority or scientific claims. The adapter requires the operator,
-    reference and numerical stages to be validated first and accepts only the
-    selected 12,000 family-block scores plus 4,000 anchor Markov states. A complete
+    receipts. When source bytes are required, the common-bias JSON claim is read
+    from the same immutable snapshot as the byte gate and checked against the
+    map, validated reference-stage hash, review scope, and caller C/R value.
+    Those consistency checks do not authenticate hash authority or prove the
+    scientific bound. The adapter requires the operator, reference and
+    numerical stages to be validated first and accepts only the selected
+    12,000 family-block scores plus 4,000 anchor Markov states. A complete
     result advances ``statistical`` to ``draft`` only.
     """
     if (not hasattr(run_state, "status") or not hasattr(run_state, "summary")
@@ -348,29 +474,9 @@ def apply_pion_statistical_evidence_gate(
     paths_supplied = (source_root is not None or source_paths_by_envelope is not None
                       or source_snapshots_by_envelope is not None)
     if require_source_bytes or paths_supplied:
-        if source_snapshots_by_envelope is not None:
-            if source_root is not None or source_paths_by_envelope is not None:
-                reason = "pass per-envelope source snapshots or source_root/source_paths, not both"
-                run_state.abstain(STAGE, reason)
-                return {
-                    "status": "ABSTAIN_PION_STATISTICAL_ADAPTER",
-                    "reasons": [reason],
-                    "run_state": run_state.summary(),
-                    "certified": False,
-                    "physical_score": None,
-                }
-            return apply_evidence_bundle_gate_with_source_bytes(
-                run_state,
-                STAGE,
-                envelopes,
-                receipt,
-                source_snapshots_by_envelope=source_snapshots_by_envelope,
-                expected_by_envelope=expected,
-                required_source_hashes_by_envelope=source_hashes,
-                distinct_chain_pairs=(("anchor", "score"),),
-            )
-        if source_root is None or source_paths_by_envelope is None:
-            reason = "source-byte gate requires both source_root and source_paths_by_envelope"
+        if (source_snapshots_by_envelope is not None
+                and (source_root is not None or source_paths_by_envelope is not None)):
+            reason = "pass per-envelope source snapshots or source_root/source_paths, not both"
             run_state.abstain(STAGE, reason)
             return {
                 "status": "ABSTAIN_PION_STATISTICAL_ADAPTER",
@@ -379,17 +485,116 @@ def apply_pion_statistical_evidence_gate(
                 "certified": False,
                 "physical_score": None,
             }
-        return apply_evidence_bundle_gate_with_source_bytes(
+
+        snapshots = source_snapshots_by_envelope
+        if snapshots is None and (source_root is not None or source_paths_by_envelope is not None):
+            if source_root is None or source_paths_by_envelope is None:
+                reason = "source-byte gate requires both source_root and source_paths_by_envelope"
+                run_state.abstain(STAGE, reason)
+                return {
+                    "status": "ABSTAIN_PION_STATISTICAL_ADAPTER",
+                    "reasons": [reason],
+                    "run_state": run_state.summary(),
+                    "certified": False,
+                    "physical_score": None,
+                }
+            try:
+                if (not isinstance(source_paths_by_envelope, dict)
+                        or set(source_paths_by_envelope) != {"score", "anchor"}):
+                    raise ValueError("source path map must contain score and anchor routes")
+                snapshots = {
+                    route: capture_source_snapshot(
+                        source_root, source_hashes[route], source_paths_by_envelope[route],
+                    )
+                    for route in ("score", "anchor")
+                }
+            except (OSError, TypeError, ValueError) as exc:
+                return apply_evidence_bundle_gate_with_source_bytes(
+                    run_state,
+                    STAGE,
+                    envelopes,
+                    receipt,
+                    source_root=source_root,
+                    source_paths_by_envelope=source_paths_by_envelope,
+                    expected_by_envelope=expected,
+                    required_source_hashes_by_envelope=source_hashes,
+                    distinct_chain_pairs=(("anchor", "score"),),
+                )
+
+        if snapshots is None:
+            if not require_source_bytes:
+                return apply_evidence_bundle_gate(
+                    run_state,
+                    STAGE,
+                    envelopes,
+                    receipt,
+                    expected_by_envelope=expected,
+                    required_source_hashes_by_envelope=source_hashes,
+                    distinct_chain_pairs=(("anchor", "score"),),
+                )
+            reason = (
+                "source-byte gate requires both source_root/source_paths_by_envelope "
+                "or per-envelope source snapshots"
+            )
+            run_state.abstain(STAGE, reason)
+            return {
+                "status": "ABSTAIN_PION_STATISTICAL_ADAPTER",
+                "reasons": [reason],
+                "run_state": run_state.summary(),
+                "certified": False,
+                "physical_score": None,
+            }
+
+        common_bias_verification = None
+        if (isinstance(snapshots, dict) and set(snapshots) == {"score", "anchor"}
+                and all(isinstance(snapshots.get(route), SourceByteSnapshot)
+                        for route in ("score", "anchor"))):
+            anchor_snapshot = snapshots["anchor"]
+            source_verification = _snapshot_source_verification(snapshots, source_hashes)
+            source_entry = source_verification["entries"].get("anchor::common_bias_receipt")
+            if source_entry is not None and source_entry.get("status") == "valid":
+                try:
+                    bias_bytes = anchor_snapshot.read_bytes("common_bias_receipt")
+                except ValueError:
+                    bias_bytes = None
+                if bias_bytes is not None:
+                    target_hash = run_state.evidence_hash.get("reference")
+                    bias_reasons = _common_bias_receipt_reasons(
+                        bias_bytes,
+                        envelopes=envelopes,
+                        anchor_scalar_map_id=anchor_scalar_map_id,
+                        anchor_scalar_map_sha256=anchor_scalar_map_sha256,
+                        common_bias_bound_over_R=float(common_bias_bound_over_R),
+                        target_reference_sha256=target_hash,
+                    )
+                    common_bias_verification = _common_bias_receipt_verification(
+                        bias_reasons
+                    )
+                    if bias_reasons:
+                        run_state.abstain(STAGE, "; ".join(bias_reasons))
+                        return {
+                            "status": "ABSTAIN_PION_COMMON_BIAS_RECEIPT",
+                            "reasons": bias_reasons,
+                            "run_state": run_state.summary(),
+                            "source_verification": source_verification,
+                            "common_bias_receipt_verification": common_bias_verification,
+                            "certified": False,
+                            "physical_score": None,
+                        }
+
+        result = apply_evidence_bundle_gate_with_source_bytes(
             run_state,
             STAGE,
             envelopes,
             receipt,
-            source_root=source_root,
-            source_paths_by_envelope=source_paths_by_envelope,
+            source_snapshots_by_envelope=snapshots,
             expected_by_envelope=expected,
             required_source_hashes_by_envelope=source_hashes,
             distinct_chain_pairs=(("anchor", "score"),),
         )
+        if common_bias_verification is not None:
+            result["common_bias_receipt_verification"] = common_bias_verification
+        return result
 
     return apply_evidence_bundle_gate(
         run_state,
