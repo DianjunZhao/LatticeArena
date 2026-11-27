@@ -713,3 +713,21 @@ NPZ 共享预检器现把 ZIP 不支持的压缩方式、加密成员和损坏 D
 解读边界：外层 `n=60` 的拒绝率 MCSE 为 `0.0128`（1%）和 `0.0281`（5%）；内层 `B=199` 的 p-value 网格步长为 `0.005`，还存在嵌套模拟噪声。5% bootstrap 拒绝率的区间很宽，因此本结果只是证明“重拟合 covariance 与 spectrum 的 plug-in bootstrap 候选”值得继续校准，不是有限样本 size/coverage 认证。当前 pilot 仅 iid Gaussian；plug-in raw covariance、拟合均值重建和 multistart 规则均需独立审阅，AR(1)/厚尾/拟合选择尚未进入 bootstrap。此报告的 14/14 artifact hashes 与 7/7 source snapshot hashes 匹配；`physical_score=null`，D04 reference gate 仍 abstained。
 
 下一步以更大的独立外层 panel set 比较 approximate chi-square 与 parametric bootstrap，并把 bootstrap 纳入先前的 rho/ν stress grid；冻结 independent calibration 与 untouched validation split，预先登记 p-value 失败分母及多重性处理，再由独立统计/物理 reviewer 检查拟合均值 reconstruction 和 covariance plug-in 方案。没有获准、candidate-blind E-chain 与来源/依赖收据时继续保持 `NOT_READY/UNCERTIFIED`，不将 synthetic bootstrap 写成物理 reference、不打开 sealed split、不启动 GPU/QUDA。
+
+### 2026-11-27 D04 AR(1) null 下的依赖感知 bootstrap 复核
+
+为检验上一节 iid parametric bootstrap 是否能面对已知配置序列相关，新增 [`d04_ar1_bootstrap_diagnostic.py`](d04_ar1_bootstrap_diagnostic.py) 和[完整图文报告](d04_ar1_bootstrap_cpu_20261127_v1/README.md)。冻结 `Ncfg=128`、外层 `160` 个独立 stationary Gaussian AR(1) 两态 null panels、真值 `rho=0.30`、每外层 panel/每 bootstrap 方法 `B=199`；相同 panel 配对比较当前 approximate chi-square、iid plug-in bootstrap、以及按该 panel 的 27 个原始 feature series pooled lag-1 OLS 估计 rho 的 AR(1) plug-in bootstrap。两 bootstrap 方法使用同一外层 fit 得到的 fitted null mean 与未收缩样本协方差；每个内层 replicate 都重做 fold、25% diagonal covariance shrinkage、特征值 floor 与三起点两态谱 fit。`Var(mean)` 对 iid 估计的精确 AR(1) 膨胀因子为 `1.8475765`。
+
+结果分母全部闭合且无失败/abstention：outer fit `160/160/0/0`；rho estimate `160/160/0/0`；两 bootstrap outer p-value 各 `160/160/0/0`；每臂内层 draw 各 `31840/31840/0/0`（P/V/F/A）。SHA-256 样本 hash 有 160 个唯一值；报告 artifact hashes `13/13`、source snapshot hashes `6/6` 全部匹配。5% rejection 的配对结果是：
+
+| p-value method | rejection | Wilson 95% CI | empirical p-value KS distance | mean p |
+| --- | ---: | ---: | ---: | ---: |
+| approximate chi-square | `32/160 = 20.0%` | `[14.5%, 26.9%]` | `0.246` | `0.349` |
+| iid parametric bootstrap | `72/160 = 45.0%` | `[37.5%, 52.7%]` | `0.564` | `0.146` |
+| estimated-AR(1) parametric bootstrap | `10/160 = 6.25%` | `[3.4%, 11.1%]` | `0.093` | `0.463` |
+
+在 1% threshold，三者 rejection 分别是 `11/160=6.88%`、`33/160=20.63%`、`2/160=1.25%`；AR(1) bootstrap Wilson 95% CI 为 `[0.34%,4.44%]`，但尾部区间仍很宽。rho-hat 均值/中位数是 `0.286/0.288`，均值 bias `−0.014`，标准差 `0.041`，5–95% 分位 `[0.225,0.351]`。图文诊断把三种 p-value 的经验 CDF、1%/5% Wilson 区间以及 rho recovery histogram 并列展示：[AR(1) bootstrap 图](d04_ar1_bootstrap_cpu_20261127_v1/ar1_bootstrap_calibration.png)。文字流程：`独立 AR(1) null panel -> paired outer fit -> iid / pooled-rho AR(1) parametric draws -> 每 draw 重估 covariance 并重 fit -> p-value / failure denominator / Wilson + ECDF -> synthetic-only report`。
+
+**诊断结论：**该单一 Gaussian `rho=0.30` 合成机制下，朴素 iid bootstrap 破坏了原始序列相关，误拒率比 approximate chi-square 更高；估计 rho 的 AR(1) bootstrap 把 5% rejection 从 `45%` 降到 `6.25%`，其 Wilson 区间包含标称 5%，且 p-value KS distance 从 `0.564` 降至 `0.093`。这是对依赖感知校准方向的支持，不是校准认证：外层仅 160 例，5% MCSE 为 `0.0172`；1% 更粗；rho、创新分布、特征协方差、stationarity、fit window 都只有一个设定。 pooled rho、plug-in raw covariance 与 fitted-mean reconstruction 尚未独立 review，图中的单方法 DKW 带也不作跨方法多重性校正。报告运行约 35 分钟，后续多格 refit 应按预冻结 cell 分批并提供运行进度，不能在看过结果后减少/改动分母。
+
+**接手的下一步：**先由独立审阅者逐式检查 pooled lag-1 OLS 的适用假设、AR(1) bootstrap 的 stationary initialization、raw marginal covariance plug-in、fitted mean reconstruction 和 p-value ties/失败口径；审阅结论须附一页文字流程或图并逐项指向源码。之后预注册一个小而有判别力的 held-out 网格（至少 `rho={0.0,0.3,0.6}`，另含厚尾/创新分布 stress），同 panel 配对比较 approximate、iid bootstrap、estimated-AR(1)、circular-block/HAC bootstrap；校准/方法选择 panels 与 untouched validation panels 必须用不同 seed manifest。先用较小 screening cell 估算每 cell 成本，再冻结确认性样本数和 1%/5% MC 误差目标；所有失败、abstain 和 MC 区间完整保留。若 AR(1) 在非 AR(1) 或多尺度压力下偏离，报告适用边界，优先比较 block/HAC 而不是增加 rho 调参。没有授权的 candidate-blind E-chain bytes、来源/依赖 receipts、production source/sink convention 和独立统计/物理 review 前，不生成 gate-ready D04 reference，不读 sealed split、不运行 GPU/QUDA，继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
