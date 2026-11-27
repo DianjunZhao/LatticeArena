@@ -93,6 +93,33 @@ def _regularize_sample_covariance(sample: np.ndarray) -> tuple[np.ndarray, float
     return covariance, floor
 
 
+def _bootstrap_upper_tail_pvalue(
+    exceedances: int, valid_draws: int, failed_draws: int,
+    planned_draws: int, minimum_valid_draws: int,
+) -> float | None:
+    """Return a conservative upper-tail p-value, assigning failures to exceedances.
+
+    When a bootstrap refit fails, its chi-square statistic is unknown. Counting
+    that draw as an exceedance gives the largest p-value compatible with any
+    completion of the missing statistics. If fewer than the frozen minimum
+    number of fits succeeded, the panel abstains instead.
+    """
+    values = (exceedances, valid_draws, failed_draws,
+              planned_draws, minimum_valid_draws)
+    if any(isinstance(value, bool) or not isinstance(value, int) for value in values):
+        raise ValueError("bootstrap draw counts must be integers")
+    if (planned_draws <= 0 or minimum_valid_draws <= 0
+            or minimum_valid_draws > planned_draws):
+        raise ValueError("bootstrap draw plan or minimum-valid threshold is invalid")
+    if (valid_draws < 0 or failed_draws < 0 or exceedances < 0
+            or exceedances > valid_draws
+            or valid_draws + failed_draws != planned_draws):
+        raise ValueError("bootstrap exceedance/valid/failed counts do not close")
+    if valid_draws < minimum_valid_draws:
+        return None
+    return (1.0 + exceedances + failed_draws) / (planned_draws + 1.0)
+
+
 def _wilson(successes: int, trials: int) -> tuple[float, float]:
     z = 1.959963984540054
     p = successes / trials
@@ -290,11 +317,14 @@ def build(output: str | Path = DEFAULT_OUT):
         failed_draws = BOOTSTRAP_REPLICATES - valid_draws
         outer_row["bootstrap_valid"] = valid_draws
         outer_row["bootstrap_failed"] = failed_draws
-        if valid_draws >= minimum_valid:
-            outer_row["parametric_bootstrap"] = (
-                1.0 + sum(value >= float(fit["chi2"]) for value in replicate_chi2)
-            ) / (valid_draws + 1.0)
-        else:
+        outer_row["parametric_bootstrap"] = _bootstrap_upper_tail_pvalue(
+            exceedances=sum(value >= float(fit["chi2"]) for value in replicate_chi2),
+            valid_draws=valid_draws,
+            failed_draws=failed_draws,
+            planned_draws=BOOTSTRAP_REPLICATES,
+            minimum_valid_draws=minimum_valid,
+        )
+        if outer_row["parametric_bootstrap"] is None:
             outer_row["bootstrap_abstained"] = True
             bootstrap_outer_abstentions += 1
         outer_rows.append(outer_row)
@@ -330,7 +360,7 @@ def build(output: str | Path = DEFAULT_OUT):
                        "bootstrap_minimum_valid_fraction": MIN_VALID_FRACTION,
                        "bootstrap_minimum_valid_replicates": minimum_valid,
                        "bootstrap_covariance": "unshrunk raw within-panel sample covariance, eigenvalue floor 1e-12 of max eigenvalue; every replicate refits the spectrum and re-estimates/shrinks covariance",
-                       "bootstrap_pvalue": "(1 + count(bootstrap chi2 >= observed chi2)) / (valid bootstrap draws + 1)"},
+                       "bootstrap_pvalue": "(1 + valid chi2 exceedances + failed refits) / (planned bootstrap draws + 1); failed refits count as conservative upper-tail exceedances"},
         "denominators": {
             "chi_square": {"planned": OUTER_PANELS, "valid": len(approx_values),
                            "failed": outer_failures, "abstained": 0},
@@ -400,7 +430,7 @@ def build(output: str | Path = DEFAULT_OUT):
         "",
         f"- Generate `{OUTER_PANELS}` independent exact two-state Gaussian null panels with `{CONFIGURATIONS}` configurations each; fit the current D04 joint PP-even/A4P-odd two-state model (`tmin=3`, 13 nominal dof, three deterministic starts).",
         f"- For every valid outer fit, estimate the plug-in raw feature covariance from that panel, reconstruct the fitted null mean by solving GLS amplitudes at fitted masses, and draw `{BOOTSTRAP_REPLICATES}` parametric panels. Every bootstrap panel is folded, its covariance is re-estimated with the current `{reader.SHRINKAGE:.0%}` shrinkage and eigenvalue floor, and the spectrum is refit with all three starts.",
-        f"- The bootstrap p-value is `(1 + exceedances)/(valid draws + 1)`. A panel needs at least `{minimum_valid}` valid bootstrap fits (`{MIN_VALID_FRACTION:.0%}`) or its bootstrap p-value abstains; failed draws stay in their planned denominator.",
+        f"- The conservative bootstrap upper-tail p-value is `(1 + valid exceedances + failed refits)/(planned draws + 1)`. Failed refits count as exceedances; a panel with fewer than `{minimum_valid}` valid fits (`{MIN_VALID_FRACTION:.0%}`) abstains.",
         "- Bootstrap covariance uses the unshrunk within-panel sample covariance, with only an eigenvalue floor `1e-12` of its largest eigenvalue to draw from a positive-definite plug-in model. This covariance is not the fit covariance; the latter is re-estimated and shrunk in every replicate.",
         "",
         "![D04 approximate and bootstrap GOF comparison](bootstrap_calibration.png)",

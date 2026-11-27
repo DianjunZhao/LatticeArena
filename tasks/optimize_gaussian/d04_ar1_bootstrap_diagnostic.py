@@ -266,11 +266,13 @@ def build(output: str | Path = DEFAULT_OUT):
                         "seed": seed, "rho_used": float(rho_boot),
                         "fit_status": "failed", "chi2": None,
                     })
-            if valid >= minimum_valid:
-                row[method] = (1.0 + exceedances) / (valid + 1.0)
-            else:
-                # Planned inner draws remain abstained in the denominator below.
-                pass
+            row[method] = bootstrap._bootstrap_upper_tail_pvalue(
+                exceedances=exceedances,
+                valid_draws=valid,
+                failed_draws=failed,
+                planned_draws=BOOTSTRAP_REPLICATES,
+                minimum_valid_draws=minimum_valid,
+            )
             row[f"{method}_planned"] = BOOTSTRAP_REPLICATES
             row[f"{method}_valid"] = valid
             row[f"{method}_failed"] = failed
@@ -310,7 +312,7 @@ def build(output: str | Path = DEFAULT_OUT):
             "bootstrap_rule": "re-estimate folded covariance with 25% shrinkage and refit the two-state spectrum in every replicate",
             "minimum_valid_fraction": MIN_VALID_FRACTION,
             "minimum_valid_draws": minimum_valid,
-            "pvalue": "(1 + count(bootstrap chi2 >= observed chi2)) / (valid draws + 1)",
+            "pvalue": "(1 + valid chi2 exceedances + failed refits) / (planned bootstrap draws + 1); failed refits count as conservative upper-tail exceedances",
         },
         "fit": {"tmin": 3, "nstates": 2, "nominal_dof": 13,
                 "pp_a4p_joint": True, "multistarts": 3,
@@ -422,7 +424,7 @@ def build(output: str | Path = DEFAULT_OUT):
         f"- Generate `{OUTER_PANELS}` independent held-out null panels with `{CONFIGURATIONS}` ordered configurations each from a stationary 27-feature Gaussian AR(1), true `rho={TRUE_RHO:.2f}`. The exact finite-N variance inflation for a sample mean is `{summary['generator']['finite_n_mean_variance_inflation']:.4f}`.",
         "- On each same outer panel, compare the current approximate chi-square p-value, an iid plug-in bootstrap, and an estimated-AR(1) plug-in bootstrap. Both bootstrap methods use the same panel-specific fitted null mean and raw feature covariance; only the serial-dependence parameter differs.",
         f"- The dependence estimate is pooled lag-1 OLS over all 27 raw feature series after subtracting each series' panel mean, clipped to `[-0.95, 0.95]`. Bootstrap samples use that estimate for AR(1), or zero for the iid comparator. Each replicate refolds, re-estimates/shrinks covariance by `{reader.SHRINKAGE:.0%}`, and refits with three starts.",
-        f"- Each method plans `{BOOTSTRAP_REPLICATES}` inner refits per outer panel. P-values use `(1 + exceedances)/(valid draws + 1)`; fewer than `{minimum_valid}` valid draws abstain. Failures remain in the draw denominator.",
+        f"- Each method plans `{BOOTSTRAP_REPLICATES}` inner refits per outer panel. The conservative upper-tail p-value is `(1 + valid exceedances + failed refits)/(planned draws + 1)`; failed refits count as exceedances, and fewer than `{minimum_valid}` valid draws abstain.",
         "",
         "![AR(1) bootstrap calibration diagnostics](ar1_bootstrap_calibration.png)",
         "",
