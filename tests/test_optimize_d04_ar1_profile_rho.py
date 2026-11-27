@@ -83,3 +83,19 @@ def test_profile_candidate_records_and_compares_all_grid_resolved_minima(monkeyp
     assert result["rho_candidate"] == pytest.approx(0.55, abs=1e-5)
     assert result["grid_spacing"] == pytest.approx(1.9 / (PROFILE_RHO_GRID_POINTS - 1))
     assert "narrow unsampled minimum is not excluded" in result["interpretation"]
+
+
+def test_profile_candidate_keeps_boundary_endpoint_as_candidate(monkeypatch):
+    monkeypatch.setattr(
+        diagnostic,
+        "_profile_matrix_normal_deviance",
+        lambda _sample, rho: (rho + 1.0) ** 2,
+    )
+
+    result = _profile_common_rho_candidate(np.zeros((8, 3)))
+
+    assert result["rho_candidate"] == pytest.approx(-0.95)
+    assert result["global_candidate_kind"] == "endpoint"
+    assert result["boundary_hit"] is True
+    assert result["refined_local_minima"] == []
+    assert len(result["endpoint_candidates"]) == 2
