@@ -13,6 +13,8 @@ from typing import Any
 
 import numpy as np
 
+from core.numerics import as_real_float_array
+
 
 def _finite_real(value: object, label: str) -> float:
     if not isinstance(value, Real) or isinstance(value, bool):
@@ -138,8 +140,8 @@ def bounded_block_risk_setwise(
     This returns only target-set variation of the finite planned-block mean,
     not a confidence bound over the score chain.
     """
-    reference = np.asarray(reference_values, dtype=float)
-    candidate = np.asarray(candidate_values, dtype=float)
+    reference = as_real_float_array(reference_values, name="reference_values")
+    candidate = as_real_float_array(candidate_values, name="candidate_values")
     valid = np.asarray(valid_blocks)
     if reference.ndim != 1 or reference.size == 0:
         raise ValueError("reference_values must be a nonempty one-dimensional planned-block array")

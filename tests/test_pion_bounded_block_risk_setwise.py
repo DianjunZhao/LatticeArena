@@ -111,3 +111,24 @@ def test_all_failed_blocks_abstain_and_malformed_inputs_reject():
             [0.0], [1.0], valid_blocks=np.asarray([1]),
             target_interval=[0.0, 1.0], score_scale_R=1.0,
         )
+
+
+@pytest.mark.parametrize("invalid_values", [
+    np.asarray([True]),
+    np.asarray(["1.0"]),
+    np.asarray([1.0 + 2.0j]),
+    [10**400],
+])
+@pytest.mark.parametrize("input_name", ["reference_values", "candidate_values"])
+def test_prediction_inputs_reject_lossy_numeric_coercions(invalid_values, input_name):
+    arguments = {
+        "reference_values": [0.0],
+        "candidate_values": [1.0],
+        "valid_blocks": np.asarray([True]),
+        "target_interval": [0.0, 1.0],
+        "score_scale_R": 1.0,
+    }
+    arguments[input_name] = invalid_values
+
+    with pytest.raises(ValueError, match=input_name):
+        bounded_block_risk_setwise(**arguments)

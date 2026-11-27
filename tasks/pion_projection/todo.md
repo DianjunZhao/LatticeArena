@@ -748,3 +748,11 @@ s_i(m) = clip(((m-y_ref,i)^2 - (m-y_cand,i)^2) / R^2, -1, 1)
 文字流程：`TaskSpec -> bounded score -> core/numerics -> dependency digest -> report source snapshot -> artifact SHA-256`；保存的 MC 输入/单元格结果另作为历史输入校验，不重跑模拟。覆盖 `TaskSpec`、contract receipt、anchor coverage 与 Markov report source-map 的 PR #5 全仓 CPU suite **317 passed**，`git diff --check` 通过。源码哈希只证明被指向的代码字节；它不证明输入来源、score-chain 独立性、anchor 覆盖或 common-bias bound。
 
 **下一步交接：**后续新增 scorer 或改变 score 的数值 helper 时，同时更新 TaskSpec dependency map 和新报告 source snapshots；不得重写旧报告的来源。若要向物理结论推进，仍需同一 immutable snapshot 上的独立 block/gamma-ps/初始 TV receipt、anchor scalar/coverage/support receipt、候选盲 E-reference target bridge、score-anchor 共偏差 `C/R` 界及独立审阅。任何缺项保持 `ABSTAIN/NOT_READY`、`physical_score=null`；封存输入仍关闭。
+
+### 2026-11-28 setwise bounded-risk reader 的严格实数入口
+
+源码复核发现新 `bounded_block_risk_setwise` 的 target/reference/candidate 路径仍使用裸 `np.asarray(..., dtype=float)`；这与已完成的 `bounded_block_risk_scores` 输入合同不一致，数字字符串可能被解析为数据，complex 可能丢弃虚部，超大整数的错误形式也依赖 NumPy 转换行为。现改为复用 [`core/numerics.py`](../../core/numerics.py) 的 `as_real_float_array`，将其作为共享输入合同的调用方；valid mask、失败 block 分数 `-1`、finite-valid 检查及 score estimand 均不变。
+
+新增 negative-control parametrized tests 覆盖 reference 与 candidate 两个参数位上的 bool、数字字符串、complex、`10**400`；这些输入一律在打分前 `ValueError`，合法有限数组、失败 mask 及既有排序范围测试继续通过。文字流程：`raw paired predictions -> shared exact-real/float64 representability gate -> task-specific planned/valid mask -> valid finite checks -> clipped score-set range; failed=-1`。定向 `python -m pytest -q tests/test_pion_bounded_block_risk_setwise.py` **13 passed**；随后当前 PR #5 全套 `python -m pytest -q tests` 为 **325 passed in 5.57 s**，`git diff --check` 通过；这是输入边界检查，不是新 panel、coverage、目标桥或物理评分。
+
+此 helper 仍只是可选的 set-valued risk 传播器，没有并入冻结 TaskSpec/evaluator；若后续将它用于报告，必须把 helper 与 `core/numerics.py` 一并纳入新报告的依赖闭包和源码快照，不能借用旧报告 hashes。target-set coverage、共同 estimand 对应、score-chain sampling uncertainty、anchor-to-E-reference bridge 与独立审阅仍未闭合，Pion 维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。
