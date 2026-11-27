@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from tasks.optimize_gaussian.d04_ar1_bootstrap_diagnostic import (
+    PROFILE_RHO_GRID_POINTS,
     _profile_common_rho_candidate,
     _profile_matrix_normal_deviance,
 )
@@ -53,6 +54,9 @@ def test_profile_rho_candidate_is_invariant_to_feature_affine_reparameterization
     assert reparameterized["rho_candidate"] == pytest.approx(
         original["rho_candidate"], abs=2.0e-6
     )
+    assert original["grid_points"] == PROFILE_RHO_GRID_POINTS
+    assert len(original["profile_deviance_grid"]) == PROFILE_RHO_GRID_POINTS
+    assert np.all(np.isfinite(original["profile_deviance_grid"]))
     assert not original["boundary_hit"]
     assert not reparameterized["boundary_hit"]
 

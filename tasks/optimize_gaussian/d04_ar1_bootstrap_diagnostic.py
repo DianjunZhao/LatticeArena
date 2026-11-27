@@ -31,6 +31,7 @@ TRUE_RHO = 0.30
 MIN_VALID_FRACTION = 0.90
 BASE_SEED = 2026112799
 P_THRESHOLDS = (0.01, 0.05)
+PROFILE_RHO_GRID_POINTS = 81
 _SOURCE_PATHS = {
     "diagnostic": Path(__file__),
     "bootstrap_helpers": TASK_DIR / "d04_parametric_bootstrap_diagnostic.py",
@@ -107,27 +108,36 @@ def _profile_matrix_normal_deviance(sample: np.ndarray, rho: float) -> float:
         raise ValueError("profile rho must lie in [-0.95, 0.95]")
 
     n_configurations, n_features = values.shape
-    lag = np.abs(np.subtract.outer(np.arange(n_configurations),
-                                   np.arange(n_configurations)))
-    row_covariance = np.power(rho, lag)
-    try:
-        chol = np.linalg.cholesky(row_covariance)
-        whitened = np.linalg.solve(chol, values)
-        whitened_one = np.linalg.solve(chol, np.ones(n_configurations))
-    except np.linalg.LinAlgError as exc:
-        raise ValueError("stationary AR(1) row covariance is not positive definite") from exc
+    variance_factor = 1.0 - rho * rho
+    if variance_factor <= 0.0:
+        raise ValueError("stationary AR(1) row covariance is not positive definite")
+    diagonal = np.full(n_configurations, 1.0 + rho * rho)
+    diagonal[[0, -1]] = 1.0
+    diagonal /= variance_factor
+    off_diagonal = -rho / variance_factor
 
-    mean_denominator = float(whitened_one @ whitened_one)
+    def apply_precision(matrix: np.ndarray) -> np.ndarray:
+        weighted = diagonal[:, None] * matrix
+        weighted[:-1] += off_diagonal * matrix[1:]
+        weighted[1:] += off_diagonal * matrix[:-1]
+        return weighted
+
+    ones = np.ones((n_configurations, 1), dtype=float)
+    precision_one = apply_precision(ones)
+    precision_values = apply_precision(values)
+    mean_denominator = float(np.sum(precision_one))
     if not np.isfinite(mean_denominator) or mean_denominator <= 0.0:
         raise ValueError("profiled GLS mean is unidentifiable")
-    mean = (whitened_one @ whitened) / mean_denominator
-    residual = whitened - whitened_one[:, None] * mean[None, :]
-    feature_scatter = residual.T @ residual
+    mean = np.sum(precision_values, axis=0) / mean_denominator
+    residual = values - mean[None, :]
+    feature_scatter = residual.T @ apply_precision(residual)
+    feature_scatter = 0.5 * (feature_scatter + feature_scatter.T)
     sign, logdet_scatter = np.linalg.slogdet(feature_scatter / n_configurations)
     if sign <= 0.0 or not np.isfinite(logdet_scatter):
         raise ValueError("profiled feature covariance is not positive definite")
 
-    logdet_row_covariance = 2.0 * float(np.sum(np.log(np.diag(chol))))
+    # det(R_N(rho)) = (1-rho**2)**(N-1) for stationary unit-variance AR(1).
+    logdet_row_covariance = (n_configurations - 1) * np.log1p(-rho * rho)
     deviance = (n_features * logdet_row_covariance
                 + n_configurations * float(logdet_scatter))
     if not np.isfinite(deviance):
@@ -138,26 +148,36 @@ def _profile_matrix_normal_deviance(sample: np.ndarray, rho: float) -> float:
 def _profile_common_rho_candidate(sample: np.ndarray) -> dict[str, Any]:
     """Fit a bounded scalar rho candidate under the stationary Gaussian model.
 
-    The bounded optimizer result is a candidate, not a certified global
-    optimum. A boundary solution must be treated as an abstention by callers.
+    A deterministic grid brackets every resolved local minimum before local
+    refinement. A boundary solution must be treated as an abstention by callers.
     """
     lower, upper = -0.95, 0.95
     objective = lambda value: _profile_matrix_normal_deviance(sample, float(value))
+    grid = np.linspace(lower, upper, PROFILE_RHO_GRID_POINTS)
     try:
-        result = minimize_scalar(
-            objective, bounds=(lower, upper), method="bounded",
-            options={"xatol": 1.0e-8, "maxiter": 500},
-        )
+        grid_deviance = np.asarray([objective(value) for value in grid], dtype=float)
+        if not np.all(np.isfinite(grid_deviance)):
+            raise ValueError("profile grid contains non-finite values")
+        candidates = [(float(grid[0]), float(grid_deviance[0])),
+                      (float(grid[-1]), float(grid_deviance[-1]))]
+        local_minima = [
+            index for index in range(1, len(grid) - 1)
+            if (grid_deviance[index] <= grid_deviance[index - 1]
+                and grid_deviance[index] <= grid_deviance[index + 1]
+                and (grid_deviance[index] < grid_deviance[index - 1]
+                     or grid_deviance[index] < grid_deviance[index + 1]))
+        ]
+        for index in local_minima:
+            result = minimize_scalar(
+                objective, bounds=(float(grid[index - 1]), float(grid[index + 1])),
+                method="bounded", options={"xatol": 1.0e-8, "maxiter": 500},
+            )
+            if not result.success or not np.isfinite(result.fun):
+                raise ValueError("profile local-minimum refinement did not converge")
+            candidates.append((float(result.x), float(result.fun)))
     except (ValueError, FloatingPointError, np.linalg.LinAlgError) as exc:
         raise ValueError("stationary matrix-normal rho profiling failed") from exc
-    if not result.success or not np.isfinite(result.fun):
-        raise ValueError("stationary matrix-normal rho profiling did not converge")
 
-    candidates = [
-        (lower, objective(lower)),
-        (float(result.x), float(result.fun)),
-        (upper, objective(upper)),
-    ]
     rho_hat, deviance = min(candidates, key=lambda item: item[1])
     boundary_tolerance = 1.0e-6
     return {
@@ -165,7 +185,11 @@ def _profile_common_rho_candidate(sample: np.ndarray) -> dict[str, Any]:
         "profile_deviance": float(deviance),
         "boundary_hit": bool(rho_hat <= lower + boundary_tolerance
                               or rho_hat >= upper - boundary_tolerance),
-        "optimizer_success": bool(result.success),
+        "optimizer_success": True,
+        "grid_points": int(len(grid)),
+        "local_minima_refined": int(len(local_minima)),
+        "profile_rho_grid": grid.tolist(),
+        "profile_deviance_grid": grid_deviance.tolist(),
         "interpretation": "stationary common-rho Gaussian candidate; not calibrated",
     }
 
