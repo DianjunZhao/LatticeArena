@@ -2,7 +2,7 @@
 
 ### 当前控制状态（2026-11-28）
 
-`F=3`、bounded block-risk、score/anchor 错误预算和 Markov 覆盖路线已有明确方案及图文敏感度诊断；研究默认值已自选为 `a_t m_pi`、`R=2.9`、clip `[-1,1]`、`delta_star=0.4205`、效应门 `0.05`、score-chain `gamma_ps>=0.20`/burn-in `8`/`N=4000`/TV `<=0.001`、**anchor-chain Markov Bernstein `n_A=4000`、`gamma_A>=0.20`、burn-in `8`、TV `<=0.001`、`alpha_A=0.01`**，以及拟议 `C/R<=0.01`。选择 Markov anchor 为主路，是因为本任务的 HMC 配置不应在没有来源证明时假定为 IID；`n_A=1000` bounded-IID Hoeffding 只保留为确有 1000 个 IID stationary units 收据时的备选。候选 anchor scalar map `m_eff(4)` 有 snapshot CPU reader，但尚未独立审阅。2026-11-28 的精确无噪声反例进一步证明：仅靠该标量和 `[0.1,3.0]` support，连正两态周期 PP 子模型都无法普遍保证 `C/R<=0.01`；在当前无 gap/overlap 限制的类上 minimax `C/R>=0.051724`。故该 map 不可视作已合格，也不能靠 Markov 覆盖默认值补救；需另有可信的谱/overlap 限制，或改成信息更充分且有确定性 target bridge 的逐状态映射。通用 `core/evidence.py` schema v2 与 Pion task adapter 仍只核验 source bytes/元数据一致性，完整 statistical stage 最多到 `draft`，不认证 digest authority、reviewer 身份、统计独立性或物理有效性，也不计算物理 score。真实 score/anchor 链的 `gamma_ps`/TV、E-reference、可接受 map/common-bias `C` 收据仍缺。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`；按用户要求，E/gap/validation/shared holdout/confirmation 保持封存，不启动 GPU/QUDA。
+`F=3`、bounded block-risk、score/anchor 错误预算和 Markov 覆盖路线已有明确方案及图文敏感度诊断；研究默认值已自选为 `a_t m_pi`、`R=2.9`、clip `[-1,1]`、`delta_star=0.4205`、效应门 `0.05`、score-chain `gamma_ps>=0.20`/burn-in `8`/`N=4000`/TV `<=0.001`、**anchor-chain Markov Bernstein `n_A=4000`、`gamma_A>=0.20`、burn-in `8`、TV `<=0.001`、`alpha_A=0.01`**，以及拟议 `C/R<=0.01`。选择 Markov anchor 为主路，是因为本任务的 HMC 配置不应在没有来源证明时假定为 IID；`n_A=1000` bounded-IID Hoeffding 只保留为确有 1000 个 IID stationary units 收据时的备选。候选 anchor scalar map `m_eff(4)` 有 snapshot CPU reader，但尚未独立审阅。2026-11-28 的精确无噪声反例证明：仅靠该标量和 `[0.1,3.0]` support，连正两态周期 PP 子模型都无法普遍保证 `C/R<=0.01`；在当前无 gap/overlap 限制的类上 minimax `C/R>=0.051724`。一个特定四时间向量虽能分开原反例对，但新的正多态构造又让不同 ground mass 的两组正谱在四时间特征上相撞，故“增加几个时间点”本身也不能认证全局可识别性。需另有可信的态数/gap/overlap 限制及确定性 target bridge，或直接提供可审计的 common-bias 界。通用 `core/evidence.py` schema v2 与 Pion task adapter 仍只核验 source bytes/元数据一致性，完整 statistical stage 最多到 `draft`，不认证 digest authority、reviewer 身份、统计独立性或物理有效性，也不计算物理 score。真实 score/anchor 链的 `gamma_ps`/TV、E-reference、可接受 map/common-bias `C` 收据仍缺。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`；按用户要求，E/gap/validation/shared holdout/confirmation 保持封存，不启动 GPU/QUDA。
 
 ### 2026-11-26 自选 anchor 覆盖主路：Markov-aware，不假定 IID
 
@@ -642,3 +642,21 @@ f_4 = Σ_{n>0} A_n K(m_n,4) / C(4)
 文字流程：`逐 anchor unit 的正谱/质量上界 -> 同一 unit 的 t=4 激发权重上界 -> 传播成 |m_eff−m0| 上界 -> 分配 C_spec -> 另证 E[m0 或 map]-m* 与 reference uncertainty -> 各项误差相加 ≤0.029 才进入 anchor receipt；缺任一环则 ABSTAIN`。
 
 下一位实现者应优先审阅此不等式是否对应项目 `C_fold` 和 map 的实际 cosh convention；若通过，再决定能否从**获准且未封存**的 block correlator 提供 per-unit positivity/weight receipts。若只有 ensemble-mean correlator，应停止这条 Markov scalar 路线并转为多时间/PP+A4P joint feature map 或直接的 common-bias bridge。该解析充分条件是 data-free 公式诊断，不是覆盖测试、统计独立性、真实谱污染或独立审阅；当前 anchor map 仍未认证，物理分母保持 `0/0/0/0`，`NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。
+
+### 2026-11-28 四时间 feature 对已知 scalar 碰撞对的区分诊断
+
+新增 [`anchor_scalar_multitime_diagnostic.py`](anchor_scalar_multitime_diagnostic.py) 与[图文报告](anchor_scalar_multitime_20261128_v1/README.md)，重用上一节 `m_eff(4)=0.50` 的两个正两态周期 PP 谱，不读物理/封存输入。预先选取 `x=(C_fold(2),C_fold(3),C_fold(5),C_fold(6))/C_fold(4)`；ground mass `0.15` 与 `0.45` 的特征分别为 `[2.637299,1.416397,0.838855,0.766758]` 与 `[2.705231,1.605447,0.649805,0.448293]`，`L2=0.421325`、`L∞=0.318465`，而原 scalar 差仍只有 `7.8e-16`。若两向量各自有确定性 L2 误差上界 `epsilon` 且 `2epsilon<0.421325`，这**一对**特征球不相交；报告没有给出任何物理测量噪声界。
+
+![四时间特征区分该具体谱对](anchor_scalar_multitime_20261128_v1/multitime_separation.png)
+
+文字流程：`重用两个 scalar-collision spectra -> T=16 folding -> 按 t=4 归一化四个时间特征 -> 比较向量间距 -> 此谱对可分、物理 anchor gate 仍弃权`。合成谱/特征向量分母各 `2/2/0/0`，物理 anchor 输入 `0/0/0/0`，物理 gate `1/0/0/1`；`py_compile`、脚本运行与 `10/10` artifact、`3/3` source hash 校验通过。该结果仅排除“所有多时间特征都不能区分这一个 scalar 反例”的说法，绝不证明全局识别；下一节的正多态 alias 已构造出另一个 ground mass 不同、四时间向量仍重合的谱对。
+
+### 2026-11-27 正谱多时间 alias：四个时间特征仍不识别 ground mass
+
+前一项多时间敏感度只证明给定的那一对 `m_eff(4)` 反例被特征向量分开；为检验更强的主张，新增 [`anchor_multitime_alias_diagnostic.py`](anchor_multitime_alias_diagnostic.py) 与[图文报告](anchor_multitime_alias_20261127_v1/README.md)。在 `T=16` 周期正谱核 `K(m,t)=exp(-mt)+exp(-m(16-t))` 下，第一组质量为 `[0.15,0.60,0.90,1.20]`，其 `C_fold(4)` 正贡献权重为 `[0.03,0.97/3,0.97/3,0.97/3]`；解一个“权重和为 1 + 四个时间比值相等”的五维线性系统，得到全正的第二组谱 `[0.45,0.70,1.00,1.30,1.50]`。把权重换成振幅 `A_i=w_i/K(m_i,4)` 后，两组谱均满足当前 `[0.1,3.0]` mass support，且所有振幅有限、严格为正。
+
+两组不同 ground mass（`0.15` 与 `0.45`）的 `C_fold(t)/C_fold(4)` 在 `t={2,3,5,6}` 最大差为 `1.78e-15`，生产 `anchor_scalar` 都返回 `m_eff(4)=0.9280506385`（差 `3.33e-16`）。这构成**对该四时间 map 的正谱非全局识别反例**：仅凭正振幅周期谱与 `[0.1,3.0]` 支持，既不能从单个 `m_eff(4)`，也不能从这个四维时间特征推出 ground mass。它不是物理 ensemble 测量，不说明真实谱包含这些态；也不排除在独立证明的态数、能隙、overlap/振幅约束下建立另一个受限 anchor estimator。
+
+![两组正谱的四时间特征重合、ground mass 不同](anchor_multitime_alias_20261127_v1/multitime_alias.png)
+
+文字数据流：`指定第一组正谱的 t=4 权重 -> 构造目标四时间比值 -> 解第二组谱的五个正权重 -> 检查振幅/支持及 frozen reader -> 特征残差与标量碰撞均在浮点容差内 -> anchor 认证门继续 ABSTAIN`。两组合成谱与特征分母均 `2/2/0/0`，真实 anchor 输入 `0/0/0/0`，物理 gate `1/0/0/1`；脚本 `py_compile` 与运行成功，报告含源快照/协议/CSV/图，artifact hashes `11/11`、source hashes `4/4` 均经 SHA-256 复核。下一步不要继续无约束时间点网格；应先明确可验证的谱类限制（态数、gap、overlap/support）并证明四时间 map 对该受限类的 worst-case bias，或放弃 per-state correlator Markov 均值映射，改为直接校准 candidate-blind joint PP/A4P `m*` 的 common-bias envelope。任何新校准需有噪声、拟合失败及链依赖压力场景和独立 panel；没有获准且未封存的 reference/anchor bytes 与独立 review 时，Pion 继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`、不访问 sealed split、不跑 GPU/QUDA。
