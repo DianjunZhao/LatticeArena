@@ -37,6 +37,7 @@ NOISE_FRACTION = 0.003
 SEED = 2026112712
 SOURCE_PATHS = {
     "two_sector_fit_candidate.py": REPO_ROOT / "tasks/wilson_loop/f_lane_two_sector_fit_candidate.py",
+    "npz_safety.py": REPO_ROOT / "core/npz_safety.py",
     "joint_forward_fit.py": REPO_ROOT / "tasks/wilson_loop/f_lane_joint_spectral_gls_diagnostic.py",
     "transfer_trace_reader.py": REPO_ROOT / "tasks/wilson_loop/f_lane_transfer_trace_reader.py",
     "finite_trace_toy.py": REPO_ROOT / "tasks/wilson_loop/f_lane_finite_nt_trace_diagnostic.py",

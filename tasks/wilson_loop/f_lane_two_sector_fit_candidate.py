@@ -15,6 +15,7 @@ from typing import Any
 import numpy as np
 from scipy.optimize import least_squares
 
+from core.npz_safety import validate_npz_payload
 from core.source_integrity import SourceByteSnapshot
 from . import f_lane_joint_spectral_gls_diagnostic as forward
 from .f_lane_transfer_trace_reader import (
@@ -206,6 +207,10 @@ def _validate_raw_snapshot(snapshot: SourceByteSnapshot, *, manifest_name: str,
         raise ValueError("matrix bytes do not match their captured hash")
     if matrix_hash != manifest.get("matrix_sha256"):
         raise ValueError("matrix bytes do not match the manifest hash")
+    try:
+        validate_npz_payload(matrix_bytes)
+    except ValueError as exc:
+        raise ValueError(f"two-sector NPZ preflight failed: {exc}") from exc
     try:
         archive = np.load(BytesIO(matrix_bytes), allow_pickle=False)
     except (OSError, ValueError) as exc:

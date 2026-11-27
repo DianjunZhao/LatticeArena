@@ -9,7 +9,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from core.npz_safety import validate_npz_payload
 from core.source_integrity import capture_source_snapshot
+from tasks.wilson_loop import f_lane_two_sector_fit_candidate as candidate
 from tasks.wilson_loop import f_lane_finite_nt_trace_diagnostic as toy
 from tasks.wilson_loop.f_lane_two_sector_fit_candidate import (
     RAW_MANIFEST_SCHEMA,
@@ -140,4 +142,20 @@ def test_two_sector_reader_rejects_nonhermitian_matrix_and_stale_snapshot(tmp_pa
     forged = replace(snapshot, source_bytes={**snapshot.source_bytes, "raw_matrices": corrupted})
     with pytest.raises(ValueError, match="captured hash"):
         _validate_raw_snapshot(forged, manifest_name="manifest",
+                               matrix_name="raw_matrices", contract_name="lane_contract")
+
+
+def test_two_sector_reader_checks_npz_expansion_before_numpy_load(tmp_path, monkeypatch):
+    snapshot, _ = _make_snapshot(tmp_path)
+
+    def restrictive_preflight(payload):
+        return validate_npz_payload(payload, max_uncompressed_bytes=1024)
+
+    def numpy_load_must_not_run(*args, **kwargs):
+        raise AssertionError("numpy.load ran before NPZ expansion preflight")
+
+    monkeypatch.setattr(candidate, "validate_npz_payload", restrictive_preflight)
+    monkeypatch.setattr(candidate.np, "load", numpy_load_must_not_run)
+    with pytest.raises(ValueError, match="uncompressed size limit"):
+        _validate_raw_snapshot(snapshot, manifest_name="manifest",
                                matrix_name="raw_matrices", contract_name="lane_contract")
