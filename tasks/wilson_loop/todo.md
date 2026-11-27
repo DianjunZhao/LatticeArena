@@ -854,3 +854,29 @@ source-map audit 发现 C-lane open-development generator 通过 `SourceByteSnap
 每个 panel 预期保存 raw NPZ/hash、fit-start/status/iteration/rank/condition、72 项全分母、q/h/x signed bias、逐项包含与 panel-level familywise event；图至少并列五 strata 的 familywise Wilson 区间和按 panel 聚类的 pointwise 区间，并标 95%/97.5% nominal line。文字流：`固定五类 truth/noise -> disjoint seeds -> 5×12 raw panels -> same-snapshot 2×2 fit -> 72 q/h/x intervals + P/V/F/A -> panel-cluster coverage / familywise Wilson + condition-number plot -> diagnostic-only`。任何屏幕图只用于定位额外失效机制；不能替代前一节 `n=606、至少588 successes/stratum` 的确认精度设计。
 
 运行成本先用已存 open synthetic `panel_000` 单次完整三起点 fit 作了一次纯计时复核：`4.1325 s`，rank `45/45`。按此速率，`5×606=3,030` 个 panel 的完整设计约 `3.48 h`，还未计 source snapshot、绘图与高失败成本；`5×12=60` 个初筛约 `4.1 min`，也只是近似预算，不是当前报告中的已运行结果。因此本节只冻结新设置与停止规则，没有生成 panels；下一步实现可审 runner 后，先跑这 60 个 screening panels，若其方法结论不改变且完整面板成本/失败率过高，就停止并等待独立 review，而不声称 coverage calibration。所有工作仍仅 synthetic CPU；生产 raw `C_ij`、exporter convention、matched-`N_t=32` thermal/mixed receipt、force/reference error budget 与授权缺口不变，C finite-`T` Creutz lane 与 F ground-state force lane 保持分离，`NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`、sealed split closed，不启动 GPU/QUDA。
+
+### 2026-11-28 五 strata F-lane synthetic screen 已运行：q delta family 全格 no-go
+
+完成上节 runner [`f_lane_two_sector_multistratum_screen.py`](f_lane_two_sector_multistratum_screen.py)，冻结参数见 [`protocol.json`](f_lane_two_sector_multistratum_screen_20261128_v1/protocol.json)，逐项结果与图文见[报告](f_lane_two_sector_multistratum_screen_20261128_v1/README.md)。基础 omitted-coverage generator 加入可选 stationary AR(1) 与 `T` 分层噪声尺度；原 iid 默认分支保留原随机数 draw 顺序。新 runner 临时变换 truth 后在 `finally` 中恢复模块全局，不改原始 spectrum 常量；每格使用 `2026112900 + 100*stratum_index + panel_index`，共 60 个独立 panel，明确标注 `SYNTHETIC_SCREENING_ONLY_NOT_CALIBRATION`。
+
+**分母与共同方法：**拟合 `60/60/0/0` 有效/失败/弃权/计划，均为 Jacobian rank `45/45`；q/h/x interval cell `4320/4320/0/0`；raw matrix SHA-256 `60/60` 唯一；五格每格拟合 `12/12`、interval `864/864`。共同规则仍是 `2×2` full-covariance GLS、25% diagonal shrinkage、relative eigenvalue floor `1e-10`、3 starts、72 项 Bonferroni-72 family 95% upper。五格的 familywise 成功均 `0/12`，每格 Wilson 95% MC 区间 `[0.000,0.242]`；小 `n=12` 下该区间很宽，不能把观测到的零次成功解读为真实覆盖率为零。
+
+| stratum | panel-cluster pointwise coverage `q/h/x` | median / max Jacobian condition |
+|---|---|---|
+| S1 强化遗漏静态态 overlap | `0.083 / 0.962 / 0.931` | `1.06e4 / 1.06e9` |
+| S2 近简并静态激发 | `0.014 / 1.000 / 0.993` | `3.42e3 / 1.10e4` |
+| S3 operator-2 弱 ground overlap | `0.271 / 1.000 / 0.986` | `8.70e3 / 7.51e4` |
+| S4 遗漏第三 vacuum | `0.215 / 0.896 / 0.958` | `1.79e4 / 1.63e5` |
+| S5 AR(1) + unequal variance | `0.174 / 0.927 / 0.934` | `1.95e4 / 8.64e8` |
+
+![五 strata 覆盖区间与聚类点态结果](f_lane_two_sector_multistratum_screen_20261128_v1/screening_coverage.png)
+
+![拟合条件数按 strata 展示](f_lane_two_sector_multistratum_screen_20261128_v1/condition_numbers.png)
+
+![q/h/x signed bias 按 panel 聚类](f_lane_two_sector_multistratum_screen_20261128_v1/signed_bias_by_stratum.png)
+
+**诊断读法：**q 是五格共同弱点，pointwise cluster mean 为 `0.014–0.271`；h/x 较高，但若干格仍低于 pointwise nominal 97.5%，因此没有一格达到 Bonferroni family event。S1/S2 的 q 覆盖尤其低；S2 条件数并没有上升到最高，提示单看 optimizer condition 不能解释漏态 q 失效。S4 的 h 覆盖降到 `0.896`，与遗漏 vacuum sector 对有限-$N_t$ thermal/mixed 项的压力方向一致。S5 的 q 覆盖仍只有 `0.174`。S3 valid-cell mean signed bias 为 `q/h/x=(0.425,0.106,0.466)`，而 median 分别约 `(-0.0035,0.0025,0.0020)`；最大绝对误差达 `q=7.66, h=2.77, x=8.68`，说明少量弱 overlap panel 出现重尾/比值失控。S1 与 S5 虽全部 full-rank/fit-valid，最大条件数仍分别达 `1.06e9/8.64e8`；“优化器成功”不足以作为数值稳定证据。以上只定位合成机制，不确定哪个新 interval 有效，也不允许据此调 shrinkage 或改 family rule。
+
+文字流程：`协议固定五类 truth/noise -> disjoint seeds -> 60 份 raw Hermitian NPZ + source/input hashes -> 同一 2×2 GLS -> 每 panel 保留 rank/condition/starts/72 cells -> 按 panel 聚类的 q/h/x 区间 + familywise Wilson + signed bias 图 -> F gate abstain`。测试 `tests/test_wilson_f_lane_multistratum_screen.py` 与 source-map 回归 **9 passed**；随后当前 PR #6 worktree 完整 `python -m pytest -q tests` **482 passed in 76.57 s**；`py_compile`、`git diff --check` 通过。报告共 264 个 artifact entries，所有 root hashes 匹配；每个 child report 各 16/16 source hashes 匹配。报告文件约 14.2 MB，内含 60 份 raw NPZ。没有使用真实 `C_ij`、GPU/QUDA 或 sealed split。
+
+**后续边界：**该 screening objective 已完成，保留 606/588 的 confirmatory 样本量门槛；不因这 60 个 panel 重复扫描或调参。按既有单 panel 计时，`5×606` 约 3.48 小时，必须等统计 reviewer 确认是否值得投入后再跑，且它也只能给 synthetic coverage，不闭合物理 F gate。production source/exporter convention、matched-`N_t=32` thermal/mixed receipts、reference force/error budget、授权与独立 review 仍缺；C lane finite-$T$ Creutz 与 F lane ground-state force 继续分开，production denominator `0/0/0/0`、certification gate `1/0/0/1`、`NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 不变。

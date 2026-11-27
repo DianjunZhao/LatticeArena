@@ -47,6 +47,8 @@ SOURCE_PATHS = {
     "two_sector_gls_diagnostic.py": TASK_DIR / "f_lane_two_sector_gls_diagnostic.py",
     "two_sector_omitted_state_diagnostic.py": TASK_DIR / "f_lane_two_sector_omitted_state_diagnostic.py",
     "two_sector_omitted_coverage_diagnostic.py": Path(__file__),
+    "two_sector_multistratum_screen.py": TASK_DIR / "f_lane_two_sector_multistratum_screen.py",
+    "two_sector_multistratum_screen_protocol.json": TASK_DIR / "f_lane_two_sector_multistratum_screen_protocol.json",
     "joint_forward_fit.py": TASK_DIR / "f_lane_joint_spectral_gls_diagnostic.py",
     "transfer_trace_reader.py": TASK_DIR / "f_lane_transfer_trace_reader.py",
     "finite_trace_toy.py": TASK_DIR / "f_lane_finite_nt_trace_diagnostic.py",
@@ -75,9 +77,32 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         writer.writerows(rows)
 
 
-def _generate_matrices(seed: int) -> np.ndarray:
-    """Draw one independent 96-block panel from the frozen 2x3 truth."""
+def _hermitian_noise(rng: np.random.Generator) -> np.ndarray:
+    raw = rng.normal(size=(3, 3)) + 1j * rng.normal(size=(3, 3))
+    noise = 0.5 * (raw + raw.conj().T)
+    noise[np.diag_indices(3)] = rng.normal(size=3)
+    return noise
+
+
+def _generate_matrices(seed: int, noise_spec: dict[str, Any] | None = None) -> np.ndarray:
+    """Draw one independent 96-block panel from the current synthetic truth."""
     rng = np.random.default_rng(seed)
+    noise_spec = noise_spec or {"model": "iid_gaussian", "scale_by_T": {}}
+    model = noise_spec.get("model", "iid_gaussian")
+    if model not in {"iid_gaussian", "stationary_ar1"}:
+        raise ValueError("noise model must be iid_gaussian or stationary_ar1")
+    rho = noise_spec.get("rho", 0.0)
+    if (isinstance(rho, bool) or not isinstance(rho, (int, float))
+            or not np.isfinite(rho) or not 0 <= rho < 1):
+        raise ValueError("noise rho must be finite and satisfy 0 <= rho < 1")
+    scale_by_t = noise_spec.get("scale_by_T", {})
+    if not isinstance(scale_by_t, dict):
+        raise ValueError("scale_by_T must map time extents to positive scales")
+    for time, scale in scale_by_t.items():
+        if (str(time) not in {str(value) for value in T_VALUES}
+                or isinstance(scale, bool) or not isinstance(scale, (int, float))
+                or not np.isfinite(scale) or scale <= 0):
+            raise ValueError("scale_by_T contains an invalid time extent or scale")
     matrices = np.empty((N_BLOCKS, len(NT_VALUES), len(R_VALUES), len(T_VALUES), 3, 3),
                         dtype=np.complex128)
     for radius_index, radius in enumerate(R_VALUES):
@@ -92,12 +117,29 @@ def _generate_matrices(seed: int) -> np.ndarray:
                 ) / partition
                 mean = np.einsum("mn,mni,mnj->ij", weights, amplitudes,
                                  amplitudes.conj(), optimize=True)
-                sigma = max(float(np.max(np.abs(mean))) * NOISE_FRACTION, 1e-9)
-                for block in range(N_BLOCKS):
-                    raw = rng.normal(size=(3, 3)) + 1j * rng.normal(size=(3, 3))
-                    noise = 0.5 * (raw + raw.conj().T)
-                    noise[np.diag_indices(3)] = rng.normal(size=3)
-                    matrices[block, nt_index, radius_index, time_index] = mean + sigma * noise
+                time_scale = float(scale_by_t.get(str(time_extent), 1.0))
+                sigma = max(float(np.max(np.abs(mean))) * NOISE_FRACTION * time_scale, 1e-9)
+                if model == "iid_gaussian":
+                    # Preserve the legacy draw order for the original report.
+                    for block in range(N_BLOCKS):
+                        raw = rng.normal(size=(3, 3)) + 1j * rng.normal(size=(3, 3))
+                        noise = 0.5 * (raw + raw.conj().T)
+                        noise[np.diag_indices(3)] = rng.normal(size=3)
+                        matrices[block, nt_index, radius_index, time_index] = mean + sigma * noise
+                else:
+                    innovations = []
+                    for _ in range(N_BLOCKS):
+                        raw = rng.normal(size=(3, 3)) + 1j * rng.normal(size=(3, 3))
+                        noise = 0.5 * (raw + raw.conj().T)
+                        noise[np.diag_indices(3)] = rng.normal(size=3)
+                        innovations.append(noise)
+                    sequence = np.empty((N_BLOCKS, 3, 3), dtype=np.complex128)
+                    sequence[0] = innovations[0]
+                    innovation_scale = np.sqrt(1.0 - float(rho) ** 2)
+                    for block in range(1, N_BLOCKS):
+                        sequence[block] = (float(rho) * sequence[block - 1]
+                                           + innovation_scale * innovations[block])
+                    matrices[:, nt_index, radius_index, time_index] = mean + sigma * sequence
     return matrices
 
 
@@ -151,8 +193,10 @@ def _panel_source_paths(report_root: Path, panel_dir: Path):
 
 
 def _save_panel_input(report_root: Path, panel_dir: Path, panel_index: int, seed: int,
-                      source_payloads: dict[str, bytes]):
-    matrices = _generate_matrices(seed)
+                      source_payloads: dict[str, bytes],
+                      noise_spec: dict[str, Any] | None = None,
+                      split_prefix: str = "omitted-state"):
+    matrices = _generate_matrices(seed, noise_spec)
     stream = BytesIO()
     np.savez_compressed(
         stream, schema=np.asarray(RAW_SCHEMA), block_ids=np.arange(N_BLOCKS),
@@ -163,7 +207,7 @@ def _save_panel_input(report_root: Path, panel_dir: Path, panel_index: int, seed
     contract_bytes = source_payloads["lane_contract_v2.json"]
     manifest = {
         "schema": RAW_MANIFEST_SCHEMA,
-        "split_id": f"F-synthetic-open-calibration-omitted-state-{panel_index:03d}",
+        "split_id": f"F-synthetic-open-screen-{split_prefix}-{panel_index:03d}",
         "geometry": "S16T16", "action": "wilson_gauge_beta6",
         "boundary_conditions": "periodic", "radius_order": list(R_VALUES),
         "temporal_extents": list(NT_VALUES), "time_slices": list(T_VALUES),
@@ -211,9 +255,9 @@ def _plot(output: Path, rows: list[dict[str, Any]], panels: list[dict[str, Any]]
         axis.scatter(indices, [row["estimate"] - row["truth"] for row in term_rows],
                      s=11, alpha=0.55, color=colors[term], label=f"{term.upper()} estimate − truth")
     axes[0].axhline(0, color="black", linewidth=0.8)
-    axes[0].set_title("Repeated 2×3 truth / 2×2 fit: bias by panel-cell")
+    axes[0].set_title("Signed q/h/x bias across panel-cells")
     axes[0].set_xlabel("panel-cell index (panels grouped in order)")
-    axes[0].set_ylabel("estimate − exact 2×3 truth")
+    axes[0].set_ylabel("estimate − exact scenario truth")
     axes[0].legend(fontsize=8, loc="best")
     term_labels = [term.upper() for term in TERMS] + ["all 72 in panel"]
     rates = [summary["coverage"]["pointwise_by_term"][term]["cluster_mean"] for term in TERMS]
@@ -234,11 +278,12 @@ def _plot(output: Path, rows: list[dict[str, Any]], panels: list[dict[str, Any]]
                     label="familywise nominal 95%")
     axes[1].set_xticks(np.arange(4), term_labels)
     axes[1].set_ylim(0, 1.03)
-    axes[1].set_title("Coverage (panel-cluster intervals / Wilson family CI)")
+    axes[1].set_title("Pointwise and familywise containment")
     axes[1].set_ylabel("fraction containing exact truth")
     axes[1].grid(axis="y", alpha=0.2)
     axes[1].legend(fontsize=8, loc="lower left")
-    fig.suptitle("F-lane repeated-panel omitted-state calibration · synthetic only")
+    stratum = summary.get("report_metadata", {}).get("stratum_id", "omitted-state screen")
+    fig.suptitle(f"F-lane repeated-panel diagnostic · {stratum}")
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(output / "repeated_panel_coverage.png", dpi=180)
     plt.close(fig)
@@ -256,12 +301,18 @@ def _artifact_hashes(output: Path):
 
 
 def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
-          resume: bool = False):
+          resume: bool = False, *, seed_base: int = SEED_BASE,
+          noise_spec: dict[str, Any] | None = None,
+          report_metadata: dict[str, Any] | None = None):
     out = Path(output)
     if out.exists() and not resume:
         raise FileExistsError(f"refusing to overwrite existing report: {out}")
     if isinstance(n_panels, bool) or not isinstance(n_panels, int) or n_panels < 2:
         raise ValueError("n_panels must be an integer >= 2")
+    if isinstance(seed_base, bool) or not isinstance(seed_base, int) or seed_base < 0:
+        raise ValueError("seed_base must be a nonnegative integer")
+    noise_spec = noise_spec or {"model": "iid_gaussian", "scale_by_T": {}}
+    report_metadata = dict(report_metadata or {})
     source_payloads = {name: path.read_bytes() for name, path in SOURCE_PATHS.items()}
     source_hashes = {name: _sha(payload) for name, payload in source_payloads.items()}
     if out.exists():
@@ -270,9 +321,8 @@ def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
             progress = json.loads(progress_path.read_text(encoding="utf-8"))
             if progress.get("planned_panels") != n_panels:
                 raise ValueError("resume panel count differs from the existing run")
-        elif not all((out / "panels" / f"panel_{index:03d}" / "raw_matrices.npz").is_file()
-                     for index in range(n_panels)):
-            raise ValueError("resume requires progress.json or a complete saved panel input set")
+        # With no progress receipt, resume may still complete deterministic
+        # inputs left between panel creation and the first completed fit.
     else:
         out.mkdir(parents=True)
     panel_root = out / "panels"
@@ -298,13 +348,18 @@ def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
     run_rows: list[dict[str, Any]] = []
     fit_attempt_rows: list[dict[str, Any]] = []
     for panel_index in range(n_panels):
-        seed = SEED_BASE + panel_index
+        seed = seed_base + panel_index
         panel_dir = panel_root / f"panel_{panel_index:03d}"
-        if resume:
+        if (resume and (panel_dir / "manifest.json").is_file()
+                and (panel_dir / "raw_matrices.npz").is_file()):
             snapshot, input_hashes = _load_panel_input(out, panel_dir)
         else:
-            panel_dir.mkdir()
-            snapshot, input_hashes = _save_panel_input(out, panel_dir, panel_index, seed, source_payloads)
+            panel_dir.mkdir(exist_ok=True)
+            snapshot, input_hashes = _save_panel_input(
+                out, panel_dir, panel_index, seed, source_payloads,
+                noise_spec=noise_spec,
+                split_prefix=str(report_metadata.get("split_prefix", "omitted-state")),
+            )
         fit = fit_two_sector_snapshot(snapshot, objective_mode="regularized_full_covariance")
         for start_index, attempt in enumerate(fit.get("fit_attempts", [])):
             fit_attempt_rows.append({
@@ -383,21 +438,30 @@ def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
     pooled_total = len(cell_rows)
     family_success = sum(row["familywise_bonferroni72_contains"] for row in run_rows)
     fit_success = sum(row["fit_valid"] for row in run_rows)
+    classification = str(report_metadata.get(
+        "classification", "SYNTHETIC_REPEATED_PANEL_COVERAGE_UNDER_ONE_MISSPECIFIED_DGP"))
+    truth_description = str(report_metadata.get(
+        "truth", "2 vacuum x 3 static states; fit fixed at 2 x 2"))
+    fit_description = str(report_metadata.get("fit_model", "2 vacuum x 2 static"))
+    seed_rule = str(report_metadata.get(
+        "seed_rule", f"numpy default_rng({seed_base} + panel_index)"))
     summary = {
         "schema": "wilson-f-two-sector-omitted-coverage-summary-v1",
-        "classification": "SYNTHETIC_REPEATED_PANEL_COVERAGE_UNDER_ONE_MISSPECIFIED_DGP",
+        "classification": classification,
         "physical_score": None, "certified": False,
         "f_lane_status": "GROUND_STATE_FORCE_UNCERTIFIED",
         "physical_measurements": {"planned": 0, "valid": 0, "failed": 0, "abstained": 0},
         "certification_gate": {"planned": 1, "valid": 0, "failed": 0, "abstained": 1},
         "generator": {
-            "truth": "2 vacuum x 3 static states; fit fixed at 2 x 2",
+            "truth": truth_description,
             "panels": n_panels, "blocks_per_panel": N_BLOCKS,
             "relative_noise": NOISE_FRACTION,
-            "seed_rule": f"numpy default_rng({SEED_BASE} + panel_index)",
-            "panel_independence": "fresh independent Gaussian blocks and RNG stream per panel; one fixed covariance/truth design",
+            "seed_rule": seed_rule,
+            "noise_model": noise_spec,
+            "panel_independence": "fresh independent RNG stream per panel; blocks follow the declared within-panel noise model",
         },
         "fit": {
+            "model": fit_description,
             "method": "regularized full-covariance GLS; q/h/x finite-difference delta normal uppers",
             "covariance_shrinkage": candidate.GLS_DIAGONAL_SHRINKAGE,
             "covariance_eigenvalue_floor_relative": candidate.GLS_EIGENVALUE_FLOOR_RELATIVE,
@@ -453,13 +517,17 @@ def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
             "small number of independent panels gives wide Monte Carlo intervals",
             "production correlators, exporter convention, matched-Nt thermal/mixed receipts, force/reference uncertainty and independent review absent",
         ],
+        "report_metadata": report_metadata,
     }
+    if report_metadata.get("open_gates") is not None:
+        summary["open_gates"] = list(report_metadata["open_gates"])
     (out / "summary.json").write_bytes(_json_bytes(summary))
     protocol = {
         "schema": "wilson-f-two-sector-omitted-coverage-protocol-v1",
         "classification": summary["classification"],
         "source_hashes": source_hashes,
         "generator": summary["generator"], "fit": summary["fit"],
+        "report_metadata": report_metadata,
         "seed_manifest": [{"panel": row["panel"], "seed": row["seed"],
                             "matrix_sha256": row["input_matrix_sha256"]}
                            for row in run_rows],
@@ -475,13 +543,13 @@ def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
         (source_dir / name).write_bytes(payload)
     _plot(out, cell_rows, run_rows, summary)
     readme = [
-        "# Wilson F lane: repeated omitted-state coverage stress",
+        "# Wilson F lane: repeated-panel coverage diagnostic",
         "",
-        "**Status:** diagnostic-only repeated-sampling calibration under one synthetic, deliberately misspecified generator. This is not a physical Wilson measurement or certification; `physical_score=null`, F remains `GROUND_STATE_FORCE_UNCERTIFIED`.",
+        f"**Status:** `{classification}`. This is not a physical Wilson measurement or certification; `physical_score=null`, F remains `GROUND_STATE_FORCE_UNCERTIFIED`.",
         "",
         "## Frozen design and result",
         "",
-        f"- `{n_panels}` independent synthetic panels, `{N_BLOCKS}` Gaussian blocks per panel, fixed 2-vacuum × 3-static truth and fixed 2 × 2 fitted model; relative noise `{NOISE_FRACTION}`; seed rule `{SEED_BASE}+panel_index`.",
+        f"- `{n_panels}` independent synthetic panels, `{N_BLOCKS}` blocks per panel; truth: `{truth_description}`; fit: `{fit_description}`; relative noise `{NOISE_FRACTION}`; noise model `{noise_spec}`; seed rule `{seed_rule}`.",
         "- Every panel uses the same regularized full-covariance GLS and finite-difference delta intervals: one-sided 97.5% pointwise, plus Bonferroni-72 familywise upper bounds. No interval/shrinkage/window was tuned on these panels.",
         f"- Fit denominator: `{fit_success}/{n_panels}` valid, `{n_panels-fit_success}` failed; q/h/x planned cells `{len(cell_rows)}`. Unique matrix hashes: `{summary['denominators']['unique_panel_matrix_hashes']}/{n_panels}`.",
         f"- Pointwise pooled descriptive containment: `{pooled_success}/{pooled_total} = {pooled_success/pooled_total:.3f}`; interpret with the panel-cluster term means and intervals in the summary because cells within a fit are correlated.",
@@ -492,14 +560,14 @@ def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
         "## Data flow",
         "",
         "```text",
-        "freeze 2x3 truth + 2x2 fit + interval rule -> independent seed per panel -> write and hash raw matrix snapshot -> same GLS fit -> compare all 72 q/h/x upper bounds to exact 2x3 truth -> panel-cluster coverage and failure ledger -> physical F gate abstains",
+        "freeze scenario truth/noise + 2x2 fit + interval rule -> disjoint seed per panel -> write and hash raw matrix snapshot -> same GLS fit -> compare all 72 q/h/x upper bounds to exact scenario truth -> panel-cluster coverage and failure ledger -> physical F gate abstains",
         "```",
         "",
         "## Interpretation and limits",
         "",
-        "The repeated panels estimate coverage only for this fixed omitted-third-static-state design and noise model. The fit-model misspecification is intentional, so poor coverage means the fixed 2x2 delta rule is not robust to this tested truncation; it does not identify which alternative interval is valid. The number of independent panels is small for tight Monte Carlo conclusions; cells are clustered by panel and the familywise event is the independent-panel unit.",
+        str(report_metadata.get("interpretation", "The repeated panels estimate coverage only for this fixed synthetic design and noise model. The number of independent panels is small for tight Monte Carlo conclusions; cells are clustered by panel and the familywise event is the independent-panel unit.")),
         "",
-        "The source/NPZ snapshots, fit-start ledger, panel/cell CSVs, protocol, PNG and hashes are retained; full parameter vectors are omitted because the raw inputs and derived coverage cells are sufficient to replay and inspect this diagnostic. Open items include near-degenerate and weak-ground-overlap strata, omitted vacuum states, correlated/unequal-covariance noise, larger independent validation panels, third-state/profile/bootstrap recovery, and physical source/exporter/thermal/mixed/force receipts plus independent review. No GPU/QUDA or sealed data were used.",
+        "The source/NPZ snapshots, fit-start ledger, panel/cell CSVs, protocol, PNG and hashes are retained; full parameter vectors are omitted because the raw inputs and derived coverage cells are sufficient to replay and inspect this diagnostic. Synthetic CPU screening does not validate physical source/exporter/thermal/mixed/force receipts. No GPU/QUDA or sealed data were used.",
     ]
     (out / "README.md").write_text("\n".join(readme) + "\n", encoding="utf-8")
     (out / "fit_results.json").unlink(missing_ok=True)
