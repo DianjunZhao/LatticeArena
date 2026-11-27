@@ -7,6 +7,7 @@ import pytest
 
 from core.io import digest, fingerprint, write_json
 from tasks.pion_projection.__main__ import main
+from tasks.pion_projection import common
 from tasks.pion_projection.common import protocol
 from tasks.pion_projection.spec import bundle_for, operator_contract_for, task_spec_for
 from tasks.pion_projection.statistics import shape
@@ -84,6 +85,33 @@ def test_pion_measurement_bundle_checks_split_identity(tmp_path):
     np.savez(z, **dict(values, ids=values['ids'][::-1]))
     with pytest.raises(ValueError, match='reordered'):
         bundle_for(tmp_path)
+
+
+def test_path_measurement_reader_preflights_npz_before_numpy_load(tmp_path, monkeypatch):
+    (tmp_path / 'development.npz').write_bytes(b'captured only for preflight test')
+
+    def reject_payload(_payload):
+        raise ValueError('NPZ preflight stopped before allocation')
+
+    def numpy_load_must_not_run(*args, **kwargs):
+        raise AssertionError('numpy.load ran before NPZ preflight')
+
+    monkeypatch.setattr(common, 'validate_npz_payload', reject_payload)
+    monkeypatch.setattr(common.np, 'load', numpy_load_must_not_run)
+    with pytest.raises(ValueError, match='NPZ preflight stopped before allocation'):
+        common.load_data(tmp_path, 'development', protocol())
+
+
+def test_path_measurement_reader_bounds_compressed_bytes_before_npz_preflight(tmp_path, monkeypatch):
+    (tmp_path / 'development.npz').write_bytes(b'x' * 64)
+    monkeypatch.setattr(common, '_MAX_COMPRESSED_NPZ_BYTES', 8)
+
+    def npz_preflight_must_not_run(_payload):
+        raise AssertionError('NPZ parser ran before compressed-size rejection')
+
+    monkeypatch.setattr(common, 'validate_npz_payload', npz_preflight_must_not_run)
+    with pytest.raises(ValueError, match='NPZ compressed size limit exceeded'):
+        common.load_data(tmp_path, 'development', protocol())
 
 
 def test_report_cli_uses_recorded_risk(tmp_path, monkeypatch):

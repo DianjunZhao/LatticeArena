@@ -596,3 +596,9 @@ m_eff(4) = acosh((C_fold(3)+C_fold(5))/(2 C_fold(4))),  T=16
 source-root 入口先按明示 hash/path 捕获每个 route 的 bytes，之后把捕获的 `SourceByteSnapshot` 同时交给 common-bias claim reader 和原子 bundle gate；snapshot 入口直接交付同一种 snapshot。对 hash mismatch、缺项、非法 map 或 receipt 内部链接不一致，两路都不能把 `statistical` 推过 `abstained`，且均保持 `physical_score=null`。错误类别/诊断文字会因失败发生在参数预检、byte capture 或 receipt parse 而不同；“终态相同”不代表所有返回 JSON 逐字段相同。有效 bytes 也至多进入 `draft`，不会认证授权、reviewer 身份、链独立性或 `C/R` 的物理正确性。
 
 文字流程：`protocol + TaskSpec dependency hashes -> development bundle/frozen fingerprint -> evaluate/candidate stale-source preflight -> score/anchor source-root capture OR pre-captured snapshots -> same snapshot common-bias parse + atomic evidence gate -> draft or abstain; physical_score=null`。本项是源码级自审，不是独立 reviewer，也没有新增或重跑测试；结论只覆盖当前 tracked implementation。后续不再扩充同类 schema/hash 夹具。Pion 的唯一实质剩余项仍是获准且未封存的 candidate-blind E-reference、anchor scalar/map/support、score/anchor dependence 与独立性 receipts、可审的 `C/R` bias bridge 以及独立物理/统计 review；缺任一项就保持 `NOT_READY/UNCERTIFIED`、sealed inputs closed，不运行 GPU/QUDA。
+
+### 2026-11-27 Pion path reader 的 NPZ 资源上限
+
+跨任务盘点发现 snapshot 形式的 Pion NPZ reader 已调用 `core.npz_safety`，但兼容用的 path 形式仍直接把路径传给 `numpy.load`。现在 path reader 对同一份捕获字节先执行 64 MiB 压缩文件上限，再运行共享 NPZ header/解压大小预检，并只从该字节缓冲读取，避免完整读入超限压缩包或在检查后重开文件。TaskSpec 已包含 `common.py` 与 `core/npz_safety.py` 指纹，因此此行为变化会使旧冻结 submission 失效。
+
+文字流程：`path -> bounded one-pass bytes (<=64 MiB) -> NPZ expanded-size/header preflight -> numpy.load(BytesIO(captured bytes)) -> IDs/protocol/shape/finite checks`。两个定向回归分别验证预算前置与 NPZ 预检先于 `numpy.load`；`tests/test_pion_agent.py tests/test_pion_source_snapshot_reader.py` **13 passed**。这只关闭 path parser 的资源保护缺口；path 兼容入口仍需服从各自 split/授权规则，不能由此打开 sealed data 或升级 evidence。未读物理文件、不运行 GPU/QUDA，Pion 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
