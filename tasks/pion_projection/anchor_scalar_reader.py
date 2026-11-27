@@ -69,10 +69,20 @@ def fold_pp_even(correlators: object) -> np.ndarray:
     if (values.ndim < 1 or values.shape[-1] != TEMPORAL_EXTENT
             or values.dtype.kind != "f" or not np.all(np.isfinite(values))):
         raise ValueError("anchor PP correlators must be finite real T=16 arrays")
+    reflected_pairs = []
+    for time in range(1, TEMPORAL_EXTENT // 2):
+        left, right = values[..., time], values[..., TEMPORAL_EXTENT - time]
+        same_sign = np.signbit(left) == np.signbit(right)
+        # Use the difference form for same-sign values and the sum form for
+        # opposite-sign values, so neither branch overflows before averaging.
+        with np.errstate(over="ignore", invalid="ignore", under="ignore"):
+            same_sign_average = left + 0.5 * (right - left)
+            opposite_sign_average = 0.5 * (left + right)
+        reflected_pairs.append(np.where(same_sign, same_sign_average,
+                                        opposite_sign_average))
     return np.stack(
         [values[..., 0]]
-        + [0.5 * (values[..., t] + values[..., TEMPORAL_EXTENT - t])
-           for t in range(1, TEMPORAL_EXTENT // 2)]
+        + reflected_pairs
         + [values[..., TEMPORAL_EXTENT // 2]], axis=-1,
     )
 
@@ -85,7 +95,12 @@ def anchor_scalar(correlator: object) -> float:
     c3, c4, c5 = (float(folded[t]) for t in (3, 4, 5))
     if not all(np.isfinite(value) for value in (c3, c4, c5)) or c4 <= 0:
         raise ValueError("anchor scalar denominator is non-positive or non-finite")
-    argument = (c3 + c5) / (2.0 * c4)
+    scale = max(abs(c3), abs(c4), abs(c5))
+    scaled_c3, scaled_c4, scaled_c5 = c3 / scale, c4 / scale, c5 / scale
+    scaled_denominator = 2.0 * scaled_c4
+    if scaled_denominator <= 0:
+        raise ValueError("anchor scalar denominator is numerically unresolved")
+    argument = (scaled_c3 + scaled_c5) / scaled_denominator
     if not np.isfinite(argument) or argument < 1.0:
         raise ValueError("anchor scalar cosh argument is below one or non-finite")
     value = float(np.arccosh(argument))

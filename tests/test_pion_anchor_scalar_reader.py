@@ -118,3 +118,19 @@ def test_snapshot_reader_rejects_sealed_split_and_complex_correlators(tmp_path):
 def test_scalar_map_rejects_invalid_support_or_denominator(bad):
     with pytest.raises(ValueError):
         anchor_scalar(bad)
+
+
+@pytest.mark.parametrize(("amplitude", "tolerance"), [
+    (1e308, 1e-12),
+    # At subnormal scale the input itself has only a few relative bits.
+    (1e-320, 7e-4),
+])
+def test_scalar_map_is_stable_under_extreme_common_correlator_scale(amplitude, tolerance):
+    mass = 0.2
+    correlator = np.zeros(16, dtype=np.float64)
+    for time in (3, 4, 5):
+        value = amplitude * np.cosh(mass * (8 - time))
+        correlator[time] = value
+        correlator[16 - time] = value
+
+    assert anchor_scalar(correlator) == pytest.approx(mass, abs=tolerance)

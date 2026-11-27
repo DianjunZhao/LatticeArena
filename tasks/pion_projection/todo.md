@@ -681,3 +681,9 @@ max(|g(x)-0.15|, |g(x)-0.45|) >= 0.30/2 = 0.15 a_t m_pi
 更诚实的稳健报告可改为部分识别集合 `M(x)={m_*: 存在满足 support/正谱条件且产生 x 的谱}`，再对 `m_*∈M(x)` 给 risk/排序上下界；本碰撞至少要求该集合直径 `>=0.30 a_t m_pi`，所以单值公共偏差半径仍至少 `0.15`，已高于预算 `0.029`。集合值输出可展示不确定性和“排序对所有可行 anchor 是否不变”，但不能伪装成已通过的标量 physical score。若要继续缩窄集合，必须引入经独立证明的态数/gap/overlap 限制或新的 candidate-blind PP/A4P reference bridge；不再增加同类无约束谱构造。
 
 文字流程：`已存四时间特征 x -> admissible M(x) 至少含 0.15 与 0.45 -> diam(M)>=0.30 -> 点值 minimax 误差>=0.15 -> C/R 下限 0.051724 超过 0.01 -> 物理 anchor 继续 ABSTAIN；可选输出 M(x) 的风险/排序区间`。该推论仅重用已封存的合成代数报告，没有读数据或重跑脚本；仍需独立 reviewer 审核 target-identification 前提，并在获准输入上验证任何集合值 risk reducer。`NOT_READY/UNCERTIFIED`、`physical_score=null` 与 sealed inputs closed 不变。
+
+### 2026-11-28 anchor scalar 的共同振幅数值稳定性
+
+审计固定 `m_eff(4)` reader 时发现一个纯数值实现缺口：数学映射在 `C(t) -> a C(t)`（`a>0`）下不变，但直接计算 `0.5*(C(t)+C(T-t))` 会让两个有限大反射项先溢出，随后 `(C3+C5)/(2*C4)` 也可能出现 `inf/inf`。现将同号反射均值改为差值形式、异号用求和形式，并先对 `(C3,C4,C5)` 作共同缩放再求 cosh 比值；显式负/非有限/超支持检查与 map 定义保持不变。
+
+文字诊断：`周期 cosh row, m=0.2 -> 整体振幅 a -> safe reflection fold -> common-scale ratio -> m_eff(4)`；`a=1e308` 覆盖反射相加与分子/分母溢出边界，`a=1e-320` 记录 subnormal 输入本身有限精度下的误差容限。`tests/test_pion_anchor_scalar_reader.py tests/test_pion_source_snapshot_reader.py tests/test_pion_anchor_scalar_nonidentifiability.py` **21 passed**，`git diff --check` 通过。此项只修复同一标量 map 的浮点评估，不缩小 minimax alias 集合、不提供 `C/R` bias 界、不验证 anchor-chain Markov/独立性或 target bridge；既有冻结诊断报告未重生成，避免改写其 source/artifact hashes。真实 score/anchor/reference 输入仍 `0/0/0/0`，`NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed split closed 不变。
