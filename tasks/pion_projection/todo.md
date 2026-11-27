@@ -1,6 +1,6 @@
 # Pion projection: bounded block-risk calibration handoff
 
-### 当前控制状态（2026-11-27）
+### 当前控制状态（2026-11-28）
 
 `F=3`、bounded block-risk、score/anchor 错误预算和 Markov 覆盖路线已有明确方案及图文敏感度诊断；研究默认值已自选为 `a_t m_pi`、`R=2.9`、clip `[-1,1]`、`delta_star=0.4205`、效应门 `0.05`、score-chain `gamma_ps>=0.20`/burn-in `8`/`N=4000`/TV `<=0.001`、**anchor-chain Markov Bernstein `n_A=4000`、`gamma_A>=0.20`、burn-in `8`、TV `<=0.001`、`alpha_A=0.01`**，以及拟议 `C/R<=0.01`。选择 Markov anchor 为主路，是因为本任务的 HMC 配置不应在没有来源证明时假定为 IID；`n_A=1000` bounded-IID Hoeffding 只保留为确有 1000 个 IID stationary units 收据时的备选。候选 anchor scalar map `m_eff(4)` 有 snapshot CPU reader，但尚未独立审阅。2026-11-28 的精确无噪声反例进一步证明：仅靠该标量和 `[0.1,3.0]` support，连正两态周期 PP 子模型都无法普遍保证 `C/R<=0.01`；在当前无 gap/overlap 限制的类上 minimax `C/R>=0.051724`。故该 map 不可视作已合格，也不能靠 Markov 覆盖默认值补救；需另有可信的谱/overlap 限制，或改成信息更充分且有确定性 target bridge 的逐状态映射。通用 `core/evidence.py` schema v2 与 Pion task adapter 仍只核验 source bytes/元数据一致性，完整 statistical stage 最多到 `draft`，不认证 digest authority、reviewer 身份、统计独立性或物理有效性，也不计算物理 score。真实 score/anchor 链的 `gamma_ps`/TV、E-reference、可接受 map/common-bias `C` 收据仍缺。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`；按用户要求，E/gap/validation/shared holdout/confirmation 保持封存，不启动 GPU/QUDA。
 
@@ -618,3 +618,27 @@ source-root 入口先按明示 hash/path 捕获每个 route 的 bytes，之后�
 文字流程：`固定 m_eff(4)=0.50 -> 解析求出两个正 overlap 双态谱 -> 调实际 reader 验证相同输出 -> 目标 ground mass 分离 0.30 -> minimax 误差至少 0.15 > 0.029 -> 拒绝仅凭 map/support 声称 C/R<=0.01 -> anchor gate 保持 ABSTAIN`。这是一条方法类 no-go 结果，不证明真实 ensemble 包含这两个谱，也不是独立 reviewer 的签署或物理偏差测量。
 
 **后续决策：**不再把现有 `m_eff(4)` reader 直接送入 anchor gate，也不继续对同一标量做更多无约束 synthetic grid。独立 reviewer 应审阅上述代数和 target-identification 前提；后续要么由获准、candidate-blind inputs 及独立谱/overlap receipts 限制 admissible 模型类并重新证明 `C/R<=0.01`，要么设计使用多个预声明时间/通道特征的 per-state map，再证明其固定支持、失败口径及对冻结 joint PP/A4P `m*` 的统一 bias envelope。没有这些输入前，物理 anchor 与 common-bias bridge 仍不成立，保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed splits closed，不启动 GPU/QUDA。
+
+### 2026-11-28 为 scalar anchor 恢复可识别性所需的谱污染上界
+
+在上一节反例之后，补上一个**条件式、可证伪的充分条件**，用来明确将来需要哪种额外谱收据，而不是继续扫描 overlap。对正谱周期模型
+
+```text
+C(t) = Σ_n A_n K(m_n,t),   K(m,t)=exp(-m t)+exp(-m(16-t)),   A_n≥0
+f_4 = Σ_{n>0} A_n K(m_n,4) / C(4)
+```
+
+利用 `K(m,3)+K(m,5)=2 cosh(m) K(m,4)` 可得 `cosh(m_eff(4))=Σ_n w_n cosh(m_n)`，其中 `w_n=A_n K(m_n,4)/C(4)`。若**每一个供 anchor map 评分的独立单位**都具有该正谱表示，且事前有 `0.1≤m_0≤m_n≤3.0`、激发贡献比例 `f_4≤f_max` 的统一证明，则由均值定理
+
+```text
+0 ≤ m_eff(4)-m_0
+  ≤ f_4 [cosh(3.0)-cosh(0.1)] / sinh(0.1).
+```
+
+取 `R=2.9`、总 common-bias 预算 `C=0.01R=0.029`，如果暂时把**全部** `0.029` 都给这一项谱污染（尚未给 block-map 与 candidate-blind joint-fit `m*` 的差异预留误差），就必须有 `f_4≤3.20528×10^-4`。若为 map-to-`m*` bridge 留一半预算，谱项只可用 `C_spec=0.0145`，对应 `f_4≤1.60264×10^-4`。完整 common-bias 还必须将谱污染、block scalar 到 ensemble/joint fit 的桥、reference-fit uncertainty 等各项相加，并验证总和 `≤0.029`；不能把任一分量单独过线当作整条桥通过。
+
+这个界是充分条件且可能很保守；它没有从 `[0.1,3.0]` 输出支持推出任何 overlap，也没有给真实 correlator 估计 `f_4`。关键难点是格点路径积分平均相关函数可有正谱分解，不表示每个 gauge configuration/block 的 PP correlator 本身也有正振幅谱；而 Markov anchor 界覆盖的是 **block scalar 的均值**，一般不等于 `m_eff(E[C_block])`。因此只有 per-unit 正谱/支持/`f_4` 收据加单独的 map-to-`m*` 统一桥，或另一个直接针对 `E[m_eff(C_block)]-m*` 的证明，才能使用此上界。当前不存在这些输入，不能把数值门槛写进 contract 的已验证字段。
+
+文字流程：`逐 anchor unit 的正谱/质量上界 -> 同一 unit 的 t=4 激发权重上界 -> 传播成 |m_eff−m0| 上界 -> 分配 C_spec -> 另证 E[m0 或 map]-m* 与 reference uncertainty -> 各项误差相加 ≤0.029 才进入 anchor receipt；缺任一环则 ABSTAIN`。
+
+下一位实现者应优先审阅此不等式是否对应项目 `C_fold` 和 map 的实际 cosh convention；若通过，再决定能否从**获准且未封存**的 block correlator 提供 per-unit positivity/weight receipts。若只有 ensemble-mean correlator，应停止这条 Markov scalar 路线并转为多时间/PP+A4P joint feature map 或直接的 common-bias bridge。该解析充分条件是 data-free 公式诊断，不是覆盖测试、统计独立性、真实谱污染或独立审阅；当前 anchor map 仍未认证，物理分母保持 `0/0/0/0`，`NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。
