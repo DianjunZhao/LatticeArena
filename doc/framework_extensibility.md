@@ -434,7 +434,7 @@ Pion's path-based compatibility reader now uses the same discipline: capture bou
 A source audit found two report generators that used the shared immutable-byte
 reader without naming its implementation in their own code identity map:
 Optimize D04 MBB and Wilson C-lane development. New D04 reports now hash
-`core/source_integrity.py`; new Wilson C reports also retain those exact helper
+`core/source_integrity.py` and `core/npz_safety.py`; new Wilson C reports also retain those exact helper
 bytes and include them in the artifact manifest. Other checked report paths
 already bound the helper, including the Wilson two-sector/raw-matrix reports,
 the transfer-trace snapshot, and Pion's frozen TaskSpec dependency map.

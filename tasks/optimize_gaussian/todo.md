@@ -672,6 +672,6 @@ NPZ 共享预检器现把 ZIP 不支持的压缩方式、加密成员和损坏 D
 
 ### 2026-11-27 Optimize D04 报告补齐共享 snapshot helper 身份
 
-跨任务 source-map audit 发现，D04 MBB generator 使用 `capture_source_snapshot` 读取其输入，但当时 `_SOURCE_PATHS` 没有绑定实现该读取语义的 `core/source_integrity.py`。现将 helper 加入 report source map，并在 README 明确它属于生成报告所用源码。回归用例确认 D04 MBB source map 指向当前 tracked helper；全仓套件覆盖此测试。
+跨任务 source-map audit 发现，D04 MBB generator 使用 `capture_source_snapshot`，其 raw reader 还使用共享 NPZ 预检，但当时 `_SOURCE_PATHS` 都没有绑定这两个实现。现将 `core/source_integrity.py` 与 `core/npz_safety.py` 加入 report source map，并在 README 明确它们属于生成报告所用源码。回归用例确认 source map 指向当前 tracked helpers；全仓套件覆盖此测试。
 
-文字流程：`D04 raw reader + MBB generator + contract + test + SourceByteSnapshot helper -> source SHA map -> report README -> artifact hashes`。审计只修正未来报告的源码依赖闭包；没有重建已有 D04 MBB 产物或改写其历史 hashes。PR #6 全仓 CPU suite **448 passed in 72.71 s**。该源码身份记录不验证 E-reference 来源、D04 拟合约定、MBB 覆盖率或 candidate-blindness；真实 D04/D06/D11 gates 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed inputs closed，不运行 GPU/QUDA。
+文字流程：`D04 raw reader + MBB generator + contract + test + SourceByteSnapshot + NPZ preflight helpers -> source SHA map -> report README -> artifact hashes`。审计只修正未来报告的源码依赖闭包；没有重建已有 D04 MBB 产物或改写其历史 hashes。PR #6 全仓 CPU suite **448 passed in 72.46 s**。该源码身份记录不验证 E-reference 来源、D04 拟合约定、MBB 覆盖率或 candidate-blindness；真实 D04/D06/D11 gates 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed inputs closed，不运行 GPU/QUDA。

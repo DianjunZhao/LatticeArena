@@ -757,6 +757,6 @@ q_v(T) = Σ_{n>0} |Z_n(v0)/Z_0(v0)|² exp[-(E_n-E_0)T],  T∈{5,6}.
 
 ### 2026-11-27 Wilson C-lane 报告绑定 snapshot helper
 
-source-map audit 发现 C-lane open-development generator 通过 `SourceByteSnapshot` 读取三份输入，却未把 `core/source_integrity.py` 写入 protocol 的 `analysis_source_sha256`，也没有随报告保留 helper bytes。现加入 source hash、`snapshot_core_source_integrity.py` 和 artifact manifest 条目。 `tests/test_wilson_source_snapshot_reader.py` **3 passed**，其中生成报告测试核对 protocol digest、保存的 helper bytes 与 manifest digest 一致；PR #6 全仓 CPU suite **448 passed in 72.71 s**。
+source-map audit 发现 C-lane open-development generator 通过 `SourceByteSnapshot` 读取三份输入，却未把 `core/source_integrity.py` 写入 protocol 的 `analysis_source_sha256`，也没有随报告保留 helper bytes。现加入 source hash、`snapshot_core_source_integrity.py` 和 artifact manifest 条目。`tests/test_wilson_source_snapshot_reader.py` **3 passed**，其中生成报告测试核对 protocol digest、保存的 helper bytes 与 manifest digest 一致；PR #6 全仓 CPU suite **448 passed in 72.46 s**。
 
 文字流程：`captured development inputs -> SourceByteSnapshot implementation -> protocol source map + retained helper bytes -> report manifest -> integrity test`。这只修复后续生成报告的代码身份链；未重跑或改写旧版 C 报告，也没有新增 Wilson measurement、独立 dependence/coverage receipt 或 F-lane contamination evidence。C 仍是 finite-`T` Creutz，F 仍是 ground-state static force；两条 lane 保持分开及 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，不读 sealed split、不运行 GPU/QUDA。

@@ -230,3 +230,5 @@ def test_d04_mbb_source_map_binds_snapshot_reader_implementation():
 
     expected = Path(__file__).resolve().parents[1] / "core/source_integrity.py"
     assert diagnostic._SOURCE_PATHS["source_integrity"].resolve() == expected
+    npz_safety = Path(__file__).resolve().parents[1] / "core/npz_safety.py"
+    assert diagnostic._SOURCE_PATHS["npz_safety"].resolve() == npz_safety
