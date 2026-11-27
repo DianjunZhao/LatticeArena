@@ -181,6 +181,43 @@ def test_source_snapshot_fails_closed_on_size_limit_and_digest_mismatch(tmp_path
     assert result["entries"]["large"]["reason"] == "sha256_mismatch"
 
 
+def test_source_snapshot_stops_one_byte_past_aggregate_budget(tmp_path, monkeypatch):
+    from pathlib import Path
+    payload = b"oversized payload"
+    source = tmp_path / "large.bin"
+    source.write_bytes(payload)
+    read_sizes = []
+    original_open = Path.open
+
+    class ReadSpy:
+        def __init__(self, stream):
+            self.stream = stream
+
+        def __enter__(self):
+            self.stream.__enter__()
+            return self
+
+        def __exit__(self, *args):
+            return self.stream.__exit__(*args)
+
+        def read(self, size=-1):
+            read_sizes.append(size)
+            return self.stream.read(size)
+
+    def tracked_open(path, *args, **kwargs):
+        stream = original_open(path, *args, **kwargs)
+        return ReadSpy(stream) if path == source else stream
+
+    monkeypatch.setattr(Path, "open", tracked_open)
+    snapshot = capture_source_snapshot(
+        tmp_path, {"large": _sha(payload)}, {"large": "large.bin"},
+        max_total_bytes=7,
+    )
+
+    assert read_sizes == [8]
+    assert snapshot.capture_entries["large"]["reason"] == "source_snapshot_size_limit_exceeded"
+
+
 def test_source_snapshot_rejects_unmapped_paths_and_root_escapes(tmp_path):
     outside = tmp_path.parent / "snapshot-outside.bin"
     outside.write_bytes(b"outside")

@@ -207,7 +207,11 @@ def capture_source_snapshot(
                 chunks = []
                 file_size = 0
                 while True:
-                    chunk = stream.read(4 * 1024 * 1024)
+                    read_size = 4 * 1024 * 1024
+                    if max_total_bytes is not None:
+                        remaining = max_total_bytes - total_bytes - file_size
+                        read_size = min(read_size, max(1, remaining + 1))
+                    chunk = stream.read(read_size)
                     if not chunk:
                         break
                     file_size += len(chunk)
