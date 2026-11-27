@@ -100,6 +100,80 @@ def _noise_covariance(mean: np.ndarray) -> np.ndarray:
     return covariance
 
 
+def _multivariate_t_draws(rng: np.random.Generator, covariance: np.ndarray,
+                          count: int, degrees_of_freedom: float) -> np.ndarray:
+    if degrees_of_freedom <= 2.0:
+        raise ValueError("Student-t innovations must have finite variance (df > 2)")
+    scale = covariance * ((degrees_of_freedom - 2.0) / degrees_of_freedom)
+    factor = np.linalg.cholesky(scale)
+    normal = rng.standard_normal((count, covariance.shape[0])) @ factor.T
+    chi_square = rng.chisquare(degrees_of_freedom, size=count)
+    return normal / np.sqrt(chi_square / degrees_of_freedom)[:, None]
+
+
+def _sample_panel(rng: np.random.Generator, mean: np.ndarray,
+                  covariance: np.ndarray, count: int, *,
+                  dependence_rho: float, innovation_df: float | None) -> np.ndarray:
+    if not 0.0 <= dependence_rho < 1.0:
+        raise ValueError("AR(1) dependence rho must lie in [0, 1)")
+    if innovation_df is not None and innovation_df <= 2.0:
+        raise ValueError("Student-t innovations must have finite variance (df > 2)")
+    if dependence_rho == 0.0:
+        if innovation_df is None:
+            return rng.multivariate_normal(mean, covariance, size=count)
+        return mean + _multivariate_t_draws(rng, covariance, count, innovation_df)
+
+    # The innovation covariance makes covariance(mean-centered state)=covariance
+    # at stationarity. Burn in from zero before retaining the finite chain.
+    burn_in = 200
+    innovation_covariance = covariance * (1.0 - dependence_rho**2)
+    draws = count + burn_in
+    if innovation_df is None:
+        innovations = rng.multivariate_normal(
+            np.zeros_like(mean), innovation_covariance, size=draws)
+    else:
+        innovations = _multivariate_t_draws(
+            rng, innovation_covariance, draws, innovation_df)
+    state = np.zeros_like(mean)
+    samples = np.empty((count, len(mean)), dtype=float)
+    for index, innovation in enumerate(innovations):
+        state = dependence_rho * state + innovation
+        if index >= burn_in:
+            samples[index - burn_in] = mean + state
+    return samples
+
+
+def _mean_variance_inflation(rho: float, count: int) -> float:
+    """Exact stationary AR(1) Var(mean) / (Sigma / n) multiplier."""
+    lags = np.arange(1, count, dtype=float)
+    return float(1.0 + 2.0 * np.sum((1.0 - lags / count) * rho**lags))
+
+
+def _effective_shrinkage(covariance_mode: str,
+                         shrinkage_override: float | None) -> float:
+    if covariance_mode == "estimated_shrunk":
+        return reader.SHRINKAGE
+    if covariance_mode in {"oracle_full", "oracle_long_run"}:
+        return 0.0
+    if covariance_mode == "oracle_shrunk":
+        return reader.SHRINKAGE if shrinkage_override is None else shrinkage_override
+    raise ValueError("unsupported covariance_mode")
+
+
+def _generator_name(alternative: str, dependence_rho: float,
+                    innovation_df: float | None) -> str:
+    if alternative != "null":
+        return f"three_state_omission_{alternative}"
+    if innovation_df is None:
+        if dependence_rho == 0.0:
+            return "exact_two_state_null"
+        return f"two_state_ar1_gaussian_rho_{dependence_rho:.2f}"
+    if dependence_rho == 0.0:
+        return f"two_state_iid_student_t_df_{innovation_df:g}"
+    return (f"two_state_ar1_student_t_df_{innovation_df:g}_"
+            f"rho_{dependence_rho:.2f}")
+
+
 def _folded_arrays(samples: np.ndarray):
     descriptors = _feature_descriptors()
     folded_pp = np.zeros((len(samples), 3, reader.TEMPORAL_EXTENT // 2 + 1), dtype=float)
@@ -127,7 +201,9 @@ def _wilson(successes: int, trials: int) -> tuple[float, float]:
 
 def _simulate_cell(*, label: str, configurations: int, panels: int, seed: int,
                    alternative: str, covariance_mode: str = "estimated_shrunk",
-                   shrinkage_override: float | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+                   shrinkage_override: float | None = None,
+                   dependence_rho: float = 0.0,
+                   innovation_df: float | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     if alternative == "null":
         masses, pp_amplitudes, a4_amplitudes = (
             MASS_NULL, PP_AMPLITUDES_NULL, A4_AMPLITUDES_NULL)
@@ -146,7 +222,9 @@ def _simulate_cell(*, label: str, configurations: int, panels: int, seed: int,
     rows = []
     failures = boundaries = near_degenerate = 0
     for panel in range(panels):
-        sample = rng.multivariate_normal(mean, covariance, size=configurations)
+        sample = _sample_panel(
+            rng, mean, covariance, configurations,
+            dependence_rho=dependence_rho, innovation_df=innovation_df)
         folded_pp, folded_a4p = _folded_arrays(sample)
         fit_mean, fit_covariance, columns = reader._fit_inputs(folded_pp, folded_a4p)
         if covariance_mode == "oracle_full":
@@ -158,6 +236,9 @@ def _simulate_cell(*, label: str, configurations: int, panels: int, seed: int,
             diagonal = np.diag(np.diag(covariance))
             fit_covariance = ((1.0 - alpha) * covariance
                               + alpha * diagonal) / configurations
+        elif covariance_mode == "oracle_long_run":
+            inflation = _mean_variance_inflation(dependence_rho, configurations)
+            fit_covariance = covariance * inflation / configurations
         elif covariance_mode != "estimated_shrunk":
             raise ValueError("unsupported covariance_mode")
         fit = reader._fit_variant(fit_mean, fit_covariance, columns,
@@ -171,13 +252,14 @@ def _simulate_cell(*, label: str, configurations: int, panels: int, seed: int,
             "cell": label, "panel": panel, "seed": seed,
             "sample_sha256": _sha(np.asarray(sample, dtype=np.float64).tobytes()),
             "configurations": configurations,
-            "generator": "exact_two_state_null" if alternative == "null"
-            else f"three_state_omission_{alternative}",
+            "generator": _generator_name(alternative, dependence_rho, innovation_df),
+            "is_null": alternative == "null",
             "covariance_mode": covariance_mode,
-            "covariance_shrinkage": (reader.SHRINKAGE if covariance_mode == "estimated_shrunk"
-                                      else (0.0 if covariance_mode == "oracle_full"
-                                            else reader.SHRINKAGE if shrinkage_override is None
-                                            else shrinkage_override)),
+            "covariance_shrinkage": _effective_shrinkage(covariance_mode, shrinkage_override),
+            "dependence_rho": dependence_rho,
+            "innovation_df": innovation_df,
+            "mean_variance_inflation_factor": _mean_variance_inflation(
+                dependence_rho, configurations),
             "fit_status": fit["status"],
             "reference_mass": fit.get("reference_mass"),
             "chi2": fit.get("chi2"), "dof": fit.get("dof"),
@@ -187,13 +269,15 @@ def _simulate_cell(*, label: str, configurations: int, panels: int, seed: int,
         })
     valid_rows = [row for row in rows if row["gof_p_approx"] is not None]
     summary = {
-        "cell": label, "generator": "exact_two_state_null" if alternative == "null"
-        else f"three_state_omission_{alternative}",
+        "cell": label,
+        "generator": _generator_name(alternative, dependence_rho, innovation_df),
+        "is_null": alternative == "null",
         "covariance_mode": covariance_mode,
-        "covariance_shrinkage": (reader.SHRINKAGE if covariance_mode == "estimated_shrunk"
-                                  else (0.0 if covariance_mode == "oracle_full"
-                                        else reader.SHRINKAGE if shrinkage_override is None
-                                        else shrinkage_override)),
+        "covariance_shrinkage": _effective_shrinkage(covariance_mode, shrinkage_override),
+        "dependence_rho": dependence_rho,
+        "innovation_df": innovation_df,
+        "mean_variance_inflation_factor": _mean_variance_inflation(
+            dependence_rho, configurations),
         "configurations_per_panel": configurations, "panels": panels,
         "denominator": {"planned": panels, "valid": len(valid_rows),
                         "failed": failures, "abstained": 0},
@@ -267,6 +351,8 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]):
 def _plot(path: Path, rows: list[dict[str, Any]], summaries: list[dict[str, Any]]):
     groups = []
     for cell in summaries:
+        if cell["cell"].startswith("chain_"):
+            continue
         values = np.asarray([row["gof_p_approx"] for row in rows
                              if row["cell"] == cell["cell"]
                              and row["gof_p_approx"] is not None])
@@ -363,6 +449,78 @@ def _plot(path: Path, rows: list[dict[str, Any]], summaries: list[dict[str, Any]
     plt.close(fig)
 
 
+def _plot_dependence(path: Path, rows: list[dict[str, Any]],
+                     summaries: list[dict[str, Any]]):
+    selected_summaries = [cell for cell in summaries
+                          if cell["cell"].startswith("chain_")]
+    groups = []
+    for cell in selected_summaries:
+        values = np.asarray([row["gof_p_approx"] for row in rows
+                             if row["cell"] == cell["cell"]
+                             and row["gof_p_approx"] is not None])
+        if values.size:
+            groups.append((cell, np.sort(values)))
+    fig, axes = plt.subplots(1, 2, figsize=(13.5, 5.2), layout="constrained")
+    ax = axes[0]
+    x = np.linspace(0.0, 1.0, 101)
+    epsilon = math.sqrt(math.log(2.0 / 0.05) / (2.0 * PANELS_PER_CELL))
+    ax.fill_between(x, np.maximum(0.0, x - epsilon), np.minimum(1.0, x + epsilon),
+                    color="#cccccc", alpha=0.4, label="95% DKW reference band")
+    ax.plot(x, x, color="black", linestyle="--", label="uniform reference")
+    palette = ("#2b78e4", "#cc6677", "#333333", "#4f9d69", "#e6ab02", "#168aad")
+    label_map = {
+        "chain_iid_gaussian_n128": "iid Gaussian, estimated covariance",
+        "chain_ar1_gaussian_est_n128": "AR(1) Gaussian, estimated covariance",
+        "chain_ar1_gaussian_oracle_lrv_n128": "AR(1) Gaussian, oracle long-run covariance",
+        "chain_iid_student_t5_n128": "iid Student-t(5), estimated covariance",
+        "chain_ar1_student_t5_est_n128": "AR(1) Student-t(5), estimated covariance",
+        "chain_ar1_student_t5_oracle_lrv_n128": "AR(1) Student-t(5), oracle long-run covariance",
+    }
+    for (cell, values), color in zip(groups, palette):
+        ecdf = np.arange(1, len(values) + 1) / len(values)
+        ax.step(values, ecdf, where="post", color=color,
+                label=label_map.get(cell["cell"], cell["cell"]))
+    ax.set(xlim=(0, 1), ylim=(0, 1), xlabel="approximate GLS chi-square p-value",
+           ylabel="empirical CDF", title="Null calibration under dependence / heavy tails")
+    ax.grid(alpha=0.2)
+    ax.legend(fontsize=7)
+
+    ax = axes[1]
+    positions, labels = [], []
+    short_labels = {
+        "chain_iid_gaussian_n128": "iid Gaussian",
+        "chain_ar1_gaussian_est_n128": "AR1 Gaussian estimated",
+        "chain_ar1_gaussian_oracle_lrv_n128": "AR1 Gaussian oracle",
+        "chain_iid_student_t5_n128": "iid t(5)",
+        "chain_ar1_student_t5_est_n128": "AR1 t(5) estimated",
+        "chain_ar1_student_t5_oracle_lrv_n128": "AR1 t(5) oracle",
+    }
+    for index, (cell, _) in enumerate(groups):
+        for threshold in P_THRESHOLDS:
+            item = cell["pvalue_summary"]["rejection"][str(threshold)]
+            low, high = item["wilson_95"]
+            ax.errorbar(index * 2 + (0 if threshold == 0.01 else 0.45), item["rate"],
+                        yerr=[[item["rate"] - low], [high - item["rate"]]],
+                        fmt="o", capsize=3,
+                        color="#2b78e4" if threshold == 0.01 else "#e69138")
+        labels.append(short_labels.get(cell["cell"], cell["cell"]))
+        positions.append(index * 2 + 0.225)
+    ax.axhline(0.01, color="#2b78e4", linestyle="--", alpha=0.7,
+               label="nominal 1% size")
+    ax.axhline(0.05, color="#e69138", linestyle="--", alpha=0.7,
+               label="nominal 5% size")
+    ax.set_xticks(positions, labels, rotation=30, ha="right", fontsize=7)
+    upper_bounds = [cell["pvalue_summary"]["rejection"][str(threshold)]["wilson_95"][1]
+                    for cell, _ in groups for threshold in P_THRESHOLDS]
+    ax.set_ylim(0, min(1.0, max(0.10, 1.12 * max(upper_bounds, default=0.05))))
+    ax.set_ylabel("observed rejection fraction")
+    ax.set_title("Nominal size and Wilson 95% intervals")
+    ax.grid(axis="y", alpha=0.2)
+    ax.legend(fontsize=8)
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+
+
 def _artifact_hashes(output: Path):
     files = sorted(path for path in output.rglob("*")
                     if path.is_file() and path.name != "artifact_hashes.json")
@@ -381,24 +539,31 @@ def build(output: str | Path = DEFAULT_OUT):
     source_hashes = {name: _sha(value) for name, value in source_bytes.items()}
     out.mkdir(parents=True)
     cell_specs = (
-        ("null_n64", 64, "null", "estimated_shrunk", BASE_SEED, None),
-        ("null_n128", 128, "null", "estimated_shrunk", BASE_SEED + 1000, None),
-        ("null_n128_oracle_full", 128, "null", "oracle_full", BASE_SEED + 1000, 0.0),
-        ("null_n128_oracle_shrunk_a25", 128, "null", "oracle_shrunk", BASE_SEED + 1000, 0.25),
-        ("null_n128_oracle_shrunk_a05", 128, "null", "oracle_shrunk", BASE_SEED + 1000, 0.05),
-        ("null_n128_oracle_shrunk_a10", 128, "null", "oracle_shrunk", BASE_SEED + 1000, 0.10),
-        ("null_n128_oracle_shrunk_a50", 128, "null", "oracle_shrunk", BASE_SEED + 1000, 0.50),
-        ("omitted_state_mild_n128", 128, "mild", "estimated_shrunk", BASE_SEED + 4000, None),
-        ("omitted_state_strong_n128", 128, "strong", "estimated_shrunk", BASE_SEED + 5000, None),
-        ("omitted_state_strong_oracle_full_n128", 128, "strong", "oracle_full", BASE_SEED + 5000, 0.0),
+        ("null_n64", 64, "null", "estimated_shrunk", BASE_SEED, None, 0.0, None),
+        ("null_n128", 128, "null", "estimated_shrunk", BASE_SEED + 1000, None, 0.0, None),
+        ("null_n128_oracle_full", 128, "null", "oracle_full", BASE_SEED + 1000, 0.0, 0.0, None),
+        ("null_n128_oracle_shrunk_a25", 128, "null", "oracle_shrunk", BASE_SEED + 1000, 0.25, 0.0, None),
+        ("null_n128_oracle_shrunk_a05", 128, "null", "oracle_shrunk", BASE_SEED + 1000, 0.05, 0.0, None),
+        ("null_n128_oracle_shrunk_a10", 128, "null", "oracle_shrunk", BASE_SEED + 1000, 0.10, 0.0, None),
+        ("null_n128_oracle_shrunk_a50", 128, "null", "oracle_shrunk", BASE_SEED + 1000, 0.50, 0.0, None),
+        ("omitted_state_mild_n128", 128, "mild", "estimated_shrunk", BASE_SEED + 4000, None, 0.0, None),
+        ("omitted_state_strong_n128", 128, "strong", "estimated_shrunk", BASE_SEED + 5000, None, 0.0, None),
+        ("omitted_state_strong_oracle_full_n128", 128, "strong", "oracle_full", BASE_SEED + 5000, 0.0, 0.0, None),
+        ("chain_iid_gaussian_n128", 128, "null", "estimated_shrunk", BASE_SEED + 8000, None, 0.0, None),
+        ("chain_ar1_gaussian_est_n128", 128, "null", "estimated_shrunk", BASE_SEED + 9000, None, 0.30, None),
+        ("chain_ar1_gaussian_oracle_lrv_n128", 128, "null", "oracle_long_run", BASE_SEED + 9000, 0.0, 0.30, None),
+        ("chain_iid_student_t5_n128", 128, "null", "estimated_shrunk", BASE_SEED + 10000, None, 0.0, 5.0),
+        ("chain_ar1_student_t5_est_n128", 128, "null", "estimated_shrunk", BASE_SEED + 11000, None, 0.30, 5.0),
+        ("chain_ar1_student_t5_oracle_lrv_n128", 128, "null", "oracle_long_run", BASE_SEED + 11000, 0.0, 0.30, 5.0),
     )
     all_rows, summaries = [], []
-    for label, count, alternative, covariance_mode, seed, shrinkage in cell_specs:
+    for label, count, alternative, covariance_mode, seed, shrinkage, rho, df in cell_specs:
         rows, summary = _simulate_cell(
             label=label, configurations=count, panels=PANELS_PER_CELL,
             seed=seed,
             alternative=alternative, covariance_mode=covariance_mode,
             shrinkage_override=shrinkage,
+            dependence_rho=rho, innovation_df=df,
         )
         all_rows.extend(rows)
         summaries.append(summary)
@@ -411,7 +576,14 @@ def build(output: str | Path = DEFAULT_OUT):
                          "null_n128_oracle_shrunk_a50"),
         _paired_contrast(all_rows, "omitted_state_strong_n128",
                          "omitted_state_strong_oracle_full_n128"),
+        _paired_contrast(all_rows, "chain_ar1_gaussian_est_n128",
+                         "chain_ar1_gaussian_oracle_lrv_n128"),
+        _paired_contrast(all_rows, "chain_ar1_student_t5_est_n128",
+                         "chain_ar1_student_t5_oracle_lrv_n128"),
     ]
+    unique_sample_keys = {(count, alternative, seed, rho, df)
+                          for _, count, alternative, _, seed, _, rho, df in cell_specs}
+    unique_sample_panels = len(unique_sample_keys) * PANELS_PER_CELL
     summary_payload = {
         "schema": "optimize-d04-gof-calibration-summary-v1",
         "classification": "SYNTHETIC_GOF_SIZE_AND_POWER_PILOT_NOT_PHYSICAL_REFERENCE",
@@ -420,11 +592,19 @@ def build(output: str | Path = DEFAULT_OUT):
                 "covariance_shrinkage": reader.SHRINKAGE,
                 "covariance_eigenvalue_floor": reader.EIGENVALUE_FLOOR},
         "generator": {
-            "kind": "independent_multivariate_Gaussian_configuration_panels",
+            "kind": "synthetic_two_state_null_and_omitted_state_panels",
             "feature_count": 27, "noise_fraction": NOISE_FRACTION,
             "temporal_correlation": 0.65,
             "cross_channel_correlation": 0.2,
+            "unique_sample_panels": unique_sample_panels,
+            "fit_rows": len(all_rows),
             "panels_per_cell": PANELS_PER_CELL,
+            "chain_stress": {
+                "ar1_rho": 0.30, "student_t_degrees_of_freedom": 5,
+                "burn_in_configurations": 200,
+                "innovation_covariance": "(1-rho^2) * stationary feature covariance; Student-t scaled to the same finite covariance",
+                "oracle_long_run_covariance": "finite-n multiplier 1 + 2*sum_{k=1}^{n-1} (1-k/n)*rho^k applied to stationary covariance/n",
+            },
             "cells": summaries,
         },
         "paired_contrasts": paired_contrasts,
@@ -433,7 +613,9 @@ def build(output: str | Path = DEFAULT_OUT):
         "physical_score": None,
         "open_gates": [
             "default p-values use an approximate chi-square reference with data-estimated, 25%-shrunk covariance; paired oracle cells use known full covariance or known-covariance diagonal shrinkage alpha sensitivity",
-            "only ten synthetic cells and independent Gaussian configurations are evaluated",
+            "six chain-stress cells add one rho=0.30 AR(1) and one iid/AR(1) Student-t(5) design; this does not certify any production Markov chain",
+            "oracle long-run covariance is synthetic truth and is not an available production estimator",
+            "only sixteen synthetic cells are evaluated; multiple covariance cells reuse identical raw panels",
             "the alternative is an omitted third state and the rejection fractions are power diagnostics only",
             "no HMC chain dependence, estimator selection, or candidate-blind production E-chain provenance is modeled",
             "these results cannot replace the independent D04 reference receipt or statistical review",
@@ -442,6 +624,7 @@ def build(output: str | Path = DEFAULT_OUT):
     (out / "summary.json").write_bytes(_json_bytes(summary_payload))
     _write_csv(out / "panel_results.csv", all_rows)
     _plot(out / "gof_pvalue_calibration.png", all_rows, summaries)
+    _plot_dependence(out / "gof_dependence_stress.png", all_rows, summaries)
     protocol = {
         "schema": "optimize-d04-gof-calibration-protocol-v1",
         "classification": summary_payload["classification"],
@@ -451,16 +634,20 @@ def build(output: str | Path = DEFAULT_OUT):
                          "eigenvalue_floor": reader.EIGENVALUE_FLOOR,
                          "pvalue": "chi2.sf(fitted GLS residual, dof=13)"},
         "panels_per_cell": PANELS_PER_CELL,
-        "seeds": {cell: seed for cell, _, _, _, seed, _ in cell_specs},
-        "covariance_modes": {cell: mode for cell, _, _, mode, _, _ in cell_specs},
+        "seeds": {cell: seed for cell, _, _, _, seed, _, _, _ in cell_specs},
+        "covariance_modes": {cell: mode for cell, _, _, mode, _, _, _, _ in cell_specs},
         "covariance_shrinkage": {
-            cell: (reader.SHRINKAGE if mode == "estimated_shrunk"
-                   else (0.0 if mode == "oracle_full" else alpha))
-            for cell, _, _, mode, _, alpha in cell_specs
+            cell: _effective_shrinkage(mode, alpha)
+            for cell, _, _, mode, _, alpha, _, _ in cell_specs
+        },
+        "dependence": {
+            cell: {"rho": rho, "innovation_df": df,
+                   "mean_variance_inflation_factor": _mean_variance_inflation(rho, count)}
+            for cell, count, _, _, _, _, rho, df in cell_specs
         },
         "paired_contrasts": paired_contrasts,
         "thresholds": list(P_THRESHOLDS),
-        "design_note": "The strong omitted-state cell was added after an initial mild-alternative pilot showed weak separation; it is exploratory power stress only and did not change null thresholds or null seeds.",
+        "design_note": "The strong omitted-state cell was added after an initial mild-alternative pilot showed weak separation. The rho=0.30 AR(1) and finite-variance Student-t(5) panels are predeclared synthetic chain-stress designs; covariance-oracle cells are paired by sample hash and do not tune a production threshold.",
         "generation": "all samples generated from the source bytes of this diagnostic; no input file read",
         "physical_score": None,
     }
@@ -479,21 +666,25 @@ def build(output: str | Path = DEFAULT_OUT):
         "",
         "## Frozen procedure",
         "",
-        f"- Ten cells, `{PANELS_PER_CELL}` independent panels each: exact two-state null with 64 or 128 configurations; the 128-configuration null uses identical samples to compare estimated+25% shrinkage, known full covariance, and oracle diagonal shrinkage alpha={0.05, 0.10, 0.25, 0.50}; mild and strong three-state truths are fit by the fixed two-state primary model, with a strong-alternative known-full-covariance pair.",
+        f"- Sixteen cells, `{PANELS_PER_CELL}` planned fits per cell: the first ten cover Gaussian-null covariance calibration and omitted-state alternatives; six additional cells stress iid Gaussian, AR(1) Gaussian, iid Student-t(5), and AR(1) Student-t(5), all at `Ncfg=128`.",
+        f"- The covariance-alpha sweep reuses the same `Ncfg=128` null samples. Across all cells there are `{unique_sample_panels}` unique generated panels and `{len(all_rows)}` planned fits; paired covariance fits are not independent samples.",
         "- The mild omitted-state truth uses third-state PP overlaps 0.11–0.18 and A4P overlap 0.022; the strong stress uses PP overlaps 0.45–0.75 and A4P overlap 0.085. Both are distinct from the two-state null.",
-        "- Oracle cells reuse the exact sample panels of their comparison cell; sample SHA-256 values are checked before paired summaries are calculated. The full oracle removes covariance estimation and shrinkage; the shrinkage sweep isolates the metric alpha under this known full-covariance generator. These are diagnostic contrasts, not available production procedures.",
-        f"- Each configuration is a 27-component multivariate Gaussian around folded PP-even/A4P-odd correlator means; feature covariance is fixed from 0.65 temporal AR correlation and 0.2 cross-channel correlation, with relative noise `{NOISE_FRACTION}`.",
-        f"- Each panel uses the existing D04 fit path (`tmin=3`, two states, three starts); the default covariance is estimated from the same panel with {reader.SHRINKAGE:.0%} diagonal shrinkage and relative eigenvalue floor `{reader.EIGENVALUE_FLOOR:g}`. Null oracle cells use known full covariance or its diagonal-shrunk versions, including alpha 0%, 5%, 10%, 25% and 50%. All p-values use the approximate chi-square survival probability with 13 nominal degrees of freedom.",
+        "- Covariance-oracle cells reuse exact sample panels of their comparison cells; sample SHA-256 values are checked before paired summaries are calculated. The full oracle removes covariance estimation and shrinkage; the alpha sweep isolates the metric under known covariance. For dependent cells, the oracle uses exact finite-N stationary AR(1) `Var(mean)` inflation; it is a simulation truth, not a deployable estimator.",
+        f"- Each configuration is a 27-component vector around folded PP-even/A4P-odd correlator means; feature covariance is fixed from 0.65 within-vector temporal correlation and 0.2 cross-channel correlation, with relative noise `{NOISE_FRACTION}`. Chain-stress sequences use stationary-variance AR(1) `rho=0.30`, 200 burn-in configurations, and either Gaussian or Student-t(5) innovations scaled to finite covariance.",
+        f"- Each panel uses the existing D04 fit path (`tmin=3`, two states, three starts); the default covariance is estimated from the same panel with {reader.SHRINKAGE:.0%} diagonal shrinkage and relative eigenvalue floor `{reader.EIGENVALUE_FLOOR:g}`. Independent-null oracle cells use known covariance or diagonal-shrunk versions at alpha 0%, 5%, 10%, 25% and 50%. AR(1) oracle cells use the exact finite-N long-run covariance of the synthetic process. All p-values use the approximate chi-square survival probability with 13 nominal degrees of freedom.",
         "- All panel fits remain in the planned denominator. The null cells estimate the false rejection frequency at p<0.01 and p<0.05; the omitted-state cell is a misspecification power diagnostic.",
         "- The strong omitted-state cell was added after the initial mild-alternative pilot showed weak separation. It is an exploratory power stress, not a preregistered confirmatory test; null thresholds and seeds were not changed.",
         "",
         "![D04 p-value calibration](gof_pvalue_calibration.png)",
         "",
-        "The left panel shows null-cell empirical p-value CDFs against the uniform reference; the gray band is a 95% Dvoretzky–Kiefer–Wolfowitz band for a 300-panel sample. The middle panel compares strong-alternative p-values for identical samples under estimated/shrunk and known full covariance. The right panel gives observed rejection fractions and Wilson intervals at 1% and 5%, with a y-axis scaled to the largest interval. For null cells, a well-calibrated p-value should track the diagonal and rejection rates should be compatible with nominal sizes. Alternative rejection fractions are power, not type-I error.",
+        "![D04 chain dependence stress](gof_dependence_stress.png)",
+        "",
+        "In the first figure, the left panel shows the seven iid Gaussian null covariance cells' empirical p-value CDFs against the uniform reference; the gray band is a 95% Dvoretzky–Kiefer–Wolfowitz band for a 300-panel sample. The middle panel compares strong-alternative p-values for identical samples under estimated/shrunk and known full covariance. The right panel gives the first ten cells' observed rejection fractions and Wilson intervals at 1% and 5%. For null cells, a well-calibrated p-value should track the diagonal and rejection rates should be compatible with nominal sizes; omitted-state rejection is power, not type-I error.",
+        "In the dependence-stress figure, iid Gaussian and iid Student-t(5) estimated-covariance p-values are conservative in this realization, while rho=0.30 AR(1) panels with iid-style covariance-of-mean are anti-conservative: `p<0.05` rates are `0.217` for Gaussian and `0.163` for Student-t(5). The paired exact finite-N long-run covariance oracle lowers them to `0.063` and `0.067`. This demonstrates sensitivity to dependence under the chosen synthetic process; it does not identify a production HAC/block estimator or certify an HMC chain.",
         "",
         "## Interpretation limits and next step",
         "",
-        "This isolates finite-sample behavior under an independent Gaussian generator and an estimated/shrunk covariance. It does not model HMC dependence, channel/source convention errors, non-Gaussian tails, fit-window selection, optimizer-start selection, or a real E-chain. The 300-panel size gives MCSE about 0.0056 at a 1% event and 0.0126 at 5%, so the 1% size estimate is coarse. Results must not be used to tune and validate a replacement threshold on the same panels. A next step should preregister a larger independent panel set, add stationary AR(1) dependence and heavy-tailed innovations, and compare the approximate chi-square reference with a parametric bootstrap that refits covariance and spectra on each simulated panel. Keep `D04 NOT_READY/UNCERTIFIED` and `physical_score=null` until an authorized independent E-chain package and review exist.",
+        "The chain-stress panel adds only one synthetic `rho=0.30` AR(1) process and finite-variance Student-t(5) innovations; it does not model actual HMC dependence, channel/source convention errors, fit-window or optimizer-start selection, or a real E-chain. The 300-panel size gives MCSE about 0.0056 at a 1% event and 0.0126 at 5%, so tail estimates remain coarse. The DKW band is descriptive per 300-panel cell, not multiplicity control. Results must not be used to tune and validate a replacement threshold on the same panels. Next, preregister a larger independent grid over dependence strength and tail weight, then compare the approximate chi-square reference with a parametric bootstrap that refits covariance and spectra on each simulated panel. Keep `D04 NOT_READY/UNCERTIFIED` and `physical_score=null` until an authorized independent E-chain package and review exist.",
         "",
         "## Run denominators",
         "",

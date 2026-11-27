@@ -2,7 +2,7 @@
   "schema": "optimize-d04-gof-source-hashes-v1",
   "sources": {
     "contract": "2a272cffb0c49f0a87756f5a2d97fb2b80eaf53173e37e91a4e302e3d327a50e",
-    "diagnostic": "57056c8893bb1bca4852fdd7687bab6e24c6d320d26dcf0991023aa64b1f24b7",
+    "diagnostic": "8d643d51fc2d99a3bd32190e00c71f86a5c3c3349695ea57616106d81de73cad",
     "npz_safety": "af60a75cf78a1b0812ccebaf690fc69c3522fcfd3ab54cf5c06aea925c22d750",
     "reader": "2901d0e4c317e23136c8102807cbd59145b9340a29d5a51fd6a64ba294189651",
     "source_integrity": "45a941a63937c56dc365049617e393f4f23209dc9a432e38e4f2937a22ec26a6",
