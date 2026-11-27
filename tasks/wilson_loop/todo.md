@@ -2,7 +2,7 @@
 
 ### 当前 CPU 验证快照（2026-11-27）
 
-2026-11-27 本轮重跑 PR #6 的 Wilson 定向文件集 `tests/test_wilson*.py`：**195 passed**；Optimize+Wilson 定向集合 **354 passed**（Optimize 159、Wilson 195），PR #6 全仓 CPU suite **437 passed**。PR #5 Pion 全仓 CPU suite **268 passed**。这些结果只核验 CPU 软件/合成公式；没有读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+PR #6 最新全仓 CPU suite（包含 C-lane 报告源码“单次捕获、同字节 hash/归档”竞态回归及 D04 helper source-map 检查）为 **448 passed in 72.61 s**；这是 CPU 软件证据，未读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。较早的 Wilson 定向 195 passed 与 Optimize+Wilson 354 passed 是旧快照，不代表本次完整复跑。PR #5 Pion 最新全仓 CPU suite 为 **275 passed in 3.75 s**。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
 
 ### 2026-11-26 历史附件链接审计
 

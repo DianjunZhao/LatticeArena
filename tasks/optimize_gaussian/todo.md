@@ -10,7 +10,7 @@
 
 synthetic fixture 的六拟合分母为 `6/6/0/0`，18 个 multistart 中 17 个收敛、1 个失败；`tmin=3` 两态拟合恢复输入 `a_t m_0=0.32` 为 `0.3200056`。三态拟合出现小能隙，报告保留该弱可识别警告。测试也覆盖捕获后改写源文件、folding、封存 split、坏 ID、complex 数据、stale bytes 与 protocol hash 不匹配；本次新增定向测试 **7 passed**。所有这些都是合成 CPU 软件证据。
 
-这个入口仍**不输出 gate-ready summary**：没有依赖感知 bootstrap mass error、PP/A4P/window/model 的 paired-SE 位移、依赖收据核验、真实 provenance/reviewer/authorization，也未证明拟合 GOF 的有限样本校准。接下来先以独立代码/物理审阅复核 PP/A4P 符号、channel source/sink 约定、block bootstrap 与 mass-shift 统计定义；随后把确切 raw receipt 与 D04 envelope 从同一次读取派生并接同 snapshot gate。没有经审阅的获准 E-chain bytes 前不生成 reference pass，不读 sealed data、不启动 GPU/QUDA，`NOT_READY/UNCERTIFIED`、`physical_score=null` 不变。
+这个入口仍**不输出 gate-ready summary**。之后新增的 D04 synthetic MBB 报告已给出依赖敏感度下的 bootstrap mass interval 和 PP/A4P/window/model paired-SE 位移；但它没有 E-chain dependence/provenance receipt、独立 reviewer/授权，也未校准拟合 GOF 的有限样本行为，故只关闭 CPU 方法实现，不关闭 reference gate。下一步仍需独立复核 PP/A4P 符号、channel source/sink 约定、block bootstrap 与 mass-shift 统计定义；随后从同一次获准读取派生 raw receipt 与 D04 envelope，再接同 snapshot gate。没有经审阅的获准 E-chain bytes 前不生成 reference pass，不读 sealed data、不启动 GPU/QUDA，`NOT_READY/UNCERTIFIED`、`physical_score=null` 不变。
 
 ## 下一次执行包（默认研究输入已自选）
 
