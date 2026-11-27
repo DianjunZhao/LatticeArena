@@ -1,5 +1,6 @@
 import hashlib
 import json
+from pathlib import Path
 
 from tasks.optimize_gaussian.chebyshev_baseline import build
 
@@ -14,6 +15,10 @@ def test_constrained_baseline_report_is_hashed_and_labels_illustration_denominat
     ] == 1.1111111111111112
     assert len(contract["open_gates"]) == 5
     assert contract["physical_score"] is None
+    numerics_path = Path(__file__).resolve().parents[1] / "core/numerics.py"
+    assert contract["numeric_validation_source_sha256"] == hashlib.sha256(
+        numerics_path.read_bytes()
+    ).hexdigest()
     assert contract["coefficient_fit_denominators"] == {
         "planned": 0, "valid": 0, "failed": 0, "abstained": 0,
         "unit": "no D04 callback supplied",
@@ -40,6 +45,7 @@ def test_constrained_baseline_report_is_hashed_and_labels_illustration_denominat
         "README.md",
         "snapshot_chebyshev_baseline.py",
         "snapshot_kernels.py",
+        "snapshot_core_numerics.py",
     }
     for name, expected in manifest.items():
         assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected

@@ -14,6 +14,8 @@ from pathlib import Path
 
 import numpy as np
 
+from core.numerics import as_finite_real, as_real_float_array
+
 from .kernels import apply_kernel
 
 
@@ -43,11 +45,12 @@ def validate_control_points(control_points) -> np.ndarray:
     and monotonically decreases with Laplacian eigenvalue. Values are rejected
     rather than clipped so a solver cannot silently cross the frozen domain.
     """
-    raw = np.asarray(control_points)
-    if (raw.shape != (DEGREE + 1,) or np.iscomplexobj(raw)
-            or not np.issubdtype(raw.dtype, np.number)):
+    try:
+        values = as_real_float_array(control_points, name="control_points")
+    except ValueError as exc:
+        raise ValueError("control_points must be five real numeric Bernstein coefficients") from exc
+    if values.shape != (DEGREE + 1,):
         raise ValueError("control_points must be five real numeric Bernstein coefficients")
-    values = raw.astype(float, copy=False)
     if not np.isfinite(values).all():
         raise ValueError("control_points must be finite")
     if np.any(values < 0.0) or np.any(values > 1.0):
@@ -62,7 +65,7 @@ def validate_control_points(control_points) -> np.ndarray:
 def evaluate_scaled_laplacian(control_points, lambda_fraction):
     """Evaluate P4(1-lambda/12) for lambda/12 in [0,1]."""
     b = validate_control_points(control_points)
-    fraction = np.asarray(lambda_fraction, dtype=float)
+    fraction = as_real_float_array(lambda_fraction, name="lambda_fraction")
     if not np.isfinite(fraction).all() or np.any((fraction < 0) | (fraction > 1)):
         raise ValueError("lambda_fraction must be finite and in [0,1]")
     y = 1.0 - fraction
@@ -98,6 +101,14 @@ def apply_filter(control_points, hopping_operator, field, *, hermitian_tolerance
     eig(H) subset [-12,0].
     """
     coefficients = bernstein_to_chebyshev(control_points)
+    hermitian_tolerance = as_finite_real(
+        hermitian_tolerance, name="hermitian_tolerance",
+    )
+    spectral_tolerance = as_finite_real(
+        spectral_tolerance, name="spectral_tolerance",
+    )
+    if hermitian_tolerance <= 0 or spectral_tolerance < 0:
+        raise ValueError("Hermitian tolerance must be positive and spectral tolerance nonnegative")
     h = np.asarray(hopping_operator)
     psi = np.asarray(field)
     if (h.ndim != 2 or h.shape[0] != h.shape[1] or h.shape[0] == 0
@@ -145,7 +156,8 @@ def _prepare_hopping_cpu(links, field, unitary_tolerance):
     expected_links = (3, *psi.shape[:3], 3, 3)
     if u.shape != expected_links or not np.isfinite(u).all():
         raise ValueError(f"links must be finite with shape {expected_links}")
-    if (not np.isfinite(unitary_tolerance) or unitary_tolerance <= 0):
+    unitary_tolerance = as_finite_real(unitary_tolerance, name="unitary_tolerance")
+    if unitary_tolerance <= 0:
         raise ValueError("unitary_tolerance must be finite and positive")
     identity = np.eye(3)
     link_gram = u.conj().swapaxes(-1, -2) @ u
@@ -198,12 +210,7 @@ def apply_gaussian_sandwich_cpu(control_points, links, field, *, alpha, steps,
     if (isinstance(steps, (bool, np.bool_))
             or not isinstance(steps, (int, np.integer)) or steps < 0):
         raise ValueError("steps must be a nonnegative integer")
-    try:
-        alpha_value = float(alpha)
-    except (TypeError, ValueError, OverflowError) as exc:
-        raise ValueError("alpha must be a finite real scalar") from exc
-    if not np.isfinite(alpha_value):
-        raise ValueError("alpha must be a finite real scalar")
+    alpha_value = as_finite_real(alpha, name="alpha")
 
     coefficients = np.full((3, *psi.shape[:3]), alpha_value, dtype=float)
     base = psi
@@ -241,24 +248,19 @@ def fit_control_points_slsqp(objective, *, max_objective_calls, max_iterations,
         if (isinstance(value, (bool, np.bool_))
                 or not isinstance(value, (int, np.integer)) or value < 1):
             raise ValueError(f"{name} must be a positive integer")
-    ftol_array = np.asarray(ftol)
-    if (isinstance(ftol, (bool, np.bool_)) or ftol_array.ndim != 0
-            or np.iscomplexobj(ftol_array)
-            or not np.issubdtype(ftol_array.dtype, np.number)):
-        raise ValueError("ftol must be finite and positive")
-    ftol_value = float(ftol_array)
-    if not np.isfinite(ftol_value) or ftol_value <= 0:
+    ftol_value = as_finite_real(ftol, name="ftol")
+    if ftol_value <= 0:
         raise ValueError("ftol must be finite and positive")
 
     if initial_free_controls is None:
         initial = np.array([0.0, 0.25, 0.5, 0.75], dtype=float)
     else:
-        raw_initial = np.asarray(initial_free_controls)
-        if (raw_initial.shape != (DEGREE,) or np.iscomplexobj(raw_initial)
-                or not np.issubdtype(raw_initial.dtype, np.number)
-                or not np.isfinite(raw_initial).all()):
+        raw_initial = as_real_float_array(
+            initial_free_controls, name="initial_free_controls",
+        )
+        if raw_initial.shape != (DEGREE,) or not np.isfinite(raw_initial).all():
             raise ValueError("initial_free_controls must be four finite real values")
-        initial = raw_initial.astype(float, copy=True)
+        initial = raw_initial.copy()
     validate_control_points(np.concatenate((initial, [1.0])))
 
     objective_calls = 0
@@ -412,12 +414,16 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
     contract = _contract()
     source_path = Path(__file__).resolve()
     kernel_path = ROOT / "tasks/optimize_gaussian/kernels.py"
+    numerics_path = ROOT / "core/numerics.py"
     source_bytes = source_path.read_bytes()
     kernel_bytes = kernel_path.read_bytes()
+    numerics_bytes = numerics_path.read_bytes()
     source_hash = hashlib.sha256(source_bytes).hexdigest()
     contract["basis_reference_source"] = "tasks/optimize_gaussian/kernels.py"
     contract["basis_reference_source_sha256"] = hashlib.sha256(kernel_bytes).hexdigest()
     contract["contract_source_sha256"] = source_hash
+    contract["numeric_validation_source"] = "core/numerics.py"
+    contract["numeric_validation_source_sha256"] = hashlib.sha256(numerics_bytes).hexdigest()
     examples = {
         "identity": np.ones(5),
         "linear": np.linspace(0.0, 1.0, 5),
@@ -436,6 +442,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
     }
     (out / "snapshot_chebyshev_baseline.py").write_bytes(source_bytes)
     (out / "snapshot_kernels.py").write_bytes(kernel_bytes)
+    (out / "snapshot_core_numerics.py").write_bytes(numerics_bytes)
     (out / "contract.json").write_text(json.dumps(contract, indent=2) + "\n")
     _make_plot(out / "spectral_response.png")
     lines = [
@@ -486,13 +493,14 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "",
         "This implements the selected D11 method defaults, not a certified strongest production baseline. The current heat-kernel operator toy used unconstrained least-squares Chebyshev coefficients and cannot validate this constrained family. Do not reuse its performance numbers as baseline evidence. `train.main` remains fixed-W; this module is not integrated into production training. D04 E-chain measurements/receipts, D06 empirical risk and cost receipts, independent D11 production-link review, and data/GPU authorization remain open. Keep both selected F=2 contrasts, `NOT_READY/UNCERTIFIED`, `physical_score=null`, and all sealed data closed.",
         "",
-        "This CPU helper is not wired into `train.main` and has no GPU/CuPy path. The report includes snapshots of this helper and the periodic hopping kernel; both are SHA-256 listed in its manifest. Rebuild the deterministic response artifact into a fresh directory with `python3 -B -m tasks.optimize_gaussian.chebyshev_baseline --output NEW_DIRECTORY`.",
+        "This CPU helper is not wired into `train.main` and has no GPU/CuPy path. The report includes snapshots of this helper, the periodic hopping kernel and the shared numeric validator; all are SHA-256 listed in its manifest. Rebuild the deterministic response artifact into a fresh directory with `python3 -B -m tasks.optimize_gaussian.chebyshev_baseline --output NEW_DIRECTORY`.",
     ]
     (out / "README.md").write_text("\n".join(lines) + "\n")
     hashes = {
         path.name: hashlib.sha256(path.read_bytes()).hexdigest()
         for path in (out / "contract.json", out / "spectral_response.png", out / "README.md",
-                     out / "snapshot_chebyshev_baseline.py", out / "snapshot_kernels.py")
+                     out / "snapshot_chebyshev_baseline.py", out / "snapshot_kernels.py",
+                     out / "snapshot_core_numerics.py")
     }
     (out / "artifact_hashes.json").write_text(json.dumps(hashes, indent=2) + "\n")
     return contract

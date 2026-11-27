@@ -203,6 +203,36 @@ def test_invalid_control_points_reject(controls):
         validate_control_points(controls)
 
 
+@pytest.mark.parametrize("controls", [
+    np.asarray([False, False, False, False, True]),
+    np.asarray(["0", "0.2", "0.4", "0.8", "1"]),
+    np.asarray([0.0, 0.2, 0.4, 0.8, 1.0 + 0.0j]),
+])
+def test_control_points_reject_implicit_numeric_coercion(controls):
+    with pytest.raises(ValueError, match="control_points"):
+        validate_control_points(controls)
+
+
+@pytest.mark.parametrize("fraction", [True, "0.5", 0.5 + 0.0j])
+def test_scaled_spectrum_coordinate_rejects_implicit_numeric_coercion(fraction):
+    with pytest.raises(ValueError, match="lambda_fraction"):
+        evaluate_scaled_laplacian([0.0, 0.2, 0.4, 0.8, 1.0], fraction)
+
+
+def test_candidate_scalar_controls_reject_bool_and_string_values():
+    links = _small_unitary_links((2, 2, 2))
+    field = np.ones((2, 2, 2, 3, 1), dtype=complex)
+    controls = [0.0, 0.2, 0.4, 0.8, 1.0]
+
+    with pytest.raises(ValueError, match="alpha"):
+        apply_gaussian_sandwich_cpu(controls, links, field, alpha="0.1", steps=1)
+    with pytest.raises(ValueError, match="unitary_tolerance"):
+        apply_hopping_filter_cpu(controls, links, field, unitary_tolerance=True)
+    with pytest.raises(ValueError, match="hermitian_tolerance"):
+        apply_filter(controls, np.diag([-1.0, 0.0]), np.ones(2),
+                     hermitian_tolerance="1e-10")
+
+
 def test_matrix_application_rejects_spectrum_or_hermiticity_violation():
     with pytest.raises(ValueError, match="spectrum"):
         apply_filter(np.linspace(0.0, 1.0, 5), np.diag([-13.0, -1.0]), np.ones(2))

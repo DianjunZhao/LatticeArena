@@ -71,6 +71,7 @@ def test_candidate_contract_report_is_hashed_and_has_text_flow(tmp_path):
         "reason": "physical certification awaits independent receipts and explicit authorization",
     }]
     assert "core/receipts.py" in receipt["scenario"]["source_hashes"]
+    assert "core/numerics.py" in receipt["scenario"]["source_hashes"]
     assert "core/state.py" in receipt["scenario"]["source_hashes"]
     assert "research_contract_v1.json" in receipt["scenario"]["source_hashes"]
     for name, expected in receipt["artifact_hashes"].items():
@@ -80,7 +81,7 @@ def test_candidate_contract_report_is_hashed_and_has_text_flow(tmp_path):
         "run_receipt.json", "snapshot_chebyshev_baseline.py",
         "snapshot_research_contract_v1.json",
         "snapshot_core_receipts.py", "snapshot_core_specs.py",
-        "snapshot_core_state.py",
+        "snapshot_core_state.py", "snapshot_core_numerics.py",
         "snapshot_kernels.py",
     }
     for name, expected in manifest.items():

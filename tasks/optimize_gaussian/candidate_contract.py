@@ -49,6 +49,7 @@ def operator_contract_for() -> dict:
     core_specs = ROOT / "core/specs.py"
     core_receipts = ROOT / "core/receipts.py"
     core_state = ROOT / "core/state.py"
+    core_numerics = ROOT / "core/numerics.py"
     research_contract = Path(__file__).with_name("research_contract_v1.json")
     return operator_contract(
         name="optimize-chebyshev-diagnostic-v1",
@@ -71,6 +72,7 @@ def operator_contract_for() -> dict:
             "chebyshev_baseline.py": digest(baseline),
             "research_contract_v1.json": digest(research_contract),
             "core/receipts.py": digest(core_receipts),
+            "core/numerics.py": digest(core_numerics),
             "core/specs.py": digest(core_specs),
             "core/state.py": digest(core_state),
             "kernels.py": digest(kernels),
@@ -122,6 +124,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict:
         "snapshot_research_contract_v1.json": Path(__file__).with_name("research_contract_v1.json"),
         "snapshot_kernels.py": Path(__file__).with_name("kernels.py"),
         "snapshot_core_receipts.py": ROOT / "core/receipts.py",
+        "snapshot_core_numerics.py": ROOT / "core/numerics.py",
         "snapshot_core_specs.py": ROOT / "core/specs.py",
         "snapshot_core_state.py": ROOT / "core/state.py",
     }

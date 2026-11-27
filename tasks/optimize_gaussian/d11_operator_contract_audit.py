@@ -19,6 +19,7 @@ SOURCE_PATHS = {
     "features.py": TASK / "features.py",
     "kernels.py": TASK / "kernels.py",
     "chebyshev_baseline.py": TASK / "chebyshev_baseline.py",
+    "core/numerics.py": ROOT / "core/numerics.py",
     "trainable_w.py": TASK / "trainable_w.py",
 }
 
@@ -160,14 +161,15 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "",
         "## Sources",
         "",
-        "The audit binds the active `research_contract_v1.json`, `contract.py`, `candidate_contract.py`, `features.py`, `kernels.py`, `chebyshev_baseline.py`, and `trainable_w.py` by SHA-256 in `protocol.json`. The audit script itself is covered by `artifact_hashes.json`.",
+        "The audit binds the active `research_contract_v1.json`, `contract.py`, `candidate_contract.py`, `features.py`, `kernels.py`, `chebyshev_baseline.py`, `core/numerics.py`, and `trainable_w.py` by SHA-256 in `protocol.json`. The shared numeric validator used by the CPU candidate is retained as `snapshot_core_numerics.py`; the audit script itself is covered by `artifact_hashes.json`.",
         "",
     ])
     (out / "README.md").write_text("\n".join(lines))
     snapshot = out / "snapshot_d11_operator_contract_audit.py"
     snapshot.write_bytes(Path(__file__).read_bytes())
+    (out / "snapshot_core_numerics.py").write_bytes(SOURCE_PATHS["core/numerics.py"].read_bytes())
     files = ["README.md", "audit_checks.csv", "protocol.json",
-             "snapshot_d11_operator_contract_audit.py"]
+             "snapshot_d11_operator_contract_audit.py", "snapshot_core_numerics.py"]
     hashes = {name: _sha256(out / name) for name in files}
     (out / "artifact_hashes.json").write_text(json.dumps(hashes, indent=2) + "\n")
     return result
