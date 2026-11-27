@@ -103,3 +103,27 @@ def test_malformed_scores_masks_or_calibration_contract_reject(differences, mask
     args.update(kwargs)
     with pytest.raises(ValueError):
         conditional_block_risk_lcb(differences, valid_blocks=mask, **args)
+
+
+@pytest.mark.parametrize(
+    "differences",
+    [
+        np.array([1.0 + 2.0j]),
+        [10**400],
+        ["1.0"],
+        [True],
+    ],
+)
+def test_score_inputs_reject_lossy_or_unrepresentable_real_coercions(differences):
+    with pytest.raises(ValueError):
+        bounded_block_scores(
+            differences,
+            valid_blocks=np.ones(np.shape(differences), dtype=bool),
+            score_scale_R=2.0,
+        )
+    with pytest.raises(ValueError):
+        conditional_block_risk_lcb(
+            differences,
+            valid_blocks=np.ones(np.shape(differences), dtype=bool),
+            **calibration(),
+        )

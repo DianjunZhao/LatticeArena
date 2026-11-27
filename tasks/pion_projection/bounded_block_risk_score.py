@@ -21,6 +21,23 @@ from .dependency_graph_bound import (
 )
 
 
+def _as_real_differences(value: object) -> np.ndarray:
+    """Convert real numeric differences without projecting or coercing types."""
+    try:
+        raw = np.asarray(value)
+    except (OverflowError, TypeError, ValueError) as exc:
+        raise ValueError("raw_differences must be a rectangular real numeric array") from exc
+    # Complex-to-float casts can silently discard the imaginary component.
+    # Serialized strings, bools, and object arrays are not score observations.
+    if raw.dtype.kind not in "iuf":
+        raise ValueError("raw_differences must be real integer or floating-point values")
+    try:
+        with np.errstate(over="ignore", invalid="ignore"):
+            return np.asarray(raw, dtype=float)
+    except (OverflowError, TypeError, ValueError) as exc:
+        raise ValueError("raw_differences cannot be represented as float") from exc
+
+
 def bounded_block_scores(
     raw_differences: object,
     *,
@@ -32,7 +49,7 @@ def bounded_block_scores(
     Leading axes may batch families and Monte Carlo replicates. Every failed
     planned block receives score ``-1``; it is never removed from the array.
     """
-    differences = np.asarray(raw_differences, dtype=float)
+    differences = _as_real_differences(raw_differences)
     valid = np.asarray(valid_blocks)
     if differences.ndim < 1 or differences.size == 0:
         raise ValueError("raw_differences must have at least one planned block")
@@ -77,7 +94,7 @@ def conditional_block_risk_lcb(
     for the squared-error Lipschitz correction. This routine cannot establish
     those assumptions and deliberately always returns ``physical_score=None``.
     """
-    differences = np.asarray(raw_differences, dtype=float)
+    differences = _as_real_differences(raw_differences)
     valid = np.asarray(valid_blocks)
     if differences.ndim != 1 or differences.size == 0:
         raise ValueError("raw_differences must be a nonempty one-dimensional array")

@@ -728,3 +728,9 @@ s_i(m) = clip(((m-y_ref,i)^2 - (m-y_cand,i)^2) / R^2, -1, 1)
 新增 [`test_pion_bounded_block_risk_setwise.py`](../../tests/test_pion_bounded_block_risk_setwise.py)：覆盖排序翻转、breakpoint 极值与 100,001 点 dense scan 对照、失败块分母、极端有限数值、全失败弃权和非法输入。该函数只传播调用者提供的集合，明确返回 `confidence_coverage=null`、`target_bridge_status=not_verified_here`、`certified=false`、`physical_score=null`；它不证明集合覆盖真实目标，也不替代 score-chain dependence bound、anchor-to-E-reference bridge 或独立 review。专项测试 **23 passed**，本轮完整 Pion CPU suite **298 passed in 4.89 s**。
 
 后续若获准且未封存的 reference/anchor package 到位，应从同一 immutable snapshot 构造具有独立 coverage receipt 的 target set，随后同时传播 target-set 不确定性与 bounded block-risk sampling uncertainty；两者不可合并或互相替代。若最终风险区间跨零则报告排序 unresolved；即使符号一致，也必须先完成 coverage、共同 target correspondence、依赖界与独立审阅，才可考虑物理解释。在这些 receipts 缺失时保留本 helper 作为诊断性部分识别工具，保持 `NOT_READY/UNCERTIFIED` 和封存数据关闭。
+
+### 2026-11-28 Pion bounded-score 原始差值的实数校验补齐
+
+检查 `bounded_block_scores` 与 `conditional_block_risk_lcb` 发现，两处把 `raw_differences` 直接 cast 为浮点数；复数输入会丢掉虚部后继续参与点值 score，超出 float 范围的大整数则可能把底层 `OverflowError` 传给调用方。现两入口共用严格转换，只接受整数/浮点数组，拒绝 complex、object/string、bool 与不能安全表示的结构；对已是浮点型且标为失败的 block，仍保留原有规则，允许其差值为 NaN/Inf，并直接赋分 `-1`。有效 block 仍必须有限。
+
+文字诊断：`raw difference array -> numeric real dtype gate -> reject complex/object/string/bool -> valid-mask finite check -> valid score=clip(d/R²,-1,1); failed slot=-1 -> full planned denominator -> conditional bound or ABSTAIN`。新增负控覆盖非零虚部、`10**400`、数字字符串与布尔输入；`tests/test_pion_bounded_block_risk_score.py` **14 passed**，本轮 PR #5 全套 CPU tests **302 passed**。这只关闭 dtype 转换旁路，不提供有效 block 的来源认证、score-specific dependence bound、anchor/reference bridge 或独立 common-bias coverage；因此 Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed inputs closed。
