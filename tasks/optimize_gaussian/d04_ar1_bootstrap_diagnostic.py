@@ -158,8 +158,12 @@ def _profile_common_rho_candidate(sample: np.ndarray) -> dict[str, Any]:
         grid_deviance = np.asarray([objective(value) for value in grid], dtype=float)
         if not np.all(np.isfinite(grid_deviance)):
             raise ValueError("profile grid contains non-finite values")
-        candidates = [(float(grid[0]), float(grid_deviance[0])),
-                      (float(grid[-1]), float(grid_deviance[-1]))]
+        endpoint_candidates = [
+            {"rho": float(grid[0]), "deviance": float(grid_deviance[0])},
+            {"rho": float(grid[-1]), "deviance": float(grid_deviance[-1])},
+        ]
+        candidates = [(entry["rho"], entry["deviance"], "endpoint")
+                      for entry in endpoint_candidates]
         local_minima = [
             index for index in range(1, len(grid) - 1)
             if (grid_deviance[index] <= grid_deviance[index - 1]
@@ -167,30 +171,47 @@ def _profile_common_rho_candidate(sample: np.ndarray) -> dict[str, Any]:
                 and (grid_deviance[index] < grid_deviance[index - 1]
                      or grid_deviance[index] < grid_deviance[index + 1]))
         ]
+        refined_minima = []
         for index in local_minima:
+            bracket = (float(grid[index - 1]), float(grid[index + 1]))
             result = minimize_scalar(
-                objective, bounds=(float(grid[index - 1]), float(grid[index + 1])),
+                objective, bounds=bracket,
                 method="bounded", options={"xatol": 1.0e-8, "maxiter": 500},
             )
             if not result.success or not np.isfinite(result.fun):
                 raise ValueError("profile local-minimum refinement did not converge")
-            candidates.append((float(result.x), float(result.fun)))
+            minimum = {
+                "grid_rho": float(grid[index]),
+                "bracket": [bracket[0], bracket[1]],
+                "rho": float(result.x),
+                "deviance": float(result.fun),
+            }
+            refined_minima.append(minimum)
+            candidates.append((minimum["rho"], minimum["deviance"], "refined_grid_minimum"))
     except (ValueError, FloatingPointError, np.linalg.LinAlgError) as exc:
         raise ValueError("stationary matrix-normal rho profiling failed") from exc
 
-    rho_hat, deviance = min(candidates, key=lambda item: item[1])
+    rho_hat, deviance, candidate_kind = min(candidates, key=lambda item: item[1])
     boundary_tolerance = 1.0e-6
     return {
         "rho_candidate": float(rho_hat),
         "profile_deviance": float(deviance),
+        "global_candidate_kind": candidate_kind,
         "boundary_hit": bool(rho_hat <= lower + boundary_tolerance
                               or rho_hat >= upper - boundary_tolerance),
         "optimizer_success": True,
         "grid_points": int(len(grid)),
+        "grid_spacing": float(grid[1] - grid[0]),
         "local_minima_refined": int(len(local_minima)),
+        "refined_local_minima": refined_minima,
+        "endpoint_candidates": endpoint_candidates,
         "profile_rho_grid": grid.tolist(),
         "profile_deviance_grid": grid_deviance.tolist(),
-        "interpretation": "stationary common-rho Gaussian candidate; not calibrated",
+        "interpretation": (
+            "stationary common-rho Gaussian candidate; not calibrated; lowest "
+            "among endpoints and grid-resolved local minima only, so a narrow "
+            "unsampled minimum is not excluded"
+        ),
     }
 
 

@@ -842,3 +842,11 @@ NPZ 共享预检器现把 ZIP 不支持的压缩方式、加密成员和损坏 D
 文字流程：`_source_paths -> SHA-256 TaskSpec dependencies -> retain same source bytes -> AST local-import closure -> compare every digest -> DRAFT_NO_LAUNCH`。`tests/test_optimize_draft_plan.py` 与 PR #6 当前全仓 CPU suite **515 passed**，`git diff --check` 通过。该检查证明 no-launch 草案所声明源码的身份与闭包，不证明 D04 数据有效、D06 覆盖率/链依赖、solver 成本公平、D11 生产 SU(3) 算符，亦不创建运行器。
 
 **下一步交接：**任何真实 runner/evaluator 建立后，复用这张来源依赖图并从同一 immutable input snapshot 产生 D04/D06/D11 summary 和三臂 paired receipt；不可只 hash entrypoint 而漏掉本地 import。仍需独立获准 E-chain reference、dependence/calibration receipt、trainable-W/SLSQP/Chebyshev 配对 solver 结果与分阶段成本，以及 reviewed SU(3) link/operator receipt。缺任一项则不读 sealed IDs、不启动 GPU/QUDA，保持两个比较臂、bounded block-risk estimand、`NOT_READY/UNCERTIFIED` 与 `physical_score=null`。
+
+### 2026-11-28 D04 profile-rho 多峰候选诊断记录
+
+继续补强上述 stationary matrix-normal profile 候选的可审计性：`_profile_common_rho_candidate` 现在在返回值中记录固定 81 点网格的间距、两端点候选、每个被网格分辨的局部极小的括区/精化结果，以及最终候选来自端点还是局部精化。返回的 interpretation 明确说明：被选择的是“端点与网格分辨极小中的最低者”，有限网格无法排除网格间未采到的窄极小，也不构成全局最优证明。
+
+新增 `tests/test_optimize_d04_ar1_profile_rho.py::test_profile_candidate_records_and_compares_all_grid_resolved_minima`，将 profile objective 替换为有两个分辨极小的确定性双井函数，核对两个极小均被精化并保留、最终选中较低者、网格间距正确，且返回文本带有未采样窄极小的限制说明。文字诊断流程：`[-0.95,0.95] 固定网格 -> 检测网格局部极小 -> 在相邻网格括区内 bounded refine -> 与两个端点比较 -> 返回每个候选及来源标签 -> 明示有限网格局限`。这是一项优化器/报告契约单元测试，不是新增合成 calibration panel，也没有重跑/调参任何历史 DGP、seed 或物理输入。定向测试 `python -m pytest -q tests/test_optimize_d04_ar1_profile_rho.py` 为 **5 passed**。
+
+仍不把此候选接入冻结的 D04 bootstrap runner，也不把 `boundary_hit=false` 解释为模型适用或校准通过。后续如要进入数值比较，必须在批准且独立于方法开发的 calibration snapshot 上，与 pooled OLS 同 panel 比较 rho recovery、profile 多峰/边界及 tail calibration，并由独立统计 reviewer 审查 profile 假设和不确定度；真实 E-chain reference、source/sink convention 与依赖凭据仍未提供。D04 保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed input 不读取，GPU/QUDA 不启动。

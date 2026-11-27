@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+import tasks.optimize_gaussian.d04_ar1_bootstrap_diagnostic as diagnostic
 from tasks.optimize_gaussian.d04_ar1_bootstrap_diagnostic import (
     PROFILE_RHO_GRID_POINTS,
     _profile_common_rho_candidate,
@@ -66,3 +67,19 @@ def test_profile_deviance_rejects_singular_profiled_feature_covariance():
 
     with pytest.raises(ValueError, match="not positive definite"):
         _profile_matrix_normal_deviance(singular, rho=0.2)
+
+
+def test_profile_candidate_records_and_compares_all_grid_resolved_minima(monkeypatch):
+    def two_well_profile(_sample, rho):
+        return min(0.01 + (rho + 0.4) ** 2, (rho - 0.55) ** 2)
+
+    monkeypatch.setattr(diagnostic, "_profile_matrix_normal_deviance", two_well_profile)
+    result = _profile_common_rho_candidate(np.zeros((8, 3)))
+
+    minima = result["refined_local_minima"]
+    assert len(minima) == 2
+    assert [row["rho"] for row in minima] == sorted(row["rho"] for row in minima)
+    assert result["global_candidate_kind"] == "refined_grid_minimum"
+    assert result["rho_candidate"] == pytest.approx(0.55, abs=1e-5)
+    assert result["grid_spacing"] == pytest.approx(1.9 / (PROFILE_RHO_GRID_POINTS - 1))
+    assert "narrow unsampled minimum is not excluded" in result["interpretation"]
