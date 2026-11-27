@@ -836,3 +836,21 @@ source-map audit 发现 C-lane open-development generator 通过 `SourceByteSnap
 对 `spectral_q_bound_reader.py` 的纯 CPU 输入边界做数值审计，发现 JSON 可含可解析的超大整数：将 overlap ratio 转为 float 时会抛出未捕获 `OverflowError`；两个各自有限的 overlap ratio 相加也可能让 `math.fsum` 溢出。Confidence allocation 中的超大整数同样可能越过内容校验直接抛异常。现将有限数转换统一变为可审计的拒绝路径，以 log-sum-exp 计算 `q(T)=Σ_i r_i exp(-ΔE_i T)`，并在最终上界超出有限浮点范围时返回 `ABSTAIN_F_SPECTRUM_Q_NUMERIC`。该返回保留完整 36 个拟合支持行分母，单列失败 q cell，并保持 `physical_score=null`；不将溢出值截断成有限值或当作成功。
 
 文字流程：`immutable JSON bytes -> finite numeric/schema checks -> per-variant log-sum-exp -> finite q upper -> derive selected corners`；超大 JSON 整数在拟合行或 alpha metadata 阶段进入原有 failed/abstained 计数，超范围 q 上界则进入 `q_cell planned=8, failed=1, abstained=7` 并整体 abstain。新增负控分别覆盖超大 ratio 整数、有限输入相加溢出与超大 alpha；Wilson 定向 reader/evidence/force 测试 **41 passed**。随后当前 PR #6 worktree 的完整 `python -m pytest -q tests` **464 passed in 76.45 s**，`git diff --check` 通过。此项仅关闭数值异常逃逸边界，不证明 q 上游区间 coverage、正谱假设、h/x、有限-$N_t$ 污染、model truncation 或 reference force；生产输入仍 `0/0/0/0`，F=`GROUND_STATE_FORCE_UNCERTIFIED`、双 lane `NOT_READY/UNCERTIFIED`、`physical_score=null` 不变。
+
+### 2026-11-28 F-lane 下一轮独立五 strata 筛查输入（自选冻结，尚未运行）
+
+上一节 `0/24` familywise 覆盖已足以否定“当前 2×2 delta 上界在这一遗漏静态态 DGP 下稳健”，但不能说明失败只由遗漏态造成，还是同时受 near-degeneracy、弱 overlap、遗漏 vacuum 或 block covariance 影响。为让下一轮有明确的新判别目标，我自行冻结下列**合成压力设置**；它们是算法压力参数，不是项目实测能谱或物理先验：
+
+| stratum | 完整 truth / 噪声的预冻结变化 | 可区分的问题 |
+|---|---|---|
+| S1 high-overlap omitted static | 每个 `R` 的 2-vacuum × 3-static truth 保持原 `V_n`；将 `n=2` 的全部 transition amplitudes `A[m,n=2,i]` 乘 `1.5`；2×2 fit 不变 | 较强遗漏静态贡献会怎样影响 `q/h/x` bias 与 family coverage |
+| S2 near-degenerate static | `R=2: V=[0.44,0.94,0.965]`；`R=3: V=[0.59,1.07,1.095]`，其它 truth 同原型；2×2 fit 不变 | 近简并激发态能否由当前窗口/协方差拟合稳定区分 |
+| S3 weak operator ground overlap | 两个 `R` 上，仅对 `operator_index=2` 将 `A[m,n=0,i=2]`（`m=0,1`）乘 `0.04`；其余 amplitude 不变 | 目标 overlap 接近小量时比值和 delta 误差是否失控 |
+| S4 omitted vacuum state | truth 增加 `epsilon=[0,0.42,0.70]`；第三 vacuum sector 的 `A[2,n,i]=0.25 A[0,n,i]`；fit 仍限制 2 vacuum × 2 static | finite-`N_t` partition/thermal `h` 与 mixed `x` 中未建模 vacuum state 的影响 |
+| S5 dependent unequal-variance blocks | 保持原 2×3 truth；96 个 block noise 采用 stationary `AR(1) rho=0.50`；按 `T={3,4,5}/{6}/{7}` 将 innovation SD 乘 `{0.5,1,2}`，生成后保持每块 `3×3` Hermitian | 当前 iid covariance-of-mean 和固定 shrinkage 在依赖、跨 feature 不等尺度下的覆盖表现 |
+
+共同拟合与评分规则不变：96 blocks/panel、基准相对 noise fraction `0.003`（S5 的分层比例乘在其上）、`Nt={16,32}`、`R={2,3}`、`T=3..7`、两态 2×2 regularized full-covariance GLS、25% diagonal shrinkage、相对 eigenvalue floor `1e-10`、原有三 starts、72 项 q/h/x、pointwise one-sided 97.5% 和 Bonferroni-72 family 95% upper。**小筛查**每 strata 12 个独立 outer panels，seed=`2026112900 + 100*stratum_index + panel_index`（index 从 0 起），与旧 `2026112800..2823` 完全不重叠；报告 classification 固定为 `SYNTHETIC_SCREENING_ONLY_NOT_CALIBRATION`。不因筛查结果改模型、overlap、rho、noise 或 interval rule。
+
+每个 panel 预期保存 raw NPZ/hash、fit-start/status/iteration/rank/condition、72 项全分母、q/h/x signed bias、逐项包含与 panel-level familywise event；图至少并列五 strata 的 familywise Wilson 区间和按 panel 聚类的 pointwise 区间，并标 95%/97.5% nominal line。文字流：`固定五类 truth/noise -> disjoint seeds -> 5×12 raw panels -> same-snapshot 2×2 fit -> 72 q/h/x intervals + P/V/F/A -> panel-cluster coverage / familywise Wilson + condition-number plot -> diagnostic-only`。任何屏幕图只用于定位额外失效机制；不能替代前一节 `n=606、至少588 successes/stratum` 的确认精度设计。
+
+运行成本先用已存 open synthetic `panel_000` 单次完整三起点 fit 作了一次纯计时复核：`4.1325 s`，rank `45/45`。按此速率，`5×606=3,030` 个 panel 的完整设计约 `3.48 h`，还未计 source snapshot、绘图与高失败成本；`5×12=60` 个初筛约 `4.1 min`，也只是近似预算，不是当前报告中的已运行结果。因此本节只冻结新设置与停止规则，没有生成 panels；下一步实现可审 runner 后，先跑这 60 个 screening panels，若其方法结论不改变且完整面板成本/失败率过高，就停止并等待独立 review，而不声称 coverage calibration。所有工作仍仅 synthetic CPU；生产 raw `C_ij`、exporter convention、matched-`N_t=32` thermal/mixed receipt、force/reference error budget 与授权缺口不变，C finite-`T` Creutz lane 与 F ground-state force lane 保持分离，`NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`、sealed split closed，不启动 GPU/QUDA。
