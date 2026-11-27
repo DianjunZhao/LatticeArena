@@ -52,6 +52,7 @@ _SUMMARY_KEYS = frozenset({
     "invalid_draws", "planned_draws", "resampling_protocol",
 })
 _NAMES = ("manifest", "loop_measurements", "interval_summary")
+_READER_SOURCE_KEYS = frozenset(_NAMES)
 _CLOSED_SPLIT_MARKERS = ("gap", "validation", "holdout", "sealed", "confirmation")
 
 
@@ -128,9 +129,10 @@ def read_creutz_calibration_snapshot(
     if not isinstance(snapshot, SourceByteSnapshot):
         denominator["abstained"] = denominator["planned"]
         return abstain("ABSTAIN_C_INVALID_SNAPSHOT", "snapshot has the wrong type")
-    if not isinstance(required_source_hashes, Mapping) or set(required_source_hashes) != _C_SOURCE_KEYS:
+    if (not isinstance(required_source_hashes, Mapping)
+            or set(required_source_hashes) not in (_C_SOURCE_KEYS, _READER_SOURCE_KEYS)):
         denominator["abstained"] = denominator["planned"]
-        return abstain("ABSTAIN_C_SOURCE_MAP", "C source hashes do not match the selected file map")
+        return abstain("ABSTAIN_C_SOURCE_MAP", "C reader requires its three data hashes; the evidence gate requires the full C source map")
     if not isinstance(split_id, str) or "calibration" not in split_id.lower():
         denominator["abstained"] = denominator["planned"]
         return abstain("ABSTAIN_C_NOT_CALIBRATION", "C reader requires an explicitly named calibration split")

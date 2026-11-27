@@ -910,3 +910,28 @@ Wilson 的有限-$N_t$ Creutz toy 输入与 q/h/x→force-budget scalar 现复�
 文字诊断流：`archived measure.py: npz + provenance + commit -> verify transaction hashes/generation and producer protocol -> require explicitly authorized calibration split + captured input manifest -> map producer axes/kernel ID to C (R=2,T=5 stout) point and four paired loops -> recompute interval under selected C contract -> canonical manifest/summary -> C gate`。这条链现在缺 converter、生产 calibration-format manifest/source-map、独立 coverage/dependence/review receipts；历史 producer 默认 split policy 不会被本轮静态审计改写。当前环境 `nvidia-smi` 不可用；本轮没有启动 GPU/QUDA、没有读取 gauge/loop/GEVP/thermal data，也没有改动 `production_data_authorized=false` 或 `sealed_confirmation_open=false`。
 
 **下一步软件任务仍开放：**若要接此 legacy producer，应新增一个仅接收 `SourceByteSnapshot` 的 compatibility adapter，逐项验 NPZ/provenance/commit 与 captured input-manifest bytes、split opt-in、generation/dependency/kernel hashes、configuration IDs、R/T/kernel axes，再从同一 snapshot 派生 C summary；用 synthetic transaction 覆盖正控、snapshot 后改写路径、错 hash、缺文件、closed split、错 kernel/stencil、失败分母和 no-clobber。只有 adapter 输出与真实 exporter schema 经 reviewer 对齐后，才接 C gate；无生产 calibration input /授权 receipt 时仍保持本轮 status。C finite-$T$ Creutz 与 F ground-state force 继续分轨，物理 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+
+### 2026-11-28 archived C producer adapter：CPU 软件路径闭合，真实旧协议安全拒绝
+
+新增 [c_lane_legacy_transaction.py](c_lane_legacy_transaction.py)：只接受同一个 SourceByteSnapshot 中的四份输入——旧 {split}.npz、provenance、commit marker 与 HMC input manifest；不提供路径回退，也不读取 gauge 文件。它核对四个 captured SHA、NPZ/provenance/commit 互绑、旧 generation=fingerprint(measurement_spec) 与 protocol hash、五项 producer dependency 和 kernel hash，以及已留存的 archived source hash allowlist（[commit 54f0e97](https://github.com/Greyyy-HJC/LatticeArena/commit/54f0e97ba85b7f8f724c31d9f9d3512f040583a9)）。随后逐配置连接 configuration ID、HMC trajectory、raw-gauge SHA 与 loop-content SHA，再检查 beta/action/边界、所选 stout rho=0.10,n=5 和完整 R=1..4,T=4..8 stencil。只有 producer protocol 明确列出 measurement_splits: [calibration] 且调用者另显式传 calibration_opt_in=True 才继续。
+
+适配器只在内存中生成当前 C schema 的 manifest/loop NPZ/interval summary，并交给相同的 C reader 重算一致性；reader 现允许只读三项 C 数据 bytes 做 diagnostic，完整 evidence gate 仍需原来的八项 source map、dependence/coverage/review/authorization receipts。输出永远是 LEGACY_TRANSACTION_ADAPTED_DIAGNOSTIC_ONLY、certified=false、physical_score=null。此 adapter 不写输出目录或文件，因此 no-clobber 测试不适用。依赖 hash 与固定 archived allowlist 相符仍只是内部身份声明；legacy transaction 本身没有 producer code bytes 或签名，因此 adapter 报告明确保留这一限制。
+
+**静态旧协议结论：**审阅 54f0e97 保存的 protocol.json 与 measure.py 后，实际旧默认 protocol 不满足 adapter：measurement_splits 缺省时 producer 只允许 development/gap/validation；没有 calibration range/input-manifest 摘要和 action/boundary 元数据；R=[1,2,3] 缺当前 stencil 的 R=4，且 kernel list 只有 identity/APE、没有选定的 stout。故现有旧 transaction 不能被升级或重命名成 C calibration；它必须 ABSTAIN。合成正控只证明将来满足新 protocol 的 transaction 可无损映射，不表示任何真实 measurement 已兼容。
+
+文字流程：
+
+~~~text
+4 captured files
+  -> explicit calibration opt-in + source SHA checks
+  -> commit / generation / protocol / pinned producer-code hash checks
+  -> HMC manifest join: ID + trajectory + raw-gauge SHA
+  -> per-ID loop hash + R/T/kernel/action/boundary checks
+  -> derive canonical C bytes in memory
+  -> current reader recomputes point and block-bootstrap hull
+  -> diagnostic-only; full evidence gate and physical receipts remain separate
+~~~
+
+定向回归覆盖 snapshot 后改写原路径仍读取 captured bytes、缺失/坏文件的完整 4 项分母、错误 commit hash、未 opt-in、旧默认 split、缺少 R stencil、错误 kernel、HMC trajectory 不匹配；共 **7 个 adapter tests passed**，与 C snapshot reader/evidence tests 合计 **26 passed**。本轮整仓 CPU suite **532 passed**，py_compile 与 git diff --check 通过。上述正控完全由临时 synthetic transaction 构造，没有读取真实 C calibration、sealed split、GPU 或 QUDA。
+
+**剩余 Wilson 工作：**adapter 的 software bridge 已完成，但真实 C-lane run 仍不能启用。下一步须先由 producer owner/reviewer 对 exporter 的 action、time/orientation、loop normalization、kernel bytes 和 calibration split 授权逐项签认；再由获准、非封存的 compatible transaction 提供四个 snapshot 输入及独立 dependence/coverage/review/authorization receipts，运行当前 reader 和八项 evidence gate。F lane 仍另需 matched-Nt=32 GEVP/thermal/mixed q/h/x、正 reference-force 下界和模型截断/误差预算。当前两个 lane 保持 NOT_READY/UNCERTIFIED、F=GROUND_STATE_FORCE_UNCERTIFIED、physical_score=null，sealed inputs closed。

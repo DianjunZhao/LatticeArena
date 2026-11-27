@@ -858,3 +858,16 @@ NPZ 共享预检器现把 ZIP 不支持的压缩方式、加密成员和损坏 D
 测试新增 control/coordinate/alpha/tolerance 的 bool、numeric-string、complex negative controls。D11 spectral-response report、framework candidate registration 与 source-math audit 现在都把 `core/numerics.py` hash 入 contract/source map，并分别保留 `snapshot_core_numerics.py`；旧报告不改写。文字流程：`controls/fraction/scalar tolerance -> exact-real conversion -> Bernstein/range/positive-tolerance checks -> degree-4 Chebyshev CPU matvec -> report manifest covers baseline + kernel + core numeric helper -> D11 physical gate still abstains`。这是接口一致性和来源闭包改进，不是 GPU 执行、SU(3) determinant/provenance 证明或 production objective 结果。
 
 专项 `tests/test_optimize_chebyshev_baseline.py tests/test_optimize_chebyshev_baseline_report.py tests/test_optimize_candidate_contract.py tests/test_optimize_d11_operator_contract_audit.py` **36 passed**；当前 PR #6 全仓 CPU suite **525 passed in 83.43 s**，`git diff --check` 通过。独立 production-link/operator review、SU(3) receipt、D04 reference、paired D06 trainable-W/SLSQP/Chebyshev 风险与成本、GPU/QUDA authorization 仍缺；继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed inputs closed。
+
+### 2026-11-28 PR #6 跨任务 CPU 回归更新
+
+Wilson C-lane compatibility adapter 与 shared C snapshot reader 的最新改动后，PR #6 当前整仓 CPU suite 为 **532 passed**。Optimize 的 D04/D06/D11 代码和研究合同未被本轮 Wilson adapter 修改；本次全套回归覆盖了它们与 shared core 的联合导入/测试状态，但仍只是软件回归。文字流程：
+
+~~~text
+D11 strict numeric/source closure + D04/D06 frozen CPU contracts
+  -> shared repository suite including Wilson C reader
+  -> 532 tests pass
+  -> confirm software compatibility only; no E-reference, paired solver, SU(3) production receipt, or physical score
+~~~
+
+Optimize 继续保持 NOT_READY/UNCERTIFIED、physical_score=null；D04 E-reference/GOF independent review，D06 获准 paired solver 与 dependence receipts，D11 SU(3) source/operator review 和真实设备执行仍未闭合。
