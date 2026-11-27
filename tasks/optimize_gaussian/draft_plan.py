@@ -24,7 +24,7 @@ from .candidate_contract import (
 
 ROOT = Path(__file__).resolve().parents[2]
 TASK_DIR = Path(__file__).resolve().parent
-DEFAULT_OUT = ROOT / "results/optimize_gaussian/draft_plan_20261125_v6"
+DEFAULT_OUT = ROOT / "results/optimize_gaussian/draft_plan_20261127_v8"
 CONTRACT_PATH = TASK_DIR / "research_contract_v1.json"
 
 
@@ -36,9 +36,9 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def build_plan() -> dict[str, Any]:
-    """Bind the selected method draft to the generic specs without launching."""
-    source_paths = {
+def _source_paths() -> dict[str, Path]:
+    """List each source that is both hashed and retained in the report."""
+    return {
         "draft_plan.py": Path(__file__),
         "research_contract_v1.json": CONTRACT_PATH,
         "contract.py": TASK_DIR / "contract.py",
@@ -47,6 +47,7 @@ def build_plan() -> dict[str, Any]:
         "trainable_w.py": TASK_DIR / "trainable_w.py",
         "features.py": TASK_DIR / "features.py",
         "risk_statistics.py": TASK_DIR / "risk_statistics.py",
+        "d04_raw_reference.py": TASK_DIR / "d04_raw_reference.py",
         "evidence_adapter.py": TASK_DIR / "evidence_adapter.py",
         "source_reader.py": TASK_DIR / "source_reader.py",
         "bounded_block_risk.py": TASK_DIR / "bounded_block_risk.py",
@@ -60,6 +61,11 @@ def build_plan() -> dict[str, Any]:
         "core/npz_safety.py": ROOT / "core/npz_safety.py",
         "core/state.py": ROOT / "core/state.py",
     }
+
+
+def build_plan() -> dict[str, Any]:
+    """Bind the selected method draft to the generic specs without launching."""
+    source_paths = _source_paths()
     dependencies = {name: sha256(path) for name, path in source_paths.items()}
     contract_hash = dependencies["research_contract_v1.json"]
     contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
@@ -164,6 +170,7 @@ def build_plan() -> dict[str, Any]:
         "text_flow": [
             "research_contract_v1.json + source files -> SHA-256 dependency map",
             "selected D04/D06/D11 defaults -> generic TaskSpec + draft RunSpec",
+            "D04 raw E-chain snapshot reader -> PP/A4P folding + six joint-fit variants -> fit diagnostic only",
             "D04/D11 summary JSON -> strict same-snapshot parser/content digest; no physical fit or production-operator evaluator",
             "source_reader.py -> immutable D06 q-matrix bytes -> paired block scores with assigned-failure penalty",
             "risk_statistics.py -> fail-closed D04/D06 array reducers; no draw generation or fitting",
@@ -186,31 +193,22 @@ def build_plan() -> dict[str, Any]:
 
 def build_report(output: str | Path = DEFAULT_OUT) -> dict:
     out = Path(output)
-    out.mkdir(parents=True, exist_ok=False)
     plan = build_plan()
-    (out / "run_plan.json").write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
-    shutil_snapshot = {
-        "draft_plan.py": Path(__file__),
-        "research_contract_v1.json": CONTRACT_PATH,
-        "core_specs.py": ROOT / "core/specs.py",
-        "core_state.py": ROOT / "core/state.py",
-        "core_io.py": ROOT / "core/io.py",
-        "core_evidence.py": ROOT / "core/evidence.py",
-        "core_receipts.py": ROOT / "core/receipts.py",
-        "core_source_integrity.py": ROOT / "core/source_integrity.py",
-        "core_npz_safety.py": ROOT / "core/npz_safety.py",
-        "candidate_contract.py": TASK_DIR / "candidate_contract.py",
-        "trainable_w.py": TASK_DIR / "trainable_w.py",
-        "features.py": TASK_DIR / "features.py",
-        "bounded_block_risk.py": TASK_DIR / "bounded_block_risk.py",
-        "bounded_block_risk_markov.py": TASK_DIR / "bounded_block_risk_markov.py",
-        "chebyshev_baseline.py": TASK_DIR / "chebyshev_baseline.py",
-        "risk_statistics.py": TASK_DIR / "risk_statistics.py",
-        "evidence_adapter.py": TASK_DIR / "evidence_adapter.py",
-        "source_reader.py": TASK_DIR / "source_reader.py",
+    source_bytes = {
+        name: source_path.read_bytes()
+        for name, source_path in _source_paths().items()
     }
-    for name, source in shutil_snapshot.items():
-        (out / f"snapshot_{name}").write_bytes(source.read_bytes())
+    stale = [
+        name for name, payload in source_bytes.items()
+        if hashlib.sha256(payload).hexdigest() != plan["source_hashes"][name]
+    ]
+    if stale:
+        raise ValueError(f"source changed while building draft report: {stale}")
+    out.mkdir(parents=True, exist_ok=False)
+    (out / "run_plan.json").write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
+    for name, payload in source_bytes.items():
+        snapshot_name = name.replace("/", "_")
+        (out / f"snapshot_{snapshot_name}").write_bytes(payload)
     readme = """# Optimize generic TaskSpec/RunSpec draft
 
 **Status: `DRAFT_NO_LAUNCH`.** This is a data-free schema integration of the selected D04/D06/D11 method defaults. It contains no measurement inputs and cannot launch training; `physical_score=null`.
@@ -221,7 +219,7 @@ The selected research contract is now represented in LatticeArena's generic `cor
 
 The generic `validation` range is explicitly limited to the already-open D60-D99 **development-selection** role. It is not final confirmation. Sealed roles are not included in the plan. The ranges are metadata only; no data bytes, manifests, anchor chain, gap, validation or holdout files were opened.
 
-The source hash map binds the selected trainable-W CPU parameterization and directional features as well as the D04/D06 reducers, bounded-risk and Markov formulas, evidence adapter, snapshot reader, shared evidence gate, receipt/state models, source-integrity code, and `core/npz_safety.py`. The trainable-W implementation is still an isolated coefficient/operator prototype; its coefficient-MSE target is not the selected physical risk and it is not wired as the production training arm. Those files are copied into the report snapshots to make this distinction and code identity reviewable. The NPZ safety helper checks ZIP/NPY structure and the decompressed-byte budget before NumPy allocates arrays. The reducers use fixed selected constants, paired draw-ID checks, full planned denominators, no epsilon repair, and abstention on incomplete or invalid draws. The D06 reader consumes one explicitly captured calibration NPZ, checks its schema, split, ordered arms/times, and macroblock IDs, then derives the three-arm bounded score matrix; a declared optimizer failure receives the preselected loss 1 while remaining in the assigned-arm denominator. This CPU reader has no path fallback and rejects closed split names. D04/D11 adapters can parse their summary JSON directly from the same captured source snapshot, rejecting duplicate keys, non-finite JSON constants, mismatched caller summaries and stale canonical content digests. This only binds the summary object to captured bytes; it does not calculate D04 fits or the D11 production operator summary. None of these modules launches solvers or establishes macroblock independence.
+Every dependency in the source hash map is copied into the report snapshot using the same source-path map, so the diagnostic has a one-to-one code/contract fingerprint and retained-source inventory. Snapshot bytes are checked against the plan hashes before the output directory is created. The map binds the selected trainable-W CPU parameterization and directional features as well as the D04 raw E-chain diagnostic reader, D04/D06 reducers, bounded-risk and Markov formulas, evidence adapter, snapshot reader, shared evidence gate, receipt/state models, source-integrity code, and `core/npz_safety.py`. The trainable-W implementation is still an isolated coefficient/operator prototype; its coefficient-MSE target is not the selected physical risk and it is not wired as the production training arm. The NPZ safety helper checks ZIP/NPY structure and the decompressed-byte budget before NumPy allocates arrays. The reducers use fixed selected constants, paired draw-ID checks, full planned denominators, no epsilon repair, and abstention on incomplete or invalid draws. The D06 reader consumes one explicitly captured calibration NPZ, checks its schema, split, ordered arms/times, and macroblock IDs, then derives the three-arm bounded score matrix; a declared optimizer failure receives the preselected loss 1 while remaining in the assigned-arm denominator. This CPU reader has no path fallback and rejects closed split names. The D04 raw reader consumes captured manifest/protocol/correlator bytes, applies fixed PP/A4P folding and six joint-fit variants, and emits fit diagnostics only; it does not generate dependence-aware uncertainty or a gate-ready reference summary. D04/D11 metadata adapters can parse their summary JSON directly from the same captured source snapshot, rejecting duplicate keys, non-finite JSON constants, mismatched caller summaries and stale canonical content digests. This only binds a summary object to captured bytes; it does not calculate a D11 production operator summary. None of these modules launches solvers or establishes macroblock independence.
 
 ## Text flow
 
@@ -229,6 +227,7 @@ The source hash map binds the selected trainable-W CPU parameterization and dire
 selected contract + trainable-W prototype/features + reducer/reader/integrity/NPZ parser sources -> SHA-256 map and source snapshots
   -> generic TaskSpec (D0-D59 fit; D60-D99 development selection)
   -> D06 snapshot NPZ -> fixed arm/time/ID checks -> bounded paired block scores
+  -> D04 raw correlator snapshot -> PP/A4P fold + six fit variants -> diagnostic only
   -> D04/D11 captured JSON summary -> strict decode/content digest -> metadata gate only
   -> D04/D06 array reducers remain source-bound; production draw generation is not wired
   -> generic RunSpec with empty data-hash map
@@ -240,7 +239,7 @@ The schema-plan denominator is planned/valid/failed/abstained=`1/1/0/0`: one in-
 
 ## Remaining implementation and evidence
 
-This checkout does not contain `tasks/optimize_gaussian/runspec_builder.py`, a task-specific worker, or `train.main`; the plan therefore does not point to a child command and cannot become a production RunSpec. The new D06 reader is a bounded-array reader, not a solver/evaluator and not the missing task runner. The D04/D11 summary parser does not compute the raw-correlator fit or production-link operator. The next software change requires integrating this array contract with a reviewed paired-results producer and RunSpec while preserving the closed-split preflight. The open physical gates separately require the E-chain reference, D11 production-link review, D06 paired solver/cost receipts, and explicit data/GPU authorization. No gate is inferred from schema validity.
+This checkout does not contain `tasks/optimize_gaussian/runspec_builder.py`, a task-specific worker, or `train.main`; the plan therefore does not point to a child command and cannot become a production RunSpec. The new D06 reader is a bounded-array reader, not a solver/evaluator and not the missing task runner. The D04 raw reader is now hash-bound in this draft and copied into its report, but remains a synthetic-capable diagnostic that lacks dependence-aware mass errors, paired shifts, and a gate-ready summary. The D04/D11 metadata parser does not substitute for production reference fitting or a production-link operator evaluator. The next software change requires integrating these arrays with a reviewed paired-results producer and RunSpec while preserving the closed-split preflight. The open physical gates separately require the E-chain reference, D11 production-link review, D06 paired solver/cost receipts, and explicit data/GPU authorization. No gate is inferred from schema validity.
 """
     (out / "README.md").write_text(readme)
     payloads = sorted(path for path in out.iterdir() if path.is_file())

@@ -1,6 +1,6 @@
 # optimize_gaussian：CPU 验收结论与后续研究
 
-### 当前控制状态（2026-11-26；以下替代早期“等待选择”交接）
+### 当前控制状态（2026-11-27；以下替代早期“等待选择”交接）
 
 研究合同已给出可审阅的方法默认值：D04 用独立、candidate-blind E-chain PP/A4P 联合拟合；D06 保留 trainable-$W$ 对同预算 SLSQP 和 degree-4 Chebyshev 两项对比、`F=2`、`r_star=10/9`；bounded block-risk 是用户已接受的并列 estimand；D11 degree-4 Bernstein/Chebyshev 强谱算符和 160-call 单任务预算也已写入合同。D06 bounded-risk Markov 路线现除两态 reversible stress 外，又有非可逆 19 态已知-gap/初始-TV 图文校准，但仍只是合成覆盖证据。Wilson F-lane 有限-$N_t$ q/h/x sector 对应也已作为独立审阅前的方法提案登记，见 [`tasks/wilson_loop/todo.md`](../wilson_loop/todo.md)。TODO 仍开着，因为 E-reference 与配对 solver receipts、独立统计/算符审阅、生产成本测量和相应授权缺失。维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`；不读封存 split、不启动 GPU/QUDA。下方早期时间戳条目保留审计历史，方法选择以本节和文末最新 handoff 为准。
 
@@ -22,9 +22,9 @@ synthetic fixture 的六拟合分母为 `6/6/0/0`，18 个 multistart 中 17 个
 
 **图文验收物：**同一配对 panel 的两项 log-risk-ratio 区间图（标出 `10/9` 门和完整分母）；每臂 calls/time/residual/KKT/训练与 setup 成本分解图；D04 所有窗口/态数诊断；D11 positivity、spectral response 与来源 hash 流程图。报告必须保留 `planned/valid/failed/abstained`，并说明数据 split、CPU/GPU、精度、线程数和是否计入训练成本。Independent review 与相应数据/设备授权仍是进入真实评估前的条件；不能用新 schema 或合成图声称物理 gate 通过。
 
-### 2026-11-26 当前 CPU 验证快照
+### 2026-11-27 当前 CPU 验证快照
 
-当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **159 passed**；Wilson 专项文件集 `tests/test_wilson*.py` 为 **194 passed**（包含本轮新增的 10 个 transfer-trace reader checks）。Optimize+Wilson 定向集合为 **353 passed**，PR #6 当前完整 CPU suite **436 passed**。PR #5 Pion 当前完整 CPU suite **265 passed**（包含 anchor scalar reader 7 项及 map fingerprint 断言）；Pion TODO 与其工作树分开更新。所有结果只代表 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
+当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **159 passed**；Wilson 专项文件集 `tests/test_wilson*.py` 为 **194 passed**（包含本轮新增的 10 个 transfer-trace reader checks）。Optimize+Wilson 定向集合为 **353 passed**，PR #6 当前完整 CPU suite **436 passed**。PR #5 Pion 当前完整 CPU suite **268 passed**（包含同快照 common-bias receipt consistency checks）；Pion TODO 与其工作树分开更新。所有结果只代表 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
 
 ### 2026-11-26 历史附件链接审计
 
@@ -641,3 +641,11 @@ reader 现在还从同一 snapshots 严格解析 `optimize-paired-macroblock-cha
 ### 2026-11-26 PR #6 后续全仓回归快照
 
 在新增 Wilson 固定 `L={6,8,10}` MBB 敏感度图文包后，PR #6 当前提交 `773468acf1f1ce6fce824dd8aa207383a3a7d3e1` 的全仓 CPU suite 为 **419 passed**；Optimize 源文件与方法合同未在该提交中改变。该回归不关闭本 TODO 中 D04 E-chain evaluator/reference、D06 获准 paired solver/gap-TV receipts、D11 production SU(3) link/operator evaluator/独立审阅等事项；仍保持两项既定比较、`NOT_READY/UNCERTIFIED`、`physical_score=null` 与 sealed data closed。
+
+### 2026-11-27 D04 reader 来源指纹和报告快照一一对应
+
+检查 no-launch 草案报告时发现 `d04_raw_reference.py` 已提供同快照的 raw PP/A4P parser 与六个拟合变体，但此前不在 `TaskSpec.dependencies` 哈希表/报告快照中；并且 source hash map 与复制到报告中的文件清单由两份独立映射维护，`contract.py` 与 `kernels.py` 也有已登记 hash、未保留 snapshot 的缺口。现用一个 `_source_paths()` 作为哈希和快照的共同清单，报告构建前从同一映射捕获所有依赖 bytes，并检查每个捕获字节的 SHA-256 与计划 hash 一致；不匹配时在创建输出目录前停止。D04 raw reader 加入该清单，报告正文与机器可读 `text_flow` 标明它只输出 fit diagnostic，不产生 dependence-aware error 或 gate-ready reference。
+
+新版[no-launch 草案报告 v8](../../results/optimize_gaussian/draft_plan_20261127_v8/README.md)包含 source dependencies/snapshots `21/21` 一一对应，artifact hashes `23/23` 匹配；schema plan `1/1/0/0`，物理 stages `5/0/0/5`，data inputs `0/0/0/0`，`launch_allowed=false`。`tests/test_optimize_draft_plan.py tests/test_optimize_d04_raw_reference.py` **9 passed**；本轮 PR #6 全仓 CPU suite **436 passed**，`git diff --check` 通过。新增验证只确保哈希清单与随附源码快照一致，不证明 D04 数据来源、fit coverage 或 E-chain 参考有效。
+
+下一步保持范围在同快照 D04 evaluator：review fit window/channel/sign conventions，补依赖感知 mass error、PP/A4P/window/model 的 paired-SE shifts 与完整拟合/失败 summary，再由 adapter 从同一 source bytes 检查 summary 与 receipt；需要独立 reviewer 和获准的非封存 E-chain 输入后才能尝试 reference gate。没有这些输入时保留 D04 `NOT_READY/UNCERTIFIED`，不读 sealed IDs、不启动 GPU，两个 D06 对照与 bounded block-risk estimand 不变。

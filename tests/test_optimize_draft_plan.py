@@ -33,12 +33,14 @@ def test_selected_f2_contrasts_are_bound_to_fail_closed_no_launch_plan():
     assert "bounded_block_risk_markov.py" in plan["source_hashes"]
     assert "trainable_w.py" in plan["source_hashes"]
     assert "features.py" in plan["source_hashes"]
+    assert "d04_raw_reference.py" in plan["source_hashes"]
     assert "evidence_adapter.py" in plan["source_hashes"]
     assert "core/evidence.py" in plan["source_hashes"]
     assert "core/receipts.py" in plan["source_hashes"]
     assert "an evaluator that generates paired outer block-bootstrap and inner D04 draws" in plan["not_established"]
     assert "production D04/D11 summary generation from raw correlator/link inputs" in plan["not_established"]
     assert any("D04/D11 summary JSON" in item for item in plan["text_flow"])
+    assert any("D04 raw E-chain snapshot reader" in item for item in plan["text_flow"])
     assert plan["physical_score"] is None
     assert run["physical_score"] is None
     assert run["data"] == {}
@@ -60,9 +62,14 @@ def test_draft_report_copies_the_hashed_snapshot_reader_dependencies(tmp_path):
     assert "snapshot_core_npz_safety.py" in artifacts
     assert "snapshot_core_source_integrity.py" in artifacts
     assert "snapshot_trainable_w.py" in artifacts
+    assert "snapshot_d04_raw_reference.py" in artifacts
     assert "snapshot_features.py" in artifacts
     assert "snapshot_evidence_adapter.py" in artifacts
     assert "snapshot_core_evidence.py" in artifacts
     assert "snapshot_core_receipts.py" in artifacts
+    for source_name, expected in plan["source_hashes"].items():
+        snapshot_name = f"snapshot_{source_name.replace('/', '_')}"
+        assert snapshot_name in artifacts
+        assert hashlib.sha256((output / snapshot_name).read_bytes()).hexdigest() == expected
     for name, expected in artifacts.items():
         assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected

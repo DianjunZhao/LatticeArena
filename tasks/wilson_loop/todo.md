@@ -1,8 +1,8 @@
 # wilson_loop：CPU 验收结论与下一阶段
 
-### 当前 CPU 验证快照（2026-11-26）
+### 当前 CPU 验证快照（2026-11-27）
 
-2026-11-27 本轮重跑 PR #6 的 Wilson 定向文件集 `tests/test_wilson*.py`：**194 passed**；Optimize+Wilson 定向集合 **353 passed**（Optimize 159、Wilson 194），PR #6 全仓 CPU suite **436 passed**。PR #5 Pion 全仓 CPU suite **265 passed**。这些结果只核验 CPU 软件/合成公式；没有读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+2026-11-27 本轮重跑 PR #6 的 Wilson 定向文件集 `tests/test_wilson*.py`：**194 passed**；Optimize+Wilson 定向集合 **353 passed**（Optimize 159、Wilson 194），PR #6 全仓 CPU suite **436 passed**。PR #5 Pion 全仓 CPU suite **268 passed**。这些结果只核验 CPU 软件/合成公式；没有读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
 
 ### 2026-11-26 历史附件链接审计
 

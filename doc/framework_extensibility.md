@@ -375,3 +375,27 @@ semantic-axis parser, estimator, fit diagnostics, uncertainty calibration and
 physical receipt. A shared fit-output schema should be considered only after
 the Wilson exporter and Optimize reference reader establish genuinely common
 fields while retaining their channel, symmetry and boundary conventions.
+
+## Extension point: bind typed claims and code to captured bytes
+
+The Pion adapter now parses its common-bias claim from the same immutable anchor
+snapshot later checked by the source-byte gate. It compares `C/R`, anchor map
+ID/hash, the validated reference-stage evidence hash, review scope, quantity,
+and support interval; duplicate JSON keys and non-finite values fail closed.
+This closes a claim-to-input consistency gap while leaving reviewer identity,
+hash authority and scientific validity unauthenticated. Its report keeps two
+denominators separate: source-file byte integrity and semantic receipt
+consistency. A semantically inconsistent claim can therefore have source-file
+P/V/F/A=`16/16/0/0` and receipt-claim P/V/F/A=`1/0/1/0` without conflating the
+two outcomes.
+
+Optimize's no-launch draft uses the same provenance idea for code: one source
+path map now supplies both TaskSpec dependency hashes and retained source
+snapshots, and report generation checks captured bytes against the planned
+digests before creating output. This makes missing snapshots and source changes
+visible in the artifact audit. The reusable pattern is: typed parser, same
+immutable bytes, linked IDs/hashes, and separate source and claim denominators.
+Future adapters should add domain-specific parsers and review rules without
+treating a matching hash as authenticated evidence. A
+shared receipt-signature/trust-root layer could be considered after at least
+two tasks define compatible signer, authority, revocation and scope semantics.
