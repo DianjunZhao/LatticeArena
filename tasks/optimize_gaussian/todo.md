@@ -665,3 +665,7 @@ reader 现在还从同一 snapshots 严格解析 `optimize-paired-macroblock-cha
 文字流程：`raw PP/A4P rows -> even/odd fold -> shared covariance -> one ordered circular-MBB index set per draw -> 8 fits on that same draw -> paired shift or retained fit failure -> 90% valid-draw reporting threshold -> diagnostic only`。代码中 chi-square p 值仍是近似 GLS 诊断；percentile MBB 区间未做有限样本覆盖校准。自审也不能决定 exporter 的 A4P source/sink 符号、轨迹顺序是否构成平稳链、L={4,8} 是否覆盖依赖尺度或 circular wrap 是否合适。这里没有新增/重跑测试，也没有独立 reviewer；它确认代码与本地拟定合同的对应关系，不确认物理约定。
 
 因此，本项关闭的是“明确代码实际折叠/重抽了什么”的审计缺口，不是 D04 reference gate。继续所需的最小外部包仍是获准、未封存、candidate-blind E-chain 原始 PP/A4P bytes、来源和依赖收据、production exporter/source-sink 约定，以及独立统计/物理 review。拿到前不生成 gate-ready summary、不打开 sealed split、不训练或运行 GPU；D04/D06/D11 保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
+
+### 2026-11-27 shared NPZ 解析失败归一化与整仓复核
+
+NPZ 共享预检器现把 ZIP 不支持的压缩方式、加密成员和损坏 DEFLATE 流产生的解码异常归一为 `ValueError`。Optimize 的 D04/D06 readers 因而沿用已有的异常处理，进入其明确的 failed/abstained 记录，而不是把格式异常作为未捕获异常漏出 task adapter。流程：`captured NPZ bytes -> member/header/size preflight -> ZIP/codec parse error -> ValueError -> task-specific fail-closed denominator`。`tests/test_source_integrity.py` **16 passed**；提交前 PR #6 全仓 CPU suite **446 passed in 73.52 s**。这验证解析失败路径的软件行为，不验证 reader 输入的来源或物理内容；没有读取 E/solver/operator receipts，D04/D06/D11 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`，不启动 GPU/QUDA。

@@ -258,3 +258,51 @@ def test_npz_preflight_rejects_object_arrays_and_duplicate_members():
             archive.writestr("same.npy", b"second")
     with pytest.raises(ValueError, match="duplicate member"):
         validate_npz_payload(duplicate.getvalue())
+
+
+def _mutate_npz_member(payload: bytes, *, compression: int | None = None,
+                       encrypted: bool = False) -> bytes:
+    import struct
+    data = bytearray(payload)
+    local = data.find(bytes.fromhex("504b0304"))
+    central = data.find(bytes.fromhex("504b0102"))
+    assert local >= 0 and central >= 0
+    if compression is not None:
+        struct.pack_into("<H", data, local + 8, compression)
+        struct.pack_into("<H", data, central + 10, compression)
+    if encrypted:
+        for offset in (local + 6, central + 8):
+            flags = struct.unpack_from("<H", data, offset)[0]
+            struct.pack_into("<H", data, offset, flags | 1)
+    return bytes(data)
+
+
+@pytest.mark.parametrize("mode", ["unsupported_compression", "encrypted"])
+def test_npz_preflight_normalizes_zip_member_errors_to_value_error(mode):
+    stream = BytesIO()
+    with ZipFile(stream, "w") as archive:
+        archive.writestr("values.npy", b"not actually an NPY member")
+    payload = stream.getvalue()
+    if mode == "unsupported_compression":
+        payload = _mutate_npz_member(payload, compression=99)
+    else:
+        payload = _mutate_npz_member(payload, encrypted=True)
+
+    with pytest.raises(ValueError, match="invalid NPY member 'values.npy'"):
+        validate_npz_payload(payload)
+
+
+def test_npz_preflight_normalizes_corrupt_deflate_stream_to_value_error():
+    import struct
+    stream = BytesIO()
+    with ZipFile(stream, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr("values.npy", b"0" * 10000)
+    payload = bytearray(stream.getvalue())
+    local = payload.find(bytes.fromhex("504b0304"))
+    name_size = struct.unpack_from("<H", payload, local + 26)[0]
+    extra_size = struct.unpack_from("<H", payload, local + 28)[0]
+    compressed_data = local + 30 + name_size + extra_size
+    payload[compressed_data] ^= 0xFF
+
+    with pytest.raises(ValueError, match="invalid NPY member 'values.npy'"):
+        validate_npz_payload(bytes(payload))
