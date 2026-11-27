@@ -1,9 +1,11 @@
-"""Snapshot-only reader for the proposed bounded Pion anchor scalar map.
+"""Snapshot-only readers for Pion anchor scalars and PP mean features.
 
-The map is diagnostic: each captured anchor-state PP correlator is folded and
-mapped to one scalar. Invalid states remain in the planned denominator. This
-reader does not prove the map's bias bound, Markov assumptions, or independence
-from the score chain, and never creates a certified physical score.
+The default map is diagnostic: each captured anchor-state PP correlator is
+folded and mapped to one scalar, with invalid states retained in its planned
+denominator. Optional feature-vector mode separately returns finite folded
+PP values at t=3,4,5 for the ensemble-mean route. Neither mode proves a bias
+bound, Markov assumptions, or independence from the score chain; neither
+creates a certified physical score.
 """
 from __future__ import annotations
 
@@ -22,6 +24,7 @@ from core.source_integrity import SourceByteSnapshot
 MANIFEST_SCHEMA = "pion-anchor-pp-manifest-v1"
 CORRELATOR_SCHEMA = "pion-anchor-pp-correlators-v1"
 RESULT_SCHEMA = "pion-anchor-scalar-map-read-v1"
+FEATURE_VECTOR_RESULT_SCHEMA = "pion-anchor-pp-feature-vector-read-v1"
 TEMPORAL_EXTENT = 16
 MAP_TIME = 4
 SUPPORT = (0.1, 3.0)
@@ -115,10 +118,13 @@ def read_anchor_scalar_snapshot(
     correlator_name: str = "anchor_correlator_data",
     protocol_name: str = "anchor_protocol",
     expected_states: int | None = None,
+    include_feature_vector: bool = False,
 ) -> dict[str, Any]:
     """Read an anchor chain from captured bytes and report every state outcome."""
     if not isinstance(snapshot, SourceByteSnapshot):
         raise ValueError("snapshot must be a SourceByteSnapshot")
+    if not isinstance(include_feature_vector, bool):
+        raise ValueError("include_feature_vector must be boolean")
     manifest = _strict_json(snapshot, manifest_name)
     if set(manifest) != _MANIFEST_KEYS or manifest.get("schema") != MANIFEST_SCHEMA:
         raise ValueError("anchor manifest keys or schema do not match the reader contract")
@@ -174,6 +180,12 @@ def read_anchor_scalar_snapshot(
         raise ValueError("anchor PP array axes must be (state, t=0..15)")
     if correlators.dtype.kind != "f" or not np.all(np.isfinite(correlators)):
         raise ValueError("anchor PP array must be finite and explicitly real")
+    feature_values = None
+    if include_feature_vector:
+        folded = fold_pp_even(correlators)
+        feature_values = folded[:, (3, 4, 5)]
+        if not np.all(np.isfinite(feature_values)):
+            raise ValueError("folded anchor PP feature matrix must be finite")
     id_hash = sha256(np.ascontiguousarray(state_ids).tobytes()).hexdigest()
     if manifest.get("state_ids_sha256") != id_hash:
         raise ValueError("anchor state ID hash mismatch")
@@ -190,7 +202,7 @@ def read_anchor_scalar_snapshot(
     planned = len(state_ids)
     failed = len(reasons)
     valid = planned - failed
-    return {
+    result = {
         "schema": RESULT_SCHEMA,
         "status": "diagnostic_only" if failed == 0 else "ABSTAIN_INVALID_ANCHOR_STATES",
         "certified": False, "physical_score": None,
@@ -213,3 +225,16 @@ def read_anchor_scalar_snapshot(
             "this reader does not produce a Pion evidence envelope or certified score",
         ],
     }
+    if feature_values is not None:
+        result["schema"] = FEATURE_VECTOR_RESULT_SCHEMA
+        result["feature_vector"] = {
+            "feature_order": ["C_fold_3", "C_fold_4", "C_fold_5"],
+            "matrix": feature_values.tolist(),
+            "denominator": {
+                "unit": "saved gauge configuration feature row",
+                "planned": planned, "valid": planned, "failed": 0,
+                "abstained": 0,
+            },
+            "note": "per-state features for an ensemble-mean vector bound; not per-state spectral masses",
+        }
+    return result

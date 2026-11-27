@@ -11,11 +11,15 @@ import pytest
 from core.source_integrity import capture_source_snapshot
 from tasks.pion_projection.anchor_scalar_reader import (
     CORRELATOR_SCHEMA,
+    FEATURE_VECTOR_RESULT_SCHEMA,
     MAP_HASH,
     MAP_ID,
     MANIFEST_SCHEMA,
     anchor_scalar,
     read_anchor_scalar_snapshot,
+)
+from tasks.pion_projection.anchor_spectral_interval import (
+    read_anchor_ground_mass_interval_snapshot,
 )
 
 
@@ -99,6 +103,90 @@ def test_snapshot_reader_accepts_open_anchor_fixture_and_expected_count(tmp_path
     assert result["mean_scalar_if_all_valid"] == pytest.approx(0.5, abs=1e-12)
     with pytest.raises(ValueError, match="predeclared denominator"):
         read_anchor_scalar_snapshot(snapshot, expected_states=4000)
+
+
+def test_snapshot_reader_can_return_ordered_pp_mean_features(tmp_path):
+    snapshot = _fixture(tmp_path, n=12)
+    result = read_anchor_scalar_snapshot(snapshot, include_feature_vector=True)
+
+    assert result["schema"] == FEATURE_VECTOR_RESULT_SCHEMA
+    feature_vector = result["feature_vector"]
+    assert feature_vector["feature_order"] == [
+        "C_fold_3", "C_fold_4", "C_fold_5",
+    ]
+    assert feature_vector["denominator"] == {
+        "unit": "saved gauge configuration feature row",
+        "planned": 12, "valid": 12, "failed": 0, "abstained": 0,
+    }
+    assert np.asarray(feature_vector["matrix"]).shape == (12, 3)
+    assert np.asarray(feature_vector["matrix"])[:, 1] == pytest.approx(
+        [np.exp(-2.0) + np.exp(-6.0)] * 12,
+    )
+    assert "not per-state spectral masses" in feature_vector["note"]
+
+
+def test_snapshot_reader_feature_path_keeps_rows_when_scalar_map_abstains(tmp_path):
+    snapshot = _fixture(tmp_path, n=12, invalid=True)
+    result = read_anchor_scalar_snapshot(snapshot, include_feature_vector=True)
+
+    assert result["status"] == "ABSTAIN_INVALID_ANCHOR_STATES"
+    assert result["state_denominator"] == {
+        "unit": "anchor_chain_state", "planned": 12,
+        "valid": 11, "failed": 1, "abstained": 0,
+    }
+    assert result["feature_vector"]["denominator"] == {
+        "unit": "saved gauge configuration feature row",
+        "planned": 12, "valid": 12, "failed": 0, "abstained": 0,
+    }
+
+
+def test_snapshot_spectral_interval_path_is_conditional_and_hash_bound(tmp_path):
+    snapshot = _fixture(tmp_path, n=4000)
+    (tmp_path / "anchor.npz").write_bytes(b"changed after immutable capture")
+
+    result = read_anchor_ground_mass_interval_snapshot(
+        snapshot,
+        support_bounds=np.asarray([[0.22, 0.23], [0.13, 0.15], [0.08, 0.10]]),
+        gamma_ps_lower=0.2,
+        alpha_anchor=0.01,
+        initial_law_tv_bound=0.0,
+        burn_in_units=0,
+        stationary_start=True,
+        score_scale_R=2.9,
+        expected_states=4000,
+    )
+
+    lower, upper = result["identified_ground_mass_interval"]
+    assert lower <= 0.5 <= upper
+    assert result["source_read_mode"] == "immutable_snapshot"
+    assert result["split_id"] == "anchor-open-calibration"
+    assert set(result["source_hashes"]) == {
+        "anchor_manifest", "anchor_correlator_data", "anchor_protocol",
+    }
+    assert result["feature_denominator"] == {
+        "unit": "saved gauge configuration feature row",
+        "planned": 4000, "valid": 4000, "failed": 0, "abstained": 0,
+    }
+    assert result["input_markov_mean_box"]["joint_coverage_probability_lower_bound"] == 0.99
+    assert result["target_bridge_status"] == "unverified_for_independent_E_reference"
+    assert result["common_bias_bound_C"] is None
+    assert result["physical_score"] is None and not result["certified"]
+
+
+def test_snapshot_spectral_interval_path_rejects_sealed_split(tmp_path):
+    snapshot = _fixture(tmp_path, n=12, split="anchor-sealed-confirmation")
+    with pytest.raises(ValueError, match="open, explicitly named anchor split"):
+        read_anchor_ground_mass_interval_snapshot(
+            snapshot,
+            support_bounds=np.asarray([[0.22, 0.23], [0.13, 0.15], [0.08, 0.10]]),
+            gamma_ps_lower=0.2,
+            alpha_anchor=0.01,
+            initial_law_tv_bound=0.0,
+            burn_in_units=0,
+            stationary_start=True,
+            score_scale_R=2.9,
+            expected_states=12,
+        )
 
 
 def test_snapshot_reader_rejects_sealed_split_and_complex_correlators(tmp_path):
