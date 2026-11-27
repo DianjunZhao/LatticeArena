@@ -8,16 +8,17 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping, Sequence
 
+from core.numerics import as_finite_real
+
 
 COMPONENT_FRACTIONS = {"q": 0.015, "h": 0.015, "x": 0.01}
 FORCE_CORNER_COUNT = 8  # 2 kernels x (R=2,3) x (t,t+1)
 
 
 def _positive(value: float, name: str, *, allow_zero: bool = False) -> float:
-    if isinstance(value, bool):
-        raise ValueError(f"{name} must be a finite number")
-    result = float(value)
-    if not math.isfinite(result) or (result < 0 if allow_zero else result <= 0):
+    result = as_finite_real(value, name=name)
+    invalid = result < 0 if allow_zero else result <= 0
+    if invalid:
         qualifier = "nonnegative" if allow_zero else "positive"
         raise ValueError(f"{name} must be finite and {qualifier}")
     return result

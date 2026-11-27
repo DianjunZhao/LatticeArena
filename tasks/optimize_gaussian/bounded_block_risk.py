@@ -13,6 +13,8 @@ from typing import Any
 
 import numpy as np
 
+from core.numerics import as_real_float_array
+
 
 TIMES = (2, 3, 4, 5)
 ARMS = ("trainable_w", "same_budget_slsqp", "degree4_chebyshev")
@@ -22,25 +24,6 @@ FAMILY_SIZE = 2
 BOUND_EVENTS = FAMILY_SIZE + 1  # two paired contrasts plus one shared denominator bound
 DELTA_PER_BOUND = ALPHA_TOTAL / BOUND_EVENTS
 LOSS_CAP = 1.0
-
-
-def _as_real_score_array(value: object, *, label: str) -> np.ndarray:
-    """Convert only real integer/float score inputs without lossy coercion."""
-    try:
-        raw = np.asarray(value)
-    except (OverflowError, TypeError, ValueError) as exc:
-        raise ValueError(f"{label} must be a rectangular real numeric array") from exc
-    # In particular, do not let NumPy silently discard an imaginary component
-    # when casting complex arrays to float64.  Object/string/bool arrays are
-    # also rejected so malformed serialized input cannot acquire a score by
-    # implicit coercion.
-    if raw.dtype.kind not in "iuf":
-        raise ValueError(f"{label} must be a real integer or floating-point array")
-    try:
-        with np.errstate(over="ignore", invalid="ignore"):
-            return np.asarray(raw, dtype=np.float64)
-    except (OverflowError, TypeError, ValueError) as exc:
-        raise ValueError(f"{label} cannot be represented as finite float64") from exc
 
 
 def _failure_mask(value: object | None, n_blocks: int) -> np.ndarray:
@@ -144,7 +127,7 @@ def bounded_block_risk_decision(
     lower bound is equivalent to a risk ratio above ``r_star``.  Failure to
     separate the denominator from zero is reported as abstention.
     """
-    scores = _as_real_score_array(block_scores, label="block scores")
+    scores = as_real_float_array(block_scores, name="block scores")
     if scores.ndim != 2 or scores.shape[1] != len(ARMS):
         raise ValueError("block scores must have shape (blocks, 3 arms)")
     if not np.isfinite(scores).all() or np.any(scores < 0.0) or np.any(scores > LOSS_CAP):

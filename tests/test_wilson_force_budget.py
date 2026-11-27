@@ -54,7 +54,7 @@ def test_raw_interpretation_of_current_percentages_exceeds_force_budgets():
     assert result["assumption_only_numeric_gate_pass"] is False
 
 
-@pytest.mark.parametrize("reference", [0, -1, math.inf, math.nan, True])
+@pytest.mark.parametrize("reference", [0, -1, math.inf, math.nan, True, "1.0", 2**53 + 1])
 def test_reference_force_lower_bound_must_be_positive_finite(reference):
     with pytest.raises(ValueError, match="reference_force_lower"):
         propagate_force_budget(_same_cap(0, 0, 0), reference)

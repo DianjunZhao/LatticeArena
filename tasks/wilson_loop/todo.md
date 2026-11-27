@@ -886,3 +886,9 @@ source-map audit 发现 C-lane open-development generator 通过 `SourceByteSnap
 检查确认性 C lane 之外使用的纯代数 `finite_nt_toy.py` 时发现，其正谱 q/h/x、振幅与势输入通过裸 `float()` 转换：布尔和数字字符串会被默认为物理数，超范围整数会漏出 `OverflowError`；有限的超大 q/h/x 分别可接受，但直接先相加可能溢出，使原本有限的 `log(1+q+h+x)` envelope 变成无穷。现在只接受有限实数并拒绝 bool/string/complex/不可表示输入；对正的 q/h/x 项用缩放对数和计算 `log(1+Σ)`，并对最终 `log W` 的非有限结果 fail closed。
 
 文字诊断：`q,h,x finite nonnegative -> scaled log-sum -> delta=log(1+q+h+x)`；其中 `q=h=x=10^308` 的数学 log-envelope 仍有限（约 709.3），现在不会先形成溢出的 `3×10^308`；布尔、字符串、`10**400`、complex 进入输入拒绝路径；过大有限势若导致 `log W` 非有限则拒绝。`tests/test_wilson_finite_nt_toy.py` **19 passed**，本轮 PR #6 全套 CPU tests **496 passed**，覆盖既有有限-$N_t$/Creutz 符号恒等式与新边界。此修正仅作用于 synthetic algebra helper，不产生生产 `C_ij`、有限-$N_t$ 污染界、reference force 或统计区间；Creutz C lane 与基态静态力 F lane 保持分离，生产仍 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，sealed split closed。
+
+### 2026-11-28 Wilson 数值入口接入共享 core
+
+Wilson 的有限-$N_t$ Creutz toy 输入与 q/h/x→force-budget scalar 现复用 [`core/numerics.py`](../../core/numerics.py) 的 `as_finite_real`，因此 bool、字符串、complex、浮点溢出和 float64 无法精确表示的大整数在 task 计算前拒绝。task 层仍分别执行非负/正值、q/h/x 项、force 单位预算和 stable `log(1+q+h+x)` 检查。共享 helper 不把 dimensionless loop envelope 当 force receipt。
+
+文字流程：`raw Wilson scalar -> shared finite-real/exactness check -> domain positivity/nonnegative check -> stable log envelope or force-budget propagation -> finite result or reject`。共享 core tests 与 Wilson finite-$N_t$/force-budget 定向测试合计 **86 passed**；PR #6 全套 CPU suite **513 passed**。C lane finite-$T$ Creutz 和 F lane ground-state force 仍分开，生产 `C_ij`、`N_t=32` thermal/mixed receipts、正 reference-force/error budget 和独立物理审阅仍未完成；不读 sealed split、不运行 GPU/QUDA，保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。

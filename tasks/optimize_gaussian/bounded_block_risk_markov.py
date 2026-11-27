@@ -8,17 +8,17 @@ independently justified.
 from __future__ import annotations
 
 import math
-from numbers import Real
 from typing import Any
 
 import numpy as np
+
+from core.numerics import as_finite_real, as_real_float_array
 
 from .bounded_block_risk import (
     ALPHA_TOTAL,
     ARMS,
     BOUND_EVENTS,
     R_STAR,
-    _as_real_score_array,
 )
 
 
@@ -26,12 +26,11 @@ SCHEMA = "optimize-bounded-block-risk-markov-v1"
 
 
 def _finite_real(value: object) -> bool:
-    if not isinstance(value, Real) or isinstance(value, bool):
-        return False
     try:
-        return math.isfinite(float(value))
-    except (OverflowError, TypeError, ValueError):
+        as_finite_real(value, name="numeric parameter")
+    except ValueError:
         return False
+    return True
 
 
 def markov_bernstein_radius(
@@ -100,7 +99,7 @@ def bounded_block_risk_markov_decision(
     Supplying ``gamma_ps_lower`` is not evidence that the bound applies. The
     output is always ``certified=False`` and ``physical_score=None``.
     """
-    scores = _as_real_score_array(block_scores, label="block_scores")
+    scores = as_real_float_array(block_scores, name="block_scores")
     if scores.ndim != 2 or scores.shape[1] != len(ARMS):
         raise ValueError("block_scores must have shape (blocks, 3 arms)")
     if not np.isfinite(scores).all() or np.any(scores < 0.0) or np.any(scores > 1.0):

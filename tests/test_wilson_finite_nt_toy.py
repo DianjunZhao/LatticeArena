@@ -90,7 +90,7 @@ def test_log_loop_requires_positive_overlap():
         log_loop(params, 4, TOY_NT)
 
 
-@pytest.mark.parametrize("value", [True, "0.4", 10**400, 0.4 + 0.1j])
+@pytest.mark.parametrize("value", [True, "0.4", 2**53 + 1, 10**400, 0.4 + 0.1j])
 def test_positive_spectrum_parameters_reject_implicit_or_unbounded_coercion(value):
     params = dict(TOY_R, Q=value)
     with pytest.raises(ValueError):

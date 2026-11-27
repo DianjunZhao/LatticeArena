@@ -6,8 +6,9 @@ import csv
 import hashlib
 import json
 import math
-from numbers import Real
 from pathlib import Path
+
+from core.numerics import as_finite_real
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,20 +35,8 @@ TOY_NT = 16
 TOY_TIMES = (4, 5, 6, 7, 8)
 
 
-def _finite_real(value: object, name: str) -> float:
-    if not isinstance(value, Real) or isinstance(value, bool):
-        raise ValueError(f"{name} must be a finite real number")
-    try:
-        result = float(value)
-    except (OverflowError, TypeError, ValueError) as exc:
-        raise ValueError(f"{name} must be a finite real number") from exc
-    if not math.isfinite(result):
-        raise ValueError(f"{name} must be a finite real number")
-    return result
-
-
 def _finite_nonnegative(value: object, name: str) -> float:
-    result = _finite_real(value, name)
+    result = as_finite_real(value, name=name)
     if result < 0:
         raise ValueError(f"{name} must be finite and nonnegative")
     return result
@@ -106,8 +95,8 @@ def log_loop(parameters: dict, time_extent: int,
     _time_inputs(time_extent, temporal_extent)
     if "A0" not in parameters or "V0" not in parameters:
         raise ValueError("parameters must contain A0 and V0")
-    a0 = _finite_real(parameters["A0"], "A0")
-    v0 = _finite_real(parameters["V0"], "V0")
+    a0 = as_finite_real(parameters["A0"], name="A0")
+    v0 = as_finite_real(parameters["V0"], name="V0")
     if a0 <= 0:
         raise ValueError("A0 must be finite and positive")
     terms = contamination_terms(parameters, time_extent, temporal_extent)
