@@ -746,7 +746,7 @@ NPZ 共享预检器现把 ZIP 不支持的压缩方式、加密成员和损坏 D
 
 文字流程：`no-launch _source_paths -> 捕获 21 个源码/合同路径 -> AST 递归本地 import closure -> 与 source_hashes 逐字节核对 -> 无缺项 -> launch_allowed=false`。此次没有写入新结果目录、读 measurement/calibration/sealed bytes、重跑 synthetic panels 或启动 GPU/QUDA。当前物理认证门仍 `5/0/0/5`，数据输入 `0/0/0/0`，`NOT_READY/UNCERTIFIED`、`physical_score=null` 不变。下一软件工作应等待获准 development/calibration package 后，让 reviewed production evaluator 从同一 immutable snapshot 派生 D04/D11 summaries 和三臂 paired receipts；不得把 source closure 解释成 reference/effect/cost/coverage pass。
 
-### 2026-11-28 D04 bootstrap 源码假设审计与校准精度门槛
+### 2026-11-27 D04 bootstrap 源码假设审计与校准精度门槛
 
 本轮逐段检查了 [`d04_ar1_bootstrap_diagnostic.py`](d04_ar1_bootstrap_diagnostic.py) 的 `_sample_stationary_ar1`、`_estimate_common_rho` 与 outer/inner 调用链，以及 [`d04_parametric_bootstrap_diagnostic.py`](d04_parametric_bootstrap_diagnostic.py) 的拟合均值重建、raw covariance plug-in 和失败值计数；并与 [`d04_raw_reference.py`](d04_raw_reference.py) 的 covariance-of-mean、GLS objective、nominal degrees of freedom 对照。此项是实现作者对当前源码的自审，不是独立统计审查，也没有新读入数据或运行模拟。
 
