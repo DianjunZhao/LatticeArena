@@ -1,6 +1,6 @@
 # Pion projection: bounded block-risk calibration handoff
 
-### 当前控制状态（2026-11-26）
+### 当前控制状态（2026-11-27）
 
 `F=3`、bounded block-risk、score/anchor 错误预算和 Markov 覆盖路线已有明确方案及图文敏感度诊断；研究默认值已自选为 `a_t m_pi`、`R=2.9`、clip `[-1,1]`、`delta_star=0.4205`、效应门 `0.05`、score-chain `gamma_ps>=0.20`/burn-in `8`/`N=4000`/TV `<=0.001`、**anchor-chain Markov Bernstein `n_A=4000`、`gamma_A>=0.20`、burn-in `8`、TV `<=0.001`、`alpha_A=0.01`**，以及拟议 `C/R<=0.01`。选择 Markov anchor 为主路，是因为本任务的 HMC 配置不应在没有来源证明时假定为 IID；`n_A=1000` bounded-IID Hoeffding 只保留为确有 1000 个 IID stationary units 收据时的备选。现已提出并实现候选 anchor scalar map `m_eff(4)` 的 snapshot CPU reader，但它尚未独立审阅，也没有证明其目标对应、全状态支持或 common-bias `C`；因此仍无**合格/获接受**的 anchor scalar map，Markov 数值只是条件设计，不能直接进入校准。通用 `core/evidence.py` 的 schema v2 校验 evidence/source hashes、reviewer role claim 与 independence-claim hash，并对缺项/错配 fail closed。Pion task adapter 将选定方法 defaults 和分母接到原子 bundle gate，默认要求显式 source root/path maps 并逐项核验当前读取字节，因此完整 statistical stage 最多到 `draft`。它只验证当前 bytes 与调用方 digest 一致，不认证 digest authority、reviewer 身份、统计独立性或物理有效性，也不计算物理 score。真实 score/anchor 链的 `gamma_ps`/TV、E-reference、候选 map 的支持/协方差与 common-bias `C` 收据仍缺。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`；按用户要求，E/gap/validation/shared holdout/confirmation 保持封存，不启动 GPU/QUDA。接下来需由独立 reviewer 审核候选 map 和 `C` 目标桥，并从获准的非封存 anchor calibration bytes 计算逐状态诊断；没有这些证据仍 fail closed。
 
@@ -602,3 +602,9 @@ source-root 入口先按明示 hash/path 捕获每个 route 的 bytes，之后�
 跨任务盘点发现 snapshot 形式的 Pion NPZ reader 已调用 `core.npz_safety`，但兼容用的 path 形式仍直接把路径传给 `numpy.load`。现在 path reader 对同一份捕获字节先执行 64 MiB 压缩文件上限，再运行共享 NPZ header/解压大小预检，并只从该字节缓冲读取，避免完整读入超限压缩包或在检查后重开文件。TaskSpec 已包含 `common.py` 与 `core/npz_safety.py` 指纹，因此此行为变化会使旧冻结 submission 失效。
 
 文字流程：`path -> bounded one-pass bytes (<=64 MiB) -> NPZ expanded-size/header preflight -> numpy.load(BytesIO(captured bytes)) -> IDs/protocol/shape/finite checks`。两个定向回归分别验证预算前置与 NPZ 预检先于 `numpy.load`；`tests/test_pion_agent.py tests/test_pion_source_snapshot_reader.py` **13 passed**。共享预检器另把不支持压缩、加密成员及损坏 DEFLATE 的 ZIP 解码异常规范为 `ValueError`，使各 task reader 能走统一的 fail-closed/abstain 路径；source snapshot 在剩余额度内按块读取，超限时只额外读取 1 字节用于判定且不保留超限 payload；`tests/test_source_integrity.py` **17 passed**。提交后复跑整仓 CPU suite，**274 passed in 3.88 s**。这只关闭 parser 资源和错误类型边界；path 兼容入口仍需服从各自 split/授权规则，不能由此打开 sealed data 或升级 evidence。未读物理文件、不运行 GPU/QUDA，Pion 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
+
+### 2026-11-27 source-root 与预捕获 snapshot 的 common-bias 弃权一致性
+
+将上一轮只做过静态调用链核对的入口等价问题补成了回归测试：同一份完整 source bytes 和同一份 `common_bias_receipt` 均分别经 source-root 路径捕获、或显式预捕获 `SourceByteSnapshot` 后送入 adapter。收据声明 `C/R=0.005`，调用方输入 `C/R=0.01`；两路均返回 `ABSTAIN_PION_COMMON_BIAS_RECEIPT`，source-file 分母都是 `16/16/0/0`，receipt-claim 分母都是 `1/0/1/0`，RunState 的 statistical stage 都保持 `abstained`，`physical_score=null`。
+
+文字流程：`相同 manifest/map/receipt 文件 -> source-root capture 或 pre-captured snapshot -> 同一 receipt parser 与原子 gate -> 同样识别 C/R 错配 -> source P/V/F/A=16/16/0/0；claim P/V/F/A=1/0/1/0 -> ABSTAIN`。`tests/test_pion_evidence_adapter.py` **15 passed**。这只验证该项语义负例的两入口一致性，不证明所有异常类别逐字段相同，也不认证 receipt authority、真实 `C/R` 上界或 anchor/score 独立性；没有读取物理输入或 sealed split，不运行 GPU/QUDA，Pion 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`。

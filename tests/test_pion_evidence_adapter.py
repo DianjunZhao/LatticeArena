@@ -474,6 +474,45 @@ def test_snapshot_common_bias_receipt_is_the_caller_c_over_r_source(tmp_path):
     assert result["physical_score"] is None
 
 
+def test_source_root_and_snapshot_routes_abstain_on_the_same_bias_claim(tmp_path):
+    envelopes, hashes = _envelopes()
+    paths, anchor_map_hash = _materialize_source_bytes(tmp_path, envelopes, hashes)
+    receipt_path = tmp_path / paths["anchor"]["common_bias_receipt"]
+    receipt_path.write_bytes(_common_bias_receipt_bytes(anchor_map_hash, bound=0.005))
+    digest = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+    hashes["anchor"]["common_bias_receipt"] = digest
+    envelopes["anchor"]["source_hashes"]["common_bias_receipt"] = digest
+    snapshots = {
+        route: capture_source_snapshot(tmp_path, hashes[route], paths[route])
+        for route in ("score", "anchor")
+    }
+
+    source_root_result = _apply(
+        _ready_state(), copy.deepcopy(envelopes), copy.deepcopy(hashes),
+        common_bias=0.01, anchor_map_hash=anchor_map_hash,
+        source_root=tmp_path, source_paths_by_envelope=paths, require_source_bytes=True,
+    )
+    snapshot_result = _apply(
+        _ready_state(), copy.deepcopy(envelopes), copy.deepcopy(hashes),
+        common_bias=0.01, anchor_map_hash=anchor_map_hash,
+        source_snapshots_by_envelope=snapshots, require_source_bytes=True,
+    )
+
+    for result in (source_root_result, snapshot_result):
+        assert result["status"] == "ABSTAIN_PION_COMMON_BIAS_RECEIPT"
+        assert any("caller C/R differs" in reason for reason in result["reasons"])
+        assert result["source_verification"]["denominator"] == {
+            "unit": "source_file", "planned": 16, "valid": 16,
+            "failed": 0, "abstained": 0, "not_run": 0,
+        }
+        assert result["common_bias_receipt_verification"]["denominator"] == {
+            "unit": "captured_common_bias_receipt_claim", "planned": 1,
+            "valid": 0, "failed": 1, "abstained": 0, "not_run": 0,
+        }
+        assert result["run_state"]["status"]["statistical"] == "abstained"
+        assert result["physical_score"] is None
+
+
 def test_snapshot_common_bias_receipt_must_bind_validated_reference(tmp_path):
     envelopes, hashes = _envelopes()
     paths, anchor_map_hash = _materialize_source_bytes(tmp_path, envelopes, hashes)
