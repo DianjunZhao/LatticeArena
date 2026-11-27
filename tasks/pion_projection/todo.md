@@ -756,3 +756,21 @@ s_i(m) = clip(((m-y_ref,i)^2 - (m-y_cand,i)^2) / R^2, -1, 1)
 新增 negative-control parametrized tests 覆盖 reference 与 candidate 两个参数位上的 bool、数字字符串、complex、`10**400`，也覆盖 target endpoint 与 `R` 中的 `2^53+1` 精度损失；这些输入一律在打分前 `ValueError`，合法有限数组、失败 mask 及既有排序范围测试继续通过。文字流程：`raw paired predictions + target/R scalars -> shared exact-real/float64 representability gate -> task-specific planned/valid mask -> valid finite checks -> clipped score-set range; failed=-1`。当前定向测试 `python -m pytest -q tests/test_pion_bounded_block_risk_setwise.py` 为 **15 passed**；当前 PR #5 全 suite `python -m pytest -q tests` 为 **327 passed in 5.38 s**，`git diff --check` 通过。
 
 此 helper 仍只是可选的 set-valued risk 传播器，没有并入冻结 TaskSpec/evaluator；若后续将它用于报告，必须把 helper 与 `core/numerics.py` 一并纳入新报告的依赖闭包和源码快照，不能借用旧报告 hashes。target-set coverage、共同 estimand 对应、score-chain sampling uncertainty、anchor-to-E-reference bridge 与独立审阅仍未闭合，Pion 维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。
+
+### 2026-11-28 setwise 风险区间与 Markov 抽样下界的条件组合
+
+新增可选诊断 [`bounded_block_risk_setwise_markov.py`](bounded_block_risk_setwise_markov.py)，把共同 target interval 上的 setwise bounded-risk 与已有 support-only Markov Eq. (3.26) 下界组合。每个冻结 target grid 点都用同一 planned block chain 评分；失败 block 保持 `-1`。若 valid reference/candidate 预测都在宽度不超过 `R` 的同一 domain，则
+
+```text
+s_i(m)=clip(((m-y_ref,i)^2-(m-y_cand,i)^2)/R^2, -1, 1)
+|s_i(m)-s_i(m')| <= 2 |m-m'| / R
+uniform_LCB = max(-1, min_grid LCB(m_j) - h/R)
+```
+
+其中 `h` 是向上界定的最大相邻 grid 间距；调用 support-gap Markov helper 时把同时比较数设为 `family × grid_points`，因此离散 target points 与已有 candidate family 一并进入 tail factor。实现用精确二进制有理数计算 target/domain 宽度、网格段数及插值罚项的向上舍入；网格超出调用者限制或硬上限 **4096** 时 fail closed。
+
+文字数据流：`paired planned predictions + common target interval + frozen prediction domain -> 检查 domain width<=R -> 生成间距<=mesh_step_R*R 的 target grid -> 每个点计算 bounded scores (failed=-1) -> Markov Eq.(3.26) 同时下界 (family×grid size) -> 减去 h/R Lipschitz cover penalty -> 返回 interval-uniform conditional lower bound 或 all-failed abstention`。
+
+新增 [`test_pion_bounded_block_risk_setwise_markov.py`](../../tests/test_pion_bounded_block_risk_setwise_markov.py) **9 passed**；PR #5 当前完整 CPU suite **336 passed in 5.55 s**，`py_compile` 与 `git diff --check` 通过。测试将组合下界与精确 breakpoint setwise 风险范围对照，核对 family 扩大后 Eq. (3.26) radius、最大 mesh penalty、planned/failed 分母、全失败弃权，以及预测域、网格、receipt 与 lossless numeric 输入负控。它们是确定性软件夹具，不是 coverage 模拟或物理测量。该方法只给条件下界：interval coverage 和可能的 residual anchor bridge 必须共同纳入 `alpha_anchor`；随机 target set 必须独立于 score chain 或有有效 joint/conditional 证明；pseudo-gap、TV、schedule 与 receipts 的真实性仍由外部审阅。helper 仅校验 receipt 字符串形状，不验其授权/内容；未接入冻结 TaskSpec/evaluator，也未生成可用于任务判决的 score。Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed inputs closed。
+
+若今后把此组合路线纳入报告，source closure 至少要包括本 helper、`bounded_block_risk_setwise.py`、`bounded_block_risk_markov_varying.py` 与 `core/numerics.py`，并从同一输入快照生成新的报告和 hashes；不能复用旧 artifacts。接入之前还需独立审稿人核对 Eq. (3.26) family/alpha 计数与 Lipschitz 覆盖推导，并以获准 open calibration package 给出 target-set coverage、同一物理量/单位、score-chain gap/TV、prediction-domain 与 anchor-to-E bridge 证据。任一缺项继续 abstain，严禁读取 sealed split 或启动 GPU/QUDA。
