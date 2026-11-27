@@ -666,3 +666,18 @@ f_4 = Σ_{n>0} A_n K(m_n,4) / C(4)
 只读 AST/import-closure 审计发现，alias 诊断经 `anchor_scalar_reader.py` 导入 `core.npz_safety` 与 `core.source_integrity`，但报告的 `SOURCE_PATHS` 原先只 hash 了任务脚本、reader 和两个前序公式诊断。虽然当前 alias 只调用折叠和标量公式，不读取 NPZ；把共享模块加入来源快照后，报告对整个 reader 模块的 Python import 身份也闭合，不会把模块级导入依赖留在清单之外。现已增加 `core_npz_safety.py` 与 `core_source_integrity.py` 两个源码项，并让回归测试核对未来生成报告中的 source hashes 与快照；临时测试报告 source files=`6/6/0/0`，artifact manifest `13/13` 全匹配，`tests/test_pion_anchor_multitime_alias.py` **3 passed**。
 
 文字流程：`alias entrypoint -> anchor_scalar_reader -> npz_safety/source_integrity imports -> 6 个源码项逐项哈希并随报告留存 -> 临时 artifact manifest 逐项复核`。已保存的 `anchor_multitime_alias_20261127_v1` 是历史冻结报告，仍保留原 `4/4` source 与 `11/11` artifact hashes；本次没有重跑或改写它，也没有改变 alias/no-go 的数值。此项只修复未来报告的来源闭合；物理 anchor inputs 仍 `0/0/0/0`，物理 gate `1/0/0/1`，不升级 `NOT_READY/UNCERTIFIED` 或 `physical_score=null`。后续仍不得扩展同一无约束合成谱网格，须等可审的谱类限制或获准、candidate-blind reference/anchor receipts 与 bias bridge。
+
+### 2026-11-27 四时间 anchor 特征上的 minimax score 下限
+
+把已有的[四时间正谱 alias](anchor_multitime_alias_20261127_v1/README.md)转成直接的打分结论：同一特征向量 `x=(C_fold(2),C_fold(3),C_fold(5),C_fold(6))/C_fold(4)` 可由 ground mass `m_0=0.15` 和 `m_0=0.45` 两组合法正周期谱精确产生，`m_*` 仍按当前有利子模型取 `m_0`。因此，任何只读取 `x` 的确定性点值 estimator `g(x)` 对这两个目标质量至少有一个误差不小于两者距离的一半：
+
+```text
+max(|g(x)-0.15|, |g(x)-0.45|) >= 0.30/2 = 0.15 a_t m_pi
+0.15 / 2.9 = 0.051724 > C/R target 0.01
+```
+
+这把 minimax 下限从原 scalar map 推广到**该四时间特征映射**：把公式换成任意 deterministic correction、非线性回归或模型权重都无法从相同 `x` 分辨这两种目标。它不是说真实 ensemble 取到这两组谱，而是说明当前无额外谱限制的模型类上，四时间点也不能提供 `C/R<=0.01` 的统一 point-score 保证。
+
+更诚实的稳健报告可改为部分识别集合 `M(x)={m_*: 存在满足 support/正谱条件且产生 x 的谱}`，再对 `m_*∈M(x)` 给 risk/排序上下界；本碰撞至少要求该集合直径 `>=0.30 a_t m_pi`，所以单值公共偏差半径仍至少 `0.15`，已高于预算 `0.029`。集合值输出可展示不确定性和“排序对所有可行 anchor 是否不变”，但不能伪装成已通过的标量 physical score。若要继续缩窄集合，必须引入经独立证明的态数/gap/overlap 限制或新的 candidate-blind PP/A4P reference bridge；不再增加同类无约束谱构造。
+
+文字流程：`已存四时间特征 x -> admissible M(x) 至少含 0.15 与 0.45 -> diam(M)>=0.30 -> 点值 minimax 误差>=0.15 -> C/R 下限 0.051724 超过 0.01 -> 物理 anchor 继续 ABSTAIN；可选输出 M(x) 的风险/排序区间`。该推论仅重用已封存的合成代数报告，没有读数据或重跑脚本；仍需独立 reviewer 审核 target-identification 前提，并在获准输入上验证任何集合值 risk reducer。`NOT_READY/UNCERTIFIED`、`physical_score=null` 与 sealed inputs closed 不变。
