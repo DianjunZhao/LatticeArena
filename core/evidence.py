@@ -39,9 +39,15 @@ def _sha(value: object, label: str) -> str:
 
 
 def _finite(value: object, label: str) -> float:
-    if not isinstance(value, Real) or isinstance(value, bool) or not math.isfinite(float(value)):
+    if not isinstance(value, Real) or isinstance(value, bool):
         raise ValueError(f"{label} must be a finite real number")
-    return float(value)
+    try:
+        converted = float(value)
+    except (OverflowError, TypeError, ValueError) as exc:
+        raise ValueError(f"{label} must be a finite real number") from exc
+    if not math.isfinite(converted):
+        raise ValueError(f"{label} must be a finite real number")
+    return converted
 
 
 def _hashes(value: object, label: str) -> dict[str, str]:

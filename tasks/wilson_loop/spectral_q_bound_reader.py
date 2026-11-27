@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -67,10 +68,40 @@ def _is_int(value: object, expected: int | None = None) -> bool:
 def _finite_nonnegative(value: object, label: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{label} must be a finite nonnegative number")
-    converted = float(value)
+    try:
+        converted = float(value)
+    except (OverflowError, ValueError) as exc:
+        raise ValueError(f"{label} must be a finite nonnegative number") from exc
     if not math.isfinite(converted) or converted < 0:
         raise ValueError(f"{label} must be a finite nonnegative number")
     return converted
+
+
+def _finite_float(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        converted = float(value)
+    except (OverflowError, ValueError):
+        return None
+    return converted if math.isfinite(converted) else None
+
+
+def _q_upper(ratios: list[float], gaps: list[float], time_extent: int) -> float:
+    """Evaluate sum(r_i exp(-gap_i T)) without overflowing intermediate terms."""
+    log_terms = [
+        math.log(ratio) - gap * time_extent
+        for ratio, gap in zip(ratios, gaps) if ratio > 0
+    ]
+    if not log_terms:
+        return 0.0
+    largest = max(log_terms)
+    if largest == -math.inf:
+        return 0.0
+    log_total = largest + math.log(math.fsum(math.exp(term - largest) for term in log_terms))
+    if log_total > math.log(sys.float_info.max):
+        raise OverflowError("derived q upper bound is outside finite float range")
+    return math.exp(log_total)
 
 
 def _abstain(status: str, reason: str, *, source_status: str = "valid",
@@ -178,18 +209,18 @@ def _validate_top_level(document: object, split_id: str) -> dict[str, Any]:
         "unused_endpoint_slots_reassigned": False,
     }
     confidence = document["confidence_allocation"]
+    cell_alpha = _finite_float(confidence.get("systematic_cell_alpha")) if isinstance(confidence, dict) else None
+    endpoint_alpha = _finite_float(confidence.get("endpoint_alpha")) if isinstance(confidence, dict) else None
     if (not isinstance(confidence, dict)
             or set(confidence) != set(expected_confidence)
             or confidence["method"] != expected_confidence["method"]
             or confidence["endpoint_slots_per_q_cell"] != ENDPOINT_SLOTS_PER_Q_CELL
             or confidence["unused_endpoint_slots_reassigned"] is not False
-            or not isinstance(confidence["systematic_cell_alpha"], (int, float))
-            or isinstance(confidence["systematic_cell_alpha"], bool)
-            or not math.isclose(float(confidence["systematic_cell_alpha"]), alpha,
+            or cell_alpha is None
+            or not math.isclose(cell_alpha, alpha,
                                 rel_tol=0, abs_tol=1e-16)
-            or not isinstance(confidence["endpoint_alpha"], (int, float))
-            or isinstance(confidence["endpoint_alpha"], bool)
-            or not math.isclose(float(confidence["endpoint_alpha"]),
+            or endpoint_alpha is None
+            or not math.isclose(endpoint_alpha,
                                 alpha / ENDPOINT_SLOTS_PER_Q_CELL,
                                 rel_tol=0, abs_tol=1e-18)):
         raise ValueError("confidence allocation differs from the selected nested Bonferroni draft")
@@ -361,12 +392,37 @@ def read_spectral_q_bounds(
             for time_extent in CONTAMINATION_TIMES:
                 candidates = []
                 for row in cell_variants:
-                    value = math.fsum(
-                        ratio * math.exp(-gap * time_extent)
-                        for ratio, gap in zip(
-                            row["overlap_ratio_upper"], row["gap_lower"]
+                    try:
+                        value = _q_upper(
+                            row["overlap_ratio_upper"], row["gap_lower"], time_extent
                         )
-                    )
+                    except OverflowError as exc:
+                        selected = kernel in SELECTED_FORCE_KERNELS
+                        result = _abstain(
+                            "ABSTAIN_F_SPECTRUM_Q_NUMERIC", str(exc),
+                            source_status="valid", variants_valid=valid,
+                            variants_failed=failed, variants_abstained=missing,
+                        )
+                        result["fit_variant_denominator"] = denominator
+                        result["selected_q_cell_denominator"] = {
+                            "unit": "selected_kernel_R_time_q_cell",
+                            "planned": Q_CELL_COUNT,
+                            "valid": 0,
+                            "failed": int(selected),
+                            "abstained": Q_CELL_COUNT - int(selected),
+                        }
+                        result["descriptive_ape_cell_denominator"] = {
+                            "unit": "descriptive_APE_R_time_cell",
+                            "planned": len(R_VALUES) * len(CONTAMINATION_TIMES),
+                            "valid": 0, "failed": int(not selected),
+                            "abstained": len(R_VALUES) * len(CONTAMINATION_TIMES) - int(not selected),
+                        }
+                        result["failed_q_cell"] = {
+                            "kernel_id": kernel, "R": radius, "T": time_extent,
+                            "variant_id": row["variant_id"],
+                        }
+                        result["source_sha256"] = observed
+                        return result
                     candidates.append((value, row["variant_id"], row["tmin"], row["n_states"]))
                 maximum = max(candidates, key=lambda item: item[0])
                 q_rows.append({

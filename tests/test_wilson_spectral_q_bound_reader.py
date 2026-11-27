@@ -218,3 +218,53 @@ def test_missing_source_and_mismatched_expected_digest_abstain(tmp_path):
     )
     assert result["status"] == "ABSTAIN_F_SPECTRUM_HASH_MAP"
     assert result["source_denominator"]["abstained"] == 1
+
+
+def test_unrepresentable_integer_ratio_is_counted_as_a_failed_variant(tmp_path):
+    document = _fit_support()
+    document["fit_variants"][0]["overlap_ratio_upper"] = [10**400]
+
+    result = _read(tmp_path, document)
+
+    assert result["status"] == "ABSTAIN_F_SPECTRUM_VARIANTS"
+    assert result["fit_variant_denominator"] == {
+        "unit": "prespecified_GEVP_fit_variant", "planned": 36,
+        "valid": 35, "failed": 1, "abstained": 0,
+    }
+    assert result["selected_q_cell_denominator"]["abstained"] == 8
+
+
+def test_overflowing_derived_q_abstains_with_cell_denominator(tmp_path):
+    document = _fit_support()
+    row = next(
+        row for row in document["fit_variants"]
+        if row["kernel_id"] == "identity" and row["R"] == 2
+        and row["tmin"] == 3 and row["n_states"] == 3
+    )
+    row["overlap_ratio_upper"] = [1e308, 1e308]
+    row["gap_lower"] = [0.0, 0.0]
+
+    result = _read(tmp_path, document)
+
+    assert result["status"] == "ABSTAIN_F_SPECTRUM_Q_NUMERIC"
+    assert result["fit_variant_denominator"]["valid"] == 36
+    assert result["selected_q_cell_denominator"] == {
+        "unit": "selected_kernel_R_time_q_cell", "planned": 8,
+        "valid": 0, "failed": 1, "abstained": 7,
+    }
+    assert result["failed_q_cell"] == {
+        "kernel_id": "identity", "R": 2, "T": 5,
+        "variant_id": row["variant_id"],
+    }
+    assert result["physical_score"] is None
+
+
+def test_unrepresentable_confidence_integer_fails_closed(tmp_path):
+    document = _fit_support()
+    document["confidence_allocation"]["systematic_cell_alpha"] = 10**400
+
+    result = _read(tmp_path, document)
+
+    assert result["status"] == "ABSTAIN_F_SPECTRUM_CONTENT"
+    assert result["source_denominator"]["failed"] == 1
+    assert result["selected_q_cell_denominator"]["abstained"] == 8

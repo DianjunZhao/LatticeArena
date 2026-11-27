@@ -830,3 +830,9 @@ source-map audit 发现 C-lane open-development generator 通过 `SourceByteSnap
 对 [`force_budget.py`](force_budget.py) 的直接调用边界做静态检查时发现：上层 `force_summary_reader` 已要求 `qhx_corner_bounds` 精确包含 `q/h/x`，但底层可复用的 `propagate_force_budget` 只读取这三个键，会静默忽略调用方附加的未注册污染项。现将精确键检查下沉到底层 helper；带 `thermal_extra` 等未知项的直接调用现在报错，避免跳过未进入预算的系统项。计算公式、fraction、reference-force LCB 与物理 gate 均未改变。
 
 文字流程：`qhx bound mapping -> 要求键集合恰为 {q,h,x} -> 每项两 kernel×四 loop-corner -> sum(log1p(bound)) -> 与候选 reference force LCB 比较`；附加键或缺项直接拒绝。`tests/test_wilson_force_budget.py tests/test_wilson_evidence_adapter.py` **29 passed**，覆盖新增未知键负例和现有 reader/gate 分母路径，`git diff --check` 通过。此项只关闭输入 schema 的旁路，不提供新的 `q/h/x`、有限-$N_t$ 热污染、模型截断或 force receipts；真实物理输入仍缺，F=`GROUND_STATE_FORCE_UNCERTIFIED`、`NOT_READY/UNCERTIFIED`、`physical_score=null` 保持不变。
+
+### 2026-11-28 F-lane q reader 的极端数值 fail-closed 补齐
+
+对 `spectral_q_bound_reader.py` 的纯 CPU 输入边界做数值审计，发现 JSON 可含可解析的超大整数：将 overlap ratio 转为 float 时会抛出未捕获 `OverflowError`；两个各自有限的 overlap ratio 相加也可能让 `math.fsum` 溢出。Confidence allocation 中的超大整数同样可能越过内容校验直接抛异常。现将有限数转换统一变为可审计的拒绝路径，以 log-sum-exp 计算 `q(T)=Σ_i r_i exp(-ΔE_i T)`，并在最终上界超出有限浮点范围时返回 `ABSTAIN_F_SPECTRUM_Q_NUMERIC`。该返回保留完整 36 个拟合支持行分母，单列失败 q cell，并保持 `physical_score=null`；不将溢出值截断成有限值或当作成功。
+
+文字流程：`immutable JSON bytes -> finite numeric/schema checks -> per-variant log-sum-exp -> finite q upper -> derive selected corners`；超大 JSON 整数在拟合行或 alpha metadata 阶段进入原有 failed/abstained 计数，超范围 q 上界则进入 `q_cell planned=8, failed=1, abstained=7` 并整体 abstain。新增负控分别覆盖超大 ratio 整数、有限输入相加溢出与超大 alpha；`tests/test_wilson_spectral_q_bound_reader.py tests/test_wilson_evidence_adapter.py tests/test_wilson_force_budget.py` **41 passed**，`git diff --check` 通过。此项仅关闭数值异常逃逸边界，不证明 q 上游区间 coverage、正谱假设、h/x、有限-$N_t$ 污染、model truncation 或 reference force；生产输入仍 `0/0/0/0`，F=`GROUND_STATE_FORCE_UNCERTIFIED`、双 lane `NOT_READY/UNCERTIFIED`、`physical_score=null` 不变。

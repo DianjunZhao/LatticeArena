@@ -146,8 +146,12 @@ def _valid_hash(value: object) -> bool:
 
 
 def _finite(value: object) -> bool:
-    return (isinstance(value, Real) and not isinstance(value, bool)
-            and math.isfinite(float(value)))
+    if not isinstance(value, Real) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(float(value))
+    except (OverflowError, TypeError, ValueError):
+        return False
 
 
 def _abstain(run_state: object, stage: str, reasons: list[str], status: str):

@@ -704,6 +704,23 @@ def test_bounded_d06_bundle_rejects_unapproved_split_bad_gap_and_missing_arm():
     assert any("bundle must contain" in reason for reason in result["reasons"])
 
 
+def test_bounded_d06_extreme_integer_gap_receipt_abstains_without_raising():
+    envelopes, receipt, routes = _d06_fixtures()
+    for envelope in envelopes.values():
+        envelope["dependence"]["gamma_ps_lower"] = 10**400
+    state = _upstream_ready()
+
+    result = apply_optimize_bounded_block_risk_gate(
+        state, envelopes, receipt,
+        required_source_hashes_by_envelope=routes,
+        require_source_bytes=False,
+    )
+
+    assert result["status"] == "ABSTAIN_OPTIMIZE_D06_BOUNDED_RISK"
+    assert state.status["statistical"] == "abstained"
+    assert any("positive gamma_ps" in reason for reason in result["reasons"])
+
+
 def test_bounded_d06_bundle_uses_the_captured_source_snapshots_atomically(tmp_path):
     envelopes, receipt, routes = _d06_fixtures()
     common_bytes = b"synthetic shared D06 source receipt"
