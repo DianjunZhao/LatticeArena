@@ -176,12 +176,16 @@ def test_wilson_diagnostic_run_reuses_snapshot_and_writes_text_and_figure(tmp_pa
     assert protocol["analysis_source_sha256"]["core/npz_safety.py"] == sha256(
         (output / "snapshot_core_npz_safety.py").read_bytes()
     ).hexdigest()
+    assert protocol["analysis_source_sha256"]["core/source_integrity.py"] == sha256(
+        (output / "snapshot_core_source_integrity.py").read_bytes()
+    ).hexdigest()
     assert summary["analysis_source_sha256"] == protocol["analysis_source_sha256"]
     assert (output / "c_lane_bootstrap_intervals.png").is_file()
     assert (output / "README.md").is_file()
     manifest = json.loads((output / "manifest.json").read_text())
     assert "snapshot_c_lane_open_development_diagnostic.py" in manifest["files"]
     assert "snapshot_core_npz_safety.py" in manifest["files"]
+    assert "snapshot_core_source_integrity.py" in manifest["files"]
     for name, expected in manifest["files"].items():
         assert sha256((output / name).read_bytes()).hexdigest() == expected
     with pytest.raises(FileExistsError, match="refusing to overwrite"):

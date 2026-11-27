@@ -669,3 +669,9 @@ reader 现在还从同一 snapshots 严格解析 `optimize-paired-macroblock-cha
 ### 2026-11-27 shared NPZ 解析失败归一化与整仓复核
 
 NPZ 共享预检器现把 ZIP 不支持的压缩方式、加密成员和损坏 DEFLATE 流产生的解码异常归一为 `ValueError`。Optimize 的 D04/D06 readers 因而沿用已有的异常处理，进入其明确的 failed/abstained 记录，而不是把格式异常作为未捕获异常漏出 task adapter。source snapshot 也按剩余聚合预算读取，最多多读 1 字节用于超限判定。流程：`captured NPZ bytes -> member/header/size preflight -> ZIP/codec parse error -> ValueError -> task-specific fail-closed denominator`；`source root -> bounded snapshot read -> same captured bytes -> reader + evidence gate`。`tests/test_source_integrity.py` **17 passed**；PR #6 修正历史报告快照测试后整仓 CPU suite **447 passed in 72.47 s**。这验证解析失败和读取预算的软件行为，不验证 reader 输入的来源或物理内容；没有读取 E/solver/operator receipts，D04/D06/D11 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`，不启动 GPU/QUDA。
+
+### 2026-11-27 Optimize D04 报告补齐共享 snapshot helper 身份
+
+跨任务 source-map audit 发现，D04 MBB generator 使用 `capture_source_snapshot` 读取其输入，但当时 `_SOURCE_PATHS` 没有绑定实现该读取语义的 `core/source_integrity.py`。现将 helper 加入 report source map，并在 README 明确它属于生成报告所用源码。回归用例确认 D04 MBB source map 指向当前 tracked helper；全仓套件覆盖此测试。
+
+文字流程：`D04 raw reader + MBB generator + contract + test + SourceByteSnapshot helper -> source SHA map -> report README -> artifact hashes`。审计只修正未来报告的源码依赖闭包；没有重建已有 D04 MBB 产物或改写其历史 hashes。PR #6 全仓 CPU suite **448 passed in 72.71 s**。该源码身份记录不验证 E-reference 来源、D04 拟合约定、MBB 覆盖率或 candidate-blindness；真实 D04/D06/D11 gates 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed inputs closed，不运行 GPU/QUDA。

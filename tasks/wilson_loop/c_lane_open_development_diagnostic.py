@@ -20,6 +20,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from core import source_integrity as source_integrity_module
 from core.io import fingerprint
 from core.source_integrity import SourceByteSnapshot
 from core.npz_safety import validate_npz_payload
@@ -348,6 +349,8 @@ def run(input_dir: Path | None, output_dir: Path, *,
     output_dir.mkdir(parents=True, exist_ok=False)
     source_path = Path(__file__).resolve()
     source_sha = sha256_file(source_path)
+    source_integrity_path = Path(source_integrity_module.__file__).resolve()
+    source_integrity_sha = sha256_file(source_integrity_path)
     npz_safety_path = Path(npz_safety_module.__file__).resolve()
     npz_safety_sha = sha256_file(npz_safety_path)
 
@@ -393,6 +396,7 @@ def run(input_dir: Path | None, output_dir: Path, *,
         "analysis_source_sha256": {
             "tasks/wilson_loop/c_lane_open_development_diagnostic.py": source_sha,
             "core/npz_safety.py": npz_safety_sha,
+            "core/source_integrity.py": source_integrity_sha,
         },
         "numpy_version": np.__version__,
         "matplotlib_version": matplotlib.__version__,
@@ -437,6 +441,9 @@ def run(input_dir: Path | None, output_dir: Path, *,
         source_path.read_bytes()
     )
     (output_dir / "snapshot_core_npz_safety.py").write_bytes(npz_safety_path.read_bytes())
+    (output_dir / "snapshot_core_source_integrity.py").write_bytes(
+        source_integrity_path.read_bytes()
+    )
     make_plot(output_dir / "c_lane_bootstrap_intervals.png", point, point_valid,
               rows, hull_low, hull_high, hull_halfwidth)
 
@@ -455,6 +462,8 @@ chi(2,5) = -[log Wbar(3,6) + log Wbar(2,5) - log Wbar(3,5) - log Wbar(2,6)]
 ```
 
 ## Procedure and denominator
+
+The report source map binds the task reader, NPZ preflight, and shared source-snapshot helper; the exact helper bytes are retained and covered by `manifest.json`.
 
 The script forms the four full-sample means, then uses 10,000 circular moving-block bootstrap draws at each block length `L=2,5,10`. The deterministic seed is `20,261,125 + L`. Every draw resamples exactly 100 saved-configuration positions and applies the formula only if all four required means are finite and positive. Invalid draws stay in the planned denominator. Each interval is the equal-tail 97.5% percentile interval (lane alpha=0.025); the reported uncertainty envelope is the hull over the three block-length intervals.
 
@@ -495,6 +504,7 @@ The default output directory is next to this report and fails closed if it alrea
         output_dir / "c_lane_bootstrap_intervals.png",
         output_dir / "snapshot_c_lane_open_development_diagnostic.py",
         output_dir / "snapshot_core_npz_safety.py",
+        output_dir / "snapshot_core_source_integrity.py",
     ]
     manifest = {
         "schema": "latticearena-diagnostic-manifest-v1",

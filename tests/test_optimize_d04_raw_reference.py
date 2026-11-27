@@ -222,3 +222,11 @@ def test_complex_fold_helpers_do_not_silently_drop_imaginary_parts():
         fold_pp_even(np.ones((2, 16), dtype=np.complex128))
     with pytest.raises(ValueError, match="finite real"):
         fold_a4p_odd(np.ones((2, 16), dtype=np.complex128))
+
+
+def test_d04_mbb_source_map_binds_snapshot_reader_implementation():
+    from pathlib import Path
+    from tasks.optimize_gaussian import d04_block_bootstrap_diagnostic as diagnostic
+
+    expected = Path(__file__).resolve().parents[1] / "core/source_integrity.py"
+    assert diagnostic._SOURCE_PATHS["source_integrity"].resolve() == expected

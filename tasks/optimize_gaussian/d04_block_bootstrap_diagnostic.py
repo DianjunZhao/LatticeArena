@@ -41,6 +41,7 @@ _SOURCE_PATHS = {
     "diagnostic": _HERE / "d04_block_bootstrap_diagnostic.py",
     "test": ROOT / "tests/test_optimize_d04_raw_reference.py",
     "contract": _HERE / "research_contract_v1.json",
+    "source_integrity": ROOT / "core/source_integrity.py",
 }
 
 
@@ -283,7 +284,7 @@ def _write_readme(output: Path, result: dict[str, Any], source_hashes: dict[str,
         "",
         "## Source identity",
         "",
-        "The report's `source_hashes.json` binds the reader, report generator, test, and selected contract used at generation time. Hashes identify bytes only; they do not validate scientific correctness or authority.",
+        "The report's `source_hashes.json` binds the reader, report generator, test, selected contract, and shared source-snapshot implementation used at generation time. Hashes identify bytes only; they do not validate scientific correctness or authority.",
         "",
         "| source | SHA-256 |",
         "|---|---|",

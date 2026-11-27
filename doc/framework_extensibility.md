@@ -428,3 +428,21 @@ The shared NPZ preflight also normalizes unsupported compression, encrypted memb
 `SourceByteSnapshot` now sizes each chunk against the remaining aggregate byte budget and reads at most one extra byte to establish an over-limit condition; that extra byte is never retained. Versioned reports remain immutable snapshots: their integrity tests should validate the saved source and artifact hash chain, not require an old captured source to equal the current live file after later code changes.
 
 Pion's path-based compatibility reader now uses the same discipline: capture bounded compressed bytes once, apply the NPZ expansion preflight, and parse that captured buffer. This removes a gap between snapshot-mode readers and legacy path-mode readers while keeping task split policy local to Pion.
+
+## Extension note: close report source maps over shared readers
+
+A source audit found two report generators that used the shared immutable-byte
+reader without naming its implementation in their own code identity map:
+Optimize D04 MBB and Wilson C-lane development. New D04 reports now hash
+`core/source_integrity.py`; new Wilson C reports also retain those exact helper
+bytes and include them in the artifact manifest. Other checked report paths
+already bound the helper, including the Wilson two-sector/raw-matrix reports,
+the transfer-trace snapshot, and Pion's frozen TaskSpec dependency map.
+
+Reusable flow: `task report generator -> enumerate direct and shared parser
+dependencies -> hash each dependency (retain the helper bytes where the report
+format supports snapshots) -> include source identities in the report
+integrity manifest -> test hashes against the saved bytes`. Historical report
+packages remain immutable snapshots and should not be regenerated just to match
+new source maps. This audit improves code provenance only; source hashes do not
+establish data authority, independence, estimator validity, or calibration.
