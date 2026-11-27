@@ -104,6 +104,20 @@ def test_zero_or_unresolved_trainable_risk_abstains_instead_of_forming_ratio():
     assert decision["abstained_blocks"] == 1000
 
 
+@pytest.mark.parametrize(
+    "scores",
+    [
+        np.full((3, 3), 0.2 + 0.1j),
+        [[10**400, 0, 0]],
+        [["0.2", "0.2", "0.2"]],
+        [[True, False, True]],
+    ],
+)
+def test_risk_decision_rejects_lossy_or_unrepresentable_coercions(scores):
+    with pytest.raises(ValueError):
+        bounded_block_risk_decision(scores)
+
+
 def test_decision_rejects_nonfinite_or_out_of_support_scores():
     with pytest.raises(ValueError, match=r"finite and lie in \[0, 1\]"):
         bounded_block_risk_decision(np.full((10, 3), np.nan))

@@ -6,6 +6,12 @@
 
 2026-11-28 跨任务复核补充：Pion 除 `m_eff(4)` 正两态谱不可识别性反例外，又构造出两组 ground mass 相差 `0.30`、振幅全正且在四个预选时间比值内约 `1.8e-15` 重合的周期谱；这仍只是方法反例，不是 Optimize 数据，也不替代其 D04 reference。Pion 另有仅在 per-unit positivity/质量上界成立时的充分污染阈值；Wilson F lane 的 24 个遗漏静态态重复面板显示固定 2×2 GLS delta 上界在该失配 toy 下 familywise 为 `0/24`。这些结论都不是 Optimize 的 reference 或 solver 数据，不能替代 D04 E-reference、D06 paired macroblocks 或 D11 SU(3) receipt。本轮不重跑已有 Optimize synthetic 网格；在新授权输入之前，不再用 seed-only 扩样来制造“推进”。
 
+### 2026-11-28 D06 有界风险输入的实数与范围 fail-closed 补齐
+
+检查 D06 两个 risk-decision 入口时发现，它们把调用者提供的矩阵直接 `np.asarray(..., dtype=float64)`。NumPy 会对复数发出 warning 后静默丢弃虚部；超出 float64 的 Python 大整数会向外抛 `OverflowError`；字符串和布尔也会被隐式转成看似有效的风险值。现让 iid empirical-Bernstein 与 Markov pseudo-gap 两路共用严格实数数值数组转换：只接受整数/浮点数组，显式拒绝 complex、object/string、bool 与不可表示形状/转换；之后再由原有 `[0,1]` 有界性检查挡住非有限、负数或超界值。q→bounded-loss 映射本身未改，solver failure 仍必须显式标记并计最大损失 1。
+
+文字诊断：`raw block score matrix -> require rectangular int/float dtype -> reject complex/object/string/bool without projection -> float64 conversion -> finite [0,1] and failure-mask checks -> iid or Markov decision`。负控覆盖复数带非零虚部、`10**400`、数值字符串和布尔矩阵；窄范围回归 **37 passed**，本轮 PR #6 全套 CPU tests **496 passed**。这关闭的是输入类型/数值转换旁路，不验证 macroblock 来源、独立性或 `gamma_ps`/TV receipt，也不校准 bounded block-risk coverage；D04 风险比 estimand 保持独立，D06 两项对比仍是 trainable-W vs 同预算 SLSQP 和 degree-4 Chebyshev，`r_star=10/9` 不变。没有访问 measurement/calibration/sealed bytes、没有新跑 synthetic panels、没有 GPU/QUDA；物理状态仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
+
 ### 2026-11-26 D04 raw E-chain reader 与联合拟合诊断
 
 新增 [`d04_raw_reference.py`](d04_raw_reference.py)：从同一 `SourceByteSnapshot` 读取严格 schema 的 manifest、source-protocol JSON 与 raw correlator NPZ；核对 protocol bytes 是否匹配 manifest 摘要，并核对 `S16T16`/quenched Wilson/`kappa=0.14`、PP channel/dimension order、升序 config/trajectory IDs、全部 source hashes 和 closed split；明确拒绝 complex data 而不隐式取实部。按合同作 PP-even 与 A4P-odd fold，共用 `t=2..8` covariance、25% 对角 shrinkage 和 `1e-10` relative eigenvalue floor，跑六种 `tmin={2,3,4}` × `nstates={2,3}` joint fit，每种三 deterministic starts，并记录不收敛、边界和近简并谱诊断。图文/结果范围见[报告](d04_raw_reference_cpu_20261126_v1/README.md)。

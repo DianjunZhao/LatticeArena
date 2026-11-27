@@ -88,3 +88,23 @@ def test_log_loop_requires_positive_overlap():
     params = dict(TOY_R, A0=0.0)
     with pytest.raises(ValueError, match="A0"):
         log_loop(params, 4, TOY_NT)
+
+
+@pytest.mark.parametrize("value", [True, "0.4", 10**400, 0.4 + 0.1j])
+def test_positive_spectrum_parameters_reject_implicit_or_unbounded_coercion(value):
+    params = dict(TOY_R, Q=value)
+    with pytest.raises(ValueError):
+        contamination_terms(params, 4, TOY_NT)
+
+
+def test_large_finite_qhx_uses_stable_log_envelope():
+    params = dict(TOY_R, Q=1e308, H=1e308, X=1e308, gap_q=0.0, gap_0=0.0)
+    terms = contamination_terms(params, 0, TOY_NT)
+    assert math.isfinite(terms["delta"])
+    assert terms["delta"] == pytest.approx(math.log(1e308) + math.log(3.0), rel=1e-14)
+
+
+def test_nonfinite_log_loop_result_fails_closed():
+    params = dict(TOY_R, V0=-1e308)
+    with pytest.raises(ValueError, match="finite floating-point"):
+        log_loop(params, 4, TOY_NT)

@@ -18,6 +18,7 @@ from .bounded_block_risk import (
     ARMS,
     BOUND_EVENTS,
     R_STAR,
+    _as_real_score_array,
 )
 
 
@@ -99,7 +100,7 @@ def bounded_block_risk_markov_decision(
     Supplying ``gamma_ps_lower`` is not evidence that the bound applies. The
     output is always ``certified=False`` and ``physical_score=None``.
     """
-    scores = np.asarray(block_scores, dtype=np.float64)
+    scores = _as_real_score_array(block_scores, label="block_scores")
     if scores.ndim != 2 or scores.shape[1] != len(ARMS):
         raise ValueError("block_scores must have shape (blocks, 3 arms)")
     if not np.isfinite(scores).all() or np.any(scores < 0.0) or np.any(scores > 1.0):

@@ -138,3 +138,17 @@ def test_failed_arm_must_have_score_one():
         bounded_block_risk_markov_decision(
             scores, gamma_ps_lower=0.5, arm_failure_mask=failures,
         )
+
+
+@pytest.mark.parametrize(
+    "scores",
+    [
+        np.full((3, 3), 0.2 + 0.1j),
+        [[10**400, 0, 0]],
+        [["0.2", "0.2", "0.2"]],
+        [[True, False, True]],
+    ],
+)
+def test_score_array_rejects_lossy_or_unrepresentable_coercions(scores):
+    with pytest.raises(ValueError):
+        bounded_block_risk_markov_decision(scores, gamma_ps_lower=0.5)

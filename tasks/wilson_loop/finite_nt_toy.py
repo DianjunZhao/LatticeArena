@@ -6,6 +6,7 @@ import csv
 import hashlib
 import json
 import math
+from numbers import Real
 from pathlib import Path
 
 
@@ -33,11 +34,32 @@ TOY_NT = 16
 TOY_TIMES = (4, 5, 6, 7, 8)
 
 
-def _finite_nonnegative(value: float, name: str) -> float:
-    value = float(value)
-    if not math.isfinite(value) or value < 0:
+def _finite_real(value: object, name: str) -> float:
+    if not isinstance(value, Real) or isinstance(value, bool):
+        raise ValueError(f"{name} must be a finite real number")
+    try:
+        result = float(value)
+    except (OverflowError, TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a finite real number") from exc
+    if not math.isfinite(result):
+        raise ValueError(f"{name} must be a finite real number")
+    return result
+
+
+def _finite_nonnegative(value: object, name: str) -> float:
+    result = _finite_real(value, name)
+    if result < 0:
         raise ValueError(f"{name} must be finite and nonnegative")
-    return value
+    return result
+
+
+def _log1p_nonnegative_sum(values: tuple[float, ...]) -> float:
+    """Evaluate log(1 + sum(values)) without overflowing the sum."""
+    largest = max(values, default=0.0)
+    if largest <= 1.0:
+        return math.log1p(math.fsum(values))
+    log_sum = math.log(largest) + math.log(math.fsum(value / largest for value in values))
+    return log_sum + math.log1p(math.exp(-log_sum))
 
 
 def _time_inputs(time_extent: int, temporal_extent: int) -> None:
@@ -71,10 +93,11 @@ def contamination_terms(parameters: dict, time_extent: int,
     q = q0 * math.exp(-gap_q * time_extent)
     h = h0 * math.exp(-gap_0 * complement)
     x = x0 * math.exp(-gap_q * time_extent - gap_0 * complement)
+    delta = _log1p_nonnegative_sum((q, h, x))
     return {"q": q, "h": h, "x": x,
             "complement_extent": complement,
-            "delta": math.log1p(q + h + x),
-            "loop_envelope": math.log1p(q + h + x)}
+            "delta": delta,
+            "loop_envelope": delta}
 
 
 def log_loop(parameters: dict, time_extent: int,
@@ -83,14 +106,14 @@ def log_loop(parameters: dict, time_extent: int,
     _time_inputs(time_extent, temporal_extent)
     if "A0" not in parameters or "V0" not in parameters:
         raise ValueError("parameters must contain A0 and V0")
-    a0 = float(parameters["A0"])
-    v0 = float(parameters["V0"])
-    if not math.isfinite(a0) or a0 <= 0:
+    a0 = _finite_real(parameters["A0"], "A0")
+    v0 = _finite_real(parameters["V0"], "V0")
+    if a0 <= 0:
         raise ValueError("A0 must be finite and positive")
-    if not math.isfinite(v0):
-        raise ValueError("V0 must be finite")
     terms = contamination_terms(parameters, time_extent, temporal_extent)
     value = math.log(a0) - v0 * time_extent + terms["delta"]
+    if not math.isfinite(value):
+        raise ValueError("log Wilson loop is outside finite floating-point range")
     return value, terms
 
 
