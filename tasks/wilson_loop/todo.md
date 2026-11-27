@@ -806,3 +806,21 @@ source-map audit 发现 C-lane open-development generator 通过 `SourceByteSnap
 对重复覆盖报告的 source manifest 做 AST import-closure 审计，发现报告已经 hash `f_lane_two_sector_gls_diagnostic.py` 与 raw-matrix reader，但没有包含它们实际导入的 `f_lane_two_sector_fit_diagnostic.py`、`gevp_overlap_object_diagnostic.py` 和 `gevp_t0_truncation_diagnostic.py`。现把这三项加入未来报告的 `SOURCE_PATHS`；静态复核当前 manifest 为 14 个源码/合同文件，14/14 存在并可 hash，递归本地 import closure 为 15 个模块（多出的一个是空 `tasks/wilson_loop/__init__.py`），没有遗漏的非空本地模块。新增 `tests/test_wilson_f_lane_omitted_coverage_source_manifest.py` 钉住三条容易漏掉的传递依赖，**1 passed**；`git diff --check` 通过。
 
 文字流程：`覆盖入口 -> two-sector candidate/GLS + raw-matrix reader -> fit initializer 与 GEVP helper -> 14 个 source/contract bytes -> AST closure 无未列依赖 -> diagnostic-only`。既有 `f_lane_two_sector_omitted_coverage_20261128_v1` 是冻结历史结果，仍保留原 `11/11` source hashes 与 `68/68` artifact hashes；没有重跑 panel 或修改旧图表。真实 `C_ij` 输入仍 `0/0/0/0`，认证门仍 `1/0/0/1`；有限-$T$ Creutz C lane 与基态力 F lane 继续分开，`NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 不变。后续不扩展同一覆盖 generator；只有独立校准输入、生产 exporter convention review、matched-`N_t=32` 污染/误差 receipts 与授权到位，才进入新的 calibration 或 production evaluator。
+
+### 2026-11-28 F familywise coverage 的精确二项式样本量方案
+
+基于上一节报告的 **0/24** 个 panel 同时覆盖全部 72 个 q/h/x truth，本轮不生成新数据，而是把后续独立 coverage panel 的停止门量化。把一个 outer panel 记为一次 Bernoulli 成功：只有当拟合成功、72 个 Bonferroni-72 上界全部生成且都覆盖已知 DGP truth 才算成功；fit failure 或 interval abstention 对验收计数按 non-success 处理，并另列完整 `planned/valid/failed/abstained`，避免只在成功拟合条件下报告覆盖率。72 个 cell 不能当作 72 个独立试验，二项式单位是独立生成的 panel。
+
+对单一预注册 stratum，以单侧 Clopper–Pearson 下限 `Beta^{-1}(alpha; k, n-k+1)` 检验家族覆盖率至少 `0.95`。当前 `0/24` 的单侧 95% exact 上限为 `0.11735`；即使未来出现 `59/59` 全部成功，也仅刚足以使单一 stratum 的单侧 95% 下限超过 `0.95`，其对真实覆盖率 `0.98` 的检验功效只有约 `30%`。因此“全成功所需的最小 n”不能作为有足够功效的计划。
+
+为避免五个预注册压力 stratum 的事后挑选，建议对 familywise coverage 的 5 个 strata 用 Bonferroni `alpha_s=0.05/5=0.01`。选取 `0.98` 作为有意义的规划备择值，并要求总体（五个 stratum 全部通过）功效至少 `80%`；可用并集界保证每个 stratum 的功效至少 `1-0.20/5=0.96`。精确二项式枚举得到每个 stratum `n=606`，须至少 `588/606` 个成功（最多 18 个 non-success）；单侧 CP 下限约 `0.95006`，在真实覆盖率 `0.98` 时单格功效约 `0.96102`，五格联合功效下界约 `0.805`。单格功效 80% 的较小方案 `398/格、388 成功`，联合功效只有约 `0.375`，故不作为主计划。这里 80% 是已声明备择 `p=0.98` 下的 power；若真实覆盖率只略高于 0.95，所需样本会大得多。
+
+| 设计 | 每格 alpha | 每格 n | 最少全家族成功 panel | 真实 p=0.98 的每格 power | 五格总体 power 规则 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 单一 stratum、仅控制单格 5% type-I | 0.05 | 234 | 228 | 0.809 | 不适用 |
+| 五格 Bonferroni、每格各有 80% power | 0.01 | 398 | 388 | 0.822 | 约 0.375（不够） |
+| **五格 Bonferroni、并集界保证总体至少 80% power** | **0.01** | **606** | **588** | **0.961** | **至少 0.805** |
+
+预注册的五格候选为：遗漏第三静态态、近简并双激发、弱基态 overlap、遗漏 vacuum 激发态、以及 AR(1)/不等协方差 stress。每格的真值参数与噪声机制仍须在独立生成前冻结；这里的 `606×5` 是样本量规划，不是新 calibration 结果，也不授权重跑既有 2×3 Gaussian generator。calibration/方法选择 panel 与 untouched validation panel 必须分开；若在验证集上同时比较多个区间方法，需在看结果前另作方法数校正，或只验证事先冻结的单一 procedure。
+
+文字流程：`冻结五个 DGP strata 与独立 seed manifests -> 每 panel 形成一个“72/72 均覆盖且拟合有效”的二项结果 -> 每格以 alpha=0.01 的 exact CP 下限验 0.95 -> 每格至少 588/606 成功 -> 五格均过且完整失败分母可审 -> 才能说 synthetic familywise coverage 达到预设精度`。规划枚举分母 `3/3/0/0`（三种方案均计算，无数据 panel）；真实 Wilson 输入仍 `0/0/0/0`，不形成 gate evidence。下一次只有在新的预注册 DGP/外部校准输入能改变区间方法决策时才执行；现有 no-go 数值、旧图和 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 均保持不变。
