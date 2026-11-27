@@ -1,0 +1,396 @@
+{
+  "classification": "SYNTHETIC_GOF_SIZE_AND_POWER_PILOT_NOT_PHYSICAL_REFERENCE",
+  "fit": {
+    "covariance_eigenvalue_floor": 1e-10,
+    "covariance_shrinkage": 0.25,
+    "fit_dof": 13,
+    "fit_state_count": 2,
+    "pp_a4p_joint": true,
+    "tmin": 3,
+    "true_mass_ground": 0.32
+  },
+  "generator": {
+    "cells": [
+      {
+        "boundary_hit_panels": 0,
+        "cell": "null_n64",
+        "configurations_per_panel": 64,
+        "covariance_mode": "estimated_shrunk",
+        "denominator": {
+          "abstained": 0,
+          "failed": 0,
+          "planned": 300,
+          "valid": 300
+        },
+        "fit_state_count": 2,
+        "generator": "exact_two_state_null",
+        "near_degenerate_fit_panels": 0,
+        "panels": 300,
+        "pvalue_summary": {
+          "ks_distance_to_uniform": 0.3700562584955978,
+          "mean": 0.7461778016217486,
+          "median": 0.8280833727382348,
+          "rejection": {
+            "0.01": {
+              "count": 1,
+              "mcse": 0.005744562646538029,
+              "nominal_rate": 0.01,
+              "rate": 0.0033333333333333335,
+              "wilson_95": [
+                0.0005886577218511581,
+                0.018636693694531237
+              ]
+            },
+            "0.05": {
+              "count": 2,
+              "mcse": 0.012583057392117916,
+              "nominal_rate": 0.05,
+              "rate": 0.006666666666666667,
+              "wilson_95": [
+                0.0018301483579117855,
+                0.023977583250306973
+              ]
+            }
+          }
+        },
+        "reference_mass_true": 0.32,
+        "true_state_count": 2
+      },
+      {
+        "boundary_hit_panels": 0,
+        "cell": "null_n128",
+        "configurations_per_panel": 128,
+        "covariance_mode": "estimated_shrunk",
+        "denominator": {
+          "abstained": 0,
+          "failed": 0,
+          "planned": 300,
+          "valid": 300
+        },
+        "fit_state_count": 2,
+        "generator": "exact_two_state_null",
+        "near_degenerate_fit_panels": 0,
+        "panels": 300,
+        "pvalue_summary": {
+          "ks_distance_to_uniform": 0.38788308505898883,
+          "mean": 0.7607195763508298,
+          "median": 0.8482653130421038,
+          "rejection": {
+            "0.01": {
+              "count": 0,
+              "mcse": 0.005744562646538029,
+              "nominal_rate": 0.01,
+              "rate": 0.0,
+              "wilson_95": [
+                0.0,
+                0.012642971224546034
+              ]
+            },
+            "0.05": {
+              "count": 0,
+              "mcse": 0.012583057392117916,
+              "nominal_rate": 0.05,
+              "rate": 0.0,
+              "wilson_95": [
+                0.0,
+                0.012642971224546034
+              ]
+            }
+          }
+        },
+        "reference_mass_true": 0.32,
+        "true_state_count": 2
+      },
+      {
+        "boundary_hit_panels": 0,
+        "cell": "null_n128_oracle_full",
+        "configurations_per_panel": 128,
+        "covariance_mode": "oracle_full",
+        "denominator": {
+          "abstained": 0,
+          "failed": 0,
+          "planned": 300,
+          "valid": 300
+        },
+        "fit_state_count": 2,
+        "generator": "exact_two_state_null",
+        "near_degenerate_fit_panels": 0,
+        "panels": 300,
+        "pvalue_summary": {
+          "ks_distance_to_uniform": 0.057418606090310575,
+          "mean": 0.5191591288543819,
+          "median": 0.5065795016894917,
+          "rejection": {
+            "0.01": {
+              "count": 2,
+              "mcse": 0.005744562646538029,
+              "nominal_rate": 0.01,
+              "rate": 0.006666666666666667,
+              "wilson_95": [
+                0.0018301483579117855,
+                0.023977583250306973
+              ]
+            },
+            "0.05": {
+              "count": 12,
+              "mcse": 0.012583057392117916,
+              "nominal_rate": 0.05,
+              "rate": 0.04,
+              "wilson_95": [
+                0.023027321487942308,
+                0.06860421203864003
+              ]
+            }
+          }
+        },
+        "reference_mass_true": 0.32,
+        "true_state_count": 2
+      },
+      {
+        "boundary_hit_panels": 0,
+        "cell": "null_n128_oracle_shrunk",
+        "configurations_per_panel": 128,
+        "covariance_mode": "oracle_shrunk",
+        "denominator": {
+          "abstained": 0,
+          "failed": 0,
+          "planned": 300,
+          "valid": 300
+        },
+        "fit_state_count": 2,
+        "generator": "exact_two_state_null",
+        "near_degenerate_fit_panels": 0,
+        "panels": 300,
+        "pvalue_summary": {
+          "ks_distance_to_uniform": 0.4267998434070631,
+          "mean": 0.7829186816327453,
+          "median": 0.8562912764839317,
+          "rejection": {
+            "0.01": {
+              "count": 0,
+              "mcse": 0.005744562646538029,
+              "nominal_rate": 0.01,
+              "rate": 0.0,
+              "wilson_95": [
+                0.0,
+                0.012642971224546034
+              ]
+            },
+            "0.05": {
+              "count": 0,
+              "mcse": 0.012583057392117916,
+              "nominal_rate": 0.05,
+              "rate": 0.0,
+              "wilson_95": [
+                0.0,
+                0.012642971224546034
+              ]
+            }
+          }
+        },
+        "reference_mass_true": 0.32,
+        "true_state_count": 2
+      },
+      {
+        "boundary_hit_panels": 0,
+        "cell": "omitted_state_mild_n128",
+        "configurations_per_panel": 128,
+        "covariance_mode": "estimated_shrunk",
+        "denominator": {
+          "abstained": 0,
+          "failed": 0,
+          "planned": 300,
+          "valid": 300
+        },
+        "fit_state_count": 2,
+        "generator": "three_state_omission_mild",
+        "near_degenerate_fit_panels": 0,
+        "panels": 300,
+        "pvalue_summary": {
+          "ks_distance_to_uniform": 0.3636025226803681,
+          "mean": 0.7430301620966113,
+          "median": 0.828622469759848,
+          "rejection": {
+            "0.01": {
+              "count": 0,
+              "mcse": 0.005744562646538029,
+              "nominal_rate": 0.01,
+              "rate": 0.0,
+              "wilson_95": [
+                0.0,
+                0.012642971224546034
+              ]
+            },
+            "0.05": {
+              "count": 1,
+              "mcse": 0.012583057392117916,
+              "nominal_rate": 0.05,
+              "rate": 0.0033333333333333335,
+              "wilson_95": [
+                0.0005886577218511581,
+                0.018636693694531237
+              ]
+            }
+          }
+        },
+        "reference_mass_true": 0.32,
+        "true_state_count": 3
+      },
+      {
+        "boundary_hit_panels": 0,
+        "cell": "omitted_state_strong_n128",
+        "configurations_per_panel": 128,
+        "covariance_mode": "estimated_shrunk",
+        "denominator": {
+          "abstained": 0,
+          "failed": 0,
+          "planned": 300,
+          "valid": 300
+        },
+        "fit_state_count": 2,
+        "generator": "three_state_omission_strong",
+        "near_degenerate_fit_panels": 0,
+        "panels": 300,
+        "pvalue_summary": {
+          "ks_distance_to_uniform": 0.27970849815281285,
+          "mean": 0.6891620831800491,
+          "median": 0.759881752990113,
+          "rejection": {
+            "0.01": {
+              "count": 0,
+              "mcse": 0.005744562646538029,
+              "nominal_rate": 0.01,
+              "rate": 0.0,
+              "wilson_95": [
+                0.0,
+                0.012642971224546034
+              ]
+            },
+            "0.05": {
+              "count": 2,
+              "mcse": 0.012583057392117916,
+              "nominal_rate": 0.05,
+              "rate": 0.006666666666666667,
+              "wilson_95": [
+                0.0018301483579117855,
+                0.023977583250306973
+              ]
+            }
+          }
+        },
+        "reference_mass_true": 0.32,
+        "true_state_count": 3
+      },
+      {
+        "boundary_hit_panels": 0,
+        "cell": "omitted_state_strong_oracle_full_n128",
+        "configurations_per_panel": 128,
+        "covariance_mode": "oracle_full",
+        "denominator": {
+          "abstained": 0,
+          "failed": 0,
+          "planned": 300,
+          "valid": 300
+        },
+        "fit_state_count": 2,
+        "generator": "three_state_omission_strong",
+        "near_degenerate_fit_panels": 0,
+        "panels": 300,
+        "pvalue_summary": {
+          "ks_distance_to_uniform": 0.10344982546295739,
+          "mean": 0.4478588274596556,
+          "median": 0.4112221560333851,
+          "rejection": {
+            "0.01": {
+              "count": 5,
+              "mcse": 0.005744562646538029,
+              "nominal_rate": 0.01,
+              "rate": 0.016666666666666666,
+              "wilson_95": [
+                0.00713947735063333,
+                0.0384153948330945
+              ]
+            },
+            "0.05": {
+              "count": 24,
+              "mcse": 0.012583057392117916,
+              "nominal_rate": 0.05,
+              "rate": 0.08,
+              "wilson_95": [
+                0.054346855395144764,
+                0.11627324043347391
+              ]
+            }
+          }
+        },
+        "reference_mass_true": 0.32,
+        "true_state_count": 3
+      }
+    ],
+    "cross_channel_correlation": 0.2,
+    "feature_count": 27,
+    "kind": "independent_multivariate_Gaussian_configuration_panels",
+    "noise_fraction": 0.03,
+    "panels_per_cell": 300,
+    "temporal_correlation": 0.65
+  },
+  "open_gates": [
+    "default p-values use an approximate chi-square reference with data-estimated, 25%-shrunk covariance; three paired oracle cells use known covariance for diagnostic contrasts",
+    "only seven synthetic cells and independent Gaussian configurations are evaluated",
+    "the alternative is an omitted third state and the rejection fractions are power diagnostics only",
+    "no HMC chain dependence, estimator selection, or candidate-blind production E-chain provenance is modeled",
+    "these results cannot replace the independent D04 reference receipt or statistical review"
+  ],
+  "paired_contrasts": [
+    {
+      "failed_or_missing_pairs": 0,
+      "fraction_right_pvalue_lower": 1.0,
+      "interpretation": "right minus left; identical simulated panel samples verified by SHA-256",
+      "left_cell": "null_n128",
+      "mean_delta_chi2": 3.9637149905647235,
+      "mean_delta_gof_p_approx": -0.24156044749644784,
+      "median_delta_gof_p_approx": -0.24699695121374737,
+      "planned_pairs": 300,
+      "right_cell": "null_n128_oracle_full",
+      "valid_pairs": 300
+    },
+    {
+      "failed_or_missing_pairs": 0,
+      "fraction_right_pvalue_lower": 0.29,
+      "interpretation": "right minus left; identical simulated panel samples verified by SHA-256",
+      "left_cell": "null_n128",
+      "mean_delta_chi2": -0.3411077919741489,
+      "mean_delta_gof_p_approx": 0.022199105281915498,
+      "median_delta_gof_p_approx": 0.009689154452503068,
+      "planned_pairs": 300,
+      "right_cell": "null_n128_oracle_shrunk",
+      "valid_pairs": 300
+    },
+    {
+      "failed_or_missing_pairs": 0,
+      "fraction_right_pvalue_lower": 1.0,
+      "interpretation": "right minus left; identical simulated panel samples verified by SHA-256",
+      "left_cell": "omitted_state_strong_n128",
+      "mean_delta_chi2": 4.213698219913875,
+      "mean_delta_gof_p_approx": -0.2413032557203935,
+      "median_delta_gof_p_approx": -0.2504660404197006,
+      "planned_pairs": 300,
+      "right_cell": "omitted_state_strong_oracle_full_n128",
+      "valid_pairs": 300
+    }
+  ],
+  "physical_e_chain": {
+    "abstained": 0,
+    "failed": 0,
+    "planned": 0,
+    "valid": 0
+  },
+  "physical_score": null,
+  "reference_gate": {
+    "abstained": 1,
+    "failed": 0,
+    "planned": 1,
+    "valid": 0
+  },
+  "schema": "optimize-d04-gof-calibration-summary-v1"
+}

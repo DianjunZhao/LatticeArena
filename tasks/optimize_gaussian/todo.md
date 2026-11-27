@@ -675,3 +675,19 @@ NPZ 共享预检器现把 ZIP 不支持的压缩方式、加密成员和损坏 D
 跨任务 source-map audit 发现，D04 MBB generator 使用 `capture_source_snapshot`，其 raw reader 还使用共享 NPZ 预检，但当时 `_SOURCE_PATHS` 都没有绑定这两个实现。现将 `core/source_integrity.py` 与 `core/npz_safety.py` 加入 report source map，并在 README 明确它们属于生成报告所用源码。回归用例确认 source map 指向当前 tracked helpers；全仓套件覆盖此测试。
 
 文字流程：`D04 raw reader + MBB generator + contract + test + SourceByteSnapshot + NPZ preflight helpers -> source SHA map -> report README -> artifact hashes`。审计只修正未来报告的源码依赖闭包；没有重建已有 D04 MBB 产物或改写其历史 hashes。PR #6 全仓 CPU suite **448 passed in 72.46 s**。该源码身份记录不验证 E-reference 来源、D04 拟合约定、MBB 覆盖率或 candidate-blindness；真实 D04/D06/D11 gates 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed inputs closed，不运行 GPU/QUDA。
+
+### 2026-11-27 D04 近似 chi-square GOF 的有限样本校准诊断
+
+在已选的 `tmin=3`、PP-even/A4P-odd 联合两态 fit（13 nominal dof）上，新增 CPU 合成 pilot，检查当前 `gof_p_approx` 是否在 null 下接近均匀，并测试漏掉第三态时的拒绝能力。共 7 格、每格 300 个独立 panel，全部按计划分母保留：exact 两态 null 的 `Ncfg=64/128`、同一 `Ncfg=128` null 样本的 estimated+25% shrinkage / known-full / known-25%-shrunk covariance 对照、mild 与 strong 三态真值拟合两态模型，以及 strong alternative 同样本的 known-full-covariance 对照。配对样本逐 panel 检查 SHA-256 相同。数据是 27 维独立 Gaussian configuration panel，特征协方差注入 temporal correlation `0.65`、channel correlation `0.2`、相对噪声 `0.03`；并非读取生产数据。
+
+结果摘要：
+
+- null `Ncfg=128` 的 estimated+25%-shrinkage p 值均值/中位数为 `0.761/0.848`，`p<0.05` 为 `0/300`（Wilson 95% 上界 `0.0126`），经验 CDF 明显低于均匀参考；`Ncfg=64` 也是保守方向（均值 `0.746`，`p<0.05` 为 `2/300`）。
+- 同样的 `Ncfg=128` null 样本改用 known full covariance 后，p 值均值/中位数为 `0.519/0.507`，`p<0.05` 为 `12/300=0.040`（Wilson 95% CI `[0.023, 0.069]`），KS distance-to-uniform 从 estimated+shrinkage 的 `0.388` 降至 `0.057`。known 25%-shrunk covariance 仍保守（均值 `0.783`，`p<0.05=0/300`）。在该 DGP 下，这组对照提示固定 shrinkage metric 是保守性的主要嫌疑；有限样本 fit/协方差估计与近似 chi-square 仍可能共同作用，不能视作因果分解。
+- strong 三态遗漏的 estimated+shrinkage fit 只有 `2/300=0.0067` 达到 `p<0.05`（CI `[0.0018,0.0240]`）；对同一批 300 个样本用 known full covariance 后为 `24/300=0.080`（CI `[0.054,0.116]`），每个有效 panel 的 oracle p 值都低于对应 estimated+shrinkage p 值，平均差（oracle−estimated）`−0.241`。这表明本合成设定下 power 对协方差度量敏感；alternative 是探索性强压力格，不是预注册确认检验。
+
+图文报告：[D04 GOF 校准图与完整分母/配对摘要](d04_gof_calibration_cpu_20261127_v1/README.md)。图左为各格 p-value ECDF 与均匀参考及 300-panel DKW 描述带；中图将 strong-alternative 同样本的 estimated+shrinkage 与 known-full p 值配对；右图为 `1%/5%` 拒绝率及 Wilson 区间。流程为：`固定 generator / seeds -> raw panel sample -> PP-even/A4P-odd + 三组确定性 multistart 两态 fit -> estimated 或配对 oracle covariance -> 13-dof approximate chi-square p -> denominator / ECDF / Wilson / paired contrasts -> diagnostic-only`。本报告 7 个 seeds、2100 行 panel 结果均留档；artifact hashes `12/12` 与 6 个 source snapshot hashes `6/6` 一致。
+
+解释边界：每个阈值在 `n=300` 下的 MCSE 是 `0.00574`（1%）和 `0.01258`（5%），因此 1% 尾部尤其粗；DKW 带是单格描述参考，图上多格比较不是多重性控制。已知真 covariance 是 generator oracle，不是可部署估计器；只有一个 Gaussian DGP、一个探索性 strong alternative 和当前 optimizer/fit 流程，没模拟 HMC 链依赖、厚尾、窗口/态数选择或真实 exporter 约定。不能将相同 panels 用于调整阈值后再宣称独立通过。
+
+下一步先做更大、独立且预冻结的 null calibration；分开改变 shrinkage 强度/估计法、configuration count、stationary AR(1) 与 heavy-tailed innovations，并将 approximate chi-square 与每 panel 重估 covariance/spectrum 的 parametric bootstrap 比较；另用未参与调参的 panel set 报告校准误差、尾部区间和完整失败分母。再由独立统计审阅者检查折叠符号、协方差估计目标与 nominal dof。没有获准、candidate-blind E-chain snapshot、来源/依赖收据和独立审阅前，维持 D04 `NOT_READY/UNCERTIFIED`、`physical_score=null`，不读取 sealed split、不启动 GPU/QUDA。

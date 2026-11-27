@@ -1,0 +1,11 @@
+{
+  "schema": "optimize-d04-gof-source-hashes-v1",
+  "sources": {
+    "contract": "2a272cffb0c49f0a87756f5a2d97fb2b80eaf53173e37e91a4e302e3d327a50e",
+    "diagnostic": "7034966be3fd7a4fe7326d821d93b8002b83c5804ae8d6828975d17c683de4fd",
+    "npz_safety": "af60a75cf78a1b0812ccebaf690fc69c3522fcfd3ab54cf5c06aea925c22d750",
+    "reader": "2901d0e4c317e23136c8102807cbd59145b9340a29d5a51fd6a64ba294189651",
+    "source_integrity": "45a941a63937c56dc365049617e393f4f23209dc9a432e38e4f2937a22ec26a6",
+    "test": "7c46fa2df386d150f07444e5b91efc67769c2d3518230c2646dd59827ddb718f"
+  }
+}
