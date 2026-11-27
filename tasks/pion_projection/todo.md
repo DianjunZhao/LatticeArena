@@ -660,3 +660,9 @@ f_4 = Σ_{n>0} A_n K(m_n,4) / C(4)
 ![两组正谱的四时间特征重合、ground mass 不同](anchor_multitime_alias_20261127_v1/multitime_alias.png)
 
 文字数据流：`指定第一组正谱的 t=4 权重 -> 构造目标四时间比值 -> 解第二组谱的五个正权重 -> 检查振幅/支持及 frozen reader -> 特征残差与标量碰撞均在浮点容差内 -> anchor 认证门继续 ABSTAIN`。两组合成谱与特征分母均 `2/2/0/0`，真实 anchor 输入 `0/0/0/0`，物理 gate `1/0/0/1`；脚本 `py_compile` 与运行成功，报告含源快照/协议/CSV/图，artifact hashes `11/11`、source hashes `4/4` 均经 SHA-256 复核；新增 `tests/test_pion_anchor_multitime_alias.py` **3 passed**（覆盖正振幅/质量支持、四时间与 scalar 碰撞、报告哈希/弃权分母及 no-clobber）。下一步不要继续无约束时间点网格；应先明确可验证的谱类限制（态数、gap、overlap/support）并证明四时间 map 对该受限类的 worst-case bias，或放弃 per-state correlator Markov 均值映射，改为直接校准 candidate-blind joint PP/A4P `m*` 的 common-bias envelope。任何新校准需有噪声、拟合失败及链依赖压力场景和独立 panel；没有获准且未封存的 reference/anchor bytes 与独立 review 时，Pion 继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`、不访问 sealed split、不跑 GPU/QUDA。
+
+### 2026-11-28 alias 报告的源码依赖闭合补充
+
+只读 AST/import-closure 审计发现，alias 诊断经 `anchor_scalar_reader.py` 导入 `core.npz_safety` 与 `core.source_integrity`，但报告的 `SOURCE_PATHS` 原先只 hash 了任务脚本、reader 和两个前序公式诊断。虽然当前 alias 只调用折叠和标量公式，不读取 NPZ；把共享模块加入来源快照后，报告对整个 reader 模块的 Python import 身份也闭合，不会把模块级导入依赖留在清单之外。现已增加 `core_npz_safety.py` 与 `core_source_integrity.py` 两个源码项，并让回归测试核对未来生成报告中的 source hashes 与快照；临时测试报告 source files=`6/6/0/0`，artifact manifest `13/13` 全匹配，`tests/test_pion_anchor_multitime_alias.py` **3 passed**。
+
+文字流程：`alias entrypoint -> anchor_scalar_reader -> npz_safety/source_integrity imports -> 6 个源码项逐项哈希并随报告留存 -> 临时 artifact manifest 逐项复核`。已保存的 `anchor_multitime_alias_20261127_v1` 是历史冻结报告，仍保留原 `4/4` source 与 `11/11` artifact hashes；本次没有重跑或改写它，也没有改变 alias/no-go 的数值。此项只修复未来报告的来源闭合；物理 anchor inputs 仍 `0/0/0/0`，物理 gate `1/0/0/1`，不升级 `NOT_READY/UNCERTIFIED` 或 `physical_score=null`。后续仍不得扩展同一无约束合成谱网格，须等可审的谱类限制或获准、candidate-blind reference/anchor receipts 与 bias bridge。

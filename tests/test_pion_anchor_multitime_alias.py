@@ -43,11 +43,13 @@ def test_report_preserves_hashes_denominators_and_abstained_physical_gate(tmp_pa
     }
 
     manifest = json.loads((output / "artifact_hashes.json").read_text())["artifacts"]
-    assert len(manifest) == 11
+    assert len(manifest) == 13
     for relative_path, expected_hash in manifest.items():
         assert sha256((output / relative_path).read_bytes()).hexdigest() == expected_hash
     sources = json.loads((output / "source_hashes.json").read_text())["sources"]
-    assert len(sources) == 4
+    assert len(sources) == 6
+    assert "core_npz_safety.py" in sources
+    assert "core_source_integrity.py" in sources
     for name, expected_hash in sources.items():
         assert sha256((output / "source_snapshot" / name).read_bytes()).hexdigest() == expected_hash
     assert (output / "multitime_alias.png").is_file()

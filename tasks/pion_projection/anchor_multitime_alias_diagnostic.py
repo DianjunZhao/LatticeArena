@@ -18,6 +18,7 @@ from tasks.pion_projection import anchor_scalar_reader as reader
 
 
 TASK_DIR = Path(__file__).resolve().parent
+REPO_ROOT = TASK_DIR.parents[1]
 DEFAULT_OUT = TASK_DIR / "anchor_multitime_alias_20261127_v1"
 TEMPORAL_EXTENT = 16
 FEATURE_TIMES = (2, 3, 5, 6)
@@ -28,6 +29,8 @@ ALIAS_SPECTRUM_MASSES = (0.45, 0.70, 1.00, 1.30, 1.50)
 SOURCE_PATHS = {
     "diagnostic": Path(__file__),
     "anchor_scalar_reader": TASK_DIR / "anchor_scalar_reader.py",
+    "core_npz_safety.py": REPO_ROOT / "core/npz_safety.py",
+    "core_source_integrity.py": REPO_ROOT / "core/source_integrity.py",
     "multitime_separation_diagnostic": TASK_DIR / "anchor_scalar_multitime_diagnostic.py",
     "scalar_collision_diagnostic": TASK_DIR / "anchor_scalar_nonidentifiability.py",
 }
