@@ -1,9 +1,12 @@
+import hashlib
+import json
 import math
 
 import numpy as np
 import pytest
 
 from tasks.pion_projection.bounded_block_risk_markov_gap import (
+    build_report,
     conditional_block_risk_markov_lcb,
     markov_gap_radius,
     markov_gap_radius_after_initial_tv,
@@ -197,3 +200,25 @@ def test_zero_tv_correction_matches_stationary_radius():
     assert radius == pytest.approx(markov_gap_radius(
         blocks=20, gamma_ps_lower=1.0, family=2, alpha_s=0.05,
     ))
+
+
+def test_markov_report_hashes_retained_score_conversion_dependencies(tmp_path):
+    output = tmp_path / "markov-gap-report"
+    summary = build_report(output)
+    protocol = json.loads((output / "protocol.json").read_text())
+    hashes = protocol["source_hashes"]
+    assert summary["physical_score"] is None
+    assert set(hashes) == {
+        "bounded_block_risk_markov_gap.py",
+        "bounded_block_risk_score.py",
+        "core/numerics.py",
+    }
+    for source_name, snapshot_name in (
+        ("bounded_block_risk_score.py", "snapshot_bounded_block_risk_score.py"),
+        ("core/numerics.py", "snapshot_core_numerics.py"),
+    ):
+        payload = (output / snapshot_name).read_bytes()
+        assert hashlib.sha256(payload).hexdigest() == hashes[source_name]
+    artifacts = json.loads((output / "artifact_hashes.json").read_text())["files"]
+    assert "snapshot_bounded_block_risk_score.py" in artifacts
+    assert "snapshot_core_numerics.py" in artifacts

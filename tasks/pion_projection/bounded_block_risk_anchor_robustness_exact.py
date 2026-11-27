@@ -336,6 +336,9 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "snapshot_dependency_graph_bound.py": Path(__file__).with_name(
             "dependency_graph_bound.py"
         ),
+        "snapshot_core_numerics.py": (
+            Path(__file__).resolve().parents[2] / "core/numerics.py"
+        ),
     }
     for target, source in source_paths.items():
         shutil.copyfile(source, out / target)
@@ -375,7 +378,8 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
             "snapshot_anchor_robustness_exact.py",
             "snapshot_anchor_coverage_mc.py",
             "snapshot_bounded_block_risk_score.py",
-            "snapshot_dependency_graph_bound.py", "summary.json",
+            "snapshot_dependency_graph_bound.py", "snapshot_core_numerics.py",
+            "summary.json",
             "artifact_hashes.json",
         ],
     }

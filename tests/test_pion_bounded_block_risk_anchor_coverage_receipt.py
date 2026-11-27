@@ -47,6 +47,9 @@ def test_joint_score_anchor_receipt_uses_saved_report_without_running_mc(
     assert sum(row["count"] for row in receipt["reason_rows"]
                if row["state"] == "failed") == 3836598
     assert "core/receipts.py" in receipt["scenario"]["source_hashes"]
+    assert "core/numerics.py" in receipt["scenario"]["source_hashes"]
+    helper_hash = receipt["scenario"]["source_hashes"]["core/numerics.py"]
+    assert hashlib.sha256((output / "snapshot_core_numerics.py").read_bytes()).hexdigest() == helper_hash
 
     source_manifest = json.loads(
         (output / "source_report/artifact_hashes.json").read_text()
@@ -56,8 +59,8 @@ def test_joint_score_anchor_receipt_uses_saved_report_without_running_mc(
             (output / "source_report" / name).read_bytes()
         ).hexdigest() == expected
     manifest = json.loads((output / "artifact_hashes.json").read_text())
-    assert len(receipt["artifact_hashes"]) == 21
-    assert len(manifest["files"]) == 22
+    assert len(receipt["artifact_hashes"]) == 22
+    assert len(manifest["files"]) == 23
     for name, expected in receipt["artifact_hashes"].items():
         assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected
     for name, expected in manifest["files"].items():

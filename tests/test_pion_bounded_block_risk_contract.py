@@ -428,12 +428,13 @@ def test_diagnostic_report_denominators_and_payload_hashes(tmp_path):
         "tasks/pion_projection/bounded_block_risk_markov_varying.py",
         "tasks/pion_projection/bounded_block_risk_anchor_markov.py",
         "core/receipts.py",
+        "core/numerics.py",
         "core/state.py",
     }
-    assert len(receipt["artifact_hashes"]) == 11
+    assert len(receipt["artifact_hashes"]) == 12
     manifest = json.loads((output / "artifact_hashes.json").read_text())
     assert manifest["algorithm"] == "sha256"
-    assert len(manifest["files"]) == 12
+    assert len(manifest["files"]) == 13
     for name, expected in manifest["files"].items():
         actual = hashlib.sha256((output / name).read_bytes()).hexdigest()
         assert actual == expected

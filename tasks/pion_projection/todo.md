@@ -740,3 +740,11 @@ s_i(m) = clip(((m-y_ref,i)^2 - (m-y_cand,i)^2) / R^2, -1, 1)
 随后复核发现 Optimize 与 Wilson 的同类输入入口也各自需要实数转换。为避免三个任务各维护略有差异的保护，新增 [`core/numerics.py`](../../core/numerics.py)：`as_real_float_array` 统一拒绝 complex、bool、字符串/object、不能转成 float64 的值，以及大于 `2^53` 而不能被 float64 精确表示的整数；它保留 NaN/Inf，让 Pion 的有效/失败 block 规则继续由本任务处理。`as_finite_real` 为 task scalar 参数提供有限实数转换。Pion bounded-score 构造器现在调用共享数组 helper，仍保留 valid-only finite check 和失败分数 `-1`。
 
 文字流程：`shared core type/exactness gate -> Pion valid-mask rule -> clip valid d/R² -> failed=-1 -> fixed planned denominator -> conditional LCB/ABSTAIN`。共享 helper 的单元测试与 Pion score 回归共 **28 passed**；PR #5 全套 CPU suite **316 passed**。这改善的是跨任务软件一致性与数值输入审计；不改变 bounded block-risk estimand，也不提供 dependence、anchor/common-bias、E-reference 证据或 sealed-data 授权。物理状态仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed inputs closed。
+
+### 2026-11-28 Pion score 共享依赖加入源码闭包
+
+共享 `core/numerics.py` 不只是一个输入转换实现；它会改变 `bounded_block_risk_score.py` 的可接受输入和拒绝行为。因此现把它加入 Pion `TaskSpec.dependencies`，使冻结 submission 对这个依赖也做源码指纹检查；新生成的 bounded-risk contract、anchor-coverage、exact robustness 与 Markov-gap 诊断会保留 helper 字节并由 artifact manifest 覆盖。anchor-coverage receipt wrapper 也将该 helper 作为 wrapper/source dependency 单独记录。既有 `source_report` 会原样复制和校验，不会被伪装成采用新代码生成的历史报告。
+
+文字流程：`TaskSpec -> bounded score -> core/numerics -> dependency digest -> report source snapshot -> artifact SHA-256`；保存的 MC 输入/单元格结果另作为历史输入校验，不重跑模拟。覆盖 `TaskSpec`、contract receipt、anchor coverage 与 Markov report source-map 的 PR #5 全仓 CPU suite **317 passed**，`git diff --check` 通过。源码哈希只证明被指向的代码字节；它不证明输入来源、score-chain 独立性、anchor 覆盖或 common-bias bound。
+
+**下一步交接：**后续新增 scorer 或改变 score 的数值 helper 时，同时更新 TaskSpec dependency map 和新报告 source snapshots；不得重写旧报告的来源。若要向物理结论推进，仍需同一 immutable snapshot 上的独立 block/gamma-ps/初始 TV receipt、anchor scalar/coverage/support receipt、候选盲 E-reference target bridge、score-anchor 共偏差 `C/R` 界及独立审阅。任何缺项保持 `ABSTAIN/NOT_READY`、`physical_score=null`；封存输入仍关闭。

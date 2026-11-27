@@ -1128,6 +1128,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "snapshot_bounded_block_risk_markov_varying.py": Path(__file__).with_name("bounded_block_risk_markov_varying.py"),
         "snapshot_bounded_block_risk_anchor_markov.py": Path(__file__).with_name("bounded_block_risk_anchor_markov.py"),
         "snapshot_core_receipts.py": Path(__file__).resolve().parents[2] / "core/receipts.py",
+        "snapshot_core_numerics.py": Path(__file__).resolve().parents[2] / "core/numerics.py",
         "snapshot_core_state.py": Path(__file__).resolve().parents[2] / "core/state.py",
     }
     for name, source in snapshots.items():
@@ -1148,6 +1149,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "tasks/pion_projection/bounded_block_risk_anchor_markov.py": _sha256_file(
             out / "snapshot_bounded_block_risk_anchor_markov.py"),
         "core/receipts.py": _sha256_file(out / "snapshot_core_receipts.py"),
+        "core/numerics.py": _sha256_file(out / "snapshot_core_numerics.py"),
         "core/state.py": _sha256_file(out / "snapshot_core_state.py"),
     }
     scenario = scenario_spec(

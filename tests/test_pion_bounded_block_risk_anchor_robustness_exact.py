@@ -70,7 +70,7 @@ def test_build_writes_exact_coverage_plot_denominators_and_hashes(tmp_path):
     assert "exact binomial count state" in denominator_csv
     assert "Hypothetical iid observations" in denominator_csv
     manifest = json.loads((output / "artifact_hashes.json").read_text())
-    assert len(manifest) == 10
+    assert len(manifest) == 11
     for name, digest in manifest.items():
         assert hashlib.sha256((output / name).read_bytes()).hexdigest() == digest
     report = (output / "README.md").read_text()

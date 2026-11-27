@@ -37,6 +37,7 @@ def _source_dependencies():
         'core/specs.py': root / 'core' / 'specs.py',
         'core/source_integrity.py': root / 'core' / 'source_integrity.py',
         'core/npz_safety.py': root / 'core' / 'npz_safety.py',
+        'core/numerics.py': root / 'core' / 'numerics.py',
         'core/state.py': root / 'core' / 'state.py',
     }
     return {name: digest(path) for name, path in paths.items()}

@@ -62,6 +62,7 @@ def test_pion_measurement_bundle_checks_split_identity(tmp_path):
     task = task_spec_for(p)
     assert task['source']['position'] == p['source']
     assert 'core/npz_safety.py' in task['dependencies']
+    assert 'core/numerics.py' in task['dependencies']
     assert 'core/source_integrity.py' in task['dependencies']
     assert 'core/specs.py' in task['dependencies']
     assert 'tasks/pion_projection/common.py' in task['dependencies']

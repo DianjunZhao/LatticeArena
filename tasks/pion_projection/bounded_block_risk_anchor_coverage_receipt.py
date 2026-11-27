@@ -87,6 +87,7 @@ def build_report(output: str | Path = DEFAULT_OUT, *,
         "snapshot_dependency_graph_bound.py": Path(__file__).with_name(
             "dependency_graph_bound.py"),
         "snapshot_core_receipts.py": ROOT / "core/receipts.py",
+        "snapshot_core_numerics.py": ROOT / "core/numerics.py",
         "snapshot_coverage_receipt_wrapper.py": Path(__file__),
     }
     for name, source_file in snapshots.items():
@@ -101,6 +102,7 @@ def build_report(output: str | Path = DEFAULT_OUT, *,
         "tasks/pion_projection/dependency_graph_bound.py": _sha256(
             out / "snapshot_dependency_graph_bound.py"),
         "core/receipts.py": _sha256(out / "snapshot_core_receipts.py"),
+        "core/numerics.py": _sha256(out / "snapshot_core_numerics.py"),
         "tasks/pion_projection/bounded_block_risk_anchor_coverage_receipt.py": _sha256(
             out / "snapshot_coverage_receipt_wrapper.py"),
     }

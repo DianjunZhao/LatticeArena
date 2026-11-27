@@ -530,6 +530,13 @@ def build_report(out: Path) -> dict:
     tv_feasible = sum(
         row["status"] == "CONDITIONALLY_FEASIBLE" for row in tv_rows
     )
+    source_hashes = {
+        "bounded_block_risk_markov_gap.py": _sha256(Path(__file__)),
+        "bounded_block_risk_score.py": _sha256(
+            Path(__file__).with_name("bounded_block_risk_score.py")
+        ),
+        "core/numerics.py": _sha256(ROOT / "core/numerics.py"),
+    }
     summary = {
         "classification": "SYNTHETIC_ANALYTIC_SENSITIVITY_ONLY",
         "physical_score": None,
@@ -571,10 +578,12 @@ def build_report(out: Path) -> dict:
             "correction, stationary initialization, a known valid lower "
             "bound on the block-chain pseudo-spectral gap, and all theorem conditions."
         ),
+        "source_hashes": source_hashes,
     }
     protocol = {
         "classification": summary["classification"],
         "inputs_read": [],
+        "source_hashes": source_hashes,
         "data_access": "none; no physical or sealed inputs were opened",
         "formula_source": {
             "paper": "Paulin, arXiv:1212.2015v5 (2018), Theorem 3.11 / Eq. (3.25) and Proposition 3.15 / Eq. (3.29)",
@@ -648,6 +657,11 @@ def build_report(out: Path) -> dict:
     _write_plot(out, rows)
     _write_initial_tv_plot(out, tv_rows)
     shutil.copy2(Path(__file__), out / "source_snapshot.py")
+    shutil.copy2(
+        Path(__file__).with_name("bounded_block_risk_score.py"),
+        out / "snapshot_bounded_block_risk_score.py",
+    )
+    shutil.copy2(ROOT / "core/numerics.py", out / "snapshot_core_numerics.py")
 
     readme = f"""# Pion bounded-risk Markov gap sensitivity
 
@@ -708,6 +722,8 @@ freeze block map, score/failure map, and candidate family
 ```
 
 The implementation and synthetic report close only the software/theorem-mapping boundary. They do not supply a block-chain pseudo-gap receipt, a post-burn-in TV bound, score-anchor dependence evidence, anchor coverage/common-bias evidence, or physical reference. Pion remains `NOT_READY/UNCERTIFIED`, with sealed data closed.
+
+The source map hashes the report builder, the imported bounded-score implementation, and its shared strict numeric-conversion helper; these bytes are retained as `source_snapshot.py`, `snapshot_bounded_block_risk_score.py`, and `snapshot_core_numerics.py`.
 
 ## Rebuild
 

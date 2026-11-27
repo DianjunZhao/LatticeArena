@@ -84,7 +84,7 @@ def test_small_build_writes_report_plot_denominators_and_hashes(tmp_path):
     assert "family block score" in denominators
     assert "anchor observation" in denominators
     manifest = json.loads((output / "artifact_hashes.json").read_text())
-    assert len(manifest) == 11
+    assert len(manifest) == 12
     for name, digest in manifest.items():
         assert hashlib.sha256((output / name).read_bytes()).hexdigest() == digest
     readme = (output / "README.md").read_text()
