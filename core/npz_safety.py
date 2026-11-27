@@ -8,8 +8,11 @@ validity.
 """
 from __future__ import annotations
 
-from io import BytesIO
+import lzma
 import math
+import struct
+import zlib
+from io import BytesIO
 from zipfile import BadZipFile, ZipFile
 
 import numpy as np
@@ -29,7 +32,8 @@ def validate_npz_payload(
 
     The limit covers total declared NPY member sizes, including their headers.
     Duplicate or nested member names, unsupported NPY versions, object arrays,
-    inconsistent NPY headers, and oversized archives fail closed.
+    inconsistent NPY headers, and oversized archives fail closed. ZIP and
+    decompressor errors are normalized to ValueError for task readers.
     """
     if not isinstance(payload, bytes):
         raise ValueError("NPZ payload must be immutable bytes")
@@ -80,7 +84,9 @@ def validate_npz_payload(
                     expected_size = stream.tell() + element_count * dtype.itemsize
                     if expected_size != member.file_size:
                         raise ValueError(f"NPY header size mismatch in {name!r}")
-            except (BadZipFile, EOFError, OSError, TypeError, OverflowError) as exc:
+            except (BadZipFile, EOFError, OSError, TypeError, OverflowError,
+                    NotImplementedError, RuntimeError, lzma.LZMAError,
+                    struct.error, zlib.error) as exc:
                 raise ValueError(f"invalid NPY member {name!r}") from exc
 
     return {"member_count": len(members), "uncompressed_bytes": total_size}
