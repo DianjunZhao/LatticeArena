@@ -775,6 +775,20 @@ source-map audit 发现 C-lane open-development generator 通过 `SourceByteSnap
 
 后续 CPU 校准不再扫描这个同一个 generator/seed。应冻结新 DGP 与独立 seeds，至少覆盖 omitted third vacuum/static levels、near-degenerate gaps、weak bare ground overlap、block AR(1)/unequal covariance；对失败 fit 与区间也保留完整分母，比较 delta、studentized 与全流程 block bootstrap 的 pointwise 和 72-term simultaneous coverage、弃权率、区间宽度及 Monte Carlo 误差。覆盖规则通过之前，不把此 candidate 接入 q/h/x reader 或 force gate。生产端点/source-sink/time-origin 约定、真实 `3x3 C_ij`、`N_t=32` 配对输入、reference force 与 contamination/error receipts 仍需外部数据及独立 review；C lane finite-`T` Creutz 不与 F lane 混合，状态继续 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，不读 sealed split、不运行 GPU/QUDA。
 
+### 2026-11-28 F-lane 遗漏静态态的独立重复面板覆盖诊断
+
+为把上一节单面板 `48/72` 与 `52/72` 的包含计数升级为真正的重复抽样诊断，新增 [`f_lane_two_sector_omitted_coverage_diagnostic.py`](f_lane_two_sector_omitted_coverage_diagnostic.py) 和[完整图文报告](f_lane_two_sector_omitted_coverage_20261128_v1/README.md)。固定同一已知 `2 vacuum × 3 static` finite-`N_t` 谱作为 truth、拟合模型仍为 `2×2`，每 panel 96 个独立 Gaussian blocks、相对噪声 `0.003`；24 个独立随机流使用 `default_rng(2026112800 + panel)`，不依结果调拟合窗、shrinkage 或区间。每 panel 用同一 regularized full-covariance GLS、固定 25% diagonal shrinkage / `1e-10` eigenvalue floor、45 参数 three-start fit；输出 72 项 q/h/x 单侧 97.5% pointwise 与 Bonferroni-72 95% family upper。24 份 raw NPZ/manifest 共用一份 lane contract，另保存 panel/cell 摘要 CSV 与 72 个 fit-start 记录；source snapshot `11/11` 与 artifact manifest `68/68` SHA-256 均匹配。
+
+**结果：**拟合分母 `24/24/0/0`，全部 full-rank 候选；三起点优化总分母 `72/72/0/0`；q/h/x interval cells `1728/1728/0/0`，24 个 raw matrix hash 全异。72 项 pointwise upper 的 pooled 描述性包含为 `1178/1728=68.17%`；按独立 panel 聚类平均为 `68.17%`，t-based 95% MC 区间 `[65.42%,70.92%]`。分项 panel-cluster 平均覆盖：q `15.97%` `[10.59%,21.36%]`，h `92.19%` `[89.53%,94.85%]`，x `96.35%` `[92.79%,99.92%]`。**Bonferroni-72 同时上界没有任何一 panel 覆盖全部 72 个 truth：`0/24`，Wilson 95% MC 区间约 `[0%,13.80%]`，远低于 nominal 95%。**中位 Jacobian condition number `1.61e4`，最大 `9.10e8`；full rank 并未保证良好条件数。图表并列显示每 cell 有符号估计偏差和按 panel 聚类的覆盖；同 panel 72 cells 不被当成独立样本。
+
+![遗漏态重复面板覆盖与估计偏差](f_lane_two_sector_omitted_coverage_20261128_v1/repeated_panel_coverage.png)
+
+文字流程：`冻结 2×3 finite-Nt truth + 2×2 拟合/区间 -> 24 个独立 seed panel × 96 blocks -> same-snapshot GLS -> 72 个 q/h/x upper 与 exact truth 对照 -> panel-cluster pointwise / familywise coverage + MC 区间 -> F 认证门 abstain`。
+
+这个结果限定于单一 omitted-third-static-state truth、iid Gaussian block 噪声和当前 fit/delta 规则；它足以否定“此 2×2 delta upper 已对该失配情景稳健”的主张，但不代表所有 Wilson spectrum 或更完整 state model 都会欠覆盖。`n_panel=24` 令 familywise Monte Carlo 区间仍宽；需用独立、预冻结的更多 panel 与 DGP strata 确认覆盖/停止规则，再比较 2×3 recovery、profile likelihood 与全流程 moving-block bootstrap，并记录失败、条件数、区间宽度及 abstention。不得用同一 24 panels 调 shrinkage 或重新宣称校准通过。
+
+测试/验证边界：本轮运行诊断脚本并核对报告哈希，脚本 `py_compile` 与 `git diff --check` 通过；没有重跑 pytest 全集。所有输入均是新生成的 synthetic CPU 数据，无真实 `C_ij`、GPU/QUDA 或 sealed split。物理 measurement denominator 仍 `0/0/0/0`；有限-$T$ Creutz C lane 与基态静态力 F lane 仍分开，保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。后续真实生产仍需获准 raw `3x3` correlator、endpoint/source-sink 约定 review、matched-`N_t=32` thermal/mixed receipts、reference force/error budget 与独立统计/物理 review。
+
 ### 2026-11-27 双态拟合的遗漏第三静态态反例
 
 为实际执行上段的第一种不同 DGP，新增[遗漏态图文报告](f_lane_two_sector_omitted_state_20261127_v1/README.md)和[逐 cell CSV](f_lane_two_sector_omitted_state_20261127_v1/qhx_comparison.csv)。输入仍是 96 个独立 Gaussian synthetic block，但生成器保留 toy 中全部 **2 vacuum × 3 static** states；被比较的 diagonal 与 regularized-GLS 拟合都仍固定为 **2 × 2**、45 参数/180 个实 Hermitian 分量、相同三组 starts。此处检验的是截断模型偏差，不是实际 Wilson spectrum。
