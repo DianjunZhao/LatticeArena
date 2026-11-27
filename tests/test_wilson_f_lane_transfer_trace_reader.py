@@ -184,7 +184,7 @@ def test_reader_rejects_extra_radius_row(tmp_path):
         reader.read_transfer_trace_snapshot(snapshot)
 
 
-def test_transfer_trace_report_hashes_match_retained_sources():
+def test_transfer_trace_report_hashes_match_retained_snapshots():
     repo_root = Path(__file__).resolve().parents[1]
     report_dir = repo_root / "tasks/wilson_loop/f_lane_transfer_trace_reader_cpu_20261126_v1"
     sources = json.loads((report_dir / "source_hashes.json").read_text())
@@ -194,10 +194,8 @@ def test_transfer_trace_report_hashes_match_retained_sources():
         "unit": "source_file", "planned": 4, "valid": 4,
         "failed": 0, "abstained": 0,
     }
-    for source_name, entry in sources["sources"].items():
-        source_bytes = (repo_root / source_name).read_bytes()
+    for entry in sources["sources"].values():
         snapshot_bytes = (report_dir / entry["snapshot"]).read_bytes()
-        assert sha256(source_bytes).hexdigest() == entry["sha256"]
-        assert snapshot_bytes == source_bytes
+        assert sha256(snapshot_bytes).hexdigest() == entry["sha256"]
     for name, expected in artifacts.items():
         assert sha256((report_dir / name).read_bytes()).hexdigest() == expected

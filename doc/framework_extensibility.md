@@ -425,4 +425,6 @@ The Wilson two-sector reader also showed why code identity must include low-leve
 
 The shared NPZ preflight also normalizes unsupported compression, encrypted members, and corrupt DEFLATE streams to `ValueError`. Task adapters can then preserve their own failed/abstained denominators for malformed artifacts instead of leaking codec-specific exceptions across task boundaries.
 
+`SourceByteSnapshot` now sizes each chunk against the remaining aggregate byte budget and reads at most one extra byte to establish an over-limit condition; that extra byte is never retained. Versioned reports remain immutable snapshots: their integrity tests should validate the saved source and artifact hash chain, not require an old captured source to equal the current live file after later code changes.
+
 Pion's path-based compatibility reader now uses the same discipline: capture bounded compressed bytes once, apply the NPZ expansion preflight, and parse that captured buffer. This removes a gap between snapshot-mode readers and legacy path-mode readers while keeping task split policy local to Pion.
