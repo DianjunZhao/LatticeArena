@@ -745,3 +745,39 @@ NPZ 共享预检器现把 ZIP 不支持的压缩方式、加密成员和损坏 D
 按不新增 D04 synthetic seed/rho/block-length 扫描的边界，只对 `draft_plan.py` 的 no-launch source map 做本地 import 闭包与摘要核对。21 个已声明源码/合同文件都存在，AST 遍历其本地 import 边后仍是 21 个，无未列出的本地 Python 依赖；`build_plan()` 生成的每个 source digest 与当下文件字节 `21/21` 匹配。该清单覆盖 D04 raw reader、D06 snapshot/Markov reducer、D11 metadata adapter、trainable-W 原型以及共享 evidence/source/NPZ helpers；它证明的是计划文件的源码身份，不是生产 evaluator 的运行依赖、输入来源或物理结果。
 
 文字流程：`no-launch _source_paths -> 捕获 21 个源码/合同路径 -> AST 递归本地 import closure -> 与 source_hashes 逐字节核对 -> 无缺项 -> launch_allowed=false`。此次没有写入新结果目录、读 measurement/calibration/sealed bytes、重跑 synthetic panels 或启动 GPU/QUDA。当前物理认证门仍 `5/0/0/5`，数据输入 `0/0/0/0`，`NOT_READY/UNCERTIFIED`、`physical_score=null` 不变。下一软件工作应等待获准 development/calibration package 后，让 reviewed production evaluator 从同一 immutable snapshot 派生 D04/D11 summaries 和三臂 paired receipts；不得把 source closure 解释成 reference/effect/cost/coverage pass。
+
+### 2026-11-28 D04 bootstrap 源码假设审计与校准精度门槛
+
+本轮逐段检查了 [`d04_ar1_bootstrap_diagnostic.py`](d04_ar1_bootstrap_diagnostic.py) 的 `_sample_stationary_ar1`、`_estimate_common_rho` 与 outer/inner 调用链，以及 [`d04_parametric_bootstrap_diagnostic.py`](d04_parametric_bootstrap_diagnostic.py) 的拟合均值重建、raw covariance plug-in 和失败值计数；并与 [`d04_raw_reference.py`](d04_raw_reference.py) 的 covariance-of-mean、GLS objective、nominal degrees of freedom 对照。此项是实现作者对当前源码的自审，不是独立统计审查，也没有新读入数据或运行模拟。
+
+**核实的实现性质与适用边界：**
+
+- `_sample_stationary_ar1` 先取 `z_0 ~ N(0, Σ)`，随后按 `z_t = ρ z_(t-1) + sqrt(1-ρ²) ε_t`、`ε_t ~ N(0, Σ)` 递推，最后加上拟合均值。对 `|ρ|<1`、共同 scalar rho、Gaussian innovation 和 stationary marginal covariance `Σ`，该构造的有限段每个时点 marginal covariance 正确；它没有表示多个相关时间尺度、feature-specific rho、非平稳链、热化漂移或厚尾创新。
+- `_estimate_common_rho` 把 27 个 feature 各自减 panel sample mean 后，汇总相邻乘积与平方和得到一个 pooled lag-1 OLS rho，并截断到 `[-0.95, 0.95]`。在“所有 feature 共用 rho”的 DGP 下，历史面板显示轻微向下偏差；对不同分量有不同相关时间、负/长记忆结构或短链热化效应时，它只是一个加权摘要，不能当作逐分量 Markov 参数。估计误差也没有在单个 outer panel 的 inner draw 中重新抽取；这是 plug-in bootstrap 的条件近似，需由独立 calibration 决定是否足够。
+- `_regularize_sample_covariance` 使用 outer panel 的原始 configuration covariance（`ddof=1`）和极小正定 floor 生成 bootstrap configurations；每个内层样本再由 reader 重算 `cov(sample)/Ncfg`、25% diagonal shrinkage 和 `1e-10` relative eigenvalue floor。该顺序实现上前后一致，但依赖 raw sample covariance 与共同 AR(1) 模型能代表真实 marginal/long-run covariance；不能把 shrinkage covariance-of-mean 误当 long-run covariance。
+- `_fitted_null_mean` 从主窗 `t=3..8` 的选中列及同一拟合协方差出发，在拟合 masses 固定时解 GLS amplitudes，再按 feature descriptors 重建 27 项 null mean；列标签顺序有显式一致性检查。`_fit_variant` 的三组 deterministic starts、质量坐标界、目标函数与 `dof = nobs - fitted_parameter_count` 在源码上闭合，当前主拟合 nominal dof 为 13。近边界、多态未识别、按结果选择 window/model，以及 covariance 估计与拟合残差的有限样本相关，仍会破坏把 `chi2.sf(..., 13)` 当校准 p-value 的条件。
+- 当前共享 p-value helper 用 `1 + valid_exceedances + failed_refits` 除以 `planned_draws + 1`；`chi2_boot >= chi2_observed` 将 ties 放入上尾，失败 refit 作为最不利上尾 exceedance，低于 90% 成功拟合则 abstain。源码逻辑闭合了 planned denominator；历史 AR(1) v1 每个方法 `31,840/31,840` 内层拟合成功，所以后来的失败计数修复不改该报告点值，但旧 artifact 的 source snapshot 仍忠实记录当时版本。
+
+**历史数据对“校准”的实际支持：**[`AR(1) v1 报告`](d04_ar1_bootstrap_cpu_20261127_v1/README.md)只有 `160` 个 outer panels、每方法 `B=199`。estimated-AR(1) bootstrap 在 1% 阈值拒绝 `2/160=1.25%`，Wilson 95% CI 为 `[0.34%, 4.44%]`；5% 拒绝 `10/160=6.25%`，区间 `[3.43%, 11.12%]`。同批 pooled rho 均值 `0.28623`，真值 `0.30`，偏差 `-0.01377`、标准差 `0.04079`。所以结果显示它比 iid plug-in bootstrap 在这个单一平稳 Gaussian toy 下少过拒绝，但样本量不足以判断 1%/5% calibration；不能把“区间包含标称值”写成已校准。`B=199` 的 rank p-value 最小步长为 `1/200=0.005`，对合同 `p>=0.01` 门槛过于粗。
+
+**获准独立 calibration package 到位后的精度规则（规划值，不授权或触发本轮新合成扫描）：**
+
+- 对单个 panel 的 bootstrap exceedance probability，在 `p≈0.01` 附近要求 pointwise 95% 正态近似 MC half-width 不大于 `0.002`（标称 1% 的 20%）；公式 `B ≈ z_(0.975)^2 p(1-p)/0.002^2` 给出约 `9,508` draws。最终区间改用 exact binomial interval；该数是内层模拟精度规划，不是物理数据量或通过证据。
+- 外层校准若预注册 `K=6` 个 null strata、同时查看 `α={0.01,0.05}` 共 12 个 rejection rates，并要求 familywise 95% MC half-width ≤ `0.002`，Bonferroni 正态规划 `N ≈ z_(1-0.05/(2×12))^2 × 0.01×0.99 / 0.002^2` 得每 strata 约 `20,320` 个独立 panel。若实际 strata 数不同，必须按实际 `K` 重算；最终报告 Wilson/Clopper–Pearson 区间和完整计划分母。这个预算明显高于 v1，故应先评估实际 fit 成本，并使用预注册的 sequential Monte Carlo confidence sequence：每 panel 先做 199 draws，再按固定批量追加；只有 99% anytime-valid interval 已完全落在 `0.01` 与 `0.05` 同侧时才提前停，达到 9,999 draws 仍跨门槛则记为 MC-indeterminate/abstain。外层固定独立 panel ID；若要提前停止，另用对 12 个 family outcomes 作 alpha-spending 的 simultaneous confidence sequence。不可用重复查看普通 95% CI 的方式偷看停止。
+- 这些数只为未来经授权、独立于方法开发集的 calibration 输入规划计算预算。当前冻结状态仍禁止重跑同一 synthetic generator 的 seed/rho/block 扫描；没有获准 bytes、来源 manifest 和 independent review 时，不创建 panel、不用合成数字补门槛，D04 继续 `NOT_READY/UNCERTIFIED`。
+
+**图文交付和后续 agent handoff：**
+
+```text
+获准且与开发集独立的 calibration bytes + provenance/hash
+  -> 固定 feature order、链 ID 与预注册 null strata
+  -> outer fit (tmin=3, nstates=2) / rho_hat / raw covariance
+  -> inner bootstrap: B=199 -> anytime-valid MC interval -> 批量扩到最多 9,999
+       ├─ valid < 90% planned: ABSTAIN
+       ├─ MC interval 跨 0.01 或 0.05: 追加或记 MC_INDETERMINATE
+       └─ 不跨阈值: 保存 p-value、rho、协方差、所有失败与 denominator
+  -> 独立 held-out strata 的 rejection rate + 同时 exact CI
+  -> 仅当 reviewer 接受校准误差和拟合约定后，才考虑关闭 D04 GOF 子门
+```
+
+下一位执行 agent 必须先获得 package 的显式来源/使用授权，并由未参与该实现的人复核 pooled rho、协方差估计与拟合窗/符号约定；再从同一 immutable snapshot 生成三张图：① `p`-value ECDF 对 Uniform(0,1)，展示同时置信带；② `α=1%/5%` 的拒绝率点与精确区间，标 nominal line、分母及失败/abstain；③ `rho_hat` 对已知/可审参考 rho 的恢复图，并分列 feature 或 strata。图下同时给出文本 denominator 流程和 CPU/precision/cost。此自审只关闭“源码假设尚未逐项核对”的文档缺口，不关闭独立审阅、D04 reference、production convention 或统计校准门；不读 sealed data，不启动 GPU/QUDA，`physical_score=null` 不变。
