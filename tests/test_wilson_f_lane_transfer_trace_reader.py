@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -181,3 +182,22 @@ def test_reader_rejects_extra_radius_row(tmp_path):
     )
     with pytest.raises(ValueError, match="exactly the selected R=2,3 rows"):
         reader.read_transfer_trace_snapshot(snapshot)
+
+
+def test_transfer_trace_report_hashes_match_retained_sources():
+    repo_root = Path(__file__).resolve().parents[1]
+    report_dir = repo_root / "tasks/wilson_loop/f_lane_transfer_trace_reader_cpu_20261126_v1"
+    sources = json.loads((report_dir / "source_hashes.json").read_text())
+    artifacts = json.loads((report_dir / "artifact_hashes.json").read_text())
+
+    assert sources["denominator"] == {
+        "unit": "source_file", "planned": 4, "valid": 4,
+        "failed": 0, "abstained": 0,
+    }
+    for source_name, entry in sources["sources"].items():
+        source_bytes = (repo_root / source_name).read_bytes()
+        snapshot_bytes = (report_dir / entry["snapshot"]).read_bytes()
+        assert sha256(source_bytes).hexdigest() == entry["sha256"]
+        assert snapshot_bytes == source_bytes
+    for name, expected in artifacts.items():
+        assert sha256((report_dir / name).read_bytes()).hexdigest() == expected

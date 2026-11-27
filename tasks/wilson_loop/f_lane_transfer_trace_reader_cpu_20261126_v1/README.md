@@ -60,7 +60,8 @@ the three ordered bare kernels `(identity, APE, stout)`. It uses `T={5,6}` and
 All q/h/x components are nonnegative and the maximum tested trace-decomposition
 residual is below `1e-12`. A negative fixture sets one bare operator's ground
 overlap to zero; its four corresponding `R=2 × T × Nt` cells remain failed,
-yielding `24/20/4/0`. The focused suite has **10 passed**. Tests reject a sealed F split, stale fit
+yielding `24/20/4/0`. The focused suite has **11 passed**, including retained
+source-fingerprint verification. Tests reject a sealed F split, stale fit
 hash, incorrect kernel-to-basis map, unordered spectrum, and malformed overlap
 axes, a manifest/protocol hash mismatch, and an extra radius row. The fixture is deterministic and is generated in the test itself; no
 Wilson production or sealed bytes are opened.
@@ -79,3 +80,16 @@ conventions. The force-unit error budget, production access and authorization
 are separate gates. The task remains
 `NOT_READY/UNCERTIFIED`, F=`GROUND_STATE_FORCE_UNCERTIFIED`, and
 `physical_score=null`.
+
+## Implementation snapshot and hash audit
+
+The report retains the exact reader, selected lane contract, shared snapshot
+integrity helper and regression test used for this diagnostic. Their paths and
+SHA-256 digests are listed in [`source_hashes.json`](source_hashes.json); the
+`snapshot_*` files preserve the captured bytes. Source dependency P/V/F/A is
+`4/4/0/0`. The artifact manifest covers this README, `source_hashes.json` and
+the four snapshots: `6/6/0/0` hashes match; `artifact_hashes.json` is excluded
+from its own hash set. The focused test verifies both the source-to-snapshot
+identity and each listed artifact digest. This records code identity for the
+algebra diagnostic; it does not authenticate the fit summary or its physical
+interpretation.

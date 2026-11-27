@@ -24,7 +24,7 @@ synthetic fixture 的六拟合分母为 `6/6/0/0`，18 个 multistart 中 17 个
 
 ### 2026-11-27 当前 CPU 验证快照
 
-当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **159 passed**；Wilson 专项文件集 `tests/test_wilson*.py` 为 **194 passed**（包含本轮新增的 10 个 transfer-trace reader checks）。Optimize+Wilson 定向集合为 **353 passed**，PR #6 当前完整 CPU suite **436 passed**。PR #5 Pion 当前完整 CPU suite **268 passed**（包含同快照 common-bias receipt consistency checks）；Pion TODO 与其工作树分开更新。所有结果只代表 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
+当前 PR #6 checkout 的 Optimize 专项文件集 `tests/test_optimize*.py` 为 **159 passed**；Wilson 专项文件集 `tests/test_wilson*.py` 为 **195 passed**（含 11 个 transfer-trace reader/report hash checks）。Optimize+Wilson 定向集合为 **354 passed**，PR #6 当前完整 CPU suite **437 passed**。PR #5 Pion 当前完整 CPU suite **268 passed**（包含同快照 common-bias receipt consistency checks）；Pion TODO 与其工作树分开更新。所有结果只代表 CPU 软件/公式回归；没有产生真实 E-reference、生产 paired solver/cost、SU(3) operator evidence、独立 review 或数据授权，不能升级 `NOT_READY/UNCERTIFIED` 或设置 `physical_score`。
 
 ### 2026-11-26 历史附件链接审计
 

@@ -393,8 +393,12 @@ Optimize's no-launch draft uses the same provenance idea for code: one source
 path map now supplies both TaskSpec dependency hashes and retained source
 snapshots, and report generation checks captured bytes against the planned
 digests before creating output. This makes missing snapshots and source changes
-visible in the artifact audit. The reusable pattern is: typed parser, same
-immutable bytes, linked IDs/hashes, and separate source and claim denominators.
+visible in the artifact audit. Wilson's finite-$N_t$ q/h/x algebra report now
+also retains and hashes its reader, selected lane contract, snapshot-integrity
+helper and regression test; its fixture outputs are still generated in the
+test and remain diagnostic-only. Across these three patterns the reusable
+shape is: typed parser, same immutable bytes, linked IDs/hashes, and separate
+source and claim denominators.
 Future adapters should add domain-specific parsers and review rules without
 treating a matching hash as authenticated evidence. A
 shared receipt-signature/trust-root layer could be considered after at least

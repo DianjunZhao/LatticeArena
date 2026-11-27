@@ -2,7 +2,7 @@
 
 ### 当前 CPU 验证快照（2026-11-27）
 
-2026-11-27 本轮重跑 PR #6 的 Wilson 定向文件集 `tests/test_wilson*.py`：**194 passed**；Optimize+Wilson 定向集合 **353 passed**（Optimize 159、Wilson 194），PR #6 全仓 CPU suite **436 passed**。PR #5 Pion 全仓 CPU suite **268 passed**。这些结果只核验 CPU 软件/合成公式；没有读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+2026-11-27 本轮重跑 PR #6 的 Wilson 定向文件集 `tests/test_wilson*.py`：**195 passed**；Optimize+Wilson 定向集合 **354 passed**（Optimize 159、Wilson 195），PR #6 全仓 CPU suite **437 passed**。PR #5 Pion 全仓 CPU suite **268 passed**。这些结果只核验 CPU 软件/合成公式；没有读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
 
 ### 2026-11-26 历史附件链接审计
 
@@ -720,3 +720,11 @@ q_v(T) = Σ_{n>0} |Z_n(v0)/Z_0(v0)|² exp[-(E_n-E_0)T],  T∈{5,6}.
 首次生成总图时，Wilson 上端点 `0.9999999999999999` 与覆盖点 `1.0` 出现 1 ulp 的浮点次序差，导致 matplotlib 拒绝负误差条。所有 L=6/10 拟合与 bootstrap CSV 已完成并留存；随后仅对通过 SHA-256 的冻结子报告重建总表和图，绘图端点只在 `1e-12` roundoff 内扩展以包含点估计，实质不相容仍会报错；没有重拟合或改变规则。报告明确记录这是 derived-only recovery。
 
 本轮 `py_compile` 通过；本文件 6 项定向测试通过；PR #6 全仓 CPU suite **419 passed**；`git diff --check` 通过。顶层产物 hash **6/6**、L=6 和 L=10 各 **12/12** 匹配，9,600/9,600 seed keys 一致。以上仅为 synthetic CPU 方法敏感度：物理 Wilson measurement `0/0/0/0`、认证门 `1/0/0/1`，维持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。下一步不再增加同一 generator/holdout 的 L/B 扫描；只在取得独立 calibration panels、授权 raw cross-correlator/spectrum/thermal/mixed/reference receipts 和独立 reviewer 后，推进物理 C/F lane。
+
+### 2026-11-27 F-lane transfer-trace 报告的源码身份封存
+
+复核已有[q/h/x 代数诊断](f_lane_transfer_trace_reader_cpu_20261126_v1/README.md)时发现，图文报告列出了分母与公式，但没有记录形成结果的 reader、lane contract、snapshot integrity 实现和测试文件版本。现为报告保留这四项源码副本，`source_hashes.json` 绑定原路径与 SHA-256，`artifact_hashes.json` 校验 README、source manifest 和四份快照。文字流程：`reader + selected lane contract + SourceByteSnapshot helper + deterministic regression -> 4/4/0/0 source identity -> same-snapshot q/h/x algebra fixtures -> 6/6/0/0 report artifact hashes -> diagnostic only`。真实测量 `0/0/0/0`、F certification `1/0/0/1` 未变。
+
+新增的 report-integrity 测试逐一确认仓库源码与保存快照逐字节一致，并重算所有 artifact digests；`tests/test_wilson_f_lane_transfer_trace_reader.py` **11 passed**。本轮 Wilson 专项 **195 passed**，Optimize+Wilson **354 passed**，PR #6 全仓 CPU suite **437 passed**，`git diff --check` 通过。这只锁定代码与报告身份，不验证调用方 spectrum/overlap summary 的物理来源，也不增加 coverage、thermal `h`、mixed `x` 或 force 误差证据。
+
+后续的非封存软件边界仍是让经独立审阅的 two-sector fit 从同一 raw `C_ij(R,t)` snapshot 生成 `eps_m`、`V_n(R)`、`A_i,mn(R)` 和全分母，再接入 q/h/x reader；在 insertion-time/source-sink/boundary-trace 约定未审阅前不写新物理公式。缺 production bytes、污染/误差预算或授权时保持有限-$T$ Creutz 与基态静态力双 lane 分离、`NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，不读 sealed split、不启动 GPU/QUDA。
