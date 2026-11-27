@@ -43,6 +43,7 @@ SEED_BASE = 2026112800
 TERMS = ("q", "h", "x")
 SOURCE_PATHS = {
     "two_sector_fit_candidate.py": TASK_DIR / "f_lane_two_sector_fit_candidate.py",
+    "two_sector_fit_initializer.py": TASK_DIR / "f_lane_two_sector_fit_diagnostic.py",
     "two_sector_gls_diagnostic.py": TASK_DIR / "f_lane_two_sector_gls_diagnostic.py",
     "two_sector_omitted_state_diagnostic.py": TASK_DIR / "f_lane_two_sector_omitted_state_diagnostic.py",
     "two_sector_omitted_coverage_diagnostic.py": Path(__file__),
@@ -50,6 +51,8 @@ SOURCE_PATHS = {
     "transfer_trace_reader.py": TASK_DIR / "f_lane_transfer_trace_reader.py",
     "finite_trace_toy.py": TASK_DIR / "f_lane_finite_nt_trace_diagnostic.py",
     "raw_matrix_reader.py": TASK_DIR / "f_lane_raw_matrix_snapshot_diagnostic.py",
+    "gevp_overlap_object.py": TASK_DIR / "gevp_overlap_object_diagnostic.py",
+    "gevp_t0_truncation.py": TASK_DIR / "gevp_t0_truncation_diagnostic.py",
     "source_integrity.py": REPO_ROOT / "core/source_integrity.py",
     "npz_safety.py": REPO_ROOT / "core/npz_safety.py",
     "lane_contract_v2.json": TASK_DIR / "lane_contract_v2.json",
