@@ -588,3 +588,11 @@ m_eff(4) = acosh((C_fold(3)+C_fold(5))/(2 C_fold(4))),  T=16
 `authority=not_authenticated` 是刻意保留的边界：`internally_consistent_claim` 只表示同一份哈希绑定 bytes 的字段互相吻合，不认证 reviewer 身份/授权，不证明 `C/R<=0.01`，也不提供 anchor support、E-chain reference、chain gap/TV 或 score-anchor 独立性的物理证据。当前真实 source 与物理 receipt 分母仍 `0/0/0/0`，未读 sealed inputs、未运行 GPU/QUDA，RunState 仍只能到 `draft`，外层结论维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`。
 
 下一位实现者不要重复 synthetic schema/hash 网格。若仅有 CPU 软件工作，可审查 `evidence_adapter.py` 的 receipt 到 TaskSpec/code fingerprint 传递依赖以及 source-root/snapshot 两入口是否保持相同 abstention 语义；更进一步的 anchor 校准只能在取得**获准且未封存**的 candidate-blind reference、anchor-chain scalar、review/independence 和 `C/R` 论证后进行。随后需输出 block scalar 分布/trace、有效与失败完整分母、dependence/coverage 诊断和 `E[m_eff(C_block)]-m*` bias envelope；若缺少物理 source 或授权，不执行测量并继续标注 `NOT_READY/UNCERTIFIED`。
+
+### 2026-11-27 Pion TaskSpec 与两种 source-byte 入口自审
+
+按上项完成一次静态调用链审查。`spec._source_dependencies()` 把 development reader、candidate/evaluator、score 与 anchor map、bounded-risk 合同及 Markov helper、NPZ/source-byte parser、receipt/evidence gate 和 RunState 纳入 `TaskSpec.dependencies`；`bundle_for_development_snapshot()` 将该指纹写入 manifest 与冻结 submission。随后 `experiment.evaluate()` 在读取 validation arrays 前比较冻结 TaskSpec；`candidate.run_candidate()` 在导入 CuPy/MPI/PyQUDA 前做同一指纹核验。当前列出的直接代码依赖在这条冻结链上闭合，未发现新的遗漏模块。
+
+source-root 入口先按明示 hash/path 捕获每个 route 的 bytes，之后把捕获的 `SourceByteSnapshot` 同时交给 common-bias claim reader 和原子 bundle gate；snapshot 入口直接交付同一种 snapshot。对 hash mismatch、缺项、非法 map 或 receipt 内部链接不一致，两路都不能把 `statistical` 推过 `abstained`，且均保持 `physical_score=null`。错误类别/诊断文字会因失败发生在参数预检、byte capture 或 receipt parse 而不同；“终态相同”不代表所有返回 JSON 逐字段相同。有效 bytes 也至多进入 `draft`，不会认证授权、reviewer 身份、链独立性或 `C/R` 的物理正确性。
+
+文字流程：`protocol + TaskSpec dependency hashes -> development bundle/frozen fingerprint -> evaluate/candidate stale-source preflight -> score/anchor source-root capture OR pre-captured snapshots -> same snapshot common-bias parse + atomic evidence gate -> draft or abstain; physical_score=null`。本项是源码级自审，不是独立 reviewer，也没有新增或重跑测试；结论只覆盖当前 tracked implementation。后续不再扩充同类 schema/hash 夹具。Pion 的唯一实质剩余项仍是获准且未封存的 candidate-blind E-reference、anchor scalar/map/support、score/anchor dependence 与独立性 receipts、可审的 `C/R` bias bridge 以及独立物理/统计 review；缺任一项就保持 `NOT_READY/UNCERTIFIED`、sealed inputs closed，不运行 GPU/QUDA。
