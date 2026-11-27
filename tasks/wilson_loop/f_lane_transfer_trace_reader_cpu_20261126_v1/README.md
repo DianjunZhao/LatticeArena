@@ -52,12 +52,15 @@ the three ordered bare kernels `(identity, APE, stout)`. It uses `T={5,6}` and
 | Unit | Planned | Valid | Failed | Abstained |
 |---|---:|---:|---:|---:|
 | Captured source file | 3 | 3 | 0 | 0 |
-| Synthetic q/h/x cell | 24 | 24 | 0 | 0 |
+| Positive-fixture q/h/x cell | 24 | 24 | 0 | 0 |
+| Zero-ground-overlap negative fixture | 24 | 20 | 4 | 0 |
 | Authorized production measurement | 0 | 0 | 0 | 0 |
 | F-lane certification gate | 1 | 0 | 0 | 1 |
 
 All q/h/x components are nonnegative and the maximum tested trace-decomposition
-residual is below `1e-12`. The focused suite has **9 passed**. Tests reject a sealed F split, stale fit
+residual is below `1e-12`. A negative fixture sets one bare operator's ground
+overlap to zero; its four corresponding `R=2 × T × Nt` cells remain failed,
+yielding `24/20/4/0`. The focused suite has **10 passed**. Tests reject a sealed F split, stale fit
 hash, incorrect kernel-to-basis map, unordered spectrum, and malformed overlap
 axes, a manifest/protocol hash mismatch, and an extra radius row. The fixture is deterministic and is generated in the test itself; no
 Wilson production or sealed bytes are opened.

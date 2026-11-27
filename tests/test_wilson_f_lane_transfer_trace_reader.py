@@ -107,6 +107,25 @@ def test_reader_reconstructs_all_qhx_cells_from_one_snapshot(tmp_path):
     assert result["open_gates"]
 
 
+def test_reader_keeps_zero_ground_overlap_cells_in_failed_denominator(tmp_path):
+    def zero_one_bare_operator(fit):
+        values = np.asarray(fit["transition_overlaps_by_R"]["2"], dtype=np.float64)
+        values[0, 0, 0] = (0.0, 0.0)
+        fit["transition_overlaps_by_R"]["2"] = values.tolist()
+
+    snapshot, _ = _transaction(tmp_path, mutate_fit=zero_one_bare_operator)
+    result = reader.read_transfer_trace_snapshot(snapshot)
+
+    assert result["status"] == "ABSTAIN_INVALID_TRANSFER_CELLS"
+    assert result["cell_denominator"] == {
+        "unit": "R_kernel_T_Nt_cell", "planned": 24, "valid": 20,
+        "failed": 4, "abstained": 0,
+    }
+    assert len(result["failure_reasons"]) == 4
+    assert {row["kernel_id"] for row in result["failure_reasons"]} == {"identity"}
+    assert {row["R"] for row in result["failure_reasons"]} == {2}
+
+
 def test_reader_rejects_closed_or_sealed_split(tmp_path):
     snapshot, _ = _transaction(tmp_path, split="F_sealed_confirmation")
     with pytest.raises(ValueError, match="open F calibration/development"):

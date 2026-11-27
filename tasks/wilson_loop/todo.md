@@ -2,7 +2,7 @@
 
 ### 当前 CPU 验证快照（2026-11-26）
 
-2026-11-26 本轮重跑 PR #6 的 Wilson 定向文件集 `tests/test_wilson*.py`：**193 passed**；Optimize+Wilson 定向集合 **352 passed**（Optimize 159、Wilson 193），PR #6 全仓 CPU suite **435 passed**。PR #5 Pion 全仓 CPU suite **265 passed**。这些结果只核验 CPU 软件/合成公式；没有读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+2026-11-27 本轮重跑 PR #6 的 Wilson 定向文件集 `tests/test_wilson*.py`：**194 passed**；Optimize+Wilson 定向集合 **353 passed**（Optimize 159、Wilson 194），PR #6 全仓 CPU suite **436 passed**。PR #5 Pion 全仓 CPU suite **265 passed**。这些结果只核验 CPU 软件/合成公式；没有读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
 
 ### 2026-11-26 历史附件链接审计
 
@@ -22,7 +22,7 @@
 
 新增 [`f_lane_transfer_trace_reader.py`](f_lane_transfer_trace_reader.py)，让已选的有限-$N_t$ transfer-trace q/h/x 定义有一个严格的 CPU consumer：它只从同一个 `SourceByteSnapshot` 读取 manifest、fit-summary JSON 和 lane contract bytes，核对 open F calibration split、`S16T16`/Wilson-$\beta=6$、`R={2,3}`、三个 kernel 的有序语义、`T={5,6}`、`N_t={16,32}`、source/fit hashes 以及 contract 中 `two_sector_transfer_trace_qhx_v1` 和 kernel→裸基算符映射。对调用方提供的有序真空能谱、静态能谱和复 overlap pairs，它逐格计算 `q (m=0,n>0)`、`h (m>0,n=0)`、`x (m>0,n>0)`，并把完整 trace ratio 与 `1+q+h+x` 对照。没有路径二次读取、physical score 或 certification 输出。
 
-文字流程：`同一 snapshot 的 manifest + protocol + 拟合 summary -> hash/schema/split/轴序验证 -> 按所选 transfer trace 计算 q/h/x -> 直接 trace 恒等式核对 -> diagnostic only`。确定性合成 fixture 的 captured source files 为 `3/3/0/0`，`R×kernel×T×N_t` cells 为 `24/24/0/0`，全部 sector 非负且重构残差 `<1e-12`；生产 measurement `0/0/0/0`，F-lane certification gate `1/0/0/1`。新增 `tests/test_wilson_f_lane_transfer_trace_reader.py` **9 passed**，覆盖捕获后路径替换、封存 split、fit/protocol hashes、错 kernel 映射、错误谱序、额外 R 行和 overlap 形状。图式数据流、公式、denominator 与边界见[synthetic reader report](f_lane_transfer_trace_reader_cpu_20261126_v1/README.md)。
+文字流程：`同一 snapshot 的 manifest + protocol + 拟合 summary -> hash/schema/split/轴序验证 -> 按所选 transfer trace 计算 q/h/x -> 直接 trace 恒等式核对 -> diagnostic only`。确定性合成 fixture 的 captured source files 为 `3/3/0/0`，正例 `R×kernel×T×N_t` cells 为 `24/24/0/0`；ground overlap 为零的负例保留 `24/20/4/0`，全部正例 sector 非负且重构残差 `<1e-12`；生产 measurement `0/0/0/0`，F-lane certification gate `1/0/0/1`。新增 `tests/test_wilson_f_lane_transfer_trace_reader.py` **10 passed**，覆盖捕获后路径替换、封存 split、fit/protocol hashes、错 kernel 映射、错误谱序、额外 R 行、overlap 形状及零 ground-overlap 失败分母。图式数据流、公式、denominator 与边界见[synthetic reader report](f_lane_transfer_trace_reader_cpu_20261126_v1/README.md)。
 
 此增量只消费**调用方已经拟合好的** two-sector spectrum/overlap summary，不由它本身解析原始 `C_ij(R,t)`、不估计不确定度/coverage、不生成 q/h/x simultaneous upper bound，也没有得到 matched-`N_t=32` thermal `h`、mixed `x`、truncation 或 force-unit receipt。代码库里已有独立 raw-matrix snapshot reader 和 forward static-sector joint-GLS candidate；后者只输出 q 点估计与未校准 delta-method error，不产生这里所需的 vacuum-sector `eps_m`、`A_i,mn` two-sector fit summary，其区间也不构成证据收据。因此不要重复实现 raw parser 或把既有 q candidate 当作 q/h/x fit。下一软件边界是在 reviewer 核准的 exporter 定义下，扩展现有 joint-fit candidate，从同一个 raw matrix snapshot 派生 `eps_m`、`V_n(R)`、`A_i,mn(R)` 和完整失败分母，再接到本 reader；随后用 exact/omitted-state/near-degenerate/near-singular fixtures 做 covariance/coverage 校准。生产 source/sink/time-origin convention、真实 reference、污染界、独立审阅和授权未齐之前不读 production/sealed 数据、不启动 GPU/QUDA，维持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
 
