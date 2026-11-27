@@ -760,3 +760,29 @@ q_v(T) = Σ_{n>0} |Z_n(v0)/Z_0(v0)|² exp[-(E_n-E_0)T],  T∈{5,6}.
 source-map audit 发现 C-lane open-development generator 通过 `SourceByteSnapshot` 读取三份输入，却未把 `core/source_integrity.py` 写入 protocol 的 `analysis_source_sha256`，也没有随报告保留 helper bytes。现加入 source hash、`snapshot_core_source_integrity.py` 和 artifact manifest 条目。随后发现 generator 对代码文件分别“先 hash、后复制”，两次文件读取之间有源码变化的竞态；现改为在读取任务输入前逐一捕获代码文件，且每个文件只读一次，再从同一份 captured bytes 计算 digest 和写入 report snapshot。回归测试在源码首次读取后立即改写原路径，并要求 input reader 运行前源码捕获已经完成；报告 digest、归档源码 bytes 和 manifest 必须仍来自同一份捕获字节。`tests/test_wilson_source_snapshot_reader.py` **3 passed in 0.52 s**；PR #6 全仓 CPU suite **448 passed in 72.61 s**。
 
 文字流程：`captured development inputs -> capture each analysis-source byte string once -> hash and retain that same byte string -> protocol source map + report manifest -> integrity test`。这只修复后续生成报告的代码身份链；未重跑或改写旧版 C 报告，也没有新增 Wilson measurement、独立 dependence/coverage receipt 或 F-lane contamination evidence。C 仍是 finite-`T` Creutz，F 仍是 ground-state static force；两条 lane 保持分开及 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，不读 sealed split、不运行 GPU/QUDA。
+
+### 2026-11-27 two-sector full-covariance GLS 与 q/h/x delta 区间 pilot
+
+在 `f_lane_two_sector_fit_candidate.py` 增加可选 `regularized_full_covariance` 拟合：从同一 96-block、180-component 的 captured matrix snapshot 估计 block-mean covariance，固定 25% diagonal shrinkage 和 `1e-10` relative eigenvalue floor，经 Cholesky whitening 最小化完整 Hermitian residual；由 whitened Jacobian information 计算参数协方差，再用有限差分传播到 72 个 q/h/x 分量，同时输出单侧 97.5% pointwise 与 95% Bonferroni-72 normal upper。原 diagonal 路径保留为同字节对照。新增[对照报告](f_lane_two_sector_gls_20261127_v1/README.md)、[逐 cell CSV](f_lane_two_sector_gls_20261127_v1/qhx_comparison.csv)和[标准化误差图](f_lane_two_sector_gls_20261127_v1/standardized_errors.png)，协议、源码快照及 artifact hashes 同包保存。
+
+本次同一合成 panel 上两个 fit 都是 `45/45` full rank。Jacobian condition number 从 diagonal 的 `1.235e5` 降至 GLS 的 `6.539e4`，GLS 的拟合统计量为 `238.31`；两个 chi-square 使用不同 residual metric，不可直接互比，且均未做有限样本 GOF 校准。协方差来自 `96<180` 个 block，原始 covariance 确实 rank-deficient，固定 shrinkage 只是得到正定数值 metric。单个已知真值 panel 中，pointwise upper 包含 `56/72` 个 q/h/x truth，Bonferroni upper 包含 `64/72`；这不是重复抽样覆盖率，但足以提示当前 delta 区间不应接认证门。图的纵轴是 `(estimate - truth)/GLS delta SE`，低于相应 cutoff 的点表示该单侧上界没有包含本次 toy truth。
+
+```text
+同一 immutable synthetic NPZ -> diagonal fit 与 shrinkage-GLS fit -> Jacobian delta covariance -> 72 个 q/h/x 上界 -> 一次真值包含诊断 -> physical gate abstain
+```
+
+`tests/test_wilson_f_lane_two_sector_fit_candidate.py` 当前定向 **6 passed**；此处新加的测试覆盖目标模式校验、covariance shrink/floor diagnostics、72 项区间的次序以及仍为 diagnostic-only。已知边界：这里的 72 项共享拟合参数并相互相关；delta 法把估计 covariance 当作固定量，未传播 covariance 估计误差、block dependence、优化器/模型选择或 state-count uncertainty；只有一个正好匹配双态模型的 Gaussian panel，不能推出 pointwise 或 familywise coverage。
+
+后续 CPU 校准不再扫描这个同一个 generator/seed。应冻结新 DGP 与独立 seeds，至少覆盖 omitted third vacuum/static levels、near-degenerate gaps、weak bare ground overlap、block AR(1)/unequal covariance；对失败 fit 与区间也保留完整分母，比较 delta、studentized 与全流程 block bootstrap 的 pointwise 和 72-term simultaneous coverage、弃权率、区间宽度及 Monte Carlo 误差。覆盖规则通过之前，不把此 candidate 接入 q/h/x reader 或 force gate。生产端点/source-sink/time-origin 约定、真实 `3x3 C_ij`、`N_t=32` 配对输入、reference force 与 contamination/error receipts 仍需外部数据及独立 review；C lane finite-`T` Creutz 不与 F lane 混合，状态继续 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，不读 sealed split、不运行 GPU/QUDA。
+
+### 2026-11-27 双态拟合的遗漏第三静态态反例
+
+为实际执行上段的第一种不同 DGP，新增[遗漏态图文报告](f_lane_two_sector_omitted_state_20261127_v1/README.md)和[逐 cell CSV](f_lane_two_sector_omitted_state_20261127_v1/qhx_comparison.csv)。输入仍是 96 个独立 Gaussian synthetic block，但生成器保留 toy 中全部 **2 vacuum × 3 static** states；被比较的 diagonal 与 regularized-GLS 拟合都仍固定为 **2 × 2**、45 参数/180 个实 Hermitian 分量、相同三组 starts。此处检验的是截断模型偏差，不是实际 Wilson spectrum。
+
+两条路径都返回 `45/45` rank；GLS Jacobian condition number `1.346e4`，其未校准 GLS `chi2=18,921` 很高，但这里只把它当作模型失配提示而非正式 GOF 拒绝。用生成器完整 2×3 truth 核对拟合 q/h/x 后，单侧 pointwise upper 只有 `48/72` 项包含真值，Bonferroni-72 upper 只有 `52/72`；GLS 标准化绝对误差中位数/最大值约 `14.3/38.4`。图中许多 q 估值偏低约 20–40 个所报 delta SE，h/x 也显著偏高；因此 full rank、优化器收敛和形式上的 upper-bound 宽度均不能替代模型失配检查。
+
+![遗漏第三静态态时的标准化 q/h/x 偏差](f_lane_two_sector_omitted_state_20261127_v1/standardized_errors.png)
+
+文字流程：`2×3 known-truth finite-Nt trace + iid noise -> immutable snapshot -> diagonal/GLS 两条 2×2 fit -> q/h/x delta upper -> 与完整三静态态 truth 对照 -> 保留失配诊断并对物理 gate abstain`。一张 panel 的 `48/72` 与 `52/72` 只是本次真值包含计数，**不是覆盖率估计**，也没有以它调过拟合窗、shrinkage 或阈值。报告同步留存源码/输入快照和 artifact hashes。
+
+这项 stress 使下一轮 calibration 设计更具体：独立重复 panel 要按事先冻结的第三态 gap/overlap 区间、near-degenerate 双激发、弱 ground overlap、vacuum-sector omitted state 与 AR(1)/unequal covariance 分层；每个 panel 同时记 chi-square/GOF、参数 rank/condition、fit failure、q/h/x 逐项及 familywise upper 覆盖、宽度与 abstention。需另外比较允许第三态或 profile/bootstrap 区间的恢复能力，不能只靠增加 GLS shrinkage 修补模型偏差。Wilson 全物理 boundary 仍未闭合，保持双 lane 分离、`NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，不访问 sealed split/GPU/QUDA。

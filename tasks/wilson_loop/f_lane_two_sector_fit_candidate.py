@@ -13,7 +13,9 @@ import math
 from typing import Any
 
 import numpy as np
+from scipy.linalg import cholesky, solve_triangular
 from scipy.optimize import least_squares
+from scipy.stats import norm
 
 from core.npz_safety import validate_npz_payload
 from core.source_integrity import SourceByteSnapshot
@@ -39,6 +41,10 @@ _MANIFEST_KEYS = {
     "radius_order", "temporal_extents", "time_slices", "dimension_order",
     "matrix_sha256", "lane_contract_sha256",
 }
+GLS_DIAGONAL_SHRINKAGE = 0.25
+GLS_EIGENVALUE_FLOOR_RELATIVE = 1e-10
+QHX_POINTWISE_ALPHA = 0.025
+QHX_SIMULTANEOUS_ALPHA = 0.05
 
 
 def _reject_duplicate_keys(pairs):
@@ -177,6 +183,85 @@ def _observed_vectors(matrices: np.ndarray) -> np.ndarray:
     return np.transpose(np.stack(rows), (1, 0, 2)).reshape(matrices.shape[0], -1)
 
 
+def _regularized_mean_covariance(block_vectors: np.ndarray) -> tuple[np.ndarray, dict[str, float]]:
+    """Estimate a regularized covariance of the block mean for the GLS pilot.
+
+    The raw covariance is rank deficient when the number of blocks is below the
+    number of matrix components. Fixed diagonal shrinkage and an eigenvalue
+    floor make the numerical metric positive definite; they do not calibrate
+    its finite-sample coverage.
+    """
+    blocks = np.asarray(block_vectors, dtype=float)
+    if blocks.ndim != 2 or blocks.shape[0] < 3 or not np.isfinite(blocks).all():
+        raise ValueError("block_vectors must be a finite matrix with at least three blocks")
+    raw = np.cov(blocks, rowvar=False, ddof=1) / blocks.shape[0]
+    diagonal = np.diag(np.diag(raw))
+    shrunk = ((1.0 - GLS_DIAGONAL_SHRINKAGE) * raw
+              + GLS_DIAGONAL_SHRINKAGE * diagonal)
+    raw_values = np.linalg.eigvalsh(0.5 * (raw + raw.T))
+    values, vectors = np.linalg.eigh(0.5 * (shrunk + shrunk.T))
+    largest = float(values[-1])
+    if largest <= 0.0 or not math.isfinite(largest):
+        raise ValueError("estimated mean covariance has no positive eigenvalue")
+    floor = GLS_EIGENVALUE_FLOOR_RELATIVE * largest
+    floored = np.maximum(values, floor)
+    covariance = (vectors * floored) @ vectors.T
+    return covariance, {
+        "block_count": int(blocks.shape[0]),
+        "component_count": int(blocks.shape[1]),
+        "diagonal_shrinkage": GLS_DIAGONAL_SHRINKAGE,
+        "eigenvalue_floor_relative": GLS_EIGENVALUE_FLOOR_RELATIVE,
+        "raw_min_eigenvalue": float(raw_values[0]),
+        "shrunk_min_eigenvalue": float(values[0]),
+        "regularized_min_eigenvalue": float(floored[0]),
+        "max_eigenvalue": largest,
+        "condition_number": float(floored[-1] / floored[0]),
+        "floor_active_count": int(np.count_nonzero(values < floor)),
+        "covariance_of": "sample mean",
+    }
+
+
+def _qhx_vector(parameters: np.ndarray) -> np.ndarray:
+    epsilon, static, amplitudes = _decode(parameters)
+    values = []
+    for radius_index in range(len(R_VALUES)):
+        for operator_index in range(OPERATOR_COUNT):
+            for time_extent in (5, 6):
+                for temporal_extent in NT_VALUES:
+                    cell = _component_values(
+                        np.asarray((0.0, epsilon)), static[radius_index],
+                        amplitudes[radius_index], operator_index,
+                        time_extent, temporal_extent,
+                    )
+                    values.extend(cell[name] for name in ("q", "h", "x"))
+    return np.asarray(values, dtype=float)
+
+
+def _qhx_delta_intervals(parameters: np.ndarray,
+                         parameter_covariance: np.ndarray) -> list[dict[str, float]]:
+    point = _qhx_vector(parameters)
+    gradient = np.empty((point.size, parameters.size), dtype=float)
+    for index, value in enumerate(parameters):
+        step = 2e-6 * max(1.0, abs(float(value)))
+        plus, minus = parameters.copy(), parameters.copy()
+        plus[index] += step
+        minus[index] -= step
+        gradient[:, index] = (_qhx_vector(plus) - _qhx_vector(minus)) / (2.0 * step)
+    variances = np.einsum("ij,jk,ik->i", gradient, parameter_covariance, gradient)
+    standard_errors = np.sqrt(np.maximum(variances, 0.0))
+    pointwise_z = float(norm.isf(QHX_POINTWISE_ALPHA))
+    simultaneous_z = float(norm.isf(QHX_SIMULTANEOUS_ALPHA / point.size))
+    rows = []
+    for index, (estimate, standard_error) in enumerate(zip(point, standard_errors)):
+        rows.append({
+            "estimate": float(estimate),
+            "delta_standard_error": float(standard_error),
+            "upper_97_5_pointwise": float(estimate + pointwise_z * standard_error),
+            "upper_95_bonferroni_72": float(estimate + simultaneous_z * standard_error),
+        })
+    return rows
+
+
 def _validate_raw_snapshot(snapshot: SourceByteSnapshot, *, manifest_name: str,
                            matrix_name: str, contract_name: str):
     if not isinstance(snapshot, SourceByteSnapshot):
@@ -247,24 +332,35 @@ def _validate_raw_snapshot(snapshot: SourceByteSnapshot, *, manifest_name: str,
 def fit_two_sector_snapshot(
     snapshot: SourceByteSnapshot, *, manifest_name: str = "manifest",
     matrix_name: str = "raw_matrices", contract_name: str = "lane_contract",
+    objective_mode: str = "diagonal",
 ) -> dict[str, Any]:
     """Fit a 2-vacuum x 2-static trace to one captured raw-matrix snapshot.
 
-    The objective uses a diagonal per-component standard error estimated from
-    the supplied blocks. The fit is a proposed-method candidate; uncertainty
-    and simultaneous coverage are not computed.
+    ``objective_mode='diagonal'`` preserves the original pilot. The optional
+    ``'regularized_full_covariance'`` mode estimates the covariance of the
+    block mean, applies fixed 25% diagonal shrinkage and a 1e-10 relative
+    eigenvalue floor, and reports asymptotic delta intervals for q/h/x. Those
+    intervals are diagnostic only and have no finite-sample coverage claim.
     """
+    if objective_mode not in {"diagonal", "regularized_full_covariance"}:
+        raise ValueError("objective_mode must be diagonal or regularized_full_covariance")
     manifest, matrices = _validate_raw_snapshot(
         snapshot, manifest_name=manifest_name,
         matrix_name=matrix_name, contract_name=contract_name,
     )
     blocks = _observed_vectors(matrices)
     mean = blocks.mean(axis=0)
-    standard_error = blocks.std(axis=0, ddof=1) / math.sqrt(len(blocks))
-    positive = standard_error[standard_error > 0]
-    scale_floor = (float(np.max(positive)) * 1e-8 if positive.size
-                   else max(float(np.max(np.abs(mean))) * 1e-10, 1e-15))
-    weights = 1.0 / np.maximum(standard_error, scale_floor)
+    covariance_diagnostics = None
+    covariance_cholesky = None
+    if objective_mode == "diagonal":
+        standard_error = blocks.std(axis=0, ddof=1) / math.sqrt(len(blocks))
+        positive = standard_error[standard_error > 0]
+        scale_floor = (float(np.max(positive)) * 1e-8 if positive.size
+                       else max(float(np.max(np.abs(mean))) * 1e-10, 1e-15))
+        weights = 1.0 / np.maximum(standard_error, scale_floor)
+    else:
+        mean_covariance, covariance_diagnostics = _regularized_mean_covariance(blocks)
+        covariance_cholesky = cholesky(mean_covariance, lower=True, check_finite=True)
 
     # Initialize the m=0 static spectrum from the matched-Nt=32 forward fit.
     static_guesses, overlap_guesses = [], []
@@ -339,7 +435,11 @@ def fit_two_sector_snapshot(
                                       epsilon_guess, scale)
 
         def residual(parameters):
-            return (_model_vectors(parameters).ravel() - mean) * weights
+            raw = _model_vectors(parameters).ravel() - mean
+            if covariance_cholesky is None:
+                return raw * weights
+            return solve_triangular(covariance_cholesky, raw, lower=True,
+                                    check_finite=True)
 
         try:
             result = least_squares(
@@ -400,6 +500,12 @@ def fit_two_sector_snapshot(
     objective, best, singular, rank = min(successful, key=lambda row: row[0])
     epsilon, static, amplitudes = _decode(best.x)
     full_rank = rank == best.x.size
+    parameter_covariance = None
+    qhx_intervals = None
+    if objective_mode == "regularized_full_covariance" and full_rank:
+        _, singular_values, right = np.linalg.svd(best.jac, full_matrices=False)
+        parameter_covariance = (right.T * (1.0 / singular_values ** 2)) @ right
+        qhx_intervals = _qhx_delta_intervals(best.x, parameter_covariance)
     qhx_rows = []
     qhx_failed = 0
     for radius_index, radius in enumerate(R_VALUES):
@@ -425,6 +531,12 @@ def fit_two_sector_snapshot(
                             "T": time_extent, "N_t": temporal_extent,
                             "status": "valid", **cell,
                         })
+    if qhx_intervals is not None and len(qhx_rows) == 24:
+        for cell_index, row in enumerate(qhx_rows):
+            row["delta_intervals"] = {
+                name: qhx_intervals[3 * cell_index + offset]
+                for offset, name in enumerate(("q", "h", "x"))
+            }
     denominator = {"planned": 1, "valid": 1 if full_rank else 0,
                    "failed": 0 if full_rank else 1, "abstained": 0}
     return {
@@ -449,7 +561,11 @@ def fit_two_sector_snapshot(
             "static_state_count": STATIC_STATES,
             "radius_order": list(R_VALUES), "temporal_extents": list(NT_VALUES),
             "time_slices": list(T_VALUES),
-            "objective": "diagonal inverse-SE weighted least squares over Hermitian 3x3 components",
+            "objective": ("diagonal inverse-SE weighted least squares over Hermitian 3x3 components"
+                          if objective_mode == "diagonal" else
+                          "regularized full-covariance GLS over Hermitian 3x3 components"),
+            "objective_mode": objective_mode,
+            "covariance_diagnostics": covariance_diagnostics,
             "parameter_count": int(best.x.size), "data_components": int(best.fun.size),
             "degrees_of_freedom": int(best.fun.size - best.x.size),
             "jacobian_rank": rank,
@@ -457,6 +573,13 @@ def fit_two_sector_snapshot(
                                            if full_rank and singular[-1] > 0 else None),
             "chi_square_diagonal": objective,
             "goodness_of_fit_calibrated": False,
+            "parameter_covariance_method": (
+                "inverse whitened Jacobian information; asymptotic diagnostic only"
+                if parameter_covariance is not None else None),
+            "qhx_interval_method": (
+                "finite-difference delta method; pointwise 97.5% and 95% Bonferroni across 72 q/h/x terms"
+                if qhx_intervals is not None else None),
+            "qhx_interval_coverage_calibrated": False,
         },
         "spectrum_fit": {
             "vacuum_energies": [0.0, float(epsilon)],
@@ -482,4 +605,3 @@ def fit_two_sector_snapshot(
             "source-file hashes do not authenticate provenance, reviewer identity, or authorization",
         ],
     }
-

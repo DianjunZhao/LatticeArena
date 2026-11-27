@@ -117,6 +117,42 @@ def test_two_sector_fit_recovers_full_rank_synthetic_candidate(tmp_path):
     assert any("independently reviewed" in gate for gate in result["open_gates"])
 
 
+def test_two_sector_gls_reports_regularization_and_diagnostic_qhx_intervals(tmp_path):
+    snapshot, _ = _make_snapshot(tmp_path)
+    result = fit_two_sector_snapshot(
+        snapshot, objective_mode="regularized_full_covariance",
+    )
+
+    assert result["status"] == "two_sector_fit_candidate"
+    assert result["certified"] is False and result["physical_score"] is None
+    contract = result["fit_contract"]
+    assert contract["objective_mode"] == "regularized_full_covariance"
+    covariance = contract["covariance_diagnostics"]
+    assert covariance["block_count"] == 96
+    assert covariance["component_count"] == 180
+    assert covariance["diagonal_shrinkage"] == 0.25
+    assert covariance["regularized_min_eigenvalue"] > 0.0
+    assert covariance["condition_number"] > 1.0
+    assert contract["qhx_interval_coverage_calibrated"] is False
+    assert "Bonferroni across 72" in contract["qhx_interval_method"]
+
+    assert result["qhx_denominator"] == {
+        "planned": 24, "valid": 24, "failed": 0, "abstained": 0,
+    }
+    for row in result["qhx_rows"]:
+        for name in ("q", "h", "x"):
+            interval = row["delta_intervals"][name]
+            assert interval["delta_standard_error"] >= 0.0
+            assert interval["upper_97_5_pointwise"] >= interval["estimate"]
+            assert interval["upper_95_bonferroni_72"] >= interval["upper_97_5_pointwise"]
+
+
+def test_two_sector_fit_rejects_unknown_objective_mode(tmp_path):
+    snapshot, _ = _make_snapshot(tmp_path)
+    with pytest.raises(ValueError, match="objective_mode"):
+        fit_two_sector_snapshot(snapshot, objective_mode="unregularized")
+
+
 def test_two_sector_reader_rejects_closed_or_wrong_axis_manifest(tmp_path):
     snapshot, _ = _make_snapshot(tmp_path, split_id="F-holdout-closed")
     with pytest.raises(ValueError, match="open F"):
