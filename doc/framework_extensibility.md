@@ -416,3 +416,7 @@ Future adapters should add domain-specific parsers and review rules without
 treating a matching hash as authenticated evidence. A
 shared receipt-signature/trust-root layer could be considered after at least
 two tasks define compatible signer, authority, revocation and scope semantics.
+
+## Extension note: keep producer semantics separate from consumer validation
+
+The latest static reviews reinforce a reusable boundary: the task must freeze the observable formula and its semantic axes at the producer/reader seam, while the shared snapshot layer can only bind bytes and preserve failure denominators. Pion's source-root and pre-captured-snapshot paths converge on the same atomic evidence gate after byte capture; task-code fingerprints are checked before validation-array or GPU candidate work. Optimize D04 keeps fold signs, time support, covariance regularization, and paired resampling in its task reader because these depend on channel conventions and chain ordering. Wilson C and F remain separate estimands, and the F two-sector formula still needs a production exporter to validate endpoint/time-origin assumptions. A hash match can prove code/input identity only; it cannot certify the producer convention, authorization, independence, or interval coverage.

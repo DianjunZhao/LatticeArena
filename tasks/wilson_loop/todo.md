@@ -738,3 +738,13 @@ q_v(T) = Σ_{n>0} |Z_n(v0)/Z_0(v0)|² exp[-(E_n-E_0)T],  T∈{5,6}.
 ![两-sector谱与 q/h/x synthetic recovery](f_lane_two_sector_fit_cpu_20261127_v1/two_sector_fit.png)
 
 文字流程：`synthetic raw matrix NPZ + manifest + lane contract -> immutable snapshot -> axis/hash/Hermitian preflight -> Nt=32 forward fit initializer -> 三个 two-sector fit starts -> 45参数联合拟合 -> 24个 q/h/x cell -> diagnostic only`。专项测试 **3 passed**，涵盖 full-rank fit、same-snapshot immutability、closed split、错轴、non-Hermitian 和 stale bytes；PR #6 本轮全仓 CPU suite **442 passed**，`git diff --check` 通过。报告 artifact hashes `19/19`、源码快照 `9/9` 匹配。这个 pilot 只验证了已提议公式在一个匹配 generator 中的 CPU 可实现性：endpoint/source-sink/time-origin 与生产 exporter 的对应仍未经独立审阅；对角权重忽略跨分量 covariance，chi-square 未校准，未测遗漏态、近简并/弱 overlap 的 interval coverage，也未生成 q/h/x simultaneous upper receipts。故不得把拟合摘要送入 F gate；有限-$T$ Creutz C lane仍与此分开，生产 `ground_state_discrete_static_force` 继续 `GROUND_STATE_FORCE_UNCERTIFIED`，总体 `NOT_READY/UNCERTIFIED`、`physical_score=null`，不读 sealed split、不启动 GPU/QUDA。
+
+### 2026-11-27 Wilson C/F 估计量与实现公式自审
+
+对照 `lane_contract_v2.json`、`finite_nt_toy.py`、`f_lane_two_sector_fit_candidate.py` 与 `force_budget.py` 做源码级代数核对。C 主点是有限时间的
+`chi(R=2,T=5)=-log W(3,6)-log W(2,5)+log W(3,5)+log W(2,6)`，代码先对配对样本 loop means 做正值检查，再按该符号组合 log；它不是 ground-state force。F 主点仍单独为
+`[V_stout(3)-V_stout(2)]-[V_identity(3)-V_identity(2)]`，单位 `a_s*a_t*F`。two-sector candidate 按合同使用 `Z0(N_t)^-1 sum exp[-eps_m(N_t-T)] exp[-V_n(R)T] A_i,mn A*_j,mn`；`q/h/x` 分别取 `(m=0,n>0)/(m>0,n=0)/(m>0,n>0)`，其 `delta_log=log(1+q+h+x)`。force helper 对两种 kernel、R=2/3、T/T+1 共 8 个角的 `log1p` 上界求和，使用 `log(1+q+h+x)<=log1p(q)+log1p(h)+log1p(x)`，故是保守三角界，不依赖跨 kernel 或跨角误差独立。
+
+文字流程：`四个同配置 C loop means -> finite-T Creutz log stencil`；独立 F 流程为 `同一 R=2,3 的 3x3 C_ij(N_t,T) -> proposed two-sector spectrum/overlaps -> q/h/x -> 8 force corners -> positive reference-force lower bound + statistical/systematic budgets -> F gate`。公式与当前 contract/helper 一致，但这是本仓源码自审，不是独立 physics review。检索当前 checkout 的 tasks/tests/doc 只找到诊断消费者，没有找到实际生产 Wilson-loop exporter；因此无法从 producer 核实端点、插入时间、方向、边界 trace/归一化或矩阵 source/sink 指标。两-sector candidate 仍以每分量 diagonal SE 加权，45 参数/180 实分量；其 synthetic exact-generator pilot 没有遗漏态、近简并、weak-ground-overlap、协方差覆盖或 simultaneous q/h/x upper bounds。
+
+本项没有新跑测试或新增数据，关闭的是 C/F 估计量、符号和误差传播公式之间的静态一致性检查。不得把公式一致性写成污染小、coverage 通过或生产输出正确。C 仍需获准 calibration loop bytes、coverage/dependence receipt 与 reviewer；F 仍需真实 `3x3` raw matrix、matched `N_t=32` thermal/mixed inputs、经审阅的 exporter convention、joint-fit simultaneous coverage、reference-force/statistical receipts 和独立审阅。两条 lane 保持分开；缺输入时 C/F 均 `ABSTAIN/NOT_READY`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，sealed split closed，不启动 GPU/QUDA。
