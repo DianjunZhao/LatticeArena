@@ -734,3 +734,9 @@ s_i(m) = clip(((m-y_ref,i)^2 - (m-y_cand,i)^2) / R^2, -1, 1)
 检查 `bounded_block_scores` 与 `conditional_block_risk_lcb` 发现，两处把 `raw_differences` 直接 cast 为浮点数；复数输入会丢掉虚部后继续参与点值 score，超出 float 范围的大整数则可能把底层 `OverflowError` 传给调用方。现两入口共用严格转换，只接受整数/浮点数组，拒绝 complex、object/string、bool 与不能安全表示的结构；对已是浮点型且标为失败的 block，仍保留原有规则，允许其差值为 NaN/Inf，并直接赋分 `-1`。有效 block 仍必须有限。
 
 文字诊断：`raw difference array -> numeric real dtype gate -> reject complex/object/string/bool -> valid-mask finite check -> valid score=clip(d/R²,-1,1); failed slot=-1 -> full planned denominator -> conditional bound or ABSTAIN`。新增负控覆盖非零虚部、`10**400`、数字字符串与布尔输入；`tests/test_pion_bounded_block_risk_score.py` **14 passed**，本轮 PR #5 全套 CPU tests **302 passed**。这只关闭 dtype 转换旁路，不提供有效 block 的来源认证、score-specific dependence bound、anchor/reference bridge 或独立 common-bias coverage；因此 Pion 仍为 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed inputs closed。
+
+### 2026-11-28 将严格实数转换提取到共享 core
+
+随后复核发现 Optimize 与 Wilson 的同类输入入口也各自需要实数转换。为避免三个任务各维护略有差异的保护，新增 [`core/numerics.py`](../../core/numerics.py)：`as_real_float_array` 统一拒绝 complex、bool、字符串/object、不能转成 float64 的值，以及大于 `2^53` 而不能被 float64 精确表示的整数；它保留 NaN/Inf，让 Pion 的有效/失败 block 规则继续由本任务处理。`as_finite_real` 为 task scalar 参数提供有限实数转换。Pion bounded-score 构造器现在调用共享数组 helper，仍保留 valid-only finite check 和失败分数 `-1`。
+
+文字流程：`shared core type/exactness gate -> Pion valid-mask rule -> clip valid d/R² -> failed=-1 -> fixed planned denominator -> conditional LCB/ABSTAIN`。共享 helper 的单元测试与 Pion score 回归共 **28 passed**；PR #5 全套 CPU suite **316 passed**。这改善的是跨任务软件一致性与数值输入审计；不改变 bounded block-risk estimand，也不提供 dependence、anchor/common-bias、E-reference 证据或 sealed-data 授权。物理状态仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed inputs closed。
