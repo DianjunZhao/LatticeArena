@@ -712,3 +712,19 @@ M_ground = [0, m_eff,upper]
 文字诊断：`immutable open snapshot -> 验 manifest/protocol/NPZ bytes 与 state IDs -> 生成 C3/C4/C5 feature rows（scalar map 与 raw-feature 分母分别记账） -> 检查预声明有限 supports -> conditional Markov vector box -> positivity 要求 C4 下界>0 -> ground-mass set -> target bridge 未审则保持 PARTIAL/ABSTAIN`。合成单态 fixture 的 4,000 行只用于检查路径和 captured-byte 行为；测试显式假设 `gamma_ps=0.2`、stationary start 与狭窄 supports，得到包含输入 `a_t m=0.5` 的区间。改变 snapshot 原路径中的 NPZ 不影响捕获结果，sealed split 会被拒绝；接口始终返回 `common_bias_bound_C=null`、`physical_score=null`、`certified=false`。
 
 该项新增定向 reader/interval 测试 **18 passed**；随后 PR #5 checkout 完整 `python -m pytest -q tests` 为 **293 passed in 3.92 s**，`git diff --check` 通过。它只验证可复现读取/传播、分母与 fail-closed 路径；4,000 行 toy 不验证独立链、伪谱隙、真实 support、初始 TV、anchor 与 score 的独立性、正谱假设或 E-reference bridge，也没有读取物理或 sealed 数据。后续应先由未参与该代码的 reviewer 审公式与目标对应；再由获准 development/calibration bytes 和独立链/支持收据验证区间覆盖与宽度。若在可信 assumptions 下 identified set 半径仍超过 `C/R=0.01`，则该 anchor 方案只能作为风险/排序区间或 abstention 辅助，不能变成点值 physical score。保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed splits closed，不启动 GPU/QUDA。
+
+### 2026-11-28 将共同 target identified set 传播为 bounded-risk 排序区间
+
+新增 [`bounded_block_risk_setwise.py`](bounded_block_risk_setwise.py)：输入预先给定的**共同** target 区间 `[m_lo,m_hi]`、每个 planned block 的 reference/candidate 预测、valid mask 和既定 `R`，逐点计算
+
+```text
+s_i(m) = clip(((m-y_ref,i)^2 - (m-y_cand,i)^2) / R^2, -1, 1)
+```
+
+目标 `m` 在所有 block 间共享；失败 block 在每个 `m` 下都记 `-1`，仍留在 planned denominator。因为未剪裁差是关于 `m` 的仿射函数，剪裁后仅在 `±1` 处折转，所以有限区间上的精确极值只需检查两个端点和所有落入区间的 clipping breakpoints。实现对观测量作共同缩放，避免直接平方造成 overflow；若所有块均失败则输出 `ABSTAIN_NO_VALID_BLOCKS`。
+
+例：单一有效 block 取 `y_ref=0, y_cand=1, R=1`，则 `[0,1]` 上的 normalized score set 是 `[-1,1]`，排序不确定；若目标集缩为 `[0,0.4]`，范围为 `[-1,-0.2]`，reference 在整个集合上占优；若为 `[0.6,1]`，范围为 `[0.2,1]`，candidate 在整个集合上占优。图文数据流：`共同 anchor/reference target set + paired block predictions -> endpoints/breakpoints -> clipped planned-mean score range (failed=-1) -> 检查全区间符号是否一致 -> 输出区间或 abstain`。
+
+新增 [`test_pion_bounded_block_risk_setwise.py`](../../tests/test_pion_bounded_block_risk_setwise.py)：覆盖排序翻转、breakpoint 极值与 100,001 点 dense scan 对照、失败块分母、极端有限数值、全失败弃权和非法输入。该函数只传播调用者提供的集合，明确返回 `confidence_coverage=null`、`target_bridge_status=not_verified_here`、`certified=false`、`physical_score=null`；它不证明集合覆盖真实目标，也不替代 score-chain dependence bound、anchor-to-E-reference bridge 或独立 review。专项测试 **23 passed**，本轮完整 Pion CPU suite **298 passed in 4.89 s**。
+
+后续若获准且未封存的 reference/anchor package 到位，应从同一 immutable snapshot 构造具有独立 coverage receipt 的 target set，随后同时传播 target-set 不确定性与 bounded block-risk sampling uncertainty；两者不可合并或互相替代。若最终风险区间跨零则报告排序 unresolved；即使符号一致，也必须先完成 coverage、共同 target correspondence、依赖界与独立审阅，才可考虑物理解释。在这些 receipts 缺失时保留本 helper 作为诊断性部分识别工具，保持 `NOT_READY/UNCERTIFIED` 和封存数据关闭。
