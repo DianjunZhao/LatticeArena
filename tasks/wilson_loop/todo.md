@@ -892,3 +892,11 @@ source-map audit 发现 C-lane open-development generator 通过 `SourceByteSnap
 Wilson 的有限-$N_t$ Creutz toy 输入与 q/h/x→force-budget scalar 现复用 [`core/numerics.py`](../../core/numerics.py) 的 `as_finite_real`，因此 bool、字符串、complex、浮点溢出和 float64 无法精确表示的大整数在 task 计算前拒绝。task 层仍分别执行非负/正值、q/h/x 项、force 单位预算和 stable `log(1+q+h+x)` 检查。共享 helper 不把 dimensionless loop envelope 当 force receipt。
 
 文字流程：`raw Wilson scalar -> shared finite-real/exactness check -> domain positivity/nonnegative check -> stable log envelope or force-budget propagation -> finite result or reject`。共享 core tests 与 Wilson finite-$N_t$/force-budget 定向测试合计 **86 passed**；PR #6 全套 CPU suite **513 passed**。C lane finite-$T$ Creutz 和 F lane ground-state force 仍分开，生产 `C_ij`、`N_t=32` thermal/mixed receipts、正 reference-force/error budget 和独立物理审阅仍未完成；不读 sealed split、不运行 GPU/QUDA，保持 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+
+### 2026-11-28 Wilson source snapshots 覆盖共享数值转换
+
+依赖闭包复核发现有限-$N_t$ 代数 toy 与 F-lane force-budget code 都已调用 `core/numerics.py`，但先前的合成诊断收据只标记调用方。现有新输出对有限-$N_t$ toy 的 `analysis_source_sha256` 加入共享 helper 和 toy 本身，并分别保留 `snapshot_core_numerics.py` 与 `snapshot_finite_nt_toy.py`；随机正谱 stress 的 `protocol.source_sha256` 同样记录 generator、toy 和 helper 三项并保留快照。F-lane force-budget diagnostic 的 `input_hashes` 加入 helper hash且输出源码快照；真实 force-summary snapshot reader 的诊断另记录 reader、force-budget helper 与 `core/numerics.py` 的分析源码哈希。
+
+文字流程：`toy/stress/force-summary reader -> strict scalar conversion dependency -> source hash + retained helper bytes -> artifact manifest -> finite/force formula and explicit abstention state`。新增或更新的 finite-$N_t$、force-budget 与 reader regression 均由 PR #6 全仓 CPU suite 覆盖；当前 suite **515 passed**，`git diff --check` 通过。旧的历史报告与 hashes 未改写。这只使未来代码路径更可复核，不构成数据来源、finite-$N_t$ 污染界或生产 F-lane bounds 的证据。
+
+**下一步交接：**新 C 报告需把实际 loop exporter、source/sink、时序、边界条件、kernel/stencil 和有限-$T$ correction 与冻结的 Creutz point 一起纳入 raw-source receipt；F 报告需从 matched-$N_t=32$ GEVP/thermal/mixed 输入导出独立 q/h/x 与 positive-reference force bounds，连同模型截断、统计误差、source identity 和 reviewer receipt 传播八个签名 loop corners。代码哈希不能替代这些物理 receipts；继续保持 C/F estimand 分开、`NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 与 sealed inputs closed。

@@ -1,3 +1,5 @@
+import hashlib
+import json
 import math
 
 import pytest
@@ -7,10 +9,28 @@ from tasks.wilson_loop.finite_nt_toy import (
     TOY_R,
     TOY_R_PLUS_1,
     contamination_terms,
+    build,
     finite_nt_creutz,
     log_loop,
 )
 from tasks.wilson_loop.ground_state_bound import creutz_excited_correction
+
+
+def test_toy_report_hashes_and_retains_shared_numeric_conversion(tmp_path):
+    output = tmp_path / "finite-nt-toy"
+    summary = build(output)
+    saved = json.loads((output / "summary.json").read_text())
+    hashes = saved["analysis_source_sha256"]
+    toy_bytes = (output / "snapshot_finite_nt_toy.py").read_bytes()
+    helper_bytes = (output / "snapshot_core_numerics.py").read_bytes()
+    assert summary["physical_score"] is None
+    assert hashlib.sha256(toy_bytes).hexdigest() == hashes["finite_nt_toy.py"]
+    assert hashlib.sha256(helper_bytes).hexdigest() == hashes["core/numerics.py"]
+    artifacts = json.loads((output / "artifact_hashes.json").read_text())
+    assert hashlib.sha256(toy_bytes).hexdigest() == artifacts["snapshot_finite_nt_toy.py"]
+    assert hashlib.sha256(helper_bytes).hexdigest() == artifacts["snapshot_core_numerics.py"]
+    assert "snapshot_finite_nt_toy.py" in saved["files"]
+    assert "snapshot_core_numerics.py" in saved["files"]
 
 
 def test_q_h_x_use_pair_and_complementary_temporal_extents():

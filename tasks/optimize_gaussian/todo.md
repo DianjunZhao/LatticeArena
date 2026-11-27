@@ -834,3 +834,11 @@ NPZ 共享预检器现把 ZIP 不支持的压缩方式、加密成员和损坏 D
 此前 D06 iid 与 Markov 两个 risk decision 的复数 cast、bool/string coercion、超范围整数异常，现统一调用 [`core/numerics.py`](../../core/numerics.py) 的 `as_real_float_array`。共享 helper 还拒绝超出 float64 精确整数范围 `[-2^53,2^53]` 的整数，随后仍由 Optimize 原有 `[0,1]` score support、失败 mask 和风险 contrast 检查负责领域判定。Markov metadata scalar finite check 同样复用 `as_finite_real`，schema/evidence 的阶段语义未改。
 
 文字流程：`shared exact-real conversion -> Optimize iid/Markov [0,1] validation -> failure=maximum loss -> separate contrast/support and gamma-TV checks -> decision or ABSTAIN`。核心数值 helper 与 Optimize D06 定向用例合计 **86 passed**；PR #6 全套 CPU tests **513 passed**。同一 core helper 也被 Pion、Wilson 调用，并已写入 [`doc/framework_extensibility.md`](../../doc/framework_extensibility.md) 作为可复用扩展点。此项只关闭数值类型旁路；不校准 bounded block-risk coverage、不认证 macroblock chain、D04 reference、paired production solver 或 D11 SU(3) operator。两个用户选定比较臂、`r_star=10/9` 与 D04 风险比 estimand 均保持不变；`NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。
+
+### 2026-11-28 no-launch source map 纳入共享数值依赖
+
+共享 helper 被 D06 iid/Markov reader 导入后，Optimize 的 `draft_plan._source_paths()` 曾漏掉 `core/numerics.py`；因此 no-launch 报告虽含两个调用方源码，却不记录决定其转换边界的依赖。现把 helper 加入 `TaskSpec.dependencies`/`source_hashes` 共用清单和逐字节 retained snapshot，测试也要求 `snapshot_core_numerics.py` 与计划哈希一致。静态 AST 本地 import 闭包核对为 22 项声明（21 个 Python 文件加合同 JSON）、21 个 Python 依赖全部在清单内、无未列出的本地 Python import、缺失文件为 0；报告仍是 `DRAFT_NO_LAUNCH`、`data={}`、`launch_allowed=false`。
+
+文字流程：`_source_paths -> SHA-256 TaskSpec dependencies -> retain same source bytes -> AST local-import closure -> compare every digest -> DRAFT_NO_LAUNCH`。`tests/test_optimize_draft_plan.py` 与 PR #6 当前全仓 CPU suite **515 passed**，`git diff --check` 通过。该检查证明 no-launch 草案所声明源码的身份与闭包，不证明 D04 数据有效、D06 覆盖率/链依赖、solver 成本公平、D11 生产 SU(3) 算符，亦不创建运行器。
+
+**下一步交接：**任何真实 runner/evaluator 建立后，复用这张来源依赖图并从同一 immutable input snapshot 产生 D04/D06/D11 summary 和三臂 paired receipt；不可只 hash entrypoint 而漏掉本地 import。仍需独立获准 E-chain reference、dependence/calibration receipt、trainable-W/SLSQP/Chebyshev 配对 solver 结果与分阶段成本，以及 reviewed SU(3) link/operator receipt。缺任一项则不读 sealed IDs、不启动 GPU/QUDA，保持两个比较臂、bounded block-risk estimand、`NOT_READY/UNCERTIFIED` 与 `physical_score=null`。

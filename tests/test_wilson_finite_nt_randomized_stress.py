@@ -31,7 +31,12 @@ def test_small_randomized_report_has_hash_closed_artifacts(tmp_path):
     assert summary["envelope_covered_cases"] == 64
     assert summary["identity_max_abs_error"] < 1e-12
     manifest = json.loads((output / "artifact_hashes.json").read_text())
-    assert len(manifest) == 8
+    assert len(manifest) == 9
+    assert (output / "snapshot_core_numerics.py").is_file()
+    protocol = json.loads((output / "protocol.json").read_text())
+    assert protocol["source_sha256"]["core/numerics.py"] == hashlib.sha256(
+        (output / "snapshot_core_numerics.py").read_bytes()
+    ).hexdigest()
     for name, digest in manifest.items():
         assert hashlib.sha256((output / name).read_bytes()).hexdigest() == digest
     assert "not fitted spectra" in (output / "README.md").read_text()

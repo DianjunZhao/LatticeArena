@@ -1,4 +1,7 @@
+import hashlib
+import json
 import math
+from pathlib import Path
 
 import pytest
 
@@ -8,10 +11,28 @@ from tasks.wilson_loop.force_budget import (
     propagate_force_budget,
     uniform_loop_cap,
 )
+from tasks.wilson_loop.force_budget_diagnostic import build as build_diagnostic
 
 
 def _same_cap(q, h, x):
     return {"q": [[q] * 4] * 2, "h": [[h] * 4] * 2, "x": [[x] * 4] * 2}
+
+
+def test_force_budget_report_binds_shared_numeric_conversion(tmp_path):
+    output = tmp_path / "force-budget"
+    result = build_diagnostic(output)
+    protocol = json.loads((output / "protocol.json").read_text())
+    assert result["physical_score"] is None
+    assert "core/numerics.py" in protocol["input_hashes"]
+    helper_bytes = (output / "snapshot_core_numerics.py").read_bytes()
+    helper_digest = hashlib.sha256(helper_bytes).hexdigest()
+    assert protocol["input_hashes"]["core/numerics.py"] == helper_digest
+    assert helper_digest == hashlib.sha256(
+        (Path(__file__).resolve().parents[1] / "core/numerics.py").read_bytes()
+    ).hexdigest()
+    manifest = json.loads((output / "artifact_hashes.json").read_text())
+    for name, expected in manifest.items():
+        assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected
 
 
 def test_uniform_loop_cap_exactly_closes_component_force_budget():

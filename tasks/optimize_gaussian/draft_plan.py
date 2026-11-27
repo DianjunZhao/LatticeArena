@@ -58,6 +58,7 @@ def _source_paths() -> dict[str, Path]:
         "core/receipts.py": ROOT / "core/receipts.py",
         "core/specs.py": ROOT / "core/specs.py",
         "core/source_integrity.py": ROOT / "core/source_integrity.py",
+        "core/numerics.py": ROOT / "core/numerics.py",
         "core/npz_safety.py": ROOT / "core/npz_safety.py",
         "core/state.py": ROOT / "core/state.py",
     }
@@ -169,6 +170,7 @@ def build_plan() -> dict[str, Any]:
         },
         "text_flow": [
             "research_contract_v1.json + source files -> SHA-256 dependency map",
+            "core/numerics.py -> strict real/exact-integer conversion for the D06 iid/Markov readers",
             "selected D04/D06/D11 defaults -> generic TaskSpec + draft RunSpec",
             "D04 raw E-chain snapshot reader -> PP/A4P folding + six joint-fit variants -> fit diagnostic only",
             "D04/D11 summary JSON -> strict same-snapshot parser/content digest; no physical fit or production-operator evaluator",

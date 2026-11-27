@@ -11,6 +11,7 @@ import hashlib
 import json
 import math
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 from core.source_integrity import SourceByteSnapshot
@@ -140,6 +141,17 @@ def _parse_summary_bytes(payload: bytes, source_sha256: str) -> tuple[dict[str, 
         "status": "DERIVED_FROM_IMMUTABLE_SNAPSHOT",
         "source_read_mode": "immutable_snapshot",
         "source_sha256": source_sha256,
+        "analysis_source_sha256": {
+            "force_summary_reader.py": hashlib.sha256(
+                Path(__file__).read_bytes()
+            ).hexdigest(),
+            "force_budget.py": hashlib.sha256(
+                Path(__file__).with_name("force_budget.py").read_bytes()
+            ).hexdigest(),
+            "core/numerics.py": hashlib.sha256(
+                Path(__file__).resolve().parents[2].joinpath("core/numerics.py").read_bytes()
+            ).hexdigest(),
+        },
         "positive_reference_force_lower": reference,
         "statistical_halfwidth": statistical,
         "force_kernel_order": expected_kernel_order,

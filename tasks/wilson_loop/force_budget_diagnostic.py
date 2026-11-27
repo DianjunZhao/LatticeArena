@@ -74,6 +74,8 @@ def build(output_dir: Path = DEFAULT_OUT) -> dict:
     if output_dir.exists():
         raise FileExistsError(f"refusing to overwrite {output_dir}")
     output_dir.mkdir(parents=True)
+    numerics_source = ROOT / "core/numerics.py"
+    (output_dir / "snapshot_core_numerics.py").write_bytes(numerics_source.read_bytes())
 
     # Formula-only sensitivity. The range is deliberately illustrative; no
     # D-chain value is substituted for the missing positive reference bound.
@@ -150,6 +152,7 @@ def build(output_dir: Path = DEFAULT_OUT) -> dict:
             "lane_contract_v2.json": sha256(CONTRACT),
             "lane_contract.py": sha256(CONTRACT_SOURCE),
             "force_budget.py": sha256(Path(__file__).with_name("force_budget.py")),
+            "core/numerics.py": sha256(ROOT / "core/numerics.py"),
             "force_budget_diagnostic.py": sha256(Path(__file__)),
         },
     }
@@ -206,7 +209,7 @@ independent positive force lower bound + q/h/x bounds at 8 corners
   -> otherwise ABSTAIN; physical_score remains null
 ```
 
-The output is conditional algebra only. It neither verifies physical positivity nor establishes any q/h/x envelope, spectral-model error, statistical coverage, or reference-force lower bound. Source hashes and all output identities are in `protocol.json` and `artifact_hashes.json`.
+The output is conditional algebra only. It neither verifies physical positivity nor establishes any q/h/x envelope, spectral-model error, statistical coverage, or reference-force lower bound. Source hashes and all output identities are in `protocol.json` and `artifact_hashes.json`; the shared numeric-conversion source is retained as `snapshot_core_numerics.py`.
 """
     (output_dir / "README.md").write_text(readme, encoding="utf-8")
     artifacts = sorted(path for path in output_dir.iterdir() if path.is_file())

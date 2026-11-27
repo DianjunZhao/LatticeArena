@@ -235,6 +235,10 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
             for t in TOY_TIMES]
     denominators = _write_artifacts(out, rows)
     source_hash = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    (out / "snapshot_finite_nt_toy.py").write_bytes(Path(__file__).read_bytes())
+    numerics_path = ROOT / "core/numerics.py"
+    numerics_hash = hashlib.sha256(numerics_path.read_bytes()).hexdigest()
+    (out / "snapshot_core_numerics.py").write_bytes(numerics_path.read_bytes())
     summary = {
         "schema": "wilson-finite-nt-toy-validation-v1",
         "status": "SYNTHETIC_ALGEBRA_VALIDATION_ONLY",
@@ -260,8 +264,14 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "denominator_summary": denominators,
         "planned_time_points": len(rows),
         "source_sha256": source_hash,
+        "analysis_source_sha256": {
+            "finite_nt_toy.py": source_hash,
+            "core/numerics.py": numerics_hash,
+        },
         "files": ["README.md", "toy_validation.csv", "denominator_summary.csv",
-                  "finite_nt_toy_validation.png", "summary.json", "artifact_hashes.json"],
+                  "finite_nt_toy_validation.png", "snapshot_finite_nt_toy.py",
+                  "snapshot_core_numerics.py",
+                  "summary.json", "artifact_hashes.json"],
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     lines = [
@@ -299,6 +309,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         "## Denominators and scope",
         "",
         "`denominator_summary.csv` reports planned/valid/failed/abstained separately for toy time points and for their four-loop evaluations. These are deterministic algebra checks, not statistical samples, acceptance tests, or physical certification. The code rejects negative contamination amplitudes/gaps, nonpositive `A0`, and a stencil that would require a loop beyond `N_t`.",
+        "The source map hashes both this toy implementation and the shared strict numeric-conversion helper; their bytes are retained as `snapshot_finite_nt_toy.py` and `snapshot_core_numerics.py`.",
         "Finite-`N_t` `q/h/x` terms can only be promoted to a ground-state force bound when independent physical envelopes and a prospective tolerance exist. Until then, retain `GROUND_STATE_FORCE_UNCERTIFIED`; finite-T Creutz remains its own observable lane.",
         "",
         "Rebuild into a new directory: `python -B -m tasks.wilson_loop.finite_nt_toy --output NEW_DIRECTORY`.",
@@ -308,7 +319,9 @@ def build(output: str | Path = DEFAULT_OUT) -> dict:
         path.name: hashlib.sha256(path.read_bytes()).hexdigest()
         for path in (out / "README.md", out / "toy_validation.csv",
                      out / "denominator_summary.csv",
-                     out / "finite_nt_toy_validation.png", out / "summary.json")
+                     out / "finite_nt_toy_validation.png",
+                     out / "snapshot_finite_nt_toy.py",
+                     out / "snapshot_core_numerics.py", out / "summary.json")
     }
     (out / "artifact_hashes.json").write_text(json.dumps(hashes, indent=2) + "\n")
     return summary

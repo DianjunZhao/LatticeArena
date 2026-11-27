@@ -5,6 +5,7 @@ import hashlib
 import json
 import math
 from io import BytesIO
+from pathlib import Path
 
 import numpy as np
 
@@ -840,6 +841,9 @@ def test_force_snapshot_reader_recomputes_qhx_force_bounds_from_captured_bytes(t
         "valid": 6, "failed": 0, "abstained": 0,
     }
     assert reader["diagnostic"]["source_sha256"] == hashlib.sha256(summary_bytes).hexdigest()
+    assert reader["diagnostic"]["analysis_source_sha256"]["core/numerics.py"] == hashlib.sha256(
+        (Path(__file__).resolve().parents[1] / "core/numerics.py").read_bytes()
+    ).hexdigest()
     assert reader["diagnostic"]["source_read_mode"] == "immutable_snapshot"
     assert reader["diagnostic"]["force_kernel_order"] == list(FORCE_Q_KERNEL_ORDER)
     assert reader["diagnostic"]["force_corner_order"] == list(FORCE_Q_CORNER_LABELS)

@@ -30,6 +30,7 @@ def test_selected_f2_contrasts_are_bound_to_fail_closed_no_launch_plan():
     assert "source_reader.py" in plan["source_hashes"]
     assert "core/npz_safety.py" in plan["source_hashes"]
     assert "core/source_integrity.py" in plan["source_hashes"]
+    assert "core/numerics.py" in plan["source_hashes"]
     assert "bounded_block_risk_markov.py" in plan["source_hashes"]
     assert "trainable_w.py" in plan["source_hashes"]
     assert "features.py" in plan["source_hashes"]
@@ -59,6 +60,7 @@ def test_draft_report_copies_the_hashed_snapshot_reader_dependencies(tmp_path):
 
     assert result["status"] == "DRAFT_NO_LAUNCH"
     assert "core/npz_safety.py" in plan["source_hashes"]
+    assert "snapshot_core_numerics.py" in artifacts
     assert "snapshot_core_npz_safety.py" in artifacts
     assert "snapshot_core_source_integrity.py" in artifacts
     assert "snapshot_trainable_w.py" in artifacts

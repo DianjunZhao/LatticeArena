@@ -165,11 +165,15 @@ def build(output: str | Path = DEFAULT_OUT, count: int = DEFAULT_COUNT,
             Path(__file__).read_bytes()).hexdigest(),
         "finite_nt_toy.py": hashlib.sha256(
             Path(__file__).with_name("finite_nt_toy.py").read_bytes()).hexdigest(),
+        "core/numerics.py": hashlib.sha256(
+            (ROOT / "core/numerics.py").read_bytes()).hexdigest(),
     }
     (out / "snapshot_finite_nt_randomized_stress.py").write_bytes(
         Path(__file__).read_bytes())
     (out / "snapshot_finite_nt_toy.py").write_bytes(
         Path(__file__).with_name("finite_nt_toy.py").read_bytes())
+    (out / "snapshot_core_numerics.py").write_bytes(
+        (ROOT / "core/numerics.py").read_bytes())
     protocol = {
         "schema": "wilson-finite-nt-randomized-algebra-v1",
         "classification": "synthetic positive-spectrum algebra stress only",
@@ -209,7 +213,8 @@ def build(output: str | Path = DEFAULT_OUT, count: int = DEFAULT_COUNT,
         "files": ["README.md", "protocol.json", "randomized_cases.csv",
                   "denominator_summary.csv", "finite_nt_randomized_stress.png",
                   "snapshot_finite_nt_randomized_stress.py",
-                  "snapshot_finite_nt_toy.py", "summary.json",
+                  "snapshot_finite_nt_toy.py", "snapshot_core_numerics.py",
+                  "summary.json",
                   "artifact_hashes.json"],
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
@@ -240,7 +245,8 @@ def build(output: str | Path = DEFAULT_OUT, count: int = DEFAULT_COUNT,
     artifact_names = ["README.md", "protocol.json", "randomized_cases.csv",
                       "denominator_summary.csv", "finite_nt_randomized_stress.png",
                       "snapshot_finite_nt_randomized_stress.py",
-                      "snapshot_finite_nt_toy.py", "summary.json"]
+                      "snapshot_finite_nt_toy.py", "snapshot_core_numerics.py",
+                      "summary.json"]
     hashes = {name: hashlib.sha256((out / name).read_bytes()).hexdigest()
               for name in artifact_names}
     (out / "artifact_hashes.json").write_text(json.dumps(hashes, indent=2) + "\n")
