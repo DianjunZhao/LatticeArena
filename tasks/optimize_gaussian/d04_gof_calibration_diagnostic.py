@@ -126,7 +126,8 @@ def _wilson(successes: int, trials: int) -> tuple[float, float]:
 
 
 def _simulate_cell(*, label: str, configurations: int, panels: int, seed: int,
-                   alternative: str, covariance_mode: str = "estimated_shrunk") -> tuple[list[dict[str, Any]], dict[str, Any]]:
+                   alternative: str, covariance_mode: str = "estimated_shrunk",
+                   shrinkage_override: float | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     if alternative == "null":
         masses, pp_amplitudes, a4_amplitudes = (
             MASS_NULL, PP_AMPLITUDES_NULL, A4_AMPLITUDES_NULL)
@@ -151,9 +152,12 @@ def _simulate_cell(*, label: str, configurations: int, panels: int, seed: int,
         if covariance_mode == "oracle_full":
             fit_covariance = covariance / configurations
         elif covariance_mode == "oracle_shrunk":
+            alpha = reader.SHRINKAGE if shrinkage_override is None else shrinkage_override
+            if not 0.0 <= alpha <= 1.0:
+                raise ValueError("oracle shrinkage alpha must lie in [0, 1]")
             diagonal = np.diag(np.diag(covariance))
-            fit_covariance = ((1.0 - reader.SHRINKAGE) * covariance
-                              + reader.SHRINKAGE * diagonal) / configurations
+            fit_covariance = ((1.0 - alpha) * covariance
+                              + alpha * diagonal) / configurations
         elif covariance_mode != "estimated_shrunk":
             raise ValueError("unsupported covariance_mode")
         fit = reader._fit_variant(fit_mean, fit_covariance, columns,
@@ -170,6 +174,10 @@ def _simulate_cell(*, label: str, configurations: int, panels: int, seed: int,
             "generator": "exact_two_state_null" if alternative == "null"
             else f"three_state_omission_{alternative}",
             "covariance_mode": covariance_mode,
+            "covariance_shrinkage": (reader.SHRINKAGE if covariance_mode == "estimated_shrunk"
+                                      else (0.0 if covariance_mode == "oracle_full"
+                                            else reader.SHRINKAGE if shrinkage_override is None
+                                            else shrinkage_override)),
             "fit_status": fit["status"],
             "reference_mass": fit.get("reference_mass"),
             "chi2": fit.get("chi2"), "dof": fit.get("dof"),
@@ -182,6 +190,10 @@ def _simulate_cell(*, label: str, configurations: int, panels: int, seed: int,
         "cell": label, "generator": "exact_two_state_null" if alternative == "null"
         else f"three_state_omission_{alternative}",
         "covariance_mode": covariance_mode,
+        "covariance_shrinkage": (reader.SHRINKAGE if covariance_mode == "estimated_shrunk"
+                                  else (0.0 if covariance_mode == "oracle_full"
+                                        else reader.SHRINKAGE if shrinkage_override is None
+                                        else shrinkage_override)),
         "configurations_per_panel": configurations, "panels": panels,
         "denominator": {"planned": panels, "valid": len(valid_rows),
                         "failed": failures, "abstained": 0},
@@ -260,7 +272,7 @@ def _plot(path: Path, rows: list[dict[str, Any]], summaries: list[dict[str, Any]
                              and row["gof_p_approx"] is not None])
         if values.size:
             groups.append((cell, np.sort(values)))
-    fig, axes = plt.subplots(1, 3, figsize=(17, 5.4), layout="constrained")
+    fig, axes = plt.subplots(1, 3, figsize=(20, 5.4), layout="constrained")
     ax = axes[0]
     epsilon = math.sqrt(math.log(2.0 / 0.05) / (2.0 * PANELS_PER_CELL))
     x = np.linspace(0.0, 1.0, 101)
@@ -269,14 +281,23 @@ def _plot(path: Path, rows: list[dict[str, Any]], summaries: list[dict[str, Any]
     ax.plot(x, x, color="black", linestyle="--", label="Uniform reference")
     colors = ("#2b78e4", "#4f9d69", "#333333", "#e6ab02", "#cc6677",
               "#9966aa", "#168aad")
-    for (cell, values), color in zip(groups, colors):
+    null_groups = [(cell, values) for cell, values in groups
+                   if cell["generator"] == "exact_two_state_null"]
+    for (cell, values), color in zip(null_groups, colors):
         ecdf = np.arange(1, len(values) + 1) / len(values)
+        label = cell["cell"]
+        if label.startswith("null_n128_oracle_shrunk_a"):
+            label = "oracle shrinkage " + label.rsplit("a", 1)[1]
+        elif label == "null_n128_oracle_full":
+            label = "oracle full covariance"
+        elif label == "null_n128":
+            label = "estimated + 25% shrinkage"
         ax.step(values, ecdf, where="post", color=color,
-                label=f"{cell['cell']} ({cell['generator']})")
+                label=label)
     for threshold in P_THRESHOLDS:
         ax.axvline(threshold, color="#666666", alpha=0.35, linewidth=0.8)
     ax.set(xlim=(0, 1), ylim=(0, 1), xlabel="approximate GLS chi-square p-value",
-           ylabel="empirical CDF", title="Null p-value calibration / alternative separation")
+           ylabel="empirical CDF", title="Null p-value calibration across covariance metrics")
     ax.grid(alpha=0.2)
     ax.legend(fontsize=7)
 
@@ -304,6 +325,18 @@ def _plot(path: Path, rows: list[dict[str, Any]], summaries: list[dict[str, Any]
 
     ax = axes[2]
     labels, positions = [], []
+    short_labels = {
+        "null_n64": "null N=64",
+        "null_n128": "estimated α=.25",
+        "null_n128_oracle_full": "oracle α=0",
+        "null_n128_oracle_shrunk_a25": "oracle α=.25",
+        "null_n128_oracle_shrunk_a05": "oracle α=.05",
+        "null_n128_oracle_shrunk_a10": "oracle α=.10",
+        "null_n128_oracle_shrunk_a50": "oracle α=.50",
+        "omitted_state_mild_n128": "mild omission",
+        "omitted_state_strong_n128": "strong omission",
+        "omitted_state_strong_oracle_full_n128": "strong oracle α=0",
+    }
     for index, (cell, _) in enumerate(groups):
         for threshold in P_THRESHOLDS:
             item = cell["pvalue_summary"]["rejection"][str(threshold)]
@@ -312,7 +345,7 @@ def _plot(path: Path, rows: list[dict[str, Any]], summaries: list[dict[str, Any]
                         yerr=[[item["rate"] - low], [high - item["rate"]]],
                         fmt="o", capsize=3,
                         color="#2b78e4" if threshold == 0.01 else "#e69138")
-        labels.append(cell["cell"])
+        labels.append(short_labels.get(cell["cell"], cell["cell"]))
         positions.append(index * 2 + 0.225)
     ax.axhline(0.01, color="#2b78e4", linestyle="--", alpha=0.7,
                label="nominal 1% null size")
@@ -348,26 +381,34 @@ def build(output: str | Path = DEFAULT_OUT):
     source_hashes = {name: _sha(value) for name, value in source_bytes.items()}
     out.mkdir(parents=True)
     cell_specs = (
-        ("null_n64", 64, "null", "estimated_shrunk", BASE_SEED),
-        ("null_n128", 128, "null", "estimated_shrunk", BASE_SEED + 1000),
-        ("null_n128_oracle_full", 128, "null", "oracle_full", BASE_SEED + 1000),
-        ("null_n128_oracle_shrunk", 128, "null", "oracle_shrunk", BASE_SEED + 1000),
-        ("omitted_state_mild_n128", 128, "mild", "estimated_shrunk", BASE_SEED + 4000),
-        ("omitted_state_strong_n128", 128, "strong", "estimated_shrunk", BASE_SEED + 5000),
-        ("omitted_state_strong_oracle_full_n128", 128, "strong", "oracle_full", BASE_SEED + 5000),
+        ("null_n64", 64, "null", "estimated_shrunk", BASE_SEED, None),
+        ("null_n128", 128, "null", "estimated_shrunk", BASE_SEED + 1000, None),
+        ("null_n128_oracle_full", 128, "null", "oracle_full", BASE_SEED + 1000, 0.0),
+        ("null_n128_oracle_shrunk_a25", 128, "null", "oracle_shrunk", BASE_SEED + 1000, 0.25),
+        ("null_n128_oracle_shrunk_a05", 128, "null", "oracle_shrunk", BASE_SEED + 1000, 0.05),
+        ("null_n128_oracle_shrunk_a10", 128, "null", "oracle_shrunk", BASE_SEED + 1000, 0.10),
+        ("null_n128_oracle_shrunk_a50", 128, "null", "oracle_shrunk", BASE_SEED + 1000, 0.50),
+        ("omitted_state_mild_n128", 128, "mild", "estimated_shrunk", BASE_SEED + 4000, None),
+        ("omitted_state_strong_n128", 128, "strong", "estimated_shrunk", BASE_SEED + 5000, None),
+        ("omitted_state_strong_oracle_full_n128", 128, "strong", "oracle_full", BASE_SEED + 5000, 0.0),
     )
     all_rows, summaries = [], []
-    for label, count, alternative, covariance_mode, seed in cell_specs:
+    for label, count, alternative, covariance_mode, seed, shrinkage in cell_specs:
         rows, summary = _simulate_cell(
             label=label, configurations=count, panels=PANELS_PER_CELL,
             seed=seed,
             alternative=alternative, covariance_mode=covariance_mode,
+            shrinkage_override=shrinkage,
         )
         all_rows.extend(rows)
         summaries.append(summary)
     paired_contrasts = [
         _paired_contrast(all_rows, "null_n128", "null_n128_oracle_full"),
-        _paired_contrast(all_rows, "null_n128", "null_n128_oracle_shrunk"),
+        _paired_contrast(all_rows, "null_n128", "null_n128_oracle_shrunk_a25"),
+        _paired_contrast(all_rows, "null_n128_oracle_shrunk_a05",
+                         "null_n128_oracle_shrunk_a10"),
+        _paired_contrast(all_rows, "null_n128_oracle_shrunk_a25",
+                         "null_n128_oracle_shrunk_a50"),
         _paired_contrast(all_rows, "omitted_state_strong_n128",
                          "omitted_state_strong_oracle_full_n128"),
     ]
@@ -391,8 +432,8 @@ def build(output: str | Path = DEFAULT_OUT):
         "reference_gate": {"planned": 1, "valid": 0, "failed": 0, "abstained": 1},
         "physical_score": None,
         "open_gates": [
-            "default p-values use an approximate chi-square reference with data-estimated, 25%-shrunk covariance; three paired oracle cells use known covariance for diagnostic contrasts",
-            "only seven synthetic cells and independent Gaussian configurations are evaluated",
+            "default p-values use an approximate chi-square reference with data-estimated, 25%-shrunk covariance; paired oracle cells use known full covariance or known-covariance diagonal shrinkage alpha sensitivity",
+            "only ten synthetic cells and independent Gaussian configurations are evaluated",
             "the alternative is an omitted third state and the rejection fractions are power diagnostics only",
             "no HMC chain dependence, estimator selection, or candidate-blind production E-chain provenance is modeled",
             "these results cannot replace the independent D04 reference receipt or statistical review",
@@ -410,8 +451,13 @@ def build(output: str | Path = DEFAULT_OUT):
                          "eigenvalue_floor": reader.EIGENVALUE_FLOOR,
                          "pvalue": "chi2.sf(fitted GLS residual, dof=13)"},
         "panels_per_cell": PANELS_PER_CELL,
-        "seeds": {cell: seed for cell, _, _, _, seed in cell_specs},
-        "covariance_modes": {cell: mode for cell, _, _, mode, _ in cell_specs},
+        "seeds": {cell: seed for cell, _, _, _, seed, _ in cell_specs},
+        "covariance_modes": {cell: mode for cell, _, _, mode, _, _ in cell_specs},
+        "covariance_shrinkage": {
+            cell: (reader.SHRINKAGE if mode == "estimated_shrunk"
+                   else (0.0 if mode == "oracle_full" else alpha))
+            for cell, _, _, mode, _, alpha in cell_specs
+        },
         "paired_contrasts": paired_contrasts,
         "thresholds": list(P_THRESHOLDS),
         "design_note": "The strong omitted-state cell was added after an initial mild-alternative pilot showed weak separation; it is exploratory power stress only and did not change null thresholds or null seeds.",
@@ -433,17 +479,17 @@ def build(output: str | Path = DEFAULT_OUT):
         "",
         "## Frozen procedure",
         "",
-        f"- Seven cells, `{PANELS_PER_CELL}` independent panels each: exact two-state null with 64 or 128 configurations; the 128-configuration null and strong three-state alternative include paired known-full-covariance contrasts; the null also includes a known 25%-shrunk metric; mild and strong three-state truths are fit by the fixed two-state primary model.",
+        f"- Ten cells, `{PANELS_PER_CELL}` independent panels each: exact two-state null with 64 or 128 configurations; the 128-configuration null uses identical samples to compare estimated+25% shrinkage, known full covariance, and oracle diagonal shrinkage alpha={0.05, 0.10, 0.25, 0.50}; mild and strong three-state truths are fit by the fixed two-state primary model, with a strong-alternative known-full-covariance pair.",
         "- The mild omitted-state truth uses third-state PP overlaps 0.11–0.18 and A4P overlap 0.022; the strong stress uses PP overlaps 0.45–0.75 and A4P overlap 0.085. Both are distinct from the two-state null.",
-        "- Oracle cells reuse the exact sample panels of their estimated-covariance comparison; sample SHA-256 values are checked before paired summaries are calculated. The full oracle removes covariance estimation and shrinkage; the shrunk oracle isolates the shrinkage metric under this known full-covariance generator. These are diagnostic contrasts, not available production procedures.",
+        "- Oracle cells reuse the exact sample panels of their comparison cell; sample SHA-256 values are checked before paired summaries are calculated. The full oracle removes covariance estimation and shrinkage; the shrinkage sweep isolates the metric alpha under this known full-covariance generator. These are diagnostic contrasts, not available production procedures.",
         f"- Each configuration is a 27-component multivariate Gaussian around folded PP-even/A4P-odd correlator means; feature covariance is fixed from 0.65 temporal AR correlation and 0.2 cross-channel correlation, with relative noise `{NOISE_FRACTION}`.",
-        f"- Each panel uses the existing D04 fit path (`tmin=3`, two states, three starts); the default covariance is estimated from the same panel with {reader.SHRINKAGE:.0%} diagonal shrinkage and relative eigenvalue floor `{reader.EIGENVALUE_FLOOR:g}`. Paired oracle cells substitute known full covariance or, for the null only, its exact 25%-shrunk version. All p-values use the approximate chi-square survival probability with 13 nominal degrees of freedom.",
+        f"- Each panel uses the existing D04 fit path (`tmin=3`, two states, three starts); the default covariance is estimated from the same panel with {reader.SHRINKAGE:.0%} diagonal shrinkage and relative eigenvalue floor `{reader.EIGENVALUE_FLOOR:g}`. Null oracle cells use known full covariance or its diagonal-shrunk versions, including alpha 0%, 5%, 10%, 25% and 50%. All p-values use the approximate chi-square survival probability with 13 nominal degrees of freedom.",
         "- All panel fits remain in the planned denominator. The null cells estimate the false rejection frequency at p<0.01 and p<0.05; the omitted-state cell is a misspecification power diagnostic.",
         "- The strong omitted-state cell was added after the initial mild-alternative pilot showed weak separation. It is an exploratory power stress, not a preregistered confirmatory test; null thresholds and seeds were not changed.",
         "",
         "![D04 p-value calibration](gof_pvalue_calibration.png)",
         "",
-        "The left panel compares each empirical p-value CDF with the uniform reference; the gray band is a 95% Dvoretzky–Kiefer–Wolfowitz band for a 300-panel null sample. The middle panel compares strong-alternative p-values for identical samples under estimated/shrunk and known full covariance. The right panel gives observed rejection fractions and Wilson intervals at 1% and 5%, with a y-axis scaled to the largest interval. For null cells, a well-calibrated p-value should track the diagonal and rejection rates should be compatible with nominal sizes. Alternative rejection fractions are power, not type-I error.",
+        "The left panel shows null-cell empirical p-value CDFs against the uniform reference; the gray band is a 95% Dvoretzky–Kiefer–Wolfowitz band for a 300-panel sample. The middle panel compares strong-alternative p-values for identical samples under estimated/shrunk and known full covariance. The right panel gives observed rejection fractions and Wilson intervals at 1% and 5%, with a y-axis scaled to the largest interval. For null cells, a well-calibrated p-value should track the diagonal and rejection rates should be compatible with nominal sizes. Alternative rejection fractions are power, not type-I error.",
         "",
         "## Interpretation limits and next step",
         "",

@@ -678,15 +678,25 @@ NPZ 共享预检器现把 ZIP 不支持的压缩方式、加密成员和损坏 D
 
 ### 2026-11-27 D04 近似 chi-square GOF 的有限样本校准诊断
 
-在已选的 `tmin=3`、PP-even/A4P-odd 联合两态 fit（13 nominal dof）上，新增 CPU 合成 pilot，检查当前 `gof_p_approx` 是否在 null 下接近均匀，并测试漏掉第三态时的拒绝能力。共 7 格、每格 300 个独立 panel，全部按计划分母保留：exact 两态 null 的 `Ncfg=64/128`、同一 `Ncfg=128` null 样本的 estimated+25% shrinkage / known-full / known-25%-shrunk covariance 对照、mild 与 strong 三态真值拟合两态模型，以及 strong alternative 同样本的 known-full-covariance 对照。配对样本逐 panel 检查 SHA-256 相同。数据是 27 维独立 Gaussian configuration panel，特征协方差注入 temporal correlation `0.65`、channel correlation `0.2`、相对噪声 `0.03`；并非读取生产数据。
+在已选的 `tmin=3`、PP-even/A4P-odd 联合两态 fit（13 nominal dof）上，新增 CPU 合成 pilot，检查当前 `gof_p_approx` 是否在 null 下接近均匀，并测试漏掉第三态时的拒绝能力。共 10 个 fit cells，每格计划 300 个 panel fit；由于 covariance 对照复用样本，实际只有 1200 个独立生成的 configuration panels（`Ncfg=64` null、`Ncfg=128` null、mild omission、strong omission 各 300 个），共产生 3000 行 fit 结果。全部按计划分母保留。`Ncfg=128` null 的一批原始样本被复用在 estimated+25% shrinkage、known full covariance 和 oracle shrinkage alpha `0.05/0.10/0.25/0.50` 六种 metric 下；strong omission 也配对 known-full-covariance fit。每个配对 panel 检查 SHA-256 相同。数据是 27 维独立 Gaussian configuration panel，特征协方差注入 temporal correlation `0.65`、channel correlation `0.2`、相对噪声 `0.03`；并非读取生产数据。
 
 结果摘要：
 
 - null `Ncfg=128` 的 estimated+25%-shrinkage p 值均值/中位数为 `0.761/0.848`，`p<0.05` 为 `0/300`（Wilson 95% 上界 `0.0126`），经验 CDF 明显低于均匀参考；`Ncfg=64` 也是保守方向（均值 `0.746`，`p<0.05` 为 `2/300`）。
-- 同样的 `Ncfg=128` null 样本改用 known full covariance 后，p 值均值/中位数为 `0.519/0.507`，`p<0.05` 为 `12/300=0.040`（Wilson 95% CI `[0.023, 0.069]`），KS distance-to-uniform 从 estimated+shrinkage 的 `0.388` 降至 `0.057`。known 25%-shrunk covariance 仍保守（均值 `0.783`，`p<0.05=0/300`）。在该 DGP 下，这组对照提示固定 shrinkage metric 是保守性的主要嫌疑；有限样本 fit/协方差估计与近似 chi-square 仍可能共同作用，不能视作因果分解。
+- 同样的 `Ncfg=128` null 样本下，known-covariance shrinkage alpha 扫描为：
+
+  | covariance metric | mean p | median p | `p<0.05` | Wilson 95% interval |
+  | --- | ---: | ---: | ---: | ---: |
+  | known full, `α=0` | 0.519 | 0.507 | 12/300 = 0.040 | [0.023, 0.069] |
+  | known diagonal shrinkage, `α=0.05` | 0.595 | 0.620 | 6/300 = 0.020 | [0.009, 0.043] |
+  | known diagonal shrinkage, `α=0.10` | 0.656 | 0.699 | 3/300 = 0.010 | [0.003, 0.029] |
+  | known diagonal shrinkage, `α=0.25` | 0.783 | 0.856 | 0/300 = 0 | [0, 0.013] |
+  | known diagonal shrinkage, `α=0.50` | 0.889 | 0.947 | 0/300 = 0 | [0, 0.013] |
+
+  同样本配对比较中，alpha 从 `0.05→0.10` 和 `0.25→0.50` 时没有一例出现更高 alpha p 值更低（`fraction_right_pvalue_lower=0`）；平均 p 位移分别为 `+0.062` 和 `+0.106`。estimated covariance 再加合同当前 `α=0.25` 时，平均 p 为 `0.761`、`p<0.05=0/300`；其保守方向与 known `α=0.25` 一致。该 DGP 下的受控结果支持“收缩 metric 会使近似 p 值更保守”这一机制解释，但不同 alpha 未作多重性校正，不能据此挑选一个校准阈值或生产 alpha；拟合有限样本及 covariance estimation 仍可能共同作用。
 - strong 三态遗漏的 estimated+shrinkage fit 只有 `2/300=0.0067` 达到 `p<0.05`（CI `[0.0018,0.0240]`）；对同一批 300 个样本用 known full covariance 后为 `24/300=0.080`（CI `[0.054,0.116]`），每个有效 panel 的 oracle p 值都低于对应 estimated+shrinkage p 值，平均差（oracle−estimated）`−0.241`。这表明本合成设定下 power 对协方差度量敏感；alternative 是探索性强压力格，不是预注册确认检验。
 
-图文报告：[D04 GOF 校准图与完整分母/配对摘要](d04_gof_calibration_cpu_20261127_v1/README.md)。图左为各格 p-value ECDF 与均匀参考及 300-panel DKW 描述带；中图将 strong-alternative 同样本的 estimated+shrinkage 与 known-full p 值配对；右图为 `1%/5%` 拒绝率及 Wilson 区间。流程为：`固定 generator / seeds -> raw panel sample -> PP-even/A4P-odd + 三组确定性 multistart 两态 fit -> estimated 或配对 oracle covariance -> 13-dof approximate chi-square p -> denominator / ECDF / Wilson / paired contrasts -> diagnostic-only`。本报告 7 个 seeds、2100 行 panel 结果均留档；artifact hashes `12/12` 与 6 个 source snapshot hashes `6/6` 一致。
+图文报告：[D04 GOF 校准图与完整分母/配对摘要](d04_gof_calibration_cpu_20261127_v1/README.md)。图左为 null 各 covariance metric 的 p-value ECDF 与均匀参考及 300-panel DKW 描述带；中图将 strong-alternative 同样本的 estimated+shrinkage 与 known-full p 值配对；右图为十格 `1%/5%` 拒绝率及 Wilson 区间。流程为：`固定 generator / seeds -> 1200 个 raw panel samples -> 每个 sample 用既定协方差对照重复拟合 -> PP-even/A4P-odd + 三组确定性 multistart 两态 fit -> 13-dof approximate chi-square p -> 完整 3000-fit 分母 / ECDF / Wilson / paired contrasts -> diagnostic-only`。本报告的 per-cell seed map、3000 行 panel-fit 结果均留档；artifact hashes `12/12` 与 6 个 source snapshot hashes `6/6` 一致。
 
 解释边界：每个阈值在 `n=300` 下的 MCSE 是 `0.00574`（1%）和 `0.01258`（5%），因此 1% 尾部尤其粗；DKW 带是单格描述参考，图上多格比较不是多重性控制。已知真 covariance 是 generator oracle，不是可部署估计器；只有一个 Gaussian DGP、一个探索性 strong alternative 和当前 optimizer/fit 流程，没模拟 HMC 链依赖、厚尾、窗口/态数选择或真实 exporter 约定。不能将相同 panels 用于调整阈值后再宣称独立通过。
 

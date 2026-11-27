@@ -3,11 +3,26 @@
   "covariance_modes": {
     "null_n128": "estimated_shrunk",
     "null_n128_oracle_full": "oracle_full",
-    "null_n128_oracle_shrunk": "oracle_shrunk",
+    "null_n128_oracle_shrunk_a05": "oracle_shrunk",
+    "null_n128_oracle_shrunk_a10": "oracle_shrunk",
+    "null_n128_oracle_shrunk_a25": "oracle_shrunk",
+    "null_n128_oracle_shrunk_a50": "oracle_shrunk",
     "null_n64": "estimated_shrunk",
     "omitted_state_mild_n128": "estimated_shrunk",
     "omitted_state_strong_n128": "estimated_shrunk",
     "omitted_state_strong_oracle_full_n128": "oracle_full"
+  },
+  "covariance_shrinkage": {
+    "null_n128": 0.25,
+    "null_n128_oracle_full": 0.0,
+    "null_n128_oracle_shrunk_a05": 0.05,
+    "null_n128_oracle_shrunk_a10": 0.1,
+    "null_n128_oracle_shrunk_a25": 0.25,
+    "null_n128_oracle_shrunk_a50": 0.5,
+    "null_n64": 0.25,
+    "omitted_state_mild_n128": 0.25,
+    "omitted_state_strong_n128": 0.25,
+    "omitted_state_strong_oracle_full_n128": 0.0
   },
   "design_note": "The strong omitted-state cell was added after an initial mild-alternative pilot showed weak separation; it is exploratory power stress only and did not change null thresholds or null seeds.",
   "fit_rule": "reader._fit_variant(mean,cov,columns,tmin=3,nstates=2)",
@@ -40,7 +55,31 @@
       "mean_delta_gof_p_approx": 0.022199105281915498,
       "median_delta_gof_p_approx": 0.009689154452503068,
       "planned_pairs": 300,
-      "right_cell": "null_n128_oracle_shrunk",
+      "right_cell": "null_n128_oracle_shrunk_a25",
+      "valid_pairs": 300
+    },
+    {
+      "failed_or_missing_pairs": 0,
+      "fraction_right_pvalue_lower": 0.0,
+      "interpretation": "right minus left; identical simulated panel samples verified by SHA-256",
+      "left_cell": "null_n128_oracle_shrunk_a05",
+      "mean_delta_chi2": -0.9963649056472473,
+      "mean_delta_gof_p_approx": 0.06159521208976126,
+      "median_delta_gof_p_approx": 0.06469396889263807,
+      "planned_pairs": 300,
+      "right_cell": "null_n128_oracle_shrunk_a10",
+      "valid_pairs": 300
+    },
+    {
+      "failed_or_missing_pairs": 0,
+      "fraction_right_pvalue_lower": 0.0,
+      "interpretation": "right minus left; identical simulated panel samples verified by SHA-256",
+      "left_cell": "null_n128_oracle_shrunk_a25",
+      "mean_delta_chi2": -1.874378946444658,
+      "mean_delta_gof_p_approx": 0.10571345329328004,
+      "median_delta_gof_p_approx": 0.09390856979830547,
+      "planned_pairs": 300,
+      "right_cell": "null_n128_oracle_shrunk_a50",
       "valid_pairs": 300
     },
     {
@@ -62,7 +101,10 @@
   "seeds": {
     "null_n128": 2026113712,
     "null_n128_oracle_full": 2026113712,
-    "null_n128_oracle_shrunk": 2026113712,
+    "null_n128_oracle_shrunk_a05": 2026113712,
+    "null_n128_oracle_shrunk_a10": 2026113712,
+    "null_n128_oracle_shrunk_a25": 2026113712,
+    "null_n128_oracle_shrunk_a50": 2026113712,
     "null_n64": 2026112712,
     "omitted_state_mild_n128": 2026116712,
     "omitted_state_strong_n128": 2026117712,
@@ -70,7 +112,7 @@
   },
   "source_hashes": {
     "contract": "2a272cffb0c49f0a87756f5a2d97fb2b80eaf53173e37e91a4e302e3d327a50e",
-    "diagnostic": "7034966be3fd7a4fe7326d821d93b8002b83c5804ae8d6828975d17c683de4fd",
+    "diagnostic": "57056c8893bb1bca4852fdd7687bab6e24c6d320d26dcf0991023aa64b1f24b7",
     "npz_safety": "af60a75cf78a1b0812ccebaf690fc69c3522fcfd3ab54cf5c06aea925c22d750",
     "reader": "2901d0e4c317e23136c8102807cbd59145b9340a29d5a51fd6a64ba294189651",
     "source_integrity": "45a941a63937c56dc365049617e393f4f23209dc9a432e38e4f2937a22ec26a6",
