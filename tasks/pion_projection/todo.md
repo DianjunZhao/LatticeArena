@@ -687,3 +687,18 @@ max(|g(x)-0.15|, |g(x)-0.45|) >= 0.30/2 = 0.15 a_t m_pi
 审计固定 `m_eff(4)` reader 时发现一个纯数值实现缺口：数学映射在 `C(t) -> a C(t)`（`a>0`）下不变，但直接计算 `0.5*(C(t)+C(T-t))` 会让两个有限大反射项先溢出，随后 `(C3+C5)/(2*C4)` 也可能出现 `inf/inf`。现将同号反射均值改为差值形式、异号用求和形式，并先对 `(C3,C4,C5)` 作共同缩放再求 cosh 比值；显式负/非有限/超支持检查与 map 定义保持不变。
 
 文字诊断：`周期 cosh row, m=0.2 -> 整体振幅 a -> safe reflection fold -> common-scale ratio -> m_eff(4)`；`a=1e308` 覆盖反射相加与分子/分母溢出边界，`a=1e-320` 记录 subnormal 输入本身有限精度下的误差容限。定向测试 **21 passed**，随后当前 PR #5 worktree 的完整 `python -m pytest -q tests` **284 passed in 4.14 s**，`git diff --check` 通过。此项只修复同一标量 map 的浮点评估，不缩小 minimax alias 集合、不提供 `C/R` bias 界、不验证 anchor-chain Markov/独立性或 target bridge；既有冻结诊断报告未重生成，避免改写其 source/artifact hashes。真实 score/anchor/reference 输入仍 `0/0/0/0`，`NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed split closed 不变。
+
+### 2026-11-28 ensemble PP mean box 的集合值 ground-mass 传播候选
+
+为避免把“逐配置 `m_eff(4)` 的链均值”误当成“ensemble PP correlator 的谱有效质量”，新增 [`anchor_spectral_interval.py`](anchor_spectral_interval.py)。它接收同一 anchor-chain 固定 folded-PP vector 的 `C̄3,C̄4,C̄5` **同时置信盒**，不读取文件也不自行声称该置信盒已覆盖；要求 `C̄4` 下界严格为正，并在 log-space 计算
+
+```text
+log r_upper = log(C̄3_upper + C̄5_upper) - log(2 C̄4_lower)
+m_eff,upper = acosh(r_upper)
+M_ground = [0, m_eff,upper]
+```
+
+理由是正的周期 cosh 谱 `C̄(t)=Σ_n a_n cosh(E_n(8-t))` 满足
+`(C̄3+C̄5)/(2 C̄4)=Σ_n w_n cosh(E_n)/Σ_n w_n`，其中 `w_n=a_n cosh(4E_n)>0`；所以 ground energy `E_0` 不超过该有效质量。这里的识别集下界只使用能量非负，不把 per-configuration scalar 的 support `[0.1,3.0]` 偷换为谱上界。输出 midpoint minimax radius 只对“目标确为同一 ensemble PP correlator 的 ground mass”这个条件命题成立；到独立 E-chain PP/A4P `m_star` 的 bridge 未审时，`common_bias_bound_C=null`、`physical_score=null`。
+
+文字诊断：`同一 immutable anchor snapshot -> 每配置固定 folded-PP (C3,C4,C5) feature -> 外部证明的 supports + Markov vector mean box -> 正谱 ratio 上端 -> 集合 [0,m_eff,upper] -> 只有 bridge 通过后才传播到 bounded-risk/ranking`。传播器已接上既有 `markov_anchor_mean_box` 输出，并要求调用方冻结 `(C_fold_3,C_fold_4,C_fold_5)` 顺序；这仍不审验原始 feature 构造、support receipt 或 chain coverage。精确两态正谱 fixture 取 `E0=0.15`、`E1=0.9`、正振幅使 `m_eff(4)=0.42`，得到 `M_ground=[0,0.42]`，midpoint 最坏半径 `0.21/(R=2.9)=0.072414>0.01`；它展示该稳健集合虽然覆盖真 ground mass，却比当前偏差预算宽，不能升级为物理 score。大/小共同振幅和无可行正谱 mean box 也有负控。专项测试 **25 passed**；随后当前 PR #5 worktree 完整 `python -m pytest -q tests` **289 passed in 3.83 s**，`git diff --check` 通过。以上只验证解析传播和 exact toy，不验证 Markov mean-box 覆盖或物理谱假设；feature 的有限支持、真实 `gamma_ps`/TV 收据、同一 ensemble 约定与 E-reference target bridge 仍未完成，Pion 继续 `NOT_READY/UNCERTIFIED`、sealed inputs closed。
