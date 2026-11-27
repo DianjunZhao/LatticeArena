@@ -371,10 +371,14 @@ window/model fits, so paired shifts retain same-draw covariance and fit
 failures stay in their denominators. It demonstrates a further extension
 point: resampling belongs beside the task estimator until order, stationarity,
 wraparound and block-length semantics are shared and reviewed; a generic
-bootstrap utility alone cannot certify them. Wilson
-already has a separate raw `C_ij` snapshot reader and a forward static-sector
-joint-GLS candidate; the missing bridge is a reviewed two-sector finite-`N_t`
-fit that derives vacuum energies and transition overlaps from those same bytes.
+bootstrap utility alone cannot certify them. Wilson already has a separate raw
+`C_ij` snapshot reader, a forward static-sector joint-GLS candidate, and now a
+proposed 2-vacuum × 2-static finite-`N_t` fit prototype exercised on synthetic
+bytes. The prototype reaches a full-rank 45-parameter solution on its matching
+generator, but has a Jacobian condition number near `1.2e5`, diagonal-only
+weights and no interval coverage. The missing bridge is exporter-reviewed
+time-origin/source-sink convention plus a covariance-aware, coverage-tested
+fit from authorized production development bytes.
 Together these show a reusable framework gap: the shared layer can preserve
 exact input bytes and denominators, but each task must still own its
 semantic-axis parser, estimator, fit diagnostics, uncertainty calibration and
