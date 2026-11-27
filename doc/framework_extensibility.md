@@ -365,7 +365,13 @@ different extension needs: Optimize D04 now starts from raw PP/A4P arrays in an
 immutable snapshot and executes a fixed joint-fit grid, while the Wilson F-lane
 transfer-trace consumer starts from a caller-supplied fitted spectrum summary
 and checks the proposed q/h/x algebra. The Optimize reader still lacks
-dependence-aware mass errors and a gate-ready E-reference receipt. Wilson
+authenticated dependence evidence and a gate-ready E-reference receipt. Its new
+CPU pilot carries circular block indices through joint, PP-only, A4P-only and
+window/model fits, so paired shifts retain same-draw covariance and fit
+failures stay in their denominators. It demonstrates a further extension
+point: resampling belongs beside the task estimator until order, stationarity,
+wraparound and block-length semantics are shared and reviewed; a generic
+bootstrap utility alone cannot certify them. Wilson
 already has a separate raw `C_ij` snapshot reader and a forward static-sector
 joint-GLS candidate; the missing bridge is a reviewed two-sector finite-`N_t`
 fit that derives vacuum energies and transition overlaps from those same bytes.
@@ -375,6 +381,9 @@ semantic-axis parser, estimator, fit diagnostics, uncertainty calibration and
 physical receipt. A shared fit-output schema should be considered only after
 the Wilson exporter and Optimize reference reader establish genuinely common
 fields while retaining their channel, symmetry and boundary conventions.
+The D04 MBB figure is regenerable from a frozen summary after prior artifact
+hash verification, which separates costly fit execution from derived-only
+presentation refresh; that pattern is reusable for other CPU reports.
 
 ## Extension point: bind typed claims and code to captured bytes
 

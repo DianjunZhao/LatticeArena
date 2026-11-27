@@ -138,6 +138,48 @@ def test_d04_reader_fits_six_joint_variants_from_the_captured_bytes(tmp_path):
     assert "no dependence-aware block bootstrap" in result["open_gates"][0]
 
 
+def test_d04_mbb_is_seeded_paired_and_reports_channel_and_model_shifts(tmp_path):
+    snapshot, *_ = _capture(tmp_path)
+    first = evaluate_d04_raw_snapshot(
+        snapshot, block_bootstrap_replicates=4,
+        block_lengths=(1, 4), block_bootstrap_seed=901,
+    )
+    second = evaluate_d04_raw_snapshot(
+        snapshot, block_bootstrap_replicates=4,
+        block_lengths=(1, 4), block_bootstrap_seed=901,
+    )
+    diagnostic = first["block_bootstrap"]
+    assert diagnostic["status"] == "diagnostic_only"
+    assert diagnostic == second["block_bootstrap"]
+    assert diagnostic["resampling"]["block_lengths"] == [1, 4]
+    assert "not estimated dependence scales" in diagnostic["resampling"]["interpretation"]
+    for length in ("1", "4"):
+        item = diagnostic["by_block_length"][length]
+        assert item["resample_covariance_denominator"] == {
+            "planned": 4, "valid": 4, "failed": 0, "abstained": 0,
+        }
+        assert item["fit_denominators"]["joint_tmin3_nstates2"] == {
+            "planned": 4, "valid": 4, "failed": 0, "abstained": 0,
+        }
+        assert item["primary_mass"]["draw_denominator"] == {
+            "planned": 4, "valid": 4, "failed": 0, "abstained": 0,
+        }
+        assert item["contrasts"]["pp_only_tmin3_nstates2"][
+            "bootstrap_paired_shift"]["draw_denominator"]["valid"] == 4
+        assert item["contrasts"]["a4p_only_tmin3_nstates2"][
+            "bootstrap_paired_shift"]["draw_denominator"]["valid"] == 4
+        assert item["contrasts"]["joint_tmin4_nstates3"][
+            "paired_shift_over_se"] is not None
+
+
+def test_d04_mbb_rejects_invalid_block_lengths(tmp_path):
+    snapshot, *_ = _capture(tmp_path)
+    with pytest.raises(ValueError, match="unique integers"):
+        evaluate_d04_raw_snapshot(
+            snapshot, block_bootstrap_replicates=2, block_lengths=(1, 1),
+        )
+
+
 def test_d04_reader_rejects_closed_splits_and_manifest_mismatch(tmp_path):
     snapshot, *_ = _capture(tmp_path, split_mutation="E-gap-sealed")
     with pytest.raises(ValueError, match="refuses sealed"):
