@@ -1,0 +1,3 @@
+panel_id,R,status,success,rank,parameter_count,nfev,reduced_chi_square,condition_number,message
+noise_0.0003_seed_202611281128,2,VALID,True,18,18,33,3.720346465216115,6011641537.882848,`ftol` termination condition is satisfied.
+noise_0.0003_seed_202611281128,3,VALID,True,18,18,102,2.983172794119619,2851.6663597242423,`ftol` termination condition is satisfied.

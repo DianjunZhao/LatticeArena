@@ -1,0 +1,65 @@
+{
+  "baseline_report_artifact_manifest_sha256": "3c9c06f0b2ed75295011ef59d28b386cfe2033c09c14e04d0afc8a2488ea2371",
+  "certified": false,
+  "classification": "single reused open synthetic boundary panel; chart feasibility only",
+  "covariance_condition_number": 5206.139819798289,
+  "fit_denominators_by_method": {
+    "adaptive_hybrid": {
+      "abstained": 0,
+      "failed": 1,
+      "planned": 3,
+      "valid": 2
+    },
+    "fixed_operator0": {
+      "abstained": 3,
+      "failed": 0,
+      "planned": 3,
+      "valid": 0
+    },
+    "largest_component_pivot": {
+      "abstained": 0,
+      "failed": 0,
+      "planned": 3,
+      "valid": 3
+    }
+  },
+  "hybrid_chart": {
+    "alternate_pivot_count": 2,
+    "amplitude_floor": 6.14421235332821e-06,
+    "log_amplitude_lower_bound": -12.0,
+    "model_max_abs_difference": 5.551115123125783e-17,
+    "operator0_pivot_count": 10,
+    "pivot_map_identical_across_starts": true,
+    "transition_count": 12
+  },
+  "hybrid_force_errors_lattice_units": [
+    9.256209919206171e-05,
+    9.064012718801306e-05,
+    9.256110578370613e-05
+  ],
+  "nt32_initializer_denominator": {
+    "failed": 0,
+    "planned": 2,
+    "valid": 2
+  },
+  "panel_id": "noise_0.0003_seed_202611281128",
+  "physical_score": null,
+  "relative_noise": 0.0003,
+  "schema": "wilson-f-nt32-hybrid-chart-summary-v1",
+  "scope_limits": [
+    "one panel reused from two preceding method screens; no new seed",
+    "three paired initial starts; no finite-sample or interval coverage claim",
+    "pivot map is chosen from the matched-Nt=32 initializer and held fixed during each optimizer call",
+    "no production convention validation, independent contamination bound, GPU, QUDA or physical result"
+  ],
+  "seed": 202611281128,
+  "source_capture_denominator": {
+    "abstained": 0,
+    "failed": 0,
+    "planned": 3,
+    "valid": 3
+  },
+  "source_panel_artifact_manifest_sha256": "8e39266384626f1353e5104928b42638b4c43c578a21ad14cc931e2fdf7def5d",
+  "status": "HYBRID_SCREEN_COMPLETE",
+  "truth_absolute_force_lattice_units": 0.14999999999999997
+}

@@ -1,0 +1,14 @@
+{
+  "README.md": "dd5ca156a9564ff873a664b8b91fb11aa97892aa3a0f9a06d1cb51a2d2759e79",
+  "baseline_report_artifact_manifest.json": "3c9c06f0b2ed75295011ef59d28b386cfe2033c09c14e04d0afc8a2488ea2371",
+  "execution_progress.jsonl": "ec12809baf602d47860d7cb6ead2ceb1d8eb15402bebf29140eb2b04f9feac72",
+  "hybrid_chart_comparison.png": "7d3d430e64f2da0a56aa0c808450ead1e35a2e2871d137c88550b54017840612",
+  "hybrid_transition_map.csv": "6a54a8fa0a750bc7847e8036d09e28ef72274c8bb0d1bf0b11f44f336e3ed948",
+  "nt32_initializer_fits.csv": "928b46ed4fe15bc6362bda6e81921b5895de5443aa3b89cac05117a879d95b30",
+  "paired_results.csv": "ba717ef0a11c81875a6b7afe5f1b9e1f33e9f954a87a4c93e29714ba8e919ec6",
+  "protocol.json": "de7dd8bc498d1581a8a8238e86912ebd40f7b24d53ee3676e4590d25ed185cc6",
+  "source_capture.csv": "28f0fcb5b019627728fa54c7b940ec181199174fe78f61a0bfc6311a558a30ad",
+  "source_hashes.json": "db9c105f5e30ac8391cb62196fe49c2fe005c7f8f664e06ccc07f46e8e915080",
+  "source_panel_artifact_manifest.json": "8e39266384626f1353e5104928b42638b4c43c578a21ad14cc931e2fdf7def5d",
+  "summary.json": "12d16ee97dc9fdce21407f1cb5d8fe7a1bf4dbb78e15c61b0de66aa7ceb6e49b"
+}

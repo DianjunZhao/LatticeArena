@@ -1,0 +1,10 @@
+panel_id,start_index,method,row_source,rerun_this_pass,status,valid,force,force_error,nfev,njev,rank,condition_number,error,epsilon_start,excited_overlap_scale_start,objective,elapsed_seconds
+noise_0.0003_seed_202611281128,0,fixed_operator0,verified_saved_Nt32_screen,False,ABSTAIN_INITIALIZER_OUT_OF_BOUNDS,False,,,0,0,0,,initial coordinates exceed shared parameter bounds,,,,
+noise_0.0003_seed_202611281128,0,largest_component_pivot,verified_saved_Nt32_screen,False,VALID_FULL_RANK_FIT,True,0.15009064215750106,9.064215750109739e-05,61,56,67,11606562618.387617,,,,,
+noise_0.0003_seed_202611281128,1,fixed_operator0,verified_saved_Nt32_screen,False,ABSTAIN_INITIALIZER_OUT_OF_BOUNDS,False,,,0,0,0,,initial coordinates exceed shared parameter bounds,,,,
+noise_0.0003_seed_202611281128,1,largest_component_pivot,verified_saved_Nt32_screen,False,VALID_FULL_RANK_FIT,True,0.15009064341132627,9.064341132630771e-05,34,25,67,10448140912.908232,,,,,
+noise_0.0003_seed_202611281128,2,fixed_operator0,verified_saved_Nt32_screen,False,ABSTAIN_INITIALIZER_OUT_OF_BOUNDS,False,,,0,0,0,,initial coordinates exceed shared parameter bounds,,,,
+noise_0.0003_seed_202611281128,2,largest_component_pivot,verified_saved_Nt32_screen,False,VALID_FULL_RANK_FIT,True,0.1500925614891308,9.256148913083795e-05,60,58,67,627107.4733441066,,,,,
+noise_0.0003_seed_202611281128,0,adaptive_hybrid,new_hybrid_fit,True,VALID_FULL_RANK_FIT,True,0.15009256209919203,9.256209919206171e-05,41,33,67,289351.9333275486,,0.15,0.2,719.1798725134252,0.425698833540082
+noise_0.0003_seed_202611281128,1,adaptive_hybrid,new_hybrid_fit,True,FAILED_OR_ABSTAINED_FIT,False,0.15009064012718798,9.064012718801306e-05,2000,1879,67,1083266137.712134,The maximum number of function evaluations is exceeded.,0.3,0.35,746.2070889503364,24.204835874959826
+noise_0.0003_seed_202611281128,2,adaptive_hybrid,new_hybrid_fit,True,VALID_FULL_RANK_FIT,True,0.15009256110578367,9.256110578370613e-05,53,41,67,289348.9134814654,,0.55,0.5,719.1798724740163,0.5459833750501275

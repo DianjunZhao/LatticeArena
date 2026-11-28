@@ -1,0 +1,27 @@
+{
+  "baseline_rows": "read from the hash-bound prior report; not rerun in this pass",
+  "certified": false,
+  "classification": "single reused open synthetic panel; chart feasibility only",
+  "full_fit": "same finite-Nt 2-vacuum x 3-static model, mean covariance, bounds, TRF solver and rank validity rule as the paired NT32 screen",
+  "input_report": "f_lane_pivot_chart_exact_zero_nt32_initializer_20261128_v2",
+  "max_nfev": 2000,
+  "panel_id": "noise_0.0003_seed_202611281128",
+  "physical_score": null,
+  "schema": "wilson-f-nt32-hybrid-chart-protocol-v1",
+  "selection_rule": "for each (R,m,n), retain fixed op0 if log|Z0| >= -12; otherwise select argmax_i |Zi|; map is fixed during that optimizer call",
+  "starts_epsilon_excited_scale": [
+    [
+      0.15,
+      0.2
+    ],
+    [
+      0.3,
+      0.35
+    ],
+    [
+      0.55,
+      0.5
+    ]
+  ],
+  "tolerance": 1e-10
+}

@@ -1,0 +1,9 @@
+{
+  "completed_hybrid_fits": 3,
+  "completed_initializer_fits": 2,
+  "error": null,
+  "planned_hybrid_fits": 3,
+  "planned_initializer_fits": 2,
+  "schema": "wilson-f-nt32-hybrid-chart-execution-v1",
+  "status": "COMPLETE"
+}
