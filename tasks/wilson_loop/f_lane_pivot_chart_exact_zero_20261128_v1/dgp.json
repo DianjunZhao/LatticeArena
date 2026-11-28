@@ -1,0 +1,41 @@
+{
+  "ar1_rho": 0.5,
+  "exact_zero_transition": {
+    "R": 2,
+    "operator_0_overlap": [
+      0.0,
+      0.0
+    ],
+    "operator_1_overlap": [
+      0.25,
+      0.04
+    ],
+    "operator_2_overlap": [
+      0.62,
+      0.1
+    ],
+    "operator_index": 0,
+    "static_state_n": 2,
+    "vacuum_state_m": 0
+  },
+  "n_blocks": 96,
+  "relative_noise_per_matrix": 0.003,
+  "seed": 202611281128,
+  "truth_absolute_force_lattice_units": 0.14999999999999997,
+  "truth_static_energies_by_R": {
+    "2": [
+      0.44,
+      0.94,
+      1.29
+    ],
+    "3": [
+      0.59,
+      1.07,
+      1.41
+    ]
+  },
+  "truth_vacuum_energies_at": [
+    0.0,
+    0.42
+  ]
+}

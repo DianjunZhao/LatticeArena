@@ -1,0 +1,59 @@
+{
+  "certified": false,
+  "classification": "single-panel oracle-seeded synthetic numerical feasibility screen",
+  "data_generation": {
+    "ar1_rho": 0.5,
+    "blocks": 96,
+    "relative_noise_per_matrix": 0.003,
+    "seed": 202611281128
+  },
+  "exact_zero_location": {
+    "R": 2,
+    "operator_index": 0,
+    "static_state_n": 2,
+    "vacuum_state_m": 0
+  },
+  "ftol_xtol_gtol": 1e-10,
+  "initialization": "oracle toy energies and transition overlaps; vacuum excited overlaps are scaled by start scale / 0.35; exact-zero vector is represented exactly in pivot chart and at log-amplitude lower bound -12 in fixed operator-0 chart",
+  "max_nfev_per_fit": 2000,
+  "objective": "same regularized covariance-of-block-mean GLS residual for both charts",
+  "paired_methods": [
+    "fixed_operator0",
+    "largest_component_pivot"
+  ],
+  "physical_score": null,
+  "primary_outputs": [
+    "planned/valid/failed/abstained starts per chart",
+    "fitted exact-zero transition |Z_0| and fixed chart boundary proximity",
+    "nfev/njev, objective, condition number, force point and runtime"
+  ],
+  "schema": "wilson-f-exact-zero-pivot-chart-screen-v1",
+  "scope_limits": [
+    "single deliberately constructed synthetic panel; no population inference",
+    "oracle-seeded fit; does not test production initializer behavior",
+    "no profile interval or coverage calibration",
+    "no production or sealed data, GPU, QUDA, or physical score"
+  ],
+  "solver": "scipy least_squares(method=trf, analytic chart Jacobian, x_scale=jac)",
+  "source_hashes": {
+    "lane_contract_sha256": "b8a011eabcce9490b424df99035ff0b2933a04748ecee88d380c0f0263c43aca",
+    "manifest_sha256": "59090ebf0d9cace7c5b0754dcd1f6436727f9ded8efbe42b5b0022cdeb999cb4",
+    "raw_matrices_sha256": "8b66808f4d4e38350da51c24bba667bbae4d4d0f83cf804f7a0a120aed0c3b5a"
+  },
+  "source_split": "F-synthetic-open-exact-zero-pivot-v1",
+  "starts_epsilon_excited_scale": [
+    [
+      0.15,
+      0.2
+    ],
+    [
+      0.3,
+      0.35
+    ],
+    [
+      0.55,
+      0.5
+    ]
+  ],
+  "validity": "solver success, finite coordinates/residuals and numerical Jacobian rank 67/67"
+}

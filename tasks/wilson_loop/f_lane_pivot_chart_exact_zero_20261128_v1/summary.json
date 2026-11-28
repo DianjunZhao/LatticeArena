@@ -1,0 +1,60 @@
+{
+  "certified": false,
+  "classification": "single-panel oracle-seeded synthetic fit; diagnostic only",
+  "covariance_diagnostics": {
+    "block_count": 96,
+    "component_count": 180,
+    "condition_number": 5206.139819798491,
+    "covariance_of": "sample mean",
+    "diagonal_shrinkage": 0.25,
+    "eigenvalue_floor_relative": 1e-10,
+    "floor_active_count": 0,
+    "max_eigenvalue": 1.2335420406758116e-08,
+    "raw_min_eigenvalue": -1.2520311152533159e-24,
+    "regularized_min_eigenvalue": 2.369398601214589e-12,
+    "shrunk_min_eigenvalue": 2.369398601214589e-12
+  },
+  "fit_denominators_by_method": {
+    "fixed_operator0": {
+      "abstained": 0,
+      "failed": 0,
+      "planned": 3,
+      "valid": 3
+    },
+    "largest_component_pivot": {
+      "abstained": 0,
+      "failed": 0,
+      "planned": 3,
+      "valid": 3
+    }
+  },
+  "fixed_chart_lower_bound": -12.0,
+  "fixed_chart_minimum_nonzero_target_amplitude": 6.14421235332821e-06,
+  "largest_component_pivot_indices_at_target": [
+    2
+  ],
+  "limitations": [
+    "one synthetic data panel and three paired starts; no population inference",
+    "oracle energies/overlaps are used to construct paired initial values",
+    "does not test the production Nt=32 initializer, profile coverage, or contamination bounds",
+    "no production/sealed data, GPU, QUDA, or physical score"
+  ],
+  "max_initial_chart_model_difference": 8.048501240476291e-08,
+  "paired_starts_both_valid": 3,
+  "panel_denominator": {
+    "abstained": 0,
+    "failed": 0,
+    "planned": 1,
+    "valid": 1
+  },
+  "physical_score": null,
+  "schema": "wilson-f-exact-zero-pivot-chart-summary-v1",
+  "source_capture_denominator": {
+    "abstained": 0,
+    "failed": 0,
+    "planned": 3,
+    "valid": 3
+  },
+  "status": "EXACT_ZERO_POINT_FIT_SCREEN_COMPLETE",
+  "truth_absolute_force_lattice_units": 0.14999999999999997
+}

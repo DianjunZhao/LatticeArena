@@ -1,0 +1,6 @@
+{"completed_fits": 1, "method": "fixed_operator0", "nfev": 411, "njev": 397, "planned_fits": 6, "start_index": 0, "status": "VALID_FULL_RANK_FIT", "valid": true}
+{"completed_fits": 2, "method": "largest_component_pivot", "nfev": 405, "njev": 377, "planned_fits": 6, "start_index": 0, "status": "VALID_FULL_RANK_FIT", "valid": true}
+{"completed_fits": 3, "method": "fixed_operator0", "nfev": 93, "njev": 85, "planned_fits": 6, "start_index": 1, "status": "VALID_FULL_RANK_FIT", "valid": true}
+{"completed_fits": 4, "method": "largest_component_pivot", "nfev": 167, "njev": 154, "planned_fits": 6, "start_index": 1, "status": "VALID_FULL_RANK_FIT", "valid": true}
+{"completed_fits": 5, "method": "fixed_operator0", "nfev": 142, "njev": 125, "planned_fits": 6, "start_index": 2, "status": "VALID_FULL_RANK_FIT", "valid": true}
+{"completed_fits": 6, "method": "largest_component_pivot", "nfev": 242, "njev": 236, "planned_fits": 6, "start_index": 2, "status": "VALID_FULL_RANK_FIT", "valid": true}

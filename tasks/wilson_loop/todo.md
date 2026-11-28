@@ -2,7 +2,7 @@
 
 ### 当前 CPU 验证快照（2026-11-28）
 
-PR #6 当前 checkout 最新全仓 CPU suite 为 **600 passed in 89.08 s**，包含 Wilson 最大分量 phase chart、固定 operator-0 零 pivot 的解析 Jacobian 等价回归，以及此前的 C-lane capture/hash、D04 helper source-map、profile/continuation 回归。新增 chart 定向测试为 **6 passed in 1.08 s**。这只是 CPU 软件/合成诊断证据，未读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。PR #5 Pion TODO 最近记录其全仓 suite **349 passed**；本轮未改或重跑 PR #5。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+PR #6 当前 checkout 最新全仓 CPU suite 为 **603 passed in 82.18 s**，包含 Wilson 最大分量 phase chart、固定 operator-0 零 pivot 的解析 Jacobian 等价回归和 exact-zero 多噪声测试，以及此前的 C-lane capture/hash、D04 helper source-map、profile/continuation 回归。exact-zero 定向测试为 **3 passed in 0.93 s**；此前的配对点拟合定向测试为 **6 passed in 1.08 s**。这只是 CPU 软件/合成诊断证据，未读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。PR #5 Pion TODO 最近记录其全仓 suite **349 passed**；本轮未改或重跑 PR #5。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
 
 ### 2026-11-26 历史附件链接审计
 
@@ -1187,7 +1187,7 @@ F_abs = V0(R=3)-V0(R=2),  ΔR=1
 
 ### 2026-11-28 全仓 CPU 回归：pivot chart 与成本边界修正后
 
-该历史快照的 PR #6 checkout 全仓 `python -m pytest -q tests` 为 **599 passed in 83.58 s**。当时纳入 Wilson pivot-chart 5 项与 Optimize cost-ledger overflow 2 项测试；同一测试文件集中的 4 项 cost-ledger 基础测试也首次进入那次全仓复跑。Wilson pivot chart 的 model/Jacobian 摘要、4/4 source hashes、2/2 artifact hashes 另见 [`f_lane_three_static_pivot_chart_20261128_v1/README.md`](f_lane_three_static_pivot_chart_20261128_v1/README.md)。该次 `py_compile` 与 `git diff --check` 通过；更新后的当前 suite 为 600，见下一节。
+该历史快照的 PR #6 checkout 全仓 `python -m pytest -q tests` 为 **599 passed in 83.58 s**。当时纳入 Wilson pivot-chart 5 项与 Optimize cost-ledger overflow 2 项测试；同一测试文件集中的 4 项 cost-ledger 基础测试也首次进入那次全仓复跑。Wilson pivot chart 的 model/Jacobian 摘要、4/4 source hashes、2/2 artifact hashes 另见 [`f_lane_three_static_pivot_chart_20261128_v1/README.md`](f_lane_three_static_pivot_chart_20261128_v1/README.md)。该次 `py_compile` 与 `git diff --check` 通过；当时后续 suite 为 600。精确零分量扩展后的最新 suite 为 603，见本文末节。
 
 文字流程：`Wilson exact chart round-trip + zero-anchor support + Jacobian regression / Optimize finite-cost overflow negatives -> full CPU suite -> 599 passed -> source and artifact digests checked`。这只验证 CPU 软件路径与上述确定性夹具；没有读取 production/sealed measurements、没有运行 GPU/QUDA，也没有形成 Wilson force coverage、Optimize paired risk/cost、Pion anchor bridge 或 physical score。C finite-T Creutz、F ground-state force、Optimize 与 Pion 均维持既定 `NOT_READY/UNCERTIFIED` / `physical_score=null` 边界。
 
@@ -1202,3 +1202,25 @@ v2 的[图文报告](f_lane_pivot_chart_fit_comparison_20261128_v2/README.md)记
 文字流程：`12 个 open synthetic panels -> same covariance / initializer / 3 starts -> 两个 phase charts 与共同解析 Jacobian -> 每起点保留 status/calls/rank/condition/force -> 检查分层有效数与中位 evaluation savings -> 预设门限失败，停止 profile 比较`。v2 的 artifacts **9/9** 与 source snapshots **7/7** 匹配。新增解析 Jacobian 等价回归后，PR #6 全仓 CPU suite **600 passed in 89.08 s**，定向 chart tests **6 passed in 1.08 s**，`py_compile` 与 `git diff --check` 通过。此前 599 的结果作为历史快照保留；最新为 600。
 
 该 screen 是 point-fit feasibility 诊断，不估计 profile coverage、q/h/x 污染或物理力。不要在这组重复 panels 上继续 profile / seed / solver 扫描。若继续 CPU 方法研究，先冻结新的独立 exact-`Z_0=0` synthetic DGP、noise/covariance、initialization、bounds 与残差目标，再比较固定 chart 的贴边/表示残差和 pivot chart 的完整拟合分母；这用于检验该 chart 的目标用例，不得把现有 12 panels 改称确认样本。C finite-$T$ Creutz 与 F ground-state force 仍分轨，Wilson 为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，sealed inputs closed。
+
+## Exact-zero overlap chart stress across three noise levels (2026-11-28)
+
+The proposed exact-zero synthetic DGP has now been screened at three matrix-noise levels. At the target transition, the injected truth is exactly `Z_0=0` while operators 1 and 2 are nonzero; therefore the fixed operator-0 chart can only approach zero at its configured finite-coordinate floor `exp(-12)=6.1442e-6`, while the largest-component chart can encode zero exactly. For each of three seeds, one standardized Hermitian AR(1) noise realization is scaled across relative noise `{0.0003, 0.003, 0.01}`; each of the 9 panels has 96 blocks, `rho=0.5`, three paired oracle-derived starts, panel-specific regularized covariance, analytic Jacobians, TRF, and `max_nfev=2000`. This remains an optimizer feasibility screen with oracle starts, not a production-initializer test or coverage study.
+
+![Exact-zero overlap chart behavior across noise levels](f_lane_pivot_chart_exact_zero_20261128_v2/multi_noise_comparison.png)
+
+The figure reads left to right: fit completion fraction per noise level; fitted `|Z_0|` at the exact-zero transition, with the fixed-chart lower bound; and absolute point-force error against the toy truth `0.15` lattice units. Its force-error whiskers are standard deviations of the three seed-level mean errors, not uncertainty intervals. The target-zero panel demonstrates a useful split: fitting exactly at zero is a representational property, while recovering zero from noisy correlators is an inference problem.
+
+| Relative matrix noise | Fixed chart valid / planned | Largest-pivot valid / planned | Median fitted `|Z_0|`, fixed / pivot | Median absolute force error, fixed / pivot (lattice units) | Median solver evaluations, fixed / pivot |
+|---:|---:|---:|---:|---:|---:|
+| 0.0003 | 5/9 | 9/9 | `6.1453e-6` / `1.0875e-3` | `6.4143e-5` / `6.4132e-5` | 1243 / 95 |
+| 0.003 | 8/9 | 8/9 | `6.1560e-6` / `1.1658e-2` | `6.4221e-4` / `6.4214e-4` | 576 / 543 |
+| 0.01 | 8/9 | 7/9 | `6.2326e-6` / `3.8673e-2` | `3.1463e-3` / `3.1463e-3` | 280.5 / 304 |
+
+Across all 27 paired starts, fixed operator-0 was valid **21/27**, largest-pivot **24/27**, and both charts were valid **18/27**. Pivot rescued 6 fixed-chart failures but lost 3 fixed-valid starts; neither representation dominates on completion. All 9 nonvalid fits reached `max_nfev=2000` with local Jacobian rank 67/67; their reported condition numbers range from approximately `3.29e5` to `1.45e8`. Thus the observed failures are consistent with difficult local convergence/conditioning in these fits, not demonstrated local rank loss; this does not establish global identifiability. At the lowest noise the fixed chart piles up at its imposed floor, while the pivot estimates move away from zero as noise grows. Because there are only three seeds per noise level and the starts use oracle truth, neither this pattern nor the near-identical force errors supports a population ranking, a zero-overlap confidence statement, or profile coverage.
+
+Evidence and reproduction: the [single-panel report](f_lane_pivot_chart_exact_zero_20261128_v1/README.md) has artifact/source hashes **13/13** and **10/10**; the [three-noise report](f_lane_pivot_chart_exact_zero_20261128_v2/README.md) has **37/37** and **11/11** matching hashes. Its `fit_results.csv` retains every planned fit, status, solver count, rank, condition number, force and failure reason. The first multi-panel attempt validated all nine source snapshots but stopped before fitting because the driver lacked a `cholesky` import (**0/54 fits attempted**); its `ABORTED_BEFORE_FIRST_FIT` receipt is preserved under `f_lane_pivot_chart_exact_zero_20261128_v2_incomplete/`, and none of its state contributes to the numerical result. The corrected driver was then run into a separate no-clobber output directory. The focused exact-zero tests cover deterministic Hermitian generation, exact-zero encoding versus finite floor, and common-noise scaling across levels.
+
+**Next CPU boundary:** stop extending the same oracle-seeded noise grid or relaxing `max_nfev`. A useful follow-up must change the initialization information: derive starts only from the synthetic matched-`N_t=32` correlators using the existing production-like initializer path, then compare fixed and pivot charts with a separately frozen overlap-initialization rule and keep all planned/valid/failed/abstained starts. If no stable initializer exists for an exact-zero component, retain abstention as a valid outcome rather than injecting oracle amplitudes. Only a later independent open-calibration sample with production conventions could address coverage or contamination. The current work does not read production/sealed Wilson data or run GPU/QUDA; C finite-`T` Creutz and F ground-state static force remain distinct, both lanes remain `NOT_READY/UNCERTIFIED`, F=`GROUND_STATE_FORCE_UNCERTIFIED`, and `physical_score=null`.
+
+Full PR #6 CPU regression after this diagnostic is **603 passed in 82.18 s**; the exact-zero focused file is **3 passed in 0.93 s**. The startup-error receipt remains outside this test denominator because it documents a previous diagnostic execution, not an application test failure.

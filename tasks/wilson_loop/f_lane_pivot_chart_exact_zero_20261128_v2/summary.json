@@ -1,0 +1,119 @@
+{
+  "certified": false,
+  "classification": "nine-panel synthetic method-feasibility diagnostic; not coverage calibration",
+  "fit_denominators_by_method": {
+    "fixed_operator0": {
+      "abstained": 0,
+      "failed": 6,
+      "planned": 27,
+      "valid": 21
+    },
+    "largest_component_pivot": {
+      "abstained": 0,
+      "failed": 3,
+      "planned": 27,
+      "valid": 24
+    }
+  },
+  "fit_denominators_by_noise": {
+    "0.0003": {
+      "fixed_operator0": {
+        "abstained": 0,
+        "failed": 4,
+        "max_target_operator0_amplitude_abs": 0.000996491732949471,
+        "median_absolute_force_error": 6.41429865355092e-05,
+        "median_solver_evaluations": 1243.0,
+        "median_target_operator0_amplitude_abs": 6.145297475659923e-06,
+        "min_target_operator0_amplitude_abs": 6.144215194408069e-06,
+        "planned": 9,
+        "valid": 5
+      },
+      "largest_component_pivot": {
+        "abstained": 0,
+        "failed": 0,
+        "max_target_operator0_amplitude_abs": 0.0020249444624154665,
+        "median_absolute_force_error": 6.413231208185488e-05,
+        "median_solver_evaluations": 95.0,
+        "median_target_operator0_amplitude_abs": 0.0010874505059146223,
+        "min_target_operator0_amplitude_abs": 0.0009966466180808089,
+        "planned": 9,
+        "valid": 9
+      }
+    },
+    "0.003": {
+      "fixed_operator0": {
+        "abstained": 0,
+        "failed": 1,
+        "max_target_operator0_amplitude_abs": 0.011076577877615084,
+        "median_absolute_force_error": 0.0006422115072786394,
+        "median_solver_evaluations": 576.0,
+        "median_target_operator0_amplitude_abs": 6.155997190648861e-06,
+        "min_target_operator0_amplitude_abs": 6.144212353328243e-06,
+        "planned": 9,
+        "valid": 8
+      },
+      "largest_component_pivot": {
+        "abstained": 0,
+        "failed": 1,
+        "max_target_operator0_amplitude_abs": 0.01996954633290353,
+        "median_absolute_force_error": 0.0006421442348815976,
+        "median_solver_evaluations": 543.0,
+        "median_target_operator0_amplitude_abs": 0.011657684448968031,
+        "min_target_operator0_amplitude_abs": 0.01107027691614527,
+        "planned": 9,
+        "valid": 8
+      }
+    },
+    "0.01": {
+      "fixed_operator0": {
+        "abstained": 0,
+        "failed": 1,
+        "max_target_operator0_amplitude_abs": 0.0636985991822982,
+        "median_absolute_force_error": 0.0031463002176661814,
+        "median_solver_evaluations": 280.5,
+        "median_target_operator0_amplitude_abs": 6.232565960246542e-06,
+        "min_target_operator0_amplitude_abs": 6.144212353426297e-06,
+        "planned": 9,
+        "valid": 8
+      },
+      "largest_component_pivot": {
+        "abstained": 0,
+        "failed": 2,
+        "max_target_operator0_amplitude_abs": 0.06369543856881509,
+        "median_absolute_force_error": 0.0031462670000911297,
+        "median_solver_evaluations": 304.0,
+        "median_target_operator0_amplitude_abs": 0.038672948643942995,
+        "min_target_operator0_amplitude_abs": 0.028392903169169717,
+        "planned": 9,
+        "valid": 7
+      }
+    }
+  },
+  "fixed_chart_lower_bound": -12.0,
+  "fixed_chart_minimum_nonzero_target_amplitude": 6.14421235332821e-06,
+  "paired_starts_both_valid": 18,
+  "paired_starts_planned": 27,
+  "panel_denominator": {
+    "abstained": 0,
+    "failed": 0,
+    "planned": 9,
+    "valid": 9
+  },
+  "physical_score": null,
+  "schema": "wilson-f-exact-zero-pivot-multireplicate-summary-v1",
+  "scope_limits": [
+    "only 3 paired seeds per noise level; no population or coverage inference",
+    "same standardized noise realization is scaled across levels within each seed",
+    "oracle-seeded chart fits; production initializer is not tested",
+    "no interval coverage, physical contamination, production/sealed input, GPU, or QUDA"
+  ],
+  "source_capture_denominator": {
+    "abstained": 0,
+    "failed": 0,
+    "planned": 27,
+    "valid": 27
+  },
+  "status": "SMALL_MULTI_NOISE_SCREEN_COMPLETE",
+  "target_truth_operator0_amplitude": 0.0,
+  "truth_absolute_force_lattice_units": 0.14999999999999997
+}

@@ -1,0 +1,15 @@
+{
+  "README.md": "7a2463267cf81d91b2d4fe13374ecbf2f5adced282808f19320c172607bc73b0",
+  "dgp.json": "efbbacc489184c29d1af019ae900cbc6d058f69f4a24b673334ac183b4b73758",
+  "exact_zero_comparison.png": "ecdc3388ff9f1e8f79cadf9278aebabc6525c7fcd1c2cbdfed1f2be0345a0f89",
+  "execution_progress.jsonl": "556e38c7abe06da2fdb0542335edff0198a5de2c8538b70cfefa9687616c05bd",
+  "fit_denominators.json": "6974dab474715da5904e01ca6641bb0f213967b4aa6e32cf6b49aa4a77da8c05",
+  "fit_results.csv": "d22c94934498b1bfc7191add7d6e322be00e21b4a8e05b0f401ffd46cd310bd2",
+  "protocol.json": "a051377e12983c42aa7642374d15e23fd4cf94bc906ee0299256a489f1350a88",
+  "source_capture.csv": "fdfb513b662dca7c8311079035e1b77e1b8ab99d208b90ce4cd02abb3b28a796",
+  "source_hashes.json": "f2a95fbe0c168f1dd9b08db25b531b4c33d57003e45add25ff75360c61e2e3e9",
+  "source_package/lane_contract.json": "b8a011eabcce9490b424df99035ff0b2933a04748ecee88d380c0f0263c43aca",
+  "source_package/manifest.json": "59090ebf0d9cace7c5b0754dcd1f6436727f9ded8efbe42b5b0022cdeb999cb4",
+  "source_package/raw_matrices.npz": "8b66808f4d4e38350da51c24bba667bbae4d4d0f83cf804f7a0a120aed0c3b5a",
+  "summary.json": "6f93c517a6d2e4b7644dec3acb02d000a34983a2241286e5564909fec1972b94"
+}

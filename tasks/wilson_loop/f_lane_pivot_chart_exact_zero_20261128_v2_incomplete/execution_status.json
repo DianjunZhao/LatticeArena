@@ -1,0 +1,13 @@
+{
+  "schema": "wilson-f-exact-zero-multireplicate-execution-status-v1",
+  "status": "ABORTED_BEFORE_FIRST_FIT",
+  "driver_source_sha256_before_fix": "8dccb22619b40e17343d0dd0d679077d1a7445243792522ce7e3e5718446f620",
+  "planned_panels": 9,
+  "captured_and_validated_panels": 9,
+  "planned_fits": 54,
+  "completed_fits": 0,
+  "failed_fits": 0,
+  "abstained_fits": 0,
+  "reason": "Runtime NameError: cholesky was not imported in the multi-replicate driver. All nine generated open synthetic panels and source snapshots were validated before the first optimizer call; no fit was attempted and no result contributes to evidence.",
+  "next_run": "f_lane_pivot_chart_exact_zero_20261128_v2"
+}

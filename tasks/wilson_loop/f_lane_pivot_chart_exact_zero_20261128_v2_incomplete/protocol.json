@@ -1,0 +1,62 @@
+{
+  "ar1_rho": 0.5,
+  "blocks_per_panel": 96,
+  "certified": false,
+  "classification": "small open synthetic numerical-feasibility screen; not coverage calibration",
+  "initialization": "same oracle toy energy/overlap components for each pair; fixed chart floors the exact-zero operator-0 component at log amplitude -12",
+  "methods": [
+    "fixed_operator0",
+    "largest_component_pivot"
+  ],
+  "not_claimed": [
+    "finite-sample interval coverage",
+    "physical overlap identifiability",
+    "production initializer behavior",
+    "global chart ranking",
+    "physical score"
+  ],
+  "objective": "same covariance-of-block-mean estimate with fixed shrinkage and eigenvalue floor within each panel",
+  "paired_noise_rule": "For each seed, generate one 0.3%-relative-noise AR(1) panel and scale the same standardized noise realization linearly to each frozen noise level.",
+  "panel_count": 9,
+  "physical_score": null,
+  "primary_outputs": [
+    "planned/valid/failed/abstained fits by chart, noise level, and panel",
+    "target |Z_0|, force point error, objective, rank/condition and solver evaluations"
+  ],
+  "relative_noise_levels": [
+    0.0003,
+    0.003,
+    0.01
+  ],
+  "schema": "wilson-f-exact-zero-pivot-multireplicate-screen-v1",
+  "seed_ids": [
+    202611281128,
+    202611281129,
+    202611281130
+  ],
+  "solver": "TRF, analytic chart Jacobian, x_scale=jac, max_nfev=2000, ftol=xtol=gtol=1e-10",
+  "starts_epsilon_excited_scale": [
+    [
+      0.15,
+      0.2
+    ],
+    [
+      0.3,
+      0.35
+    ],
+    [
+      0.55,
+      0.5
+    ]
+  ],
+  "truth": {
+    "exact_zero_transition": {
+      "R": 2,
+      "operator_index": 0,
+      "static_state_n": 2,
+      "vacuum_state_m": 0
+    },
+    "model": "finite-Nt 2-vacuum x 3-static positive trace"
+  },
+  "validity": "solver success, finite coordinates/residuals, numerical Jacobian rank 67/67"
+}

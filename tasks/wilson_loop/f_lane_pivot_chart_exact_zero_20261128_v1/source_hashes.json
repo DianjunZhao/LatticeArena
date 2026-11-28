@@ -1,0 +1,12 @@
+{
+  "core/npz_safety.py": "af60a75cf78a1b0812ccebaf690fc69c3522fcfd3ab54cf5c06aea925c22d750",
+  "core/source_integrity.py": "45a941a63937c56dc365049617e393f4f23209dc9a432e38e4f2937a22ec26a6",
+  "tasks/wilson_loop/f_lane_absolute_force_bootstrap_diagnostic.py": "37be2745ad5d5e7369d23080eab0fdee88a98aedefbbadca35c8f6f90c71ed39",
+  "tasks/wilson_loop/f_lane_finite_nt_trace_diagnostic.py": "c827bfd084f9ebd1f9176fe7aad6e356f97c47a3960f85637b959a98ccf27e08",
+  "tasks/wilson_loop/f_lane_pivot_chart_exact_zero_screen.py": "b1bc72849b09acbf36fc85196f7111f10c259e7a75874141de57f65e38f15a78",
+  "tasks/wilson_loop/f_lane_three_static_pivot_chart.py": "32989699cadae610b1136ba71cbc7dc8c105ab5f6ea1da084cfe90625d1cee05",
+  "tasks/wilson_loop/f_lane_three_static_two_vacuum_candidate.py": "3cdf87a63573ba2ccccaabfad87fc463a5ec92537b3b1c98349c5f37b260a511",
+  "tasks/wilson_loop/f_lane_two_sector_fit_candidate.py": "8222d4fe2a084641cc1c0ad4c6c342abd3b00120461f589208ea153611390b77",
+  "tasks/wilson_loop/f_lane_two_sector_omitted_coverage_diagnostic.py": "b0f99d39e2df93891ca0a7f59d74aa87a4a08f9dfbb2107856125586174a1d5f",
+  "tasks/wilson_loop/lane_contract_v2.json": "b8a011eabcce9490b424df99035ff0b2933a04748ecee88d380c0f0263c43aca"
+}

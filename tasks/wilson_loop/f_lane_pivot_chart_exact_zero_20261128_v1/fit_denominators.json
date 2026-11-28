@@ -1,0 +1,26 @@
+{
+  "fixed_operator0": {
+    "abstained": 0,
+    "failed": 0,
+    "method": "fixed_operator0",
+    "planned": 3,
+    "valid": 3,
+    "valid_force_errors": [
+      0.000906824896945102,
+      0.0009068248137240054,
+      0.0009068270011915458
+    ]
+  },
+  "largest_component_pivot": {
+    "abstained": 0,
+    "failed": 0,
+    "method": "largest_component_pivot",
+    "planned": 3,
+    "valid": 3,
+    "valid_force_errors": [
+      0.0009098691771849965,
+      0.0009098700840604046,
+      0.0009305565518649694
+    ]
+  }
+}
