@@ -920,3 +920,7 @@ Wilson's 12-panel matched-`N_t=32` 2/3-static-state screen and four helper regre
 ### 2026-11-28 PR #6 cross-task regression after estimator-matched three-state pilot
 
 Wilson's finite-`N_t` 2-vacuum × 3-static-state candidate, noiseless forward identity checks, one-panel synthetic fit report and four new focused tests leave Optimize contracts unchanged. The full PR #6 CPU suite now passes **571 tests in 84.00 s**. This is software compatibility only; it supplies no D04 E-reference, D06 paired solver risk/cost, D11 production operator review, or data/GPU authorization. Optimize remains `NOT_READY/UNCERTIFIED`, `physical_score=null`, and sealed inputs remain closed.
+
+### 2026-11-28 PR #6 cross-task regression after three-state identifiability screen
+
+Wilson added a five-stratum deterministic synthetic identifiability screen and three generator-contract tests. Full PR #6 CPU suite passes **574 tests in 78.07 s**. The screen found a full-rank weak-ground-overlap fit whose force point is displaced by about 5.1% of toy truth; this is a Wilson model-sensitivity counterexample, not Optimize evidence. Optimize's D04/D06/D11 contracts remain unchanged and `NOT_READY/UNCERTIFIED`; no E-reference, paired risk/cost, production operator review, sealed input or GPU authorization was added.
