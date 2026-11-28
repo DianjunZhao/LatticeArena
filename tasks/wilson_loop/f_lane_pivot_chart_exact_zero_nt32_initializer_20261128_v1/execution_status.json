@@ -1,0 +1,11 @@
+{
+  "completed_chart_fits": 54,
+  "completed_panels": 9,
+  "error": "All 54 chart fits and 18 per-R initializers returned, but fit_results CSV serialization failed when an optional optimizer_success field appeared in a heterogeneous outcome row; detailed fit results cannot be recovered from the progress log.",
+  "initializer_fits_completed": 18,
+  "initializer_fits_planned": 18,
+  "planned_chart_fits": 54,
+  "planned_panels": 9,
+  "schema": "wilson-f-exact-zero-nt32-initializer-execution-status-v1",
+  "status": "ABORTED_REPORT_SERIALIZATION"
+}

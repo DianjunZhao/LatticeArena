@@ -1,0 +1,50 @@
+{
+  "certified": false,
+  "charts": [
+    "fixed operator-0",
+    "largest-component pivot re-encoding of the same physical start"
+  ],
+  "classification": "paired initializer-feasibility screen on reused open synthetic matrices",
+  "full_fit": "same finite-Nt 2-vacuum x 3-static positive-spectrum model, covariance, charts, objective and bounds as paired point-fit screen",
+  "initialization": "for each R independently, fit the matched Nt=32 3-state/3-operator joint spectrum to blocks; use fitted energies and overlaps only; no injected truth enters the start",
+  "input_report": "f_lane_pivot_chart_exact_zero_20261128_v2",
+  "input_report_artifact_hash_manifest_sha256": "8e39266384626f1353e5104928b42638b4c43c578a21ad14cc931e2fdf7def5d",
+  "not_claimed": [
+    "independent samples",
+    "profile or interval coverage",
+    "production data behavior",
+    "physical contamination bound",
+    "global chart ranking"
+  ],
+  "panel_count": 9,
+  "panel_ids": [
+    "noise_0.0003_seed_202611281128",
+    "noise_0.0003_seed_202611281129",
+    "noise_0.0003_seed_202611281130",
+    "noise_0.003_seed_202611281128",
+    "noise_0.003_seed_202611281129",
+    "noise_0.003_seed_202611281130",
+    "noise_0.01_seed_202611281128",
+    "noise_0.01_seed_202611281129",
+    "noise_0.01_seed_202611281130"
+  ],
+  "physical_score": null,
+  "schema": "wilson-f-exact-zero-nt32-initializer-screen-v1",
+  "solver": "TRF, analytic chart Jacobian, x_scale=jac, max_nfev=2000, ftol=xtol=gtol=1e-10",
+  "source_capture": "capture manifest/raw_matrices/lane_contract by artifact-manifest SHA-256, then read the same immutable snapshot",
+  "starts_epsilon_excited_overlap_scale": [
+    [
+      0.15,
+      0.2
+    ],
+    [
+      0.3,
+      0.35
+    ],
+    [
+      0.55,
+      0.5
+    ]
+  ],
+  "validity": "solver success, finite result and local Jacobian rank 67/67; shared bounds are enforced before optimizer launch"
+}

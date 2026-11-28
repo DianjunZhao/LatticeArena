@@ -1,0 +1,120 @@
+{
+  "certified": false,
+  "classification": "method feasibility on reused open synthetic matrices; not independent replication or calibration",
+  "fit_denominators_by_method": {
+    "fixed_operator0": {
+      "abstained": 3,
+      "failed": 9,
+      "planned": 27,
+      "valid": 15
+    },
+    "largest_component_pivot": {
+      "abstained": 0,
+      "failed": 7,
+      "planned": 27,
+      "valid": 20
+    }
+  },
+  "fit_denominators_by_noise": {
+    "0.0003": {
+      "fixed_operator0": {
+        "abstained": 3,
+        "failed": 2,
+        "initializer_out_of_bounds_abstentions": 3,
+        "median_absolute_force_error_lattice_units": 6.250565139465092e-05,
+        "median_initial_target_operator0_abs": 0.002828748593966831,
+        "median_solver_evaluations": 2046.0,
+        "planned": 9,
+        "valid": 4
+      },
+      "largest_component_pivot": {
+        "abstained": 0,
+        "failed": 1,
+        "initializer_out_of_bounds_abstentions": 0,
+        "median_absolute_force_error_lattice_units": 6.413125231163885e-05,
+        "median_initial_target_operator0_abs": 0.002828748593966831,
+        "median_solver_evaluations": 117.5,
+        "planned": 9,
+        "valid": 8
+      }
+    },
+    "0.003": {
+      "fixed_operator0": {
+        "abstained": 0,
+        "failed": 4,
+        "initializer_out_of_bounds_abstentions": 0,
+        "median_absolute_force_error_lattice_units": 0.0005037712121376825,
+        "median_initial_target_operator0_abs": 0.035712898241640506,
+        "median_solver_evaluations": 2263.0,
+        "planned": 9,
+        "valid": 5
+      },
+      "largest_component_pivot": {
+        "abstained": 0,
+        "failed": 3,
+        "initializer_out_of_bounds_abstentions": 0,
+        "median_absolute_force_error_lattice_units": 0.0007760017735719271,
+        "median_initial_target_operator0_abs": 0.035712898241640506,
+        "median_solver_evaluations": 208.0,
+        "planned": 9,
+        "valid": 6
+      }
+    },
+    "0.01": {
+      "fixed_operator0": {
+        "abstained": 0,
+        "failed": 3,
+        "initializer_out_of_bounds_abstentions": 0,
+        "median_absolute_force_error_lattice_units": 0.0022604130963570224,
+        "median_initial_target_operator0_abs": 0.10496602277161132,
+        "median_solver_evaluations": 353.0,
+        "planned": 9,
+        "valid": 6
+      },
+      "largest_component_pivot": {
+        "abstained": 0,
+        "failed": 3,
+        "initializer_out_of_bounds_abstentions": 0,
+        "median_absolute_force_error_lattice_units": 0.002198477352006678,
+        "median_initial_target_operator0_abs": 0.10496602277161132,
+        "median_solver_evaluations": 284.5,
+        "planned": 9,
+        "valid": 6
+      }
+    }
+  },
+  "fixed_full_fit_minimum_nonzero_operator0_amplitude": 6.14421235332821e-06,
+  "fixed_full_fit_operator0_log_lower_bound": -12.0,
+  "initializer_operator0_lower_bound": 1e-08,
+  "nt32_initializer_denominator": {
+    "abstained": 0,
+    "failed": 0,
+    "planned": 18,
+    "valid": 18
+  },
+  "paired_starts_both_valid": 10,
+  "paired_starts_planned": 27,
+  "panel_denominator": {
+    "abstained": 0,
+    "failed": 0,
+    "planned": 9,
+    "valid": 9
+  },
+  "physical_score": null,
+  "schema": "wilson-f-exact-zero-nt32-initializer-summary-v1",
+  "scope_limits": [
+    "same nine panels as the preceding oracle-start screen; no new seeds",
+    "initial guesses are fitted from Nt=32 data, but Nt=32 itself is a noisy truncated single-vacuum initializer",
+    "only 3 paired starts per panel and 3 seeds per noise level",
+    "no profile coverage, production convention validation, physical contamination bound, GPU, or QUDA"
+  ],
+  "source_capture_denominator": {
+    "abstained": 0,
+    "failed": 0,
+    "planned": 27,
+    "valid": 27
+  },
+  "status": "NT32_INITIALIZER_SCREEN_COMPLETE",
+  "truth_absolute_force_lattice_units": 0.14999999999999997,
+  "truth_target_operator0_amplitude": 0.0
+}
