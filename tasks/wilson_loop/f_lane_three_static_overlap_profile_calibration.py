@@ -67,7 +67,8 @@ def _force_grid(center: float) -> tuple[float, ...]:
 
 
 def _panel_profile(snapshot: Any, fit_receipt: dict[str, Any], truth: float,
-                   panel_id: int) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+                   panel_id: int, floors: tuple[float, ...] = FLOORS
+                   ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     fit = fit_receipt.get("fit")
     if (fit_receipt.get("denominator", {}).get("valid") != 1
             or not isinstance(fit, dict) or not isinstance(fit.get("fit_coordinates"), list)):
@@ -75,7 +76,7 @@ def _panel_profile(snapshot: Any, fit_receipt: dict[str, Any], truth: float,
                "failure_reason": "missing_candidate_fit_parameters",
                "force_truth": truth, "force_point": None, "grid": [],
                "planned_profile_cells": 0, "valid_profile_cells": 0,
-               "failed_or_abstained_profile_cells": len(FLOORS) * len(BASE_FORCE_GRID),
+               "failed_or_abstained_profile_cells": len(floors) * len(BASE_FORCE_GRID),
                "planned_start_fits": 0, "valid_start_fits": 0,
                "failed_or_abstained_start_fits": 0,
                "floor_results": [{
@@ -83,15 +84,15 @@ def _panel_profile(snapshot: Any, fit_receipt: dict[str, Any], truth: float,
                    "planned_cells": len(BASE_FORCE_GRID), "valid_cells": 0,
                    "failed_or_abstained_cells": len(BASE_FORCE_GRID),
                    "interval": None, "contains_truth": None, "grid_clipped": None,
-               } for floor in FLOORS]}
+               } for floor in floors]}
         return [], row
     center = float(fit["absolute_stout_ground_force"])
     grid = _force_grid(center)
     cells = [nonlinear._profile_at_force(snapshot, np.asarray(fit["fit_coordinates"], dtype=float),
                                          floor, force)
-             for floor in FLOORS for force in grid]
+             for floor in floors for force in grid]
     floor_results = []
-    for floor in FLOORS:
+    for floor in floors:
         group = [cell for cell in cells if cell["overlap_floor"] == floor]
         valid = [cell for cell in group if cell["valid"]]
         if len(valid) != len(grid):

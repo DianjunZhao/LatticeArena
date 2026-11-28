@@ -1,8 +1,8 @@
 # wilson_loop：CPU 验收结论与下一阶段
 
-### 当前 CPU 验证快照（2026-11-27）
+### 当前 CPU 验证快照（2026-11-28）
 
-PR #6 最新全仓 CPU suite（包含 C-lane 报告源码“单次捕获、同字节 hash/归档”竞态回归及 D04 helper source-map 检查）为 **448 passed in 72.61 s**；这是 CPU 软件证据，未读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。较早的 Wilson 定向 195 passed 与 Optimize+Wilson 354 passed 是旧快照，不代表本次完整复跑。PR #5 Pion 最新全仓 CPU suite 为 **275 passed in 3.75 s**。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+PR #6 当前 checkout 最新全仓 CPU suite 为 **584 passed in 78.57 s**，包含 C-lane 单次捕获/hash 竞态回归、D04 helper source-map 检查，以及本节 Wilson 非线性 profile stratified screen 与随机 Jacobian regression。定向 Wilson profile/helper 三模块为 **8 passed in 1.76 s**。这只是 CPU 软件/合成诊断证据，未读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。较早的 Wilson 定向 195 passed 与 Optimize+Wilson 354 passed 是旧快照，不代表本次完整复跑。PR #5 Pion 最近记录的全仓 CPU suite 为 **275 passed in 3.75 s**；本轮未改 Pion task。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
 
 ### 2026-11-26 历史附件链接审计
 
@@ -1132,3 +1132,17 @@ F_abs = V0(R=3)-V0(R=2),  ΔR=1
 [六 panel profile 图文报告](f_lane_three_static_overlap_profile_calibration_20261128_v1/README.md)留有逐 panel raw matrices、manifest、point fits、每个网格的两份起点参数、interval 规则、图及源码快照；artifact hashes **45/45**、source snapshots **7/7** 匹配。校准分母与 binomial 区间 helper tests **4 passed**；全仓 CPU suite 结果见同日跨任务回归记录。
 
 **裁决：**exact-force nonlinear profile 方法可执行，但 `Δobjective<=3.84` 在这个小型弱-overlap synthetic DGP 屏查中表现为远低于名义值的 containment，不能作 95% 力区间；oracle floor 也没有救回该结果。下一步先做随机参数点 analytic Jacobian 负控、增加 panel 数并至少加入 near-degenerate / omitted-vacuum / dependent-heteroscedastic strata，以得到可用的 simulation coverage / abstain map；正式使用前仍需独立 production overlap-floor receipt、open-calibration 数据、force reference 与审阅。缺这些 receipt 仍输出 `ABSTAIN_NO_INDEPENDENT_OVERLAP_FLOOR`，Wilson 双 lane=`NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`、sealed inputs closed。
+
+### 2026-11-28 exact nonlinear force profile：多 strata 小样本 abstention map
+
+按上一节计划，用 6 个 hash-verified weak-overlap panel 作为既有参照，并新增 baseline、near-degenerate、omitted-vacuum truth、dependent/unequal-variance 四组，各 3 个确定性 seed（`2026114400 + 100*stratum_index + replicate`）。每 panel 使用 generator 给出的 oracle ground-overlap floor 和无 floor 两种条件；各 profile cell 保留精确 force elimination、两个 starts、固定力网格加 point estimate、nominal `Δobjective<=3.84` 集与完整失败收据。三个 panel/stratum 只够定位数值脆弱区，不能估计通用 coverage。
+
+![多 strata、两种 overlap-floor 条件下的 conditional force profiles](f_lane_three_static_stratified_profile_20261128_v1/stratified_profile_intervals.png)
+
+总面板 **18/18** point fit 有效，其中 weak-overlap 6 个来自前一份 hash-verified 报告、其余 12 个是新面板。profile cells **195/216** 有效、失败/弃权 **21**；start fits **380/432** 有效、失败/弃权 **52**。无 floor / oracle floor 的未裁切区间与 toy truth 命中数分别为：weak-overlap **2/5**、**3/6**；baseline **1/2**、**1/2**；near-degenerate **0/1**、**无完整区间（0/3 panels）**；omitted-vacuum **1/2**、**无完整区间（0/3）**；dependent/unequal-variance **0/2**、**0/2**。其中 `n` 是未裁切且完整的 panel 区间数，不是计划面板数；例如 near-degenerate no-floor 的两个 panel profile 不完整，只剩 1 个可计数区间。相应 Wilson 95% binomial intervals 在 summary 中逐格提供；可计数分母最大仅 6，且这些是受控 toy panel，不能解释成 production coverage。
+
+关键诊断不是把“no interval”记为 miss：near-degenerate 的 oracle-floor profiles **0/3** 完整，omitted-vacuum 的 oracle-floor profiles亦 **0/3** 完整；两者在该设定下触发 optimizer/identifiability abstention。全体无效起点中，`max_nfev=1600` 被耗尽占 **49/52**，另 **3/52** 虽以 `ftol` 终止但未过 rank/约束有效性检查。baseline no-floor 有 **1/3** 面板 profile 不完整；dependent/unequal-variance 两种 floor 各有 **1/3** 不完整。profile grid 未作连续插值，`3.84` threshold 和 grid 均未经 coverage 校准。
+
+[完整图文报告与逐格数据](f_lane_three_static_stratified_profile_20261128_v1/README.md)保留了每 panel 的 raw matrix、manifest、point-fit / profile receipts、protocol、summary、图和源码快照；artifact hashes **75/75**、source hashes **8/8** 已逐项复核。新 Jacobian randomized perturbation regression 与 stratified helper tests 共 **8 passed**；全仓 CPU suite 结果将在下方跨任务回归记录中更新。整个屏幕只用公开的 synthetic toy generator 与先前 open 式合成报告；生产 Wilson、sealed inputs、GPU/QUDA 均未读取或执行。
+
+**方法结论与下一步：**固定 `Δobjective=3.84` 的 profile 在 weak-overlap 小屏中已显示低命中；本次进一步表明 oracle floor 并不能自动使困难 strata 可评估，且 near-degenerate / omitted-vacuum 的高 floor 条件会使 profile 大量弃权。不得把被弃权 panel 从计划面板中静默删去后再称覆盖率；至少同时报告 nominal interval containment、完整率、裁切率和优化失败率。下一条纯 CPU 工作应先做 profile solver 改进实验：检查失败起点的 basin/objective、参数缩放与 Jacobian 条件数；试验在每个 force target 之间 warm-start/continuation，并对 floor-active 约束加可行初值，完整保存旧算法为对照。预先比较完整率、有效率、truth containment、区间宽度和每个 cell 的 `nfev`；不能只优化 coverage、不能把 warm-start path 当独立 starts。若同预算下困难 strata 仍不能给完整 profile，应把报告范围定为**条件估计器的弃权图**并停止 seed 扩增，转向可识别性/estimand 重定义。无论 solver 改善如何，独立 production overlap-floor receipt、校准的 profile threshold、正力 reference、物理 source/operator convention、independent review 与 open-calibration 授权仍未齐；物理门继续 `ABSTAIN_NO_INDEPENDENT_OVERLAP_FLOOR`，C/F=`NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`、sealed data closed。

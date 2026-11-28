@@ -19,21 +19,26 @@ def _parameters():
 
 
 def test_analytic_finite_nt_model_jacobian_matches_central_difference():
-    parameters = _parameters()
-    analytic = _model_jacobian(parameters)
-    numeric = np.empty_like(analytic)
-    for index, value in enumerate(parameters):
-        step = 1e-6 * max(1.0, abs(float(value)))
-        plus, minus = parameters.copy(), parameters.copy()
-        plus[index] += step
-        minus[index] -= step
-        numeric[:, index] = (
-            candidate._model_vectors(plus).ravel()
-            - candidate._model_vectors(minus).ravel()
-        ) / (2.0 * step)
-    assert analytic.shape == (candidate._model_vectors(parameters).size, candidate.PARAMETER_COUNT)
-    assert np.isfinite(analytic).all()
-    assert np.max(np.abs(analytic - numeric)) < 2e-6
+    base = _parameters()
+    rng = np.random.default_rng(20261128)
+    for _ in range(4):
+        parameters = base + rng.normal(0.0, 0.025, size=base.size)
+        analytic = _model_jacobian(parameters)
+        numeric = np.empty_like(analytic)
+        for index, value in enumerate(parameters):
+            step = 1e-6 * max(1.0, abs(float(value)))
+            plus, minus = parameters.copy(), parameters.copy()
+            plus[index] += step
+            minus[index] -= step
+            numeric[:, index] = (
+                candidate._model_vectors(plus).ravel()
+                - candidate._model_vectors(minus).ravel()
+            ) / (2.0 * step)
+        assert analytic.shape == (
+            candidate._model_vectors(parameters).size, candidate.PARAMETER_COUNT,
+        )
+        assert np.isfinite(analytic).all()
+        assert np.max(np.abs(analytic - numeric)) < 2e-6
 
 
 def test_exact_force_elimination_and_chain_jacobian():
