@@ -1066,3 +1066,13 @@ F lane 仍需生产 `C_ij`/source-sink/time-origin/边界/时序约定、匹配 
 本项把 full-refit bootstrap 从方法建议推进为有分母、图和原始 resample 结果的执行屏查，但没有闭合 statistical coverage。下一个纯 CPU 方法项应对当前**绝对力**做 2-state/3-state profile 或受约束谱包络，分离 bootstrap sampling width 与 omitted-state truncation envelope；至少在 near-degenerate、weak-ground-overlap、omitted-vacuum 和 dependent/unequal-variance strata 上用新 seeds 检查。不得把“6/6”或 `B=39` 极差当 95% 覆盖证明，也不把 q/h/x 参数抽样近似重新接到 primary force reader。
 
 生产 exporter/action convention、open calibration 授权、匹配 `N_t=32` thermal/mixed q/h/x、独立 force/reference 误差预算、模型截断 receipt 与 independent review 仍未提供；因此 F=`GROUND_STATE_FORCE_UNCERTIFIED`，Wilson 两 lane `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed data closed。
+
+### 2026-11-28 matched-`N_t=32` 二/三静态态点包络屏查
+
+为检查 MBB 的统计宽度能否与遗漏静态态偏差分开，新增 [`f_lane_absolute_force_state_count_envelope_screen.py`](f_lane_absolute_force_state_count_envelope_screen.py) 和[图文报告](f_lane_absolute_force_state_count_20261128_v1/README.md)。固定 12 个新 seed `2026114000+i`；每 panel 96 ordered blocks、stationary AR(1) `rho=0.5`、相对噪声 `0.003`。每个 panel 并排运行当前 full finite-`N_t` 2-vacuum×2-static primary fit，以及只用 matched `N_t=32,T=3…7`、逐半径独立的 2-state/3-state positive-spectrum GLS。state-count 点包络只取两个估计值的 min/max，拟合缺失时整 panel 弃权。
+
+数据流：`fresh 2-vacuum×3-static toy matrices -> full finite-Nt 2×2 primary -> Nt=32 per-R 2/3-state fits -> absolute-force point span + residual plot -> preserve panel matrices, fit diagnostics and hashes`。图左同时画精确 toy truth、两个 state-count 点估计及其跨度、full finite-`N_t` primary；图右比较两个 `N_t=32` 模型的 reduced-chi-square 分布。
+
+12/12 个 envelope panel 有效，四组逐半径模型拟合各 24/24 full-rank；点跨度含真值 5/12，median span width `0.0013620` lattice units。该 `5/12` 是对点估计跨度的描述，不是区间覆盖。3-state matched-`N_t=32` 拟合 median mean reduced chi-square 为 `4.13`，2-state 为 `152.99`，显示该 toy 中删掉第三态会严重恶化谱拟合；但两种拟合的力点仍围绕 `0.15`，这不构成 truncation bound。图文/数据包保存逐 panel 原始矩阵、主拟合与各 R/state-count residual/秩/条件数、协议、源码快照；artifact hashes **40/40**、source hashes **10/10** 匹配（lane contract 以单份共享文件保存）。新增 helper 的定向测试 **4 passed**；完整 PR #6 suite 在后续跨任务回归记录。
+
+**方法裁决：**`Nt32 per-R` 2/3-state 点估计跨度不作为主力的 model envelope，也不接入 force summary reader。它没有 model 内统计不确定度，并且观测时间/真空态假设与主 `Nt=16,32`、2-vacuum joint estimator 不同；此外同一 omitted-state toy 仅 5/12 点跨度含真值。因此当前这个简化候选为 **NO-GO as a force uncertainty bound**。下一个纯 CPU 的实质工作是把第三静态态加入同一 finite-`Nt` two-vacuum primary forward model，先做单 panel noiseless identity、秩/可识别性与初始化负控，再决定是否开展新 seed screen；不再重复当前 `Nt32` 点跨度网格。生产 `C_ij`、thermal/mixed q/h/x、正 force-reference、独立 model-truncation/误差预算、授权与 review 仍缺，F=`GROUND_STATE_FORCE_UNCERTIFIED`、双 lane `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed data closed。

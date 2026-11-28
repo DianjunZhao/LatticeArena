@@ -912,3 +912,7 @@ Wilson F-lane 新增绝对 ground-force 的解析 delta 梯度与未校准区间
 ### 2026-11-28 PR #6 跨任务回归：Wilson 绝对力 full-refit MBB screen 后
 
 Wilson F-lane 新增 6 个 AR(1) omitted-state panel 的 absolute-force full-refit MBB 屏查：234/234 bootstrap fits 有效，MBB interval 6/6 覆盖 toy truth，但 interval median width 是 delta 的约 5.2 倍且 B=39 只能给 sample range，不能称校准。PR #6 当前 checkout 全仓 CPU suite **563 passed in 81.74 s**。这仅验证软件回归和 Wilson 一套 synthetic DGP；不提供 Optimize 的 candidate-blind E-reference、D06 配对 solver-risk/成本、SU(3) 生产算符审阅或 GPU/数据授权证据。文字流程：`Wilson absolute-force MBB 234 full refits -> 6/6 覆盖但区间约宽 5.2x -> 563 CPU tests -> Optimize contracts/gates unchanged`。Optimize 仍保留 trainable-W 对同预算 SLSQP 与 degree-4 Chebyshev 两项比较、bounded block-risk estimand，状态 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。
+
+### 2026-11-28 PR #6 cross-task regression after Wilson state-count sensitivity screen
+
+Wilson's 12-panel matched-`N_t=32` 2/3-static-state screen and four helper regressions were added while Optimize's contracts stayed frozen. The updated full PR #6 CPU suite passes **567 tests in 82.19 s**. This only checks software compatibility: it adds no D04 candidate-blind E-reference, D06 paired trainable-W/SLSQP/Chebyshev risk or cost evidence, D11 production SU(3) operator review, or authorization. Optimize remains `NOT_READY/UNCERTIFIED`, `physical_score=null`, sealed inputs closed.
