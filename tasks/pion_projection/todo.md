@@ -815,3 +815,29 @@ nonstationary 项另按同一 v5 Proposition 3.15 Eq. (3.29) 处理：burn-in �
 ~~~
 
 三项新定向测试 **3 passed**；PR #5 当前完整 CPU suite **342 passed**；compile-only 检查与 `git diff --check` 通过。报告的 6/6 artifact hashes 与 6/6 source hashes 均复核一致。此屏查只支持：在这个已知 normal 非可逆有限态链、解析 pseudo-gap/TV 完全正确且目标集固定的条件下，生产 helper 的 TV 扣减路径数值上保守并有正下界；它不验证 HMC 链的 gap、TV、score schedule、target interval 选择、anchor coverage 或 anchor-to-E bridge，也不是独立统计 review。Pion 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed input closed。只有出现能改变方法决策的新依赖类别才继续合成屏查；下一实质门仍是获准的物理 target/anchor/common-bias/chain receipts 与独立 reviewer。
+
+### 2026-11-28 独立随机 anchor set 与 Markov score chain 的联合覆盖屏查
+
+此前的可逆与非可逆覆盖屏查都把 target interval 固定，因此没有走过“独立 anchor 样本生成随机 target set，再对另一条相关 score chain 做同时下界”的完整数据路径。本节新增 [`bounded_block_risk_independent_anchor_coverage_screen.py`](bounded_block_risk_independent_anchor_coverage_screen.py) 与图文报告 [`bounded_block_risk_independent_anchor_coverage_20261128_v1/README.md`](bounded_block_risk_independent_anchor_coverage_20261128_v1/README.md)，补齐这一独立随机 anchor 事件。
+
+冻结的 synthetic protocol 对每个 pseudo-gap `gamma_ps={0.50,0.75,1.00}` 生成 1,000 对独立重复：anchor stream 各抽 256 个 `Bernoulli(p=0.4)` observation，以 `alpha_anchor=0.025` 构造 two-sided exact Clopper-Pearson target interval；score stream 各生成 16,384 个状态，转移取 `lambda=sqrt(1-gamma_ps)`、`P01=(1-lambda)0.4`、`P10=(1-lambda)0.6`，由精确平稳分布起始。anchor 与 score 使用分开的 NumPy Generator 与不相交 seed 区间。score 是 ref=`state∈{0,1}`、candidate=`0.5`、`R=1` 的 clipped squared-risk difference；production exact target-grid builder 与 support-gap Eq. (3.26) 产生全区间 LCB。真均值可解析写为 `E[s(m)]=(1-2p)m-1/4+p=0.2m+0.15`，所以逐个随机 target interval 的精确最小值是直接解析计算的。
+
+图示结果：anchor coverage 分别为 **977/1000、977/1000、979/1000**（Wilson 95% MC 区间依次 `[0.9657,0.9846]`、`[0.9657,0.9846]`、`[0.9681,0.9862]`）；score-uniform coverage 三档均为 **1000/1000**（Wilson 下界 `0.9962`）；joint coverage 为 **977/1000、977/1000、979/1000**，均高于协议的 union-bound 下界 0.95。三档 median target interval width 约 `0.140`；median exact interval minimum score 约 `0.216`；median uniform LCB 为 `0.059/0.077/0.087`，相应 median LCB slack 为 `0.158/0.139/0.129`，正 LCB 率均为 100%。联合事件与 anchor 事件计数相同，是因为这个高样本量 toy 中所有 score 下界都覆盖，并非 joint 条件被省略。
+
+分母与留存：计划/有效 anchor-score pairs 为 **3,000/3,000**，anchor observation 为 **768,000/768,000**，score states 为 **49,152,000/49,152,000**；失败、弃权皆为 0。`synthetic_inputs.npz` 保存全部 anchor Bernoulli 序列与 score-chain 状态（little-endian bit-packed），`replicate_results.csv` 保存 3,000 个逐 replicate target interval、计数、覆盖事件与 slack；协议和源码快照含哈希。独立重建 packed arrays 后，anchor/state1 计数与逐行结果一致；7 个 artifact hashes 与 7 个 source snapshot hashes 均匹配。定向测试 `tests/test_pion_bounded_block_risk_independent_anchor_coverage.py` **4 passed**，其中向量化 LCB 与生产 helper 在随机 anchor interval 上逐 replicate 对照。
+
+文字流程：
+
+~~~text
+independent iid anchor sample (n=256) -> exact random target interval (alpha_anchor=.025)
+                                                        |
+separate stationary Markov chain (N=16,384) -> exact target grid + support-gap score LCB
+                                                        |
+                  interval covers p AND uniform LCB <= exact minimum over interval
+                                                        |
+                      anchor / score / joint coverage + MC interval + sharpness plot
+~~~
+
+这关闭的是“独立随机 anchor set 是否真的进入联合覆盖计算”的合成软件边界。95% 是协议假设下的解析 union-bound 下界；Wilson 区间只描述有限模拟的 Monte Carlo 波动。屏查仍假设 anchor IID、score-chain pseudo-gap 已知、初态精确平稳、真 target 为已知 `p`，没有验证实际 HMC independence/gap/TV、E-anchor 到物理 target 的 correspondence、共同偏差 `C`、prediction support、物理单位、reference gate 或独立审阅。因而它不认证真实 anchor coverage，也不改变 Pion 的 `NOT_READY/UNCERTIFIED`、`physical_score=null` 与 sealed-data closed 状态。
+
+**后续边界：**随机 anchor + 独立 score chain 的 toy 数据路径、误差分配、生产 helper 数值对照、图文诊断与 raw-data 追踪均已完成；不要继续重复相同 Bernoulli/two-state 参数网格。Pion 下一步只能使用开放且获准的同一 immutable snapshot，给出 anchor-chain scalar map/support/coverage 收据、score-chain block/gamma-ps/initial-TV 收据、候选盲 E-reference target bridge、`C/R` common-bias 上界及独立审阅。sealed E/gap/validation/holdout/confirmation 仍关闭，因此 Pion 继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`。若没有上述新来源，转做 Optimize/Wilson 中不依赖这些封存输入的 CPU 软件/方法边界，不要用新的合成覆盖取代物理证据。
