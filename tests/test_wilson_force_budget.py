@@ -7,8 +7,11 @@ import pytest
 
 from tasks.wilson_loop.force_budget import (
     COMPONENT_FRACTIONS,
+    ABSOLUTE_FORCE_CORNER_COUNT,
     FORCE_CORNER_COUNT,
+    propagate_absolute_force_budget,
     propagate_force_budget,
+    uniform_absolute_loop_cap,
     uniform_loop_cap,
 )
 from tasks.wilson_loop.force_budget_diagnostic import build as build_diagnostic
@@ -23,6 +26,13 @@ def test_force_budget_report_binds_shared_numeric_conversion(tmp_path):
     result = build_diagnostic(output)
     protocol = json.loads((output / "protocol.json").read_text())
     assert result["physical_score"] is None
+    assert protocol["schema"] == "wilson-absolute-force-budget-propagation-diagnostic-v2"
+    assert protocol["inputs"]["primary_force_corner_count"] == 4
+    assert protocol["inputs"]["identity_comparison_corner_count"] == 4
+    assert protocol["identity_comparison_diagnostic_only"]["force_corner_count"] == 8
+    assert protocol["formula"]["absolute_stout_force_bound"] == (
+        "sum over 4 stout R/T corners of delta"
+    )
     assert "core/numerics.py" in protocol["input_hashes"]
     helper_bytes = (output / "snapshot_core_numerics.py").read_bytes()
     helper_digest = hashlib.sha256(helper_bytes).hexdigest()
@@ -51,6 +61,37 @@ def test_uniform_loop_cap_exactly_closes_component_force_budget():
     assert result["assumption_only_numeric_gate_pass"]
     assert result["physical_score"] is None
     assert result["certification_status"].startswith("NOT_CERTIFIED")
+
+
+def test_absolute_stout_budget_uses_only_four_primary_corners():
+    reference = 0.73
+    bounds = {
+        name: uniform_absolute_loop_cap(fraction, reference)
+        for name, fraction in COMPONENT_FRACTIONS.items()
+    }
+    result = propagate_absolute_force_budget(
+        {name: [bounds[name]] * 4 for name in ("q", "h", "x")}, reference,
+        model_truncation_bound=0.01 * reference,
+        statistical_halfwidth=0.05 * reference,
+    )
+    assert result["force_estimand"] == "absolute_stout_ground_state_discrete_static_force"
+    assert result["force_corner_count"] == ABSOLUTE_FORCE_CORNER_COUNT == 4
+    for name, budget in COMPONENT_FRACTIONS.items():
+        assert result["component_relative_bounds"][name] == pytest.approx(budget)
+    assert result["assumption_only_numeric_gate_pass"]
+    assert result["physical_score"] is None
+
+
+def test_absolute_force_budget_rejects_identity_row_or_wrong_corner_count():
+    with pytest.raises(ValueError, match="exactly q, h, and x"):
+        propagate_absolute_force_budget(
+            {"q": [0.0] * 4, "h": [0.0] * 4, "x": [0.0] * 4,
+             "identity": [0.0] * 4}, 1.0
+        )
+    with pytest.raises(ValueError, match="four stout loop corners"):
+        propagate_absolute_force_budget(
+            {"q": [0.0] * 8, "h": [0.0] * 4, "x": [0.0] * 4}, 1.0
+        )
 
 
 def test_exact_joint_log_bound_is_below_factorized_component_bound():

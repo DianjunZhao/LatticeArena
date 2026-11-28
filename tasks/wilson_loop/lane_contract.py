@@ -33,7 +33,7 @@ QHX_UNITS = "dimensionless"
 CREUTZ_UNITS = "dimensionless"
 OPEN_RUN_GATES = {
     "operator": "selected kernel descriptors lack independent production-link validation",
-    "reference": "F-lane positive reference-force lower-bound receipt is missing",
+    "reference": "F-lane positive stout-force scale lower-bound receipt is missing",
     "numerical": "authorized C-loop means and independent F-lane spectrum/thermal receipts are missing",
     "statistical": "paired C/F interval results and full failed-draw denominators are missing",
     "comparison": "fresh confirmation IDs and data/resource owner authorization are missing",
@@ -111,7 +111,7 @@ def open_gate_run_state() -> dict[str, Any]:
 def selected_protocol() -> dict[str, Any]:
     """Return selected C/F method defaults without inventing evidence receipts."""
     return {
-        "protocol_id": "wilson-two-lane-selected-v2",
+        "protocol_id": "wilson-two-lane-selected-v3",
         "status": "METHOD_DEFAULTS_SELECTED_EVIDENCE_NOT_READY",
         "ensemble_design": {
             "geometry": [16, 16, 16, 16],
@@ -141,8 +141,8 @@ def selected_protocol() -> dict[str, Any]:
             "alpha_force_lane": 0.025,
             "alpha_force_statistics": 0.0125,
             "alpha_force_systematics": 0.0125,
-            "alpha_force_difference_interval": 0.00625,
-            "alpha_reference_force_positive_lower_bound": 0.00625,
+            "alpha_force_primary_interval": 0.00625,
+            "alpha_positive_force_scale_lower_bound": 0.00625,
             "force_systematic_bound_cells": 28,
             "alpha_per_force_systematic_cell": 0.0125 / 28,
         },
@@ -161,12 +161,17 @@ def selected_protocol() -> dict[str, Any]:
             "paired_split_manifest_sha256": None,
         },
         "ground_state_discrete_static_force": {
-            "estimand": "stout-minus-identity ground-state discrete static force at midpoint R=2.5",
+            "estimand": "absolute stout ground-state discrete static force at midpoint R=2.5",
             "stencil_R": 2,
             "midpoint_R": 2.5,
             "candidate_kernel_id": "spatial_stout_rho0.10_n5",
             "reference_kernel_id": "identity",
-            "formula": "[U0_stout(3)-U0_stout(2)]-[U0_identity(3)-U0_identity(2)]",
+            "formula": "U0_stout(3)-U0_stout(2)",
+            "reference_formula": "U0_identity(3)-U0_identity(2)",
+            "reference_role": (
+                "identity is an operator-overlap and shared-spectrum consistency check; "
+                "the ground-state force difference is not the primary estimand"
+            ),
             "units": LATTICE_FORCE_UNITS,
             "spectral_evidence_plan": {
                 "basis": ["identity", "APE", "stout"],
@@ -214,7 +219,7 @@ def selected_protocol() -> dict[str, Any]:
                 "model_truncation_cells": 4,
                 "systematic_cell_alpha": 0.0125 / 28,
             },
-            "error_propagation": "use log(1+q+h+x) at all four stencil points, then apply Delta_R Delta_t before force-unit gate",
+            "error_propagation": "use log(1+q+h+x) at the four stout R=2,3 and T=5,6 corners, then apply Delta_R Delta_t before the force-unit gate; identity corners are comparison diagnostics only",
             "evidence_receipts": {
                 "gevp_and_overlap": None, "excited_state_q": None,
                 "thermal_h_Nt32": None, "mixed_x": None,
@@ -295,67 +300,74 @@ def empty_contract() -> dict[str, Any]:
                 },
             },
             "ground_state_discrete_static_force": {
-                "estimand": "ground_state_discrete_static_force_difference",
+                "estimand": "absolute_ground_state_discrete_static_force",
                 "primary": {"R": 2, "midpoint_R": 2.5,
                             "candidate_kernel_id": "spatial_stout_rho0.10_n5",
                             "reference_kernel_id": "identity"},
                 "force_stencil": [
                     {"R": 3, "kernel_id": "spatial_stout_rho0.10_n5", "coefficient": 1},
                     {"R": 2, "kernel_id": "spatial_stout_rho0.10_n5", "coefficient": -1},
-                    {"R": 3, "kernel_id": "identity", "coefficient": -1},
-                    {"R": 2, "kernel_id": "identity", "coefficient": 1},
                 ],
+                "reference_force_stencil": [
+                    {"R": 3, "kernel_id": "identity", "coefficient": 1},
+                    {"R": 2, "kernel_id": "identity", "coefficient": -1},
+                ],
+                "formula": "U0_stout(3)-U0_stout(2)",
+                "reference_formula": "U0_identity(3)-U0_identity(2)",
+                "reference_role": (
+                    "identity is an operator-overlap and shared-spectrum consistency check; "
+                    "the ground-state force difference is not the primary estimand"
+                ),
                 "units": LATTICE_FORCE_UNITS,
                 "force_bound_propagation": {
                     "assumption": "q,h,x are nonnegative loop-level upper bounds and each correction is log(1+q+h+x)",
-                    "corner_count": 8,
+                    "corner_count": 4,
                     "corner_layout": [
-                        "candidate_R2_t", "candidate_R2_t_plus_1",
-                        "candidate_R3_t", "candidate_R3_t_plus_1",
-                        "reference_R2_t", "reference_R2_t_plus_1",
-                        "reference_R3_t", "reference_R3_t_plus_1",
+                        "stout_R2_T5", "stout_R2_T6",
+                        "stout_R3_T5", "stout_R3_T6",
                     ],
-                    "component_force_bound": "sum over all 8 corners of log1p(component_bound)",
-                    "uniform_raw_loop_cap": "expm1(force_fraction*positive_reference_force_lower/8)",
+                    "component_force_bound": "sum over the four stout corners of log1p(component_bound)",
+                    "uniform_raw_loop_cap": "expm1(force_fraction*positive_force_scale_lower/4)",
+                    "identity_comparison_corners": 4,
                     "evidence_status": "FORMULA_ONLY_INPUT_RECEIPTS_MISSING",
                 },
                 "spectral_bounds": [
                     {"component": "q", "bound": None, "units": QHX_UNITS,
                      "proposed_relative_cap": 0.015, "evidence_sha256": None,
-                     "scope": "proposed 1.5% post-propagation force component budget; derive raw corner cap from positive reference-force lower bound",
-                     "uniform_raw_loop_cap_formula": "expm1(0.015*reference_force_lower/8)",
+                     "scope": "proposed 1.5% post-propagation absolute stout-force component budget; derive raw corner cap from the positive force-scale lower bound",
+                     "uniform_raw_loop_cap_formula": "expm1(0.015*positive_force_scale_lower/4)",
                      "independent_review_receipt": None},
                     {"component": "h", "bound": None, "units": QHX_UNITS,
                      "proposed_relative_cap": 0.015, "evidence_sha256": None,
-                     "scope": "proposed 1.5% post-propagation force component budget; derive raw corner cap from positive reference-force lower bound",
-                     "uniform_raw_loop_cap_formula": "expm1(0.015*reference_force_lower/8)",
+                     "scope": "proposed 1.5% post-propagation absolute stout-force component budget; derive raw corner cap from the positive force-scale lower bound",
+                     "uniform_raw_loop_cap_formula": "expm1(0.015*positive_force_scale_lower/4)",
                      "independent_review_receipt": None},
                     {"component": "x", "bound": None, "units": QHX_UNITS,
                      "proposed_relative_cap": 0.01, "evidence_sha256": None,
-                     "scope": "proposed 1.0% post-propagation force component budget; derive raw corner cap from positive reference-force lower bound",
-                     "uniform_raw_loop_cap_formula": "expm1(0.01*reference_force_lower/8)",
+                     "scope": "proposed 1.0% post-propagation absolute stout-force component budget; derive raw corner cap from the positive force-scale lower bound",
+                     "uniform_raw_loop_cap_formula": "expm1(0.01*positive_force_scale_lower/4)",
                      "independent_review_receipt": None},
                 ],
                 "systematic_bounds": [
                     {"component": "excited_state_force", "bound": None,
                      "units": LATTICE_FORCE_UNITS, "proposed_relative_cap": 0.015,
                      "evidence_sha256": None,
-                     "scope": "force-unit component bound after candidate-minus-reference propagation through all eight loop corners",
+                     "scope": "force-unit component bound after propagation through the four stout loop corners",
                      "independent_review_receipt": None},
                     {"component": "finite_T_thermal", "bound": None,
                      "units": LATTICE_FORCE_UNITS, "proposed_relative_cap": 0.015,
                      "evidence_sha256": None,
-                     "scope": "force-unit component bound after candidate-minus-reference propagation through all eight loop corners",
+                     "scope": "force-unit component bound after propagation through the four stout loop corners",
                      "independent_review_receipt": None},
                     {"component": "mixed", "bound": None,
                      "units": LATTICE_FORCE_UNITS, "proposed_relative_cap": 0.01,
                      "evidence_sha256": None,
-                     "scope": "force-unit component bound after candidate-minus-reference propagation through all eight loop corners",
+                     "scope": "force-unit component bound after propagation through the four stout loop corners",
                      "independent_review_receipt": None},
                     {"component": "spectral_model_truncation", "bound": None,
                      "units": LATTICE_FORCE_UNITS, "proposed_relative_cap": 0.01,
                      "evidence_sha256": None,
-                     "scope": "four corner model-truncation bounds combined in force units",
+                     "scope": "four stout-corner model-truncation bounds combined in force units",
                      "independent_review_receipt": None},
                 ],
                 "spectral_evidence_plan": {
@@ -395,8 +407,8 @@ def empty_contract() -> dict[str, Any]:
                     ),
                     "alpha_total": 0.025,
                     "alpha_allocations": {
-                        "force_difference_two_sided_interval": 0.00625,
-                        "positive_reference_force_one_sided_lower_bound": 0.00625,
+                        "stout_force_two_sided_interval": 0.00625,
+                        "positive_force_scale_one_sided_lower_bound": 0.00625,
                         "systematic_family_28_cells": 0.0125,
                     },
                     "statistical_precision_target": None,
@@ -653,7 +665,7 @@ def _check_force(lane: Any, common: Any) -> list[str]:
     if not _mapping(lane):
         return [f"{label}: expected an object"]
     issues: list[str] = []
-    if lane.get("estimand") != "ground_state_discrete_static_force_difference":
+    if lane.get("estimand") != "absolute_ground_state_discrete_static_force":
         issues.append(f"{label}.estimand: mismatch")
     primary = lane.get("primary")
     if not _mapping(primary):
@@ -680,39 +692,63 @@ def _check_force(lane: Any, common: Any) -> list[str]:
             issues.append(f"{label}.primary.R: force stencil R+1 exceeds the declared spatial extent")
     if not _nonempty(lane.get("units")):
         issues.append(f"{label}.units: missing")
-    if _positive_int(r) and _nonempty(candidate) and _nonempty(reference):
-        expected = {(r, candidate), (r + 1, candidate),
-                    (r, reference), (r + 1, reference)}
-        pattern = {(r + 1, candidate): 1, (r, candidate): -1,
-                   (r + 1, reference): -1, (r, reference): 1}
-        rows = lane.get("force_stencil")
-        if not isinstance(rows, list) or len(rows) != 4:
-            issues.append(f"{label}.force_stencil: expected four explicit force terms")
+    def check_two_term_stencil(field: str, kernel: str) -> None:
+        rows = lane.get(field)
+        if not isinstance(rows, list) or len(rows) != 2:
+            issues.append(f"{label}.{field}: expected two explicit discrete-force terms")
+            return
+        observed: dict[tuple[int, str], Any] = {}
+        for index, row in enumerate(rows):
+            if not _mapping(row):
+                issues.append(f"{label}.{field}[{index}]: expected an object")
+                continue
+            rr, kk, coeff = row.get("R"), row.get("kernel_id"), row.get("coefficient")
+            if not _positive_int(rr) or not _nonempty(kk):
+                issues.append(f"{label}.{field}[{index}]: invalid R or kernel_id")
+                continue
+            key = (rr, kk)
+            if key in observed:
+                issues.append(f"{label}.{field}: duplicate term {key}")
+            observed[key] = coeff
+        expected = {(r, kernel), (r + 1, kernel)}
+        pattern = {(r + 1, kernel): 1, (r, kernel): -1}
+        if set(observed) != expected:
+            issues.append(f"{label}.{field}: terms do not match its declared kernel and R stencil")
+        elif all(_is_number(value) for value in observed.values()):
+            actual = {key: int(value) if float(value).is_integer() else value
+                      for key, value in observed.items()}
+            if actual != pattern:
+                issues.append(f"{label}.{field}: coefficients must encode R+1 minus R")
         else:
-            observed: dict[tuple[int, str], Any] = {}
-            for index, row in enumerate(rows):
-                if not _mapping(row):
-                    issues.append(f"{label}.force_stencil[{index}]: expected an object")
-                    continue
-                rr, kk, coeff = row.get("R"), row.get("kernel_id"), row.get("coefficient")
-                if not _positive_int(rr) or not _nonempty(kk):
-                    issues.append(f"{label}.force_stencil[{index}]: invalid R or kernel_id")
-                    continue
-                key = (rr, kk)
-                if key in observed:
-                    issues.append(f"{label}.force_stencil: duplicate term {key}")
-                observed[key] = coeff
-            if set(observed) != expected:
-                issues.append(f"{label}.force_stencil: terms do not match candidate/reference force contrast")
-            elif all(_is_number(value) for value in observed.values()):
-                actual = {key: int(value) if float(value).is_integer() else value
-                          for key, value in observed.items()}
-                if actual != pattern:
-                    issues.append(
-                        f"{label}.force_stencil: coefficients must encode candidate minus reference"
-                    )
-            else:
-                issues.append(f"{label}.force_stencil: coefficients must be finite numbers")
+            issues.append(f"{label}.{field}: coefficients must be finite numbers")
+
+    if _positive_int(r) and _nonempty(candidate) and _nonempty(reference):
+        check_two_term_stencil("force_stencil", candidate)
+        check_two_term_stencil("reference_force_stencil", reference)
+    expected_protocol = selected_protocol()["ground_state_discrete_static_force"]
+    is_synthetic = (
+        _mapping(common)
+        and isinstance(common.get("action_id"), str)
+        and common["action_id"].startswith("SYNTHETIC_ONLY")
+    )
+    if not is_synthetic:
+        if candidate != expected_protocol["candidate_kernel_id"]:
+            issues.append(f"{label}.primary.candidate_kernel_id: must match the selected stout kernel")
+        if reference != expected_protocol["reference_kernel_id"]:
+            issues.append(f"{label}.primary.reference_kernel_id: must match the identity comparison kernel")
+    if lane.get("formula") != expected_protocol["formula"]:
+        issues.append(f"{label}.formula: must encode the absolute stout ground-state force")
+    if lane.get("reference_formula") != expected_protocol["reference_formula"]:
+        issues.append(f"{label}.reference_formula: must encode the identity comparison force")
+    if lane.get("reference_role") != expected_protocol["reference_role"]:
+        issues.append(f"{label}.reference_role: identity must remain a comparison diagnostic")
+    propagation = lane.get("force_bound_propagation")
+    if not _mapping(propagation) or propagation.get("corner_count") != 4:
+        issues.append(f"{label}.force_bound_propagation: absolute force requires four stout corners")
+    elif propagation.get("uniform_raw_loop_cap") != (
+        "expm1(force_fraction*positive_force_scale_lower/4)"
+    ):
+        issues.append(f"{label}.force_bound_propagation: raw loop cap must use four stout corners")
 
     qhx = lane.get("spectral_bounds")
     issues.extend(_check_evidence_rows(qhx, QHX_TERMS,
@@ -866,16 +902,28 @@ def _synthetic_contract(*, complete_creutz: bool,
             } for name in names]
 
         contract["lanes"]["ground_state_discrete_static_force"] = {
-            "estimand": "ground_state_discrete_static_force_difference",
+            "estimand": "absolute_ground_state_discrete_static_force",
             "primary": {"R": 2,
                         "candidate_kernel_id": "SYNTHETIC_ONLY_candidate",
                         "reference_kernel_id": "SYNTHETIC_ONLY_reference"},
             "force_stencil": [
                 {"R": 3, "kernel_id": "SYNTHETIC_ONLY_candidate", "coefficient": 1},
                 {"R": 2, "kernel_id": "SYNTHETIC_ONLY_candidate", "coefficient": -1},
-                {"R": 3, "kernel_id": "SYNTHETIC_ONLY_reference", "coefficient": -1},
-                {"R": 2, "kernel_id": "SYNTHETIC_ONLY_reference", "coefficient": 1},
             ],
+            "reference_force_stencil": [
+                {"R": 3, "kernel_id": "SYNTHETIC_ONLY_reference", "coefficient": 1},
+                {"R": 2, "kernel_id": "SYNTHETIC_ONLY_reference", "coefficient": -1},
+            ],
+            "formula": "U0_stout(3)-U0_stout(2)",
+            "reference_formula": "U0_identity(3)-U0_identity(2)",
+            "reference_role": (
+                "identity is an operator-overlap and shared-spectrum consistency check; "
+                "the ground-state force difference is not the primary estimand"
+            ),
+            "force_bound_propagation": {
+                "corner_count": 4,
+                "uniform_raw_loop_cap": "expm1(force_fraction*positive_force_scale_lower/4)",
+            },
             "units": force_units,
             "spectral_bounds": evidence_rows(QHX_TERMS, QHX_UNITS),
             "systematic_bounds": evidence_rows(F_BOUND_COMPONENTS, force_units),
@@ -965,7 +1013,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "",
         "**STRUCTURE CHECK ONLY. `physical_score=null`; no Wilson measurements, sealed data, GPU, or QUDA inputs were accessed.**",
         "",
-        "The selected protocol is recorded in `selected_protocol()`: Lane C is absolute stout `chi(2,5)` on periodic 16^3x16 Wilson beta=6 data, with dimensionless halfwidth 0.02; Lane F is stout-minus-identity ground-state force at midpoint R=2.5, with separate q/h/x, spectral-model, and statistical budgets. Each lane receives alpha=0.025 from the total 0.05 family budget. Both remain distinct estimands. These are design choices; measurement, spectrum, thermal, split, paired-block and review receipts remain absent.",
+        "The selected protocol is recorded in `selected_protocol()`: Lane C is absolute stout `chi(2,5)` on periodic 16^3x16 Wilson beta=6 data, with dimensionless halfwidth 0.02; Lane F is the absolute stout ground-state discrete force `U0(3)-U0(2)` at midpoint R=2.5. Identity is retained as a shared-spectrum/operator-overlap comparison, not subtracted from the primary force. Each lane receives alpha=0.025 from the total 0.05 family budget. Both remain distinct estimands. These are design choices; measurement, spectrum, thermal, split, paired-block and review receipts remain absent.",
         "",
         "## Selected C/F decision flow",
         "",
@@ -973,12 +1021,12 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "paired loop IDs and 10,000 circular block-bootstrap draws (length 5; lengths 2/10 sensitivity)",
         "  -> C: positive ensemble means -> logs -> finite-T stout chi(2,5) -> dimensionless halfwidth <=0.02",
         "  -> F: independent 3x3 GEVP + Nt16/Nt32 joint spectrum -> q/h/x and model bounds",
-        "  -> propagate log(1+q+h+x) through Delta_R Delta_t -> compare force-unit systematic/statistical budget",
-        "  -> missing receipt, nonpositive reference-force lower bound, >1% invalid draws, or failed precision => lane-specific ABSTAIN",
+        "  -> propagate log(1+q+h+x) through the four stout Delta_R Delta_t corners -> compare force-unit systematic/statistical budget",
+        "  -> missing receipt, nonpositive stout force-scale lower bound, >1% invalid draws, or failed precision => lane-specific ABSTAIN",
         "  -> independent review and data/GPU authorization remain separate; physical_score stays null",
         "```",
         "",
-        "For Lane F, the four-point force-unit propagation must precede comparison with the 5% systematic budget. The q/h/x limits are relative to a positive simultaneous lower confidence bound for the reference force; they are not themselves force units. The 28 simultaneous systematic/model cells each receive alpha=0.0125/28. Statistical alpha=0.0125 is split equally between the force contrast interval and the positive-reference lower-bound gate.",
+        "For Lane F, q/h/x bounds propagate through the four stout corners only. The identity four-corner propagation is retained as a comparison diagnostic and does not double the primary budget. The q/h/x limits are relative to a positive simultaneous lower confidence bound for the stout-force scale; they are not themselves force units. The 28 simultaneous systematic/model cells each receive alpha=0.0125/28. Statistical alpha=0.0125 is split equally between the stout-force interval and its positive scale lower-bound gate.",
         "",
         "Structural completeness is not physics validation. Even a fully populated synthetic fixture can only reach `CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW`; the tool never sets a certified or ready state.",
         "",
@@ -999,7 +1047,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "```text",
         "selected protocol defaults -> acquire shared action, geometry, boundary, split and paired-block receipts",
         "  -> Lane C: stout chi(2,5), positive-mean logs, 0.02 dimensionless precision, 97.5% interval",
-        "  -> Lane F: ground-state stout-minus-identity force at R=2.5, 3x3 GEVP and matched Nt=32 thermal check",
+        "  -> Lane F: absolute stout ground-state force at R=2.5, with identity shared-spectrum comparison, 3x3 GEVP and matched Nt=32 thermal check",
         "  -> populate independently reviewed q/h/x/model bounds and their force-unit propagation",
         "  -> schema-complete? no: remain NOT_READY and list blockers",
         "  -> schema-complete? yes: CONTRACT_COMPLETE_REQUIRES_HUMAN_REVIEW only",
@@ -1030,7 +1078,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "### Fail-closed regression diagnostics",
         "",
         "- Reversing all four C coefficients is rejected because the declared convention is `chi = -[log W(R+1,T+1)+log W(R,T)-log W(R+1,T)-log W(R,T+1)]`, matching `finite_nt_toy.py`.",
-        "- Reversing all four F coefficients is rejected because the contrast is candidate force minus reference force.",
+        "- Reversing the two stout F coefficients is rejected because the primary force is U0_stout(R+1)-U0_stout(R); identity has its own two-term comparison stencil.",
         "- A C statistical precision target labeled with energy/force units is rejected because the four-point log-Creutz estimator is dimensionless.",
         "- An F statistical precision target labeled dimensionless is rejected against the force-unit estimand and is excluded from the force-unit budget sum until units match.",
         "- A null shared `kernel_ids` field produces explicit common blockers; the inspector does not crash or mark either lane complete.",
@@ -1039,7 +1087,7 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "## Next work after the selected protocol defaults",
         "",
         "1. Keep the selected C estimand fixed: obtain an independently authorized calibration manifest for stout `chi(2,5)` and preserve four paired loop means, positive-mean/log checks, failed-draw reasons, the 10,000-draw length-5 bootstrap, and the length-2/10 interval hull. Do not reuse observed D0–99 as confirmation.",
-        "2. Keep the selected F estimand fixed: obtain separate calibration receipts for the R=2,3 three-operator GEVP, two/three-state and time-window diagnostics, matched Nt=32 thermal comparison, mixed-sector bound, and all force-unit propagated error cells. Save spectra/fit residual plots or a complete text diagnostic with planned/valid/failed/abstained counts.",
+        "2. Keep the absolute stout F estimand fixed: obtain separate calibration receipts for the R=2,3 three-operator GEVP, two/three-state and time-window diagnostics, matched Nt=32 thermal comparison, mixed-sector bound, and all force-unit propagated error cells. Propagate q/h/x and model truncation through the four stout corners; save identity-kernel results as a shared-spectrum consistency diagnostic with planned/valid/failed/abstained counts.",
         "3. Have an independent reviewer check coverage, force-unit propagation, correlated terms and any double counting; only after calibration passes request separate authorization for fresh, unobserved confirmation IDs and GPU/QUDA resources.",
         "4. Until these receipts and authorizations exist, retain both lane statuses as `NOT_READY/UNCERTIFIED`, keep the force lane `GROUND_STATE_FORCE_UNCERTIFIED`, do not open sealed data, and leave `physical_score=null`.",
         "",
@@ -1054,10 +1102,10 @@ def build(output: str | Path = DEFAULT_OUT) -> dict[str, Any]:
         "run_state": run_state,
         "selected_protocol": selected_protocol(),
         "lane_estimands": ["finite_T_Creutz",
-                           "ground_state_discrete_static_force_difference"],
+                           "absolute_ground_state_discrete_static_force"],
         "fixed_sign_conventions": {
             "finite_T_Creutz": "minus the R-T rectangular log-W difference, matching finite_nt_toy.py",
-            "ground_state_discrete_static_force_difference": "candidate force minus reference force",
+            "absolute_ground_state_discrete_static_force": "U0_stout(R+1)-U0_stout(R); identity is a comparison diagnostic",
         },
         "fixtures": list(fixtures),
         "meaning_of_valid": "schema complete only; requires human physics review and does not certify",

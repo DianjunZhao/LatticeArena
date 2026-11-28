@@ -112,17 +112,33 @@ def test_force_error_budget_requires_model_truncation_instead_of_extrapolations(
     assert not any("finite_a: missing required evidence" in issue for issue in issues)
 
 
-def test_qhx_caps_are_post_propagation_and_bind_the_eight_corner_formula():
+def test_qhx_caps_are_post_propagation_and_bind_the_four_stout_corner_formula():
     force = empty_contract()["lanes"]["ground_state_discrete_static_force"]
     propagation = force["force_bound_propagation"]
-    assert propagation["corner_count"] == 8
-    assert len(propagation["corner_layout"]) == 8
+    assert force["estimand"] == "absolute_ground_state_discrete_static_force"
+    assert force["formula"] == "U0_stout(3)-U0_stout(2)"
+    assert force["reference_formula"] == "U0_identity(3)-U0_identity(2)"
+    assert "not the primary estimand" in force["reference_role"]
+    assert len(force["force_stencil"]) == 2
+    assert len(force["reference_force_stencil"]) == 2
+    assert propagation["corner_count"] == 4
+    assert len(propagation["corner_layout"]) == 4
     assert propagation["uniform_raw_loop_cap"] == (
-        "expm1(force_fraction*positive_reference_force_lower/8)"
+        "expm1(force_fraction*positive_force_scale_lower/4)"
     )
     for row in force["spectral_bounds"]:
-        assert "post-propagation force component budget" in row["scope"]
-        assert row["uniform_raw_loop_cap_formula"].endswith("/8)")
+        assert "post-propagation absolute stout-force component budget" in row["scope"]
+        assert row["uniform_raw_loop_cap_formula"].endswith("/4)")
+
+
+def test_identity_force_stencil_is_a_separate_consistency_check():
+    contract = empty_contract()
+    force = contract["lanes"]["ground_state_discrete_static_force"]
+    force["force_stencil"][1]["kernel_id"] = "identity"
+    result = inspect_contract(contract)
+    issues = result["lanes"]["ground_state_discrete_static_force"]["issues"]
+    assert any("force_stencil: terms do not match its declared kernel" in issue
+               for issue in issues)
 
 
 def test_selected_lane_alpha_allocation_closes_the_familywise_budget():
@@ -132,8 +148,8 @@ def test_selected_lane_alpha_allocation_closes_the_familywise_budget():
     assert (allocation["alpha_force_statistics"]
             + allocation["alpha_force_systematics"]
             == allocation["alpha_force_lane"])
-    assert (allocation["alpha_force_difference_interval"]
-            + allocation["alpha_reference_force_positive_lower_bound"]
+    assert (allocation["alpha_force_primary_interval"]
+            + allocation["alpha_positive_force_scale_lower_bound"]
             == allocation["alpha_force_statistics"])
     budget = protocol["ground_state_discrete_static_force"]["relative_error_budget"]
     n_cells = budget["q_h_x_cells"] + budget["model_truncation_cells"]
@@ -188,7 +204,7 @@ def test_global_sign_reversal_is_rejected_for_both_physical_conventions():
         row["coefficient"] *= -1
     result = inspect_contract(contract)
     f_issues = result["lanes"]["ground_state_discrete_static_force"]["issues"]
-    assert any("coefficients must encode candidate minus reference" in message
+    assert any("coefficients must encode R+1 minus R" in message
                for message in f_issues)
     assert not result["lanes"]["ground_state_discrete_static_force"]["structurally_complete"]
 

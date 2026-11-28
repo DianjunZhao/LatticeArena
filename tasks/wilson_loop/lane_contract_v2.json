@@ -4,7 +4,7 @@
   "physical_score": null,
   "certified": false,
   "selected_protocol": {
-    "protocol_id": "wilson-two-lane-selected-v2",
+    "protocol_id": "wilson-two-lane-selected-v3",
     "status": "METHOD_DEFAULTS_SELECTED_EVIDENCE_NOT_READY",
     "ensemble_design": {
       "geometry": [
@@ -48,8 +48,8 @@
       "alpha_force_lane": 0.025,
       "alpha_force_statistics": 0.0125,
       "alpha_force_systematics": 0.0125,
-      "alpha_force_difference_interval": 0.00625,
-      "alpha_reference_force_positive_lower_bound": 0.00625,
+      "alpha_force_primary_interval": 0.00625,
+      "alpha_positive_force_scale_lower_bound": 0.00625,
       "force_systematic_bound_cells": 28,
       "alpha_per_force_systematic_cell": 0.00044642857142857147
     },
@@ -69,12 +69,14 @@
       "paired_split_manifest_sha256": null
     },
     "ground_state_discrete_static_force": {
-      "estimand": "stout-minus-identity ground-state discrete static force at midpoint R=2.5",
+      "estimand": "absolute stout ground-state discrete static force at midpoint R=2.5",
       "stencil_R": 2,
       "midpoint_R": 2.5,
       "candidate_kernel_id": "spatial_stout_rho0.10_n5",
       "reference_kernel_id": "identity",
-      "formula": "[U0_stout(3)-U0_stout(2)]-[U0_identity(3)-U0_identity(2)]",
+      "formula": "U0_stout(3)-U0_stout(2)",
+      "reference_formula": "U0_identity(3)-U0_identity(2)",
+      "reference_role": "identity is an operator-overlap and shared-spectrum consistency check; the ground-state force difference is not the primary estimand",
       "units": "dimensionless lattice force a_s*a_t*F",
       "spectral_evidence_plan": {
         "basis": [
@@ -158,7 +160,7 @@
         "model_truncation_cells": 4,
         "systematic_cell_alpha": 0.00044642857142857147
       },
-      "error_propagation": "use log(1+q+h+x) at all four stencil points, then apply Delta_R Delta_t before force-unit gate",
+      "error_propagation": "use log(1+q+h+x) at the four stout R=2,3 and T=5,6 corners, then apply Delta_R Delta_t before the force-unit gate; identity corners are comparison diagnostics only",
       "evidence_receipts": {
         "gevp_and_overlap": null,
         "excited_state_q": null,
@@ -257,7 +259,7 @@
       }
     },
     "ground_state_discrete_static_force": {
-      "estimand": "ground_state_discrete_static_force_difference",
+      "estimand": "absolute_ground_state_discrete_static_force",
       "primary": {
         "R": 2,
         "midpoint_R": 2.5,
@@ -274,34 +276,36 @@
           "R": 2,
           "kernel_id": "spatial_stout_rho0.10_n5",
           "coefficient": -1
-        },
+        }
+      ],
+      "reference_force_stencil": [
         {
           "R": 3,
           "kernel_id": "identity",
-          "coefficient": -1
+          "coefficient": 1
         },
         {
           "R": 2,
           "kernel_id": "identity",
-          "coefficient": 1
+          "coefficient": -1
         }
       ],
+      "formula": "U0_stout(3)-U0_stout(2)",
+      "reference_formula": "U0_identity(3)-U0_identity(2)",
+      "reference_role": "identity is an operator-overlap and shared-spectrum consistency check; the ground-state force difference is not the primary estimand",
       "units": "dimensionless lattice force a_s*a_t*F",
       "force_bound_propagation": {
         "assumption": "q,h,x are nonnegative loop-level upper bounds and each correction is log(1+q+h+x)",
-        "corner_count": 8,
+        "corner_count": 4,
         "corner_layout": [
-          "candidate_R2_t",
-          "candidate_R2_t_plus_1",
-          "candidate_R3_t",
-          "candidate_R3_t_plus_1",
-          "reference_R2_t",
-          "reference_R2_t_plus_1",
-          "reference_R3_t",
-          "reference_R3_t_plus_1"
+          "stout_R2_T5",
+          "stout_R2_T6",
+          "stout_R3_T5",
+          "stout_R3_T6"
         ],
-        "component_force_bound": "sum over all 8 corners of log1p(component_bound)",
-        "uniform_raw_loop_cap": "expm1(force_fraction*positive_reference_force_lower/8)",
+        "component_force_bound": "sum over the four stout corners of log1p(component_bound)",
+        "uniform_raw_loop_cap": "expm1(force_fraction*positive_force_scale_lower/4)",
+        "identity_comparison_corners": 4,
         "evidence_status": "FORMULA_ONLY_INPUT_RECEIPTS_MISSING"
       },
       "spectral_bounds": [
@@ -311,8 +315,8 @@
           "units": "dimensionless",
           "proposed_relative_cap": 0.015,
           "evidence_sha256": null,
-          "scope": "proposed 1.5% post-propagation force component budget; derive raw corner cap from positive reference-force lower bound",
-          "uniform_raw_loop_cap_formula": "expm1(0.015*reference_force_lower/8)",
+          "scope": "proposed 1.5% post-propagation absolute stout-force component budget; derive raw corner cap from the positive force-scale lower bound",
+          "uniform_raw_loop_cap_formula": "expm1(0.015*positive_force_scale_lower/4)",
           "independent_review_receipt": null
         },
         {
@@ -321,8 +325,8 @@
           "units": "dimensionless",
           "proposed_relative_cap": 0.015,
           "evidence_sha256": null,
-          "scope": "proposed 1.5% post-propagation force component budget; derive raw corner cap from positive reference-force lower bound",
-          "uniform_raw_loop_cap_formula": "expm1(0.015*reference_force_lower/8)",
+          "scope": "proposed 1.5% post-propagation absolute stout-force component budget; derive raw corner cap from the positive force-scale lower bound",
+          "uniform_raw_loop_cap_formula": "expm1(0.015*positive_force_scale_lower/4)",
           "independent_review_receipt": null
         },
         {
@@ -331,8 +335,8 @@
           "units": "dimensionless",
           "proposed_relative_cap": 0.01,
           "evidence_sha256": null,
-          "scope": "proposed 1.0% post-propagation force component budget; derive raw corner cap from positive reference-force lower bound",
-          "uniform_raw_loop_cap_formula": "expm1(0.01*reference_force_lower/8)",
+          "scope": "proposed 1.0% post-propagation absolute stout-force component budget; derive raw corner cap from the positive force-scale lower bound",
+          "uniform_raw_loop_cap_formula": "expm1(0.01*positive_force_scale_lower/4)",
           "independent_review_receipt": null
         }
       ],
@@ -343,7 +347,7 @@
           "units": "dimensionless lattice force a_s*a_t*F",
           "proposed_relative_cap": 0.015,
           "evidence_sha256": null,
-          "scope": "force-unit component bound after candidate-minus-reference propagation through all eight loop corners",
+          "scope": "force-unit component bound after propagation through the four stout loop corners",
           "independent_review_receipt": null
         },
         {
@@ -352,7 +356,7 @@
           "units": "dimensionless lattice force a_s*a_t*F",
           "proposed_relative_cap": 0.015,
           "evidence_sha256": null,
-          "scope": "force-unit component bound after candidate-minus-reference propagation through all eight loop corners",
+          "scope": "force-unit component bound after propagation through the four stout loop corners",
           "independent_review_receipt": null
         },
         {
@@ -361,7 +365,7 @@
           "units": "dimensionless lattice force a_s*a_t*F",
           "proposed_relative_cap": 0.01,
           "evidence_sha256": null,
-          "scope": "force-unit component bound after candidate-minus-reference propagation through all eight loop corners",
+          "scope": "force-unit component bound after propagation through the four stout loop corners",
           "independent_review_receipt": null
         },
         {
@@ -370,7 +374,7 @@
           "units": "dimensionless lattice force a_s*a_t*F",
           "proposed_relative_cap": 0.01,
           "evidence_sha256": null,
-          "scope": "four corner model-truncation bounds combined in force units",
+          "scope": "four stout-corner model-truncation bounds combined in force units",
           "independent_review_receipt": null
         }
       ],
@@ -447,8 +451,8 @@
         "interval_method": "paired circular block bootstrap: 10000 draws; primary block length 5; report hull across lengths 2, 5, 10; coverage calibration remains open",
         "alpha_total": 0.025,
         "alpha_allocations": {
-          "force_difference_two_sided_interval": 0.00625,
-          "positive_reference_force_one_sided_lower_bound": 0.00625,
+          "stout_force_two_sided_interval": 0.00625,
+          "positive_force_scale_one_sided_lower_bound": 0.00625,
           "systematic_family_28_cells": 0.0125
         },
         "statistical_precision_target": null,

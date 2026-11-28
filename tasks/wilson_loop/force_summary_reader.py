@@ -1,9 +1,9 @@
 """Derive the Wilson F force summary from one immutable source snapshot.
 
 This reader checks the deterministic q/h/x-to-force propagation in the
-selected ground-state-force contract. It does not fit the force interval,
-prove the positive reference, validate GEVP/thermal receipts, or certify the
-physical bounds.
+selected absolute-stout-force contract. It does not fit the force interval,
+prove the positive force-scale lower bound, validate GEVP/thermal receipts,
+or certify the physical bounds.
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from typing import Any
 from core.source_integrity import SourceByteSnapshot
 
 from .evidence_adapter import _F_ROUTES, apply_wilson_force_gate
-from .force_budget import propagate_force_budget
+from .force_budget import propagate_absolute_force_budget, propagate_force_budget
 from .lane_contract import LATTICE_FORCE_UNITS
 from .spectral_q_bound_reader import (
     FORCE_Q_CORNER_LABELS,
@@ -26,11 +26,12 @@ from .spectral_q_bound_reader import (
 )
 
 
-SCHEMA = "wilson-f-force-summary-input-v2"
+SCHEMA = "wilson-f-force-summary-input-v3"
 _REQUIRED = frozenset({
-    "schema", "units", "positive_reference_force_lower",
+    "schema", "units", "stout_force_estimate", "stout_force_interval_lower",
+    "stout_force_interval_upper", "positive_force_scale_lower",
     "statistical_halfwidth", "model_truncation_bound",
-    "invalid_force_interval_draws", "invalid_reference_force_draws",
+    "invalid_force_interval_draws", "invalid_force_scale_draws",
     "force_kernel_order", "force_corner_order", "qhx_corner_bounds",
 })
 
@@ -51,7 +52,10 @@ def _reject_constant(value):
 def _finite_number(value: object, name: str, *, allow_zero: bool = False) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{name} must be a finite number")
-    result = float(value)
+    try:
+        result = float(value)
+    except (OverflowError, ValueError) as exc:
+        raise ValueError(f"{name} must be a finite number") from exc
     if not math.isfinite(result) or (result < 0 if allow_zero else result <= 0):
         qualifier = "nonnegative" if allow_zero else "positive"
         raise ValueError(f"{name} must be finite and {qualifier}")
@@ -85,17 +89,43 @@ def _parse_summary_bytes(payload: bytes, source_sha256: str) -> tuple[dict[str, 
             f"force_corner_order must be exactly {expected_corner_order!r}"
         )
 
-    reference = _finite_number(
-        raw["positive_reference_force_lower"], "positive_reference_force_lower"
+    estimate_raw = raw["stout_force_estimate"]
+    if isinstance(estimate_raw, bool) or not isinstance(estimate_raw, (int, float)):
+        raise ValueError("stout_force_estimate must be a finite number")
+    try:
+        estimate = float(estimate_raw)
+    except (OverflowError, ValueError) as exc:
+        raise ValueError("stout_force_estimate must be a finite number") from exc
+    if not math.isfinite(estimate):
+        raise ValueError("stout_force_estimate must be a finite number")
+    interval_lower = _finite_number(
+        raw["stout_force_interval_lower"], "stout_force_interval_lower"
     )
+    interval_upper = _finite_number(
+        raw["stout_force_interval_upper"], "stout_force_interval_upper"
+    )
+    force_scale_lower = _finite_number(
+        raw["positive_force_scale_lower"], "positive_force_scale_lower"
+    )
+    if not interval_lower <= estimate <= interval_upper:
+        raise ValueError("stout force interval must contain its point estimate")
+    if force_scale_lower > interval_lower:
+        raise ValueError(
+            "positive_force_scale_lower must not exceed the simultaneous stout interval lower bound"
+        )
     statistical = _finite_number(
         raw["statistical_halfwidth"], "statistical_halfwidth", allow_zero=True
     )
+    interval_halfwidth = max(estimate - interval_lower, interval_upper - estimate)
+    if abs(statistical - interval_halfwidth) > 1e-10 * max(1.0, abs(statistical)):
+        raise ValueError(
+            "statistical_halfwidth must equal the stout interval's maximum endpoint deviation"
+        )
     model = _finite_number(
         raw["model_truncation_bound"], "model_truncation_bound", allow_zero=True
     )
     invalid_counts = {}
-    for name in ("invalid_force_interval_draws", "invalid_reference_force_draws"):
+    for name in ("invalid_force_interval_draws", "invalid_force_scale_draws"):
         value = raw[name]
         if type(value) is not int or value < 0:
             raise ValueError(f"{name} must be a nonnegative integer")
@@ -105,12 +135,14 @@ def _parse_summary_bytes(payload: bytes, source_sha256: str) -> tuple[dict[str, 
     if not isinstance(qhx, dict) or set(qhx) != {"q", "h", "x"}:
         raise ValueError("qhx_corner_bounds must contain exactly q, h, and x")
     try:
-        propagated = propagate_force_budget(
-            qhx, reference,
+        primary_qhx = {name: qhx[name][0] for name in ("q", "h", "x")}
+        propagated = propagate_absolute_force_budget(
+            primary_qhx, force_scale_lower,
             model_truncation_bound=model,
             statistical_halfwidth=statistical,
         )
-    except (TypeError, ValueError, OverflowError, FloatingPointError) as exc:
+        comparison = propagate_force_budget(qhx, force_scale_lower)
+    except (IndexError, TypeError, ValueError, OverflowError, FloatingPointError) as exc:
         raise ValueError(f"q/h/x corner inputs are invalid: {exc}") from exc
     components = {
         "excited_state_force": propagated["component_force_bounds"]["q"],
@@ -121,7 +153,10 @@ def _parse_summary_bytes(payload: bytes, source_sha256: str) -> tuple[dict[str, 
     systematic = math.fsum(components.values())
     derived = {
         "units": LATTICE_FORCE_UNITS,
-        "positive_reference_force_lower": reference,
+        "stout_force_estimate": estimate,
+        "stout_force_interval_lower": interval_lower,
+        "stout_force_interval_upper": interval_upper,
+        "positive_force_scale_lower": force_scale_lower,
         "statistical_halfwidth": statistical,
         "force_kernel_order": expected_kernel_order,
         "force_corner_order": expected_corner_order,
@@ -129,6 +164,15 @@ def _parse_summary_bytes(payload: bytes, source_sha256: str) -> tuple[dict[str, 
             name: [list(row) for row in qhx[name]] for name in ("q", "h", "x")
         },
         "force_component_bounds": components,
+        "comparison_diagnostic": {
+            "estimand": "stout_minus_identity_finite_time_contamination_envelope_only",
+            "force_corner_count": comparison["force_corner_count"],
+            "component_force_bounds": comparison["component_force_bounds"],
+            "interpretation": (
+                "identity corners are retained for a shared-spectrum consistency diagnostic; "
+                "they are excluded from the absolute stout-force primary budget"
+            ),
+        },
         "systematic_total_bound": systematic,
         "total_linear_bound": systematic + statistical,
         **invalid_counts,
@@ -152,11 +196,16 @@ def _parse_summary_bytes(payload: bytes, source_sha256: str) -> tuple[dict[str, 
                 Path(__file__).resolve().parents[2].joinpath("core/numerics.py").read_bytes()
             ).hexdigest(),
         },
-        "positive_reference_force_lower": reference,
+        "stout_force_estimate": estimate,
+        "stout_force_interval": [interval_lower, interval_upper],
+        "positive_force_scale_lower": force_scale_lower,
         "statistical_halfwidth": statistical,
         "force_kernel_order": expected_kernel_order,
         "force_corner_order": expected_corner_order,
+        "primary_force_kernel": expected_kernel_order[0],
+        "primary_force_corner_count": 4,
         "q_h_x_force_unit_bounds": components,
+        "comparison_diagnostic": derived["comparison_diagnostic"],
         "model_truncation_bound": model,
         "systematic_total_bound": systematic,
         "total_linear_bound": systematic + statistical,
@@ -168,15 +217,15 @@ def _parse_summary_bytes(payload: bytes, source_sha256: str) -> tuple[dict[str, 
         },
         "text_flow": [
             "six route snapshots -> parse the identical force-summary bytes",
-            "validate units, scalar bounds, invalid-draw counts, explicit kernel/corner order, and 2x4 q/h/x corners",
-            "recompute sum(log1p(q)), sum(log1p(h)), sum(log1p(x)), model, and total bounds",
+            "validate the positive stout-force interval, positive scale lower bound, invalid-draw counts, explicit kernel/corner order, and 2x4 q/h/x corners",
+            "propagate the four stout q/h/x corners into the absolute-force primary budget; retain identity corners only for a comparison diagnostic",
             "pass the derived summary and the same snapshots to the F evidence gate",
             "complete metadata and bytes can reach draft only; physical score remains null",
         ],
         "limitations": [
-            "does not derive force intervals or positive-reference bounds from raw loops",
+            "does not derive force intervals or positive force-scale bounds from raw loops",
             "does not validate the GEVP, matched-Nt32 thermal, mixed-sector, or model receipts",
-            "schema v2 requires q/h/x rows in stout-then-identity order and columns R2_T5, R2_T6, R3_T5, R3_T6",
+            "schema v3 requires q/h/x rows in stout-then-identity order and columns R2_T5, R2_T6, R3_T5, R3_T6",
             "does not authenticate input authority, reviewer identity, or independence",
             "does not certify the ground-state force or set a physical score",
         ],

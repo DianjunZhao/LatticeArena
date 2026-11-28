@@ -44,7 +44,7 @@ _C_SOURCE_KEYS = frozenset({
     "authorization_receipt",
 })
 _F_ROUTES = (
-    "force_interval", "positive_reference", "q_excited",
+    "force_interval", "positive_force_scale", "q_excited",
     "h_thermal_nt32", "x_mixed", "spectral_model_truncation",
 )
 _F_SOURCE_KEYS = {
@@ -53,7 +53,7 @@ _F_SOURCE_KEYS = {
         "dependence_receipt", "coverage_calibration_receipt",
         "review_receipt", "authorization_receipt",
     }),
-    "positive_reference": frozenset({
+    "positive_force_scale": frozenset({
         "manifest", "observable_map", "data_receipt", "force_summary",
         "dependence_receipt", "coverage_calibration_receipt",
         "review_receipt", "authorization_receipt",
@@ -81,7 +81,7 @@ _F_SOURCE_KEYS = {
 }
 _F_UNITS = {
     "force_interval": LATTICE_FORCE_UNITS,
-    "positive_reference": LATTICE_FORCE_UNITS,
+    "positive_force_scale": LATTICE_FORCE_UNITS,
     "q_excited": "dimensionless q bound",
     "h_thermal_nt32": "dimensionless h bound",
     "x_mixed": "dimensionless x bound",
@@ -89,7 +89,7 @@ _F_UNITS = {
 }
 _F_KINDS = {
     "force_interval": "ground_state_force_interval",
-    "positive_reference": "positive_reference_force",
+    "positive_force_scale": "positive_absolute_force_scale",
     "q_excited": "excited_state_q_envelope",
     "h_thermal_nt32": "matched_nt32_thermal_h_envelope",
     "x_mixed": "mixed_sector_x_envelope",
@@ -122,9 +122,13 @@ def force_map_sha256(route: str) -> str:
         "protocol_id": protocol["protocol_id"],
         "estimand": force["estimand"],
         "formula": force["formula"],
+        "reference_formula": force["reference_formula"],
+        "reference_role": force["reference_role"],
         "units": force["units"],
         "error_propagation": force["error_propagation"],
         "spectral_evidence_plan": force["spectral_evidence_plan"],
+        "lane_contract": json.loads(CONTRACT_PATH.read_text())[
+            "lanes"]["ground_state_discrete_static_force"],
         "role": route,
         "support_unit": _F_UNITS[route],
     })
@@ -377,7 +381,7 @@ def apply_wilson_creutz_gate(
         if not isinstance(confidence, dict) or (
             confidence.get("family_id"), confidence.get("alpha_total"),
             confidence.get("alpha_allocated"), confidence.get("family_size"),
-        ) != ("wilson-two-lane-selected-v1", 0.05, _C_ALPHA, 2):
+        ) != ("wilson-two-lane-selected-v3", 0.05, _C_ALPHA, 2):
             reasons.append("C confidence allocation must be the selected 0.025 of the two-lane 0.05 family")
         if not isinstance(dependence, dict) or dependence.get("mode") not in ("markov", "finite_dependence"):
             reasons.append("C interval requires a reviewed Markov-gap or finite-dependence route")
@@ -399,7 +403,7 @@ def apply_wilson_creutz_gate(
         "observable.map_sha256": creutz_map_sha256(),
         "observable.support.unit": "dimensionless finite-T Creutz observable",
         "method.name": "paired_circular_block_bootstrap_hull",
-        "confidence.family_id": "wilson-two-lane-selected-v1",
+        "confidence.family_id": "wilson-two-lane-selected-v3",
         "confidence.alpha_total": 0.05,
         "confidence.alpha_allocated": _C_ALPHA,
         "confidence.family_size": 2,
@@ -441,20 +445,20 @@ def apply_wilson_creutz_gate(
 
 def _force_expected(route: str, envelope: object) -> dict[str, Any]:
     dependence = envelope.get("dependence", {}) if isinstance(envelope, dict) else {}
-    if route in ("force_interval", "positive_reference"):
+    if route in ("force_interval", "positive_force_scale"):
         confidence_alpha = 0.00625
         confidence_total = 0.0125
-        confidence_family = "wilson-two-lane-selected-v1/F/statistical"
+        confidence_family = "wilson-two-lane-selected-v3/F/statistical"
         family_size = 2
     else:
         cells = 4 if route == "spectral_model_truncation" else 8
         confidence_alpha = _F_SYSTEMATIC_ALPHA * cells / _F_SYSTEMATIC_CELLS
         confidence_total = _F_SYSTEMATIC_ALPHA
-        confidence_family = "wilson-two-lane-selected-v1/F/systematic"
+        confidence_family = "wilson-two-lane-selected-v3/F/systematic"
         family_size = cells
     method_name = (
         "paired_circular_block_bootstrap_hull"
-        if route in ("force_interval", "positive_reference")
+        if route in ("force_interval", "positive_force_scale")
         else "joint_3x3_finite_Nt_spectral_envelope"
     )
     # Bound envelopes are deterministic transformations of the referenced
@@ -463,7 +467,7 @@ def _force_expected(route: str, envelope: object) -> dict[str, Any]:
     return {
         "task": TASK,
         "evidence_kind": _F_KINDS[route],
-        "observable.map_id": f"wilson-ground-state-force-R2.5-v1/{route}",
+        "observable.map_id": f"wilson-ground-state-force-R2.5-v2/{route}",
         "observable.map_sha256": force_map_sha256(route),
         "observable.support.unit": _F_UNITS[route],
         "method.name": method_name,
@@ -508,7 +512,7 @@ def apply_wilson_force_gate(
         receipt,
         {
             "force_interval_draws": _PAIRED_DRAWS,
-            "positive_reference_draws": _PAIRED_DRAWS,
+            "positive_force_scale_draws": _PAIRED_DRAWS,
             "gevp_fit_variants": 36,
             "force_systematic_cells": _F_SYSTEMATIC_CELLS,
             "matched_nt32_thermal_receipts": 1,
@@ -518,14 +522,14 @@ def apply_wilson_force_gate(
     if normalized is None or not isinstance(normalized.get("scenario"), dict) or normalized["scenario"].get("name") != "wilson-ground-state-force-calibration":
         reasons.append("F receipt scenario must be wilson-ground-state-force-calibration")
     counts = {} if normalized is None else normalized["denominators"]
-    for name in ("force_interval_draws", "positive_reference_draws"):
+    for name in ("force_interval_draws", "positive_force_scale_draws"):
         item = counts.get(name)
         if item and item["failed"] + item["abstained"] > 0.01 * item["planned"]:
             reasons.append(f"{name}: invalid draw fraction exceeds the selected 1% limit")
     if isinstance(force_summary, dict):
         invalid_summary = {
             "force_interval_draws": force_summary.get("invalid_force_interval_draws"),
-            "positive_reference_draws": force_summary.get("invalid_reference_force_draws"),
+            "positive_force_scale_draws": force_summary.get("invalid_force_scale_draws"),
         }
         for name, value in invalid_summary.items():
             item = counts.get(name)
@@ -546,7 +550,10 @@ def apply_wilson_force_gate(
     else:
         if force_summary.get("units") != LATTICE_FORCE_UNITS:
             reasons.append(f"F summary units must be {LATTICE_FORCE_UNITS!r}")
-        reference = force_summary.get("positive_reference_force_lower")
+        reference = force_summary.get("positive_force_scale_lower")
+        estimate = force_summary.get("stout_force_estimate")
+        interval_lower = force_summary.get("stout_force_interval_lower")
+        interval_upper = force_summary.get("stout_force_interval_upper")
         stat = force_summary.get("statistical_halfwidth")
         components = force_summary.get("force_component_bounds")
         expected_components = {
@@ -556,9 +563,21 @@ def apply_wilson_force_gate(
             "spectral_model_truncation": 0.01,
         }
         if not _finite(reference) or float(reference) <= 0:
-            reasons.append("F lane requires a positive simultaneous reference-force lower bound")
+            reasons.append("F lane requires a positive simultaneous stout-force scale lower bound")
+        if (not _finite(estimate) or not _finite(interval_lower)
+                or not _finite(interval_upper)
+                or float(interval_lower) <= 0
+                or not float(interval_lower) <= float(estimate) <= float(interval_upper)):
+            reasons.append("F summary must provide a positive stout-force interval containing its estimate")
+        elif _finite(reference) and float(reference) > float(interval_lower):
+            reasons.append("F force-scale lower bound must not exceed the stout interval lower bound")
         if not _finite(stat) or float(stat) < 0:
             reasons.append("F statistical halfwidth must be finite and nonnegative in lattice-force units")
+        elif (_finite(estimate) and _finite(interval_lower) and _finite(interval_upper)
+              and abs(float(stat) - max(float(estimate) - float(interval_lower),
+                                        float(interval_upper) - float(estimate)))
+              > 1e-10 * max(1.0, abs(float(stat)))):
+            reasons.append("F statistical halfwidth must equal the stout interval's maximum endpoint deviation")
         if not isinstance(components, dict) or set(components) != set(expected_components):
             reasons.append("F summary must report all four propagated force-unit systematic components")
         if _finite(reference) and float(reference) > 0 and _finite(stat) and isinstance(components, dict):
@@ -614,7 +633,7 @@ def apply_wilson_force_gate(
             if not isinstance(observable, dict):
                 reasons.append(f"F {route} observable metadata is missing")
             else:
-                if observable.get("map_id") != f"wilson-ground-state-force-R2.5-v1/{route}":
+                if observable.get("map_id") != f"wilson-ground-state-force-R2.5-v2/{route}":
                     reasons.append(f"F {route} observable map_id is not the selected route")
                 if observable.get("map_sha256") != force_map_sha256(route):
                     reasons.append(f"F {route} map hash does not bind the selected force stencil")
@@ -626,7 +645,7 @@ def apply_wilson_force_gate(
                     reasons.append(f"F {route} support unit must be {_F_UNITS[route]!r}")
                 if not _finite(support.get("lower")) or not _finite(support.get("upper")) or support["upper"] <= support["lower"]:
                     reasons.append(f"F {route} support must be finite and nonempty")
-                if route in ("positive_reference", "q_excited", "h_thermal_nt32", "x_mixed") and _finite(support.get("lower")) and support["lower"] < 0:
+                if route in ("positive_force_scale", "q_excited", "h_thermal_nt32", "x_mixed") and _finite(support.get("lower")) and support["lower"] < 0:
                     reasons.append(f"F {route} support must be nonnegative")
             expected = _force_expected(route, envelope)
             expected_by_route[route] = expected
@@ -634,7 +653,7 @@ def apply_wilson_force_gate(
             for key in ("force_summary", "review_receipt", "authorization_receipt"):
                 if len({source_routes[route].get(key) for route in _F_ROUTES}) != 1:
                     reasons.append(f"F bundle must share one lane-level {key}")
-        for route in ("force_interval", "positive_reference"):
+        for route in ("force_interval", "positive_force_scale"):
             env = envelopes.get(route)
             if isinstance(env, dict):
                 dep = env.get("dependence", {})
@@ -665,7 +684,7 @@ def apply_wilson_force_gate(
             if not _hash(thermal_hash):
                 reasons.append("F thermal route must bind the matched Nt=32 receipt")
         force_chain = envelopes.get("force_interval")
-        reference_chain = envelopes.get("positive_reference")
+        reference_chain = envelopes.get("positive_force_scale")
         if isinstance(force_chain, dict) and isinstance(reference_chain, dict):
             left = force_chain.get("chain", {})
             right = reference_chain.get("chain", {})
@@ -673,7 +692,7 @@ def apply_wilson_force_gate(
                 if (left.get("chain_id"), left.get("manifest_sha256"), left.get("split_id")) != (
                     right.get("chain_id"), right.get("manifest_sha256"), right.get("split_id")
                 ):
-                    reasons.append("F interval and positive-reference force must preserve their paired source chain")
+                    reasons.append("F interval and positive-force-scale routes must preserve their paired source chain")
 
     if reasons:
         return _abstain(run_state, reasons, "ABSTAIN_WILSON_F_LANE")

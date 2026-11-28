@@ -543,6 +543,7 @@ def fit_two_sector_snapshot(
                 name: qhx_intervals[3 * cell_index + offset]
                 for offset, name in enumerate(("q", "h", "x"))
             }
+    absolute_stout_force = float(static[1, 0] - static[0, 0])
     denominator = {"planned": 1, "valid": 1 if full_rank else 0,
                    "failed": 0 if full_rank else 1, "abstained": 0}
     result = {
@@ -600,6 +601,20 @@ def fit_two_sector_snapshot(
                 ] for m in range(VACUUM_STATES)]
                 for index, radius in enumerate(R_VALUES)
             },
+        },
+        "force_estimand_diagnostic": {
+            "primary_estimand": "absolute_stout_ground_state_discrete_static_force",
+            "primary_formula": "U0_stout(R=3)-U0_stout(R=2)",
+            "absolute_stout_force_from_shared_spectrum": absolute_stout_force,
+            "identity_comparison_force_from_shared_spectrum": absolute_stout_force,
+            "stout_minus_identity_ground_state_difference": 0.0,
+            "identity_relation": "same shared static spectrum by construction, not an independent validation",
+            "interpretation": (
+                "the fit can report the absolute ground-state force; a stout-minus-identity "
+                "ground-state contrast is structurally fixed to zero in this joint model"
+            ),
+            "uncertainty_calibrated": False,
+            "physical_score": None,
         },
         "fit_attempts": attempts,
         "initializer_fits": fit_starts,

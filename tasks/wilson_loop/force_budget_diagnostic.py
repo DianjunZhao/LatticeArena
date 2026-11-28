@@ -9,15 +9,17 @@ import math
 from pathlib import Path
 
 from .force_budget import (
+    ABSOLUTE_FORCE_CORNER_COUNT,
     COMPONENT_FRACTIONS,
     FORCE_CORNER_COUNT,
+    propagate_absolute_force_budget,
     propagate_force_budget,
-    uniform_loop_cap,
+    uniform_absolute_loop_cap,
 )
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUT = ROOT / "results/wilson_loop/force_budget_propagation_cpu_20261125_v1"
+DEFAULT_OUT = ROOT / "results/wilson_loop/force_budget_propagation_cpu_20261128_v2"
 CONTRACT = ROOT / "tasks/wilson_loop/lane_contract_v2.json"
 CONTRACT_SOURCE = ROOT / "tasks/wilson_loop/lane_contract.py"
 
@@ -31,20 +33,20 @@ def _plot(path: Path, rows: list[dict], naive: dict) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    force = [row["reference_force_lower"] for row in rows]
+    force = [row["positive_force_scale_lower"] for row in rows]
     colors = {"q": "#1769aa", "h": "#e07a16", "x": "#388e3c"}
     fig, axes = plt.subplots(1, 2, figsize=(12.2, 4.6))
     for component in ("q", "h", "x"):
         axes[0].plot(
             force,
-            [row[f"max_uniform_{component}_loop_bound"] / row["reference_force_lower"]
+            [row[f"max_uniform_{component}_loop_bound"] / row["positive_force_scale_lower"]
              for row in rows],
-            label=f"{component} per-corner cap / force lower bound",
+            label=f"{component} per-corner cap / force-scale lower bound",
             color=colors[component], linewidth=2,
         )
     axes[0].set_xscale("log")
     axes[0].set_yscale("log")
-    axes[0].set_xlabel(r"positive reference-force lower bound $f_{L}$")
+    axes[0].set_xlabel(r"positive stout-force scale lower bound $f_{L}$")
     axes[0].set_ylabel("maximum raw loop bound / $f_L$")
     axes[0].set_title("Input caps implied by force-level budgets")
     axes[0].grid(True, which="both", alpha=0.25)
@@ -64,7 +66,7 @@ def _plot(path: Path, rows: list[dict], naive: dict) -> None:
     axes[1].set_title("At illustrative $f_L=1$")
     axes[1].grid(True, axis="y", alpha=0.25)
     axes[1].legend(fontsize=8)
-    fig.suptitle("F-lane q/h/x propagation: 8 signed loop corners", fontsize=13)
+    fig.suptitle("Absolute stout F-lane q/h/x propagation: 4 primary corners", fontsize=13)
     fig.tight_layout()
     fig.savefig(path, dpi=170)
     plt.close(fig)
@@ -78,16 +80,16 @@ def build(output_dir: Path = DEFAULT_OUT) -> dict:
     (output_dir / "snapshot_core_numerics.py").write_bytes(numerics_source.read_bytes())
 
     # Formula-only sensitivity. The range is deliberately illustrative; no
-    # D-chain value is substituted for the missing positive reference bound.
+    # production estimate is substituted for the missing positive force scale.
     force_lowers = [10 ** (-2 + 2 * index / 49) for index in range(50)]
     rows: list[dict] = []
     for reference in force_lowers:
-        row = {"reference_force_lower": reference}
+        row = {"positive_force_scale_lower": reference}
         for component, fraction in COMPONENT_FRACTIONS.items():
-            cap = uniform_loop_cap(fraction, reference)
+            cap = uniform_absolute_loop_cap(fraction, reference)
             row[f"max_uniform_{component}_loop_bound"] = cap
             row[f"propagated_{component}_force_bound"] = (
-                FORCE_CORNER_COUNT * math.log1p(cap)
+                ABSOLUTE_FORCE_CORNER_COUNT * math.log1p(cap)
             )
         rows.append(row)
     with (output_dir / "cap_sensitivity.csv").open("w", newline="", encoding="utf-8") as stream:
@@ -99,42 +101,48 @@ def build(output_dir: Path = DEFAULT_OUT) -> dict:
     # caps, at a dimensionless reference lower bound of one.
     force_lower = 1.0
     assumed = {
-        "q": [[COMPONENT_FRACTIONS["q"] * force_lower] * 4] * 2,
-        "h": [[COMPONENT_FRACTIONS["h"] * force_lower] * 4] * 2,
-        "x": [[COMPONENT_FRACTIONS["x"] * force_lower] * 4] * 2,
+        name: [COMPONENT_FRACTIONS[name] * force_lower] * 4
+        for name in ("q", "h", "x")
     }
-    naive = propagate_force_budget(
+    naive = propagate_absolute_force_budget(
         assumed, force_lower,
         model_truncation_bound=0.01 * force_lower,
         statistical_halfwidth=0.05 * force_lower,
     )
     max_caps = {
-        component: uniform_loop_cap(fraction, force_lower)
+        component: uniform_absolute_loop_cap(fraction, force_lower)
         for component, fraction in COMPONENT_FRACTIONS.items()
     }
-    cap_check = propagate_force_budget(
-        {name: [[max_caps[name]] * 4] * 2 for name in ("q", "h", "x")},
+    cap_check = propagate_absolute_force_budget(
+        {name: [max_caps[name]] * 4 for name in ("q", "h", "x")},
         force_lower,
         model_truncation_bound=0.01 * force_lower,
         statistical_halfwidth=0.05 * force_lower,
     )
+    identity_comparison = propagate_force_budget(
+        {name: [[COMPONENT_FRACTIONS[name] * force_lower] * 4] * 2
+         for name in ("q", "h", "x")},
+        force_lower,
+    )
     protocol = {
-        "schema": "wilson-force-budget-propagation-diagnostic-v1",
-        "purpose": "formula-only translation from loop q/h/x envelopes to candidate-minus-reference force bounds",
+        "schema": "wilson-absolute-force-budget-propagation-diagnostic-v2",
+        "purpose": "formula-only translation from stout loop q/h/x envelopes to the absolute ground-state force budget",
         "inputs": {
-            "kernel_count": 2,
-            "loop_corners_per_kernel": 4,
-            "force_corner_count": FORCE_CORNER_COUNT,
+            "primary_kernel": "spatial_stout_rho0.10_n5",
+            "comparison_kernel": "identity",
+            "primary_force_corner_count": ABSOLUTE_FORCE_CORNER_COUNT,
+            "identity_comparison_corner_count": FORCE_CORNER_COUNT - ABSOLUTE_FORCE_CORNER_COUNT,
             "component_force_fraction_budgets": COMPONENT_FRACTIONS,
-            "illustrative_reference_force_lower": force_lower,
-            "reference_force_range_for_plot": [force_lowers[0], force_lowers[-1]],
+            "illustrative_positive_force_scale_lower": force_lower,
+            "positive_force_scale_range_for_plot": [force_lowers[0], force_lowers[-1]],
             "assumed_raw_loop_caps_counterexample": COMPONENT_FRACTIONS,
         },
         "formula": {
             "loop_log_envelope": "delta=log(1+q+h+x), for nonnegative q,h,x",
-            "force_contrast_bound": "sum over 8 kernel/R/t corners of delta",
-            "component_bound": "sum over 8 corners log(1+q_component)",
-            "uniform_raw_cap": "expm1(component_fraction * reference_force_lower / 8)",
+            "absolute_stout_force_bound": "sum over 4 stout R/T corners of delta",
+            "component_bound": "sum over 4 stout corners log(1+q_component)",
+            "uniform_raw_cap": "expm1(component_fraction * positive_force_scale_lower / 4)",
+            "identity_role": "shared-spectrum consistency diagnostic only; excluded from primary propagation",
         },
         "scenario_denominator": {
             "planned": len(rows), "valid": len(rows), "failed": 0, "abstained": 0,
@@ -142,9 +150,10 @@ def build(output_dir: Path = DEFAULT_OUT) -> dict:
         },
         "physical_evidence_denominator": {
             "planned": 1, "valid": 0, "failed": 0, "abstained": 1,
-            "reason": "no independent q/h/x, positive reference-force, model-truncation, or review receipts",
+            "reason": "no independent q/h/x, positive stout-force scale, model-truncation, or review receipts",
         },
         "naive_per_loop_cap_counterexample": naive,
+        "identity_comparison_diagnostic_only": identity_comparison,
         "derived_uniform_cap_check": cap_check,
         "physical_score": None,
         "lane_status": "GROUND_STATE_FORCE_UNCERTIFIED",
@@ -167,49 +176,50 @@ def build(output_dir: Path = DEFAULT_OUT) -> dict:
         "scenario_denominator": protocol["scenario_denominator"],
         "physical_evidence_denominator": protocol["physical_evidence_denominator"],
         "naive_per_loop_cap_counterexample": naive,
-        "derived_uniform_caps_at_reference_lower_1": max_caps,
+        "derived_uniform_caps_at_force_scale_lower_1": max_caps,
         "derived_cap_numeric_gate_pass": cap_check["assumption_only_numeric_gate_pass"],
         "note": "conditional algebra only; no receipt, measurement, GPU, or QUDA evidence",
     }
     (output_dir / "summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    readme = f"""# Wilson F-lane q/h/x force-budget propagation
+    readme = f"""# Wilson absolute stout F-lane q/h/x force-budget propagation
 
 **Formula-only CPU diagnostic.** No Wilson loop data, sealed split, GPU or QUDA input was read. `physical_score=null`; the ground-state force remains `GROUND_STATE_FORCE_UNCERTIFIED`.
 
 ## Result
 
-The F-lane candidate-minus-reference force contrast contains **8 signed loop corners**: two kernels (stout and identity), two separations (`R=2,3`), and two adjacent times (`t,t+1`) inside the effective-energy extraction. If each positive loop corner has `delta=log(1+q+h+x)`, then the conservative contrast bound is the sum of all 8 `delta` bounds. For separate component accounting, `log(1+q+h+x) <= log(1+q)+log(1+h)+log(1+x)` for nonnegative inputs, so the q/h/x force-unit envelopes are `sum_corner log(1+q)`, etc.
+The selected F-lane estimand is the **absolute stout ground-state force** `U0_stout(3)-U0_stout(2)`. Its q/h/x contamination propagates through **4 stout loop corners**: `R=2,3` and adjacent times `T=5,6`. Identity has the same ground-state spectrum under the shared action and static-source convention, so its four corners remain a consistency diagnostic and are excluded from the primary budget. If each loop corner has `delta=log(1+q+h+x)`, the conservative primary bound sums the four stout `delta` bounds. For separate component accounting, `log(1+q+h+x) <= log(1+q)+log(1+h)+log(1+x)` for nonnegative inputs.
 
-At the illustrative dimensionless reference-force lower bound `f_L=1`, interpreting the draft `1.5% / 1.5% / 1%` values as **raw per-loop-corner caps** gives q/h/x force-bound fractions `{naive['component_relative_bounds']['q']:.4f}`, `{naive['component_relative_bounds']['h']:.4f}`, `{naive['component_relative_bounds']['x']:.4f}`. Each exceeds its corresponding force-level budget. The combined exact log envelope is `{naive['combined_log_corner_bound']:.4f} f_L`; after the proposed model (`1%`) and statistical (`5%`) allowances, the total is `{naive['total_relative_bound']:.4f} f_L`, above the `10%` total tolerance. This demonstrates that the q/h/x percentages must be defined after full stencil propagation or translated into stricter raw loop caps.
+At illustrative positive force-scale lower bound `f_L=1`, interpreting the draft `1.5% / 1.5% / 1%` values as **raw per-corner caps** gives q/h/x force-bound fractions `{naive['component_relative_bounds']['q']:.4f}`, `{naive['component_relative_bounds']['h']:.4f}`, `{naive['component_relative_bounds']['x']:.4f}`. Each exceeds its corresponding force-level budget. The combined exact log envelope is `{naive['combined_log_corner_bound']:.4f} f_L`; after the proposed model (`1%`) and statistical (`5%`) allowances, the total is `{naive['total_relative_bound']:.4f} f_L`, above the `10%` total tolerance. The identity-kernel comparison envelope is separately reported in `protocol.json` and does not enter this primary total.
 
-For a uniform raw component cap `c` across all corners, requiring its propagated force contribution to be no larger than `epsilon*f_L` yields
+For a uniform raw component cap `c` across the four stout corners, requiring its propagated force contribution to be no larger than `epsilon*f_L` yields
 
 ```text
-8 log(1+c) <= epsilon*f_L
-c <= expm1(epsilon*f_L/8).
+4 log(1+c) <= epsilon*f_L
+c <= expm1(epsilon*f_L/4).
 ```
 
-At `f_L=1`, the resulting raw loop caps are q=`{max_caps['q']:.7f}`, h=`{max_caps['h']:.7f}`, x=`{max_caps['x']:.7f}`. These are planning calculations, not measured q/h/x values or accepted production inputs. `cap_sensitivity.csv` and the figure show how the required raw caps change with the yet-unknown positive force lower bound.
+At `f_L=1`, the resulting raw loop caps are q=`{max_caps['q']:.7f}`, h=`{max_caps['h']:.7f}`, x=`{max_caps['x']:.7f}`. These are planning calculations, not measured q/h/x values or accepted production inputs. `cap_sensitivity.csv` and the figure show how the required raw caps change with the yet-unknown positive stout-force scale.
 
 ![Force-level and raw loop-level bound relation](force_budget_caps.png)
 
 ## Denominators and flow
 
 - Deterministic formula scenarios: planned/valid/failed/abstained = `{len(rows)}/{len(rows)}/0/0`.
-- Physical evidence gate: `1/0/0/1`; independent loop envelopes, positive reference-force lower bound, propagated model bound and reviewer receipt are absent.
+- Physical evidence gate: `1/0/0/1`; independent stout loop envelopes, positive force-scale lower bound, propagated model bound and reviewer receipt are absent.
 
 ```text
-independent positive force lower bound + q/h/x bounds at 8 corners
-  -> log envelopes -> 8-term candidate-minus-reference force bound
+positive stout-force scale lower bound + q/h/x bounds at 4 stout corners
+  -> log envelopes -> 4-term absolute-force bound
+  -> identity corners -> shared-spectrum consistency diagnostic only
   -> compare q/h/x component budgets in force units
   -> add model-truncation and statistical bounds
   -> <=10% total gate AND independent receipts/review
   -> otherwise ABSTAIN; physical_score remains null
 ```
 
-The output is conditional algebra only. It neither verifies physical positivity nor establishes any q/h/x envelope, spectral-model error, statistical coverage, or reference-force lower bound. Source hashes and all output identities are in `protocol.json` and `artifact_hashes.json`; the shared numeric-conversion source is retained as `snapshot_core_numerics.py`.
+The output is conditional algebra only. It neither verifies physical positivity nor establishes any q/h/x envelope, spectral-model error, statistical coverage, or positive force-scale lower bound. Source hashes and all output identities are in `protocol.json` and `artifact_hashes.json`; the shared numeric-conversion source is retained as `snapshot_core_numerics.py`.
 """
     (output_dir / "README.md").write_text(readme, encoding="utf-8")
     artifacts = sorted(path for path in output_dir.iterdir() if path.is_file())

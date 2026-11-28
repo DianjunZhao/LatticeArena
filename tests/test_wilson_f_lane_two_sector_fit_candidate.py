@@ -109,6 +109,17 @@ def test_two_sector_fit_recovers_full_rank_synthetic_candidate(tmp_path):
     for radius in R_VALUES:
         fitted = np.asarray(result["spectrum_fit"]["static_energies_by_R"][str(radius)])
         assert np.allclose(fitted, toy.STATIC_ENERGIES[radius][:2], atol=0.12, rtol=0)
+    force = result["force_estimand_diagnostic"]
+    fitted_force = (
+        result["spectrum_fit"]["static_energies_by_R"]["3"][0]
+        - result["spectrum_fit"]["static_energies_by_R"]["2"][0]
+    )
+    assert force["primary_estimand"] == "absolute_stout_ground_state_discrete_static_force"
+    assert force["absolute_stout_force_from_shared_spectrum"] == pytest.approx(fitted_force)
+    assert force["identity_comparison_force_from_shared_spectrum"] == pytest.approx(fitted_force)
+    assert force["stout_minus_identity_ground_state_difference"] == 0.0
+    assert force["uncertainty_calibrated"] is False
+    assert force["physical_score"] is None
     assert result["qhx_denominator"] == {
         "planned": 24, "valid": 24, "failed": 0, "abstained": 0,
     }

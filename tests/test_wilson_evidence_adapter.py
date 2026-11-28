@@ -8,6 +8,7 @@ from io import BytesIO
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from core.evidence import evidence_envelope
 from core.receipts import denominator, run_receipt, scenario_spec
@@ -170,7 +171,7 @@ def _creutz_fixture(*, split="C-calibration-open", halfwidth=0.01):
             "burn_in": {"unit": "saved gauge configuration", "count": 8},
         },
         confidence={
-            "family_id": "wilson-two-lane-selected-v1", "alpha_total": 0.05,
+            "family_id": "wilson-two-lane-selected-v3", "alpha_total": 0.05,
             "alpha_allocated": 0.025, "family_size": 2,
         },
         source_hashes=hashes, review=_review(hashes["review_receipt"]),
@@ -306,14 +307,14 @@ def _force_fixture():
     gevp_hash = H[10]
     for index, route in enumerate(_F_ROUTES):
         hashes = {
-            "manifest": H[11] if route in ("force_interval", "positive_reference") else H[11 + index],
+            "manifest": H[11] if route in ("force_interval", "positive_force_scale") else H[11 + index],
             "observable_map": force_map_sha256(route),
             "data_receipt": H[19 + index],
             "force_summary": summary_hash,
             "review_receipt": review_hash,
             "authorization_receipt": authorization_hash,
         }
-        if route in ("force_interval", "positive_reference"):
+        if route in ("force_interval", "positive_force_scale"):
             hashes.update({"dependence_receipt": H[27], "coverage_calibration_receipt": H[28]})
         else:
             hashes.update({
@@ -324,13 +325,13 @@ def _force_fixture():
             if route == "h_thermal_nt32":
                 hashes["matched_nt32_receipt"] = H[36]
         routes[route] = hashes
-        if route in ("force_interval", "positive_reference"):
+        if route in ("force_interval", "positive_force_scale"):
             chain_id = "paired-F-calibration-chain"
             split_id = "F-calibration-open"
             state_unit = "paired saved gauge configuration"
             mode = "markov"
             confidence = {
-                "family_id": "wilson-two-lane-selected-v1/F/statistical",
+                "family_id": "wilson-two-lane-selected-v3/F/statistical",
                 "alpha_total": 0.0125,
                 "alpha_allocated": 0.00625,
                 "family_size": 2,
@@ -342,15 +343,15 @@ def _force_fixture():
             mode = "markov" if route == "h_thermal_nt32" else "spectral"
             cells = 4 if route == "spectral_model_truncation" else 8
             confidence = {
-                "family_id": "wilson-two-lane-selected-v1/F/systematic",
+                "family_id": "wilson-two-lane-selected-v3/F/systematic",
                 "alpha_total": 0.0125,
                 "alpha_allocated": 0.0125 * cells / 28,
                 "family_size": cells,
             }
-        if route == "positive_reference":
-            support = {"lower": 0.0, "upper": 2.0, "unit": "dimensionless lattice force a_s*a_t*F"}
+        if route == "positive_force_scale":
+            support = {"lower": 0.95, "upper": 1.1, "unit": "dimensionless lattice force a_s*a_t*F"}
         elif route == "force_interval":
-            support = {"lower": -1.0, "upper": 1.0, "unit": "dimensionless lattice force a_s*a_t*F"}
+            support = {"lower": 0.99, "upper": 1.07, "unit": "dimensionless lattice force a_s*a_t*F"}
         elif route in ("q_excited", "h_thermal_nt32", "x_mixed"):
             unit = {
                 "q_excited": "dimensionless q bound",
@@ -374,7 +375,7 @@ def _force_fixture():
         envelopes[route] = evidence_envelope(
             "wilson_loop", {
                 "force_interval": "ground_state_force_interval",
-                "positive_reference": "positive_reference_force",
+                "positive_force_scale": "positive_absolute_force_scale",
                 "q_excited": "excited_state_q_envelope",
                 "h_thermal_nt32": "matched_nt32_thermal_h_envelope",
                 "x_mixed": "mixed_sector_x_envelope",
@@ -385,15 +386,15 @@ def _force_fixture():
                 "state_unit": state_unit, "manifest_sha256": hashes["manifest"],
             },
             observable={
-                "map_id": f"wilson-ground-state-force-R2.5-v1/{route}",
+                "map_id": f"wilson-ground-state-force-R2.5-v2/{route}",
                 "map_sha256": hashes["observable_map"], "support": support,
             },
             method={
                 "name": "paired_circular_block_bootstrap_hull"
-                if route in ("force_interval", "positive_reference")
+                if route in ("force_interval", "positive_force_scale")
                 else "joint_3x3_finite_Nt_spectral_envelope",
                 "version": "selected-F-v1",
-                "assumptions": ["force bounds use the frozen candidate-minus-identity stencil"],
+                "assumptions": ["primary force bounds use the four stout corners; identity corners are comparison diagnostics"],
             },
             dependence=dependence,
             confidence=confidence,
@@ -404,7 +405,7 @@ def _force_fixture():
         "wilson-ground-state-force-calibration",
         {
             "force_interval_draws": denominator("force interval paired draw", planned=PAIRED_DRAWS, valid=PAIRED_DRAWS),
-            "positive_reference_draws": denominator("positive force reference draw", planned=PAIRED_DRAWS, valid=PAIRED_DRAWS),
+            "positive_force_scale_draws": denominator("positive force reference draw", planned=PAIRED_DRAWS, valid=PAIRED_DRAWS),
             "gevp_fit_variants": denominator("3x3 GEVP fit variant", planned=36, valid=36),
             "force_systematic_cells": denominator("simultaneous force systematic cell", planned=28, valid=28),
             "matched_nt32_thermal_receipts": denominator("matched Nt=32 thermal receipt", planned=1, valid=1),
@@ -412,8 +413,11 @@ def _force_fixture():
     )
     summary = {
         "units": "dimensionless lattice force a_s*a_t*F",
-        "positive_reference_force_lower": 1.0,
-        "statistical_halfwidth": 0.03,
+        "stout_force_estimate": 1.03,
+        "stout_force_interval_lower": 0.99,
+        "stout_force_interval_upper": 1.07,
+        "positive_force_scale_lower": 0.95,
+        "statistical_halfwidth": 0.04,
         "force_component_bounds": {
             "excited_state_force": 0.01,
             "finite_T_thermal": 0.01,
@@ -421,9 +425,9 @@ def _force_fixture():
             "spectral_model_truncation": 0.005,
         },
         "systematic_total_bound": 0.03,
-        "total_linear_bound": 0.06,
+        "total_linear_bound": 0.07,
         "invalid_force_interval_draws": 0,
-        "invalid_reference_force_draws": 0,
+        "invalid_force_scale_draws": 0,
         "summary_sha256": summary_hash,
     }
     return envelopes, receipt, summary, routes
@@ -433,13 +437,16 @@ def _force_summary_snapshot_bundle(tmp_path, *, summary_override=None):
     envelopes, receipt, _summary, routes = _force_fixture()
     protocol = selected_protocol()
     raw_summary = {
-        "schema": "wilson-f-force-summary-input-v2",
+        "schema": "wilson-f-force-summary-input-v3",
         "units": "dimensionless lattice force a_s*a_t*F",
-        "positive_reference_force_lower": 1.0,
-        "statistical_halfwidth": 0.03,
+        "stout_force_estimate": 1.03,
+        "stout_force_interval_lower": 0.99,
+        "stout_force_interval_upper": 1.07,
+        "positive_force_scale_lower": 0.95,
+        "statistical_halfwidth": 0.04,
         "model_truncation_bound": 0.005,
         "invalid_force_interval_draws": 0,
-        "invalid_reference_force_draws": 0,
+        "invalid_force_scale_draws": 0,
         "force_kernel_order": list(FORCE_Q_KERNEL_ORDER),
         "force_corner_order": list(FORCE_Q_CORNER_LABELS),
         "qhx_corner_bounds": {
@@ -471,9 +478,13 @@ def _force_summary_snapshot_bundle(tmp_path, *, summary_override=None):
             "protocol_id": protocol["protocol_id"],
             "estimand": force["estimand"],
             "formula": force["formula"],
+            "reference_formula": force["reference_formula"],
+            "reference_role": force["reference_role"],
             "units": force["units"],
             "error_propagation": force["error_propagation"],
             "spectral_evidence_plan": force["spectral_evidence_plan"],
+            "lane_contract": json.loads(CONTRACT_PATH.read_text())[
+                "lanes"]["ground_state_discrete_static_force"],
             "role": route,
             "support_unit": _F_UNITS[route],
         }, sort_keys=True, separators=(",", ":")).encode()
@@ -752,9 +763,13 @@ def test_force_lane_verifies_all_route_source_bytes_atomically(tmp_path):
             "protocol_id": protocol["protocol_id"],
             "estimand": force["estimand"],
             "formula": force["formula"],
+            "reference_formula": force["reference_formula"],
+            "reference_role": force["reference_role"],
             "units": force["units"],
             "error_propagation": force["error_propagation"],
             "spectral_evidence_plan": force["spectral_evidence_plan"],
+            "lane_contract": json.loads(CONTRACT_PATH.read_text())[
+                "lanes"]["ground_state_discrete_static_force"],
             "role": route,
             "support_unit": _F_UNITS[route],
         }, sort_keys=True, separators=(",", ":")).encode()
@@ -848,9 +863,11 @@ def test_force_snapshot_reader_recomputes_qhx_force_bounds_from_captured_bytes(t
     assert reader["diagnostic"]["force_kernel_order"] == list(FORCE_Q_KERNEL_ORDER)
     assert reader["diagnostic"]["force_corner_order"] == list(FORCE_Q_CORNER_LABELS)
     components = reader["diagnostic"]["q_h_x_force_unit_bounds"]
-    assert abs(components["excited_state_force"] - 8 * math.log1p(0.001)) < 1e-14
-    assert abs(components["finite_T_thermal"] - 8 * math.log1p(0.001)) < 1e-14
-    assert abs(components["mixed"] - 8 * math.log1p(0.0005)) < 1e-14
+    assert abs(components["excited_state_force"] - 4 * math.log1p(0.001)) < 1e-14
+    assert abs(components["finite_T_thermal"] - 4 * math.log1p(0.001)) < 1e-14
+    assert abs(components["mixed"] - 4 * math.log1p(0.0005)) < 1e-14
+    assert reader["diagnostic"]["comparison_diagnostic"]["force_corner_count"] == 8
+    assert reader["diagnostic"]["primary_force_kernel"] == "spatial_stout_rho0.10_n5"
     assert reader["diagnostic"]["force_budget_recalculation"] == {
         "component_gates_pass": True, "model_gate_pass": True,
         "statistical_gate_pass": True, "total_gate_pass": True,
@@ -882,13 +899,16 @@ def test_force_snapshot_reader_recomputes_qhx_force_bounds_from_captured_bytes(t
 
 def test_force_snapshot_gate_rejects_q_corners_below_same_snapshot_spectral_bound(tmp_path):
     summary = {
-        "schema": "wilson-f-force-summary-input-v2",
+        "schema": "wilson-f-force-summary-input-v3",
         "units": "dimensionless lattice force a_s*a_t*F",
-        "positive_reference_force_lower": 1.0,
-        "statistical_halfwidth": 0.03,
+        "stout_force_estimate": 1.03,
+        "stout_force_interval_lower": 0.99,
+        "stout_force_interval_upper": 1.07,
+        "positive_force_scale_lower": 0.95,
+        "statistical_halfwidth": 0.04,
         "model_truncation_bound": 0.005,
         "invalid_force_interval_draws": 0,
-        "invalid_reference_force_draws": 0,
+        "invalid_force_scale_draws": 0,
         "force_kernel_order": list(FORCE_Q_KERNEL_ORDER),
         "force_corner_order": list(FORCE_Q_CORNER_LABELS),
         "qhx_corner_bounds": {
@@ -923,13 +943,16 @@ def test_force_snapshot_gate_rejects_q_corners_below_same_snapshot_spectral_boun
 
 def test_force_snapshot_reader_rejects_reversed_kernel_or_corner_order(tmp_path):
     base_summary = {
-        "schema": "wilson-f-force-summary-input-v2",
+        "schema": "wilson-f-force-summary-input-v3",
         "units": "dimensionless lattice force a_s*a_t*F",
-        "positive_reference_force_lower": 1.0,
-        "statistical_halfwidth": 0.03,
+        "stout_force_estimate": 1.03,
+        "stout_force_interval_lower": 0.99,
+        "stout_force_interval_upper": 1.07,
+        "positive_force_scale_lower": 0.95,
+        "statistical_halfwidth": 0.04,
         "model_truncation_bound": 0.005,
         "invalid_force_interval_draws": 0,
-        "invalid_reference_force_draws": 0,
+        "invalid_force_scale_draws": 0,
         "force_kernel_order": list(FORCE_Q_KERNEL_ORDER),
         "force_corner_order": list(FORCE_Q_CORNER_LABELS),
         "qhx_corner_bounds": {
@@ -968,7 +991,55 @@ def test_force_snapshot_reader_rejects_reversed_kernel_or_corner_order(tmp_path)
             "valid": 0, "failed": 0, "abstained": 8,
         }
         assert state.status["statistical"] == "abstained"
-        assert result["physical_score"] is None and result["certified"] is False
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "reason_fragment"),
+    [
+        ("stout_force_interval_lower", 0.0, "stout_force_interval_lower"),
+        ("positive_force_scale_lower", 1.0, "must not exceed"),
+        ("statistical_halfwidth", 0.01, "maximum endpoint deviation"),
+    ],
+)
+def test_force_summary_v3_rejects_nonpositive_or_inconsistent_stout_interval(
+    tmp_path, field, value, reason_fragment,
+):
+    base = {
+        "schema": "wilson-f-force-summary-input-v3",
+        "units": "dimensionless lattice force a_s*a_t*F",
+        "stout_force_estimate": 1.03,
+        "stout_force_interval_lower": 0.99,
+        "stout_force_interval_upper": 1.07,
+        "positive_force_scale_lower": 0.95,
+        "statistical_halfwidth": 0.04,
+        "model_truncation_bound": 0.005,
+        "invalid_force_interval_draws": 0,
+        "invalid_force_scale_draws": 0,
+        "force_kernel_order": list(FORCE_Q_KERNEL_ORDER),
+        "force_corner_order": list(FORCE_Q_CORNER_LABELS),
+        "qhx_corner_bounds": {
+            "q": [[0.001] * 4 for _ in range(2)],
+            "h": [[0.001] * 4 for _ in range(2)],
+            "x": [[0.0005] * 4 for _ in range(2)],
+        },
+    }
+    base[field] = value
+    case_dir = tmp_path / field
+    case_dir.mkdir()
+    envelopes, receipt, routes, snapshots, _ = _force_summary_snapshot_bundle(
+        case_dir, summary_override=base,
+    )
+    state = _ready_state("operator", "reference", "numerical")
+    result = apply_wilson_force_snapshot_gate(
+        state, envelopes, receipt,
+        required_source_hashes_by_envelope=routes,
+        source_snapshots_by_envelope=snapshots,
+    )
+    reader = result["force_summary_reader"]
+    assert reader["status"] == "ABSTAIN_F_SUMMARY_CONTENT"
+    assert reason_fragment in reader["reason"]
+    assert state.status["statistical"] == "abstained"
+    assert result["physical_score"] is None and result["certified"] is False
 
 
 def test_force_snapshot_reader_rejects_mismatched_summary_routes_and_bad_qhx(tmp_path):
@@ -988,13 +1059,16 @@ def test_force_snapshot_reader_rejects_mismatched_summary_routes_and_bad_qhx(tmp
     bad_root = tmp_path / "bad"
     bad_root.mkdir()
     bad_summary = {
-        "schema": "wilson-f-force-summary-input-v2",
+        "schema": "wilson-f-force-summary-input-v3",
         "units": "dimensionless lattice force a_s*a_t*F",
-        "positive_reference_force_lower": 1.0,
-        "statistical_halfwidth": 0.03,
+        "stout_force_estimate": 1.03,
+        "stout_force_interval_lower": 0.99,
+        "stout_force_interval_upper": 1.07,
+        "positive_force_scale_lower": 0.95,
+        "statistical_halfwidth": 0.04,
         "model_truncation_bound": 0.005,
         "invalid_force_interval_draws": 0,
-        "invalid_reference_force_draws": 0,
+        "invalid_force_scale_draws": 0,
         "force_kernel_order": list(FORCE_Q_KERNEL_ORDER),
         "force_corner_order": list(FORCE_Q_CORNER_LABELS),
         "qhx_corner_bounds": {"q": None, "h": [[0.001] * 4],
@@ -1016,9 +1090,9 @@ def test_force_snapshot_reader_rejects_mismatched_summary_routes_and_bad_qhx(tmp
     assert result["physical_score"] is None
 
 
-def test_force_lane_abstains_without_positive_reference_or_with_overbudget_bounds():
+def test_force_lane_abstains_without_positive_force_scale_or_with_overbudget_bounds():
     envelopes, receipt, summary, routes = _force_fixture()
-    summary["positive_reference_force_lower"] = 0.0
+    summary["positive_force_scale_lower"] = 0.0
     state = _ready_state("operator", "reference", "numerical")
     result = apply_wilson_force_gate(
         state, envelopes, receipt, summary,

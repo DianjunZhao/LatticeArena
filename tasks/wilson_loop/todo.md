@@ -1009,3 +1009,28 @@ F_abs in [L_E0(3)-U_E0(2), U_E0(3)-L_E0(2)] / DeltaR
 同时发现并明确区分 F 量：当前 `lane_contract.py` 将 lane F 定义为 `stout - identity` ground-state force，而不是单个 kernel 的绝对静态力。共同 transfer matrix 下，各 smearing operator 的 `E0(R)` 相同，真基态差恒为零；上一节有限时反例改变的是**绝对**力，两套谱中的 kernel 差都仍为零。因此该反例不证明已选 kernel-difference 的不可识别性，也不能直接充当 joint-fit model-truncation 误差。新增回归直接核对这一点。新屏查的四角式只界定 `T=5` effective-energy proxy 的激发态 bias，**不是**当前 joint multi-state fit estimator 的误差/覆盖界。
 
 报告保存每个 kernel/R/T effective energy、3,721 行条件网格、固定 toy truth、图、原公式源码快照和哈希；4/4 kernel-radius 角点有效，失败/弃权 0/0；8/8 artifact 与 3/3 source SHA-256 匹配。聚焦测试 **8 passed**；PR #6 全仓 CPU suite **551 passed in 78.10 s**。后续可继续做 CPU 的 estimator-specific bridge：用 joint-fit 生产候选在新冻结的正谱/遗漏态 fixtures 上，逐样本对照拟合所得 stout-minus-identity force 与上面的 effective-energy proxy；只有在 source estimator、噪声/协方差与 failure denominator 对齐后才能评价其覆盖。不得将该 proxy 条件界直接移植到 joint fit，也不能把 toy 的 `Qmax/Delta_min` 当生产 receipt。Wilson 仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，sealed 输入未读取。
+
+
+### 2026-11-28 F lane 主量更正：绝对 stout 基态力，不再用 operator 差作主量
+
+源码审阅发现当前 `f_lane_two_sector_fit_candidate.py` 对 identity、APE、stout 三个算符共用同一组 `static_energies_by_R`。因此在这个 joint-spectrum 模型里，
+
+```text
+F_stout = U0_stout(R=3) - U0_stout(R=2)
+F_identity = U0_identity(R=3) - U0_identity(R=2) = F_stout
+F_stout - F_identity = 0  # 由共享谱结构固定，不是数据检验结果
+```
+
+旧合同把 F primary 写成 `F_stout - F_identity`，会令拟合目标按模型设计恒为零；这不符合用户选择的“基态静态力”。此前 finite-time witness 改变绝对力、而 kernel 差仍为零，也不能支持旧差值的 model-truncation 结论。本节据此**替代上文当作当前规则的 kernel-difference 文字**；已生成的旧报告与 source snapshot 留作历史记录。
+
+当前方法合同改为 midpoint `R=2.5` 的**绝对 stout 离散基态力** `U0_stout(3)-U0_stout(2)`。Identity 保留独立两项 stencil，角色是同一 action/static-source transfer spectrum 下的算符一致性诊断；不从主力中相减。拟合结果现在显式带 `force_estimand_diagnostic`，标出绝对 stout 力、由共享谱结构产生的 identity 对照、差恒零是结构性约束，以及不具备校准不确定度。它是方法输出字段，不是生产力值或独立交叉验证。
+
+这项 operator-independence 判断以 identity/stout 只改变空间 trial operator、而不改变静态源传播 Hamiltonian 为前提。若生产 smearing 实际进入 temporal/static-source action，须由 exporter/action receipt 和独立 review 先证明 transfer matrix 相同；否则 identity 结果不能充当同谱一致性检查，需重新定义 comparison estimator。
+
+主量的 q/h/x 力误差只传播 stout 的四个 `(R,T)` 角：`(2,5),(2,6),(3,5),(3,6)`；identity 的四角继续留在 q-envelope / 比较诊断，但不双倍计入主预算。若每角原始 component bound 都是 `c`，合同预算为 `4 log(1+c) <= epsilon*f_L`，故 `c <= expm1(epsilon*f_L/4)`。identity–stout 的旧 8 角 helper 仍保存为明确标注的比较上界，不再接入 absolute-force primary reader。force summary schema v3 现在要求 stout 点估计、正的 stout 区间端点、正 force-scale 下界和统计半宽；下界必须不超过 stout 区间下端，半宽必须等于估计值到两个端点的最大偏差。q/h/x 输入仍明确携带 stout、identity 两行各四角；reader 仅取 stout 行做主预算，并把 identity 行传播另存 comparison diagnostic。
+
+新增[绝对力预算图文包](absolute_force_budget_20261128_v1/README.md)与[合同结构图文报告](lane_contract_diagnostic_20261128_v10/README.md)。前者有 50/50 个确定性公式敏感度点、0 failed/abstained；它不是 Monte Carlo coverage。`f_L=1` 时，若误把 q/h/x 的 1.5%/1.5%/1% 当作每角原始上限，四角主力相对 envelope 分别约为 5.96%、5.96%、3.98%；联合 `sum log(1+q+h+x)` 的 exact-log 上限为 15.69%，分量因子化上限为 15.89%；后者连同 model 1% 和统计 5% 后总上限约 21.89%，超过 10% 线性总预算。反解得到 q/h/x 的单角上限约 `0.003756 / 0.003756 / 0.002503`。这些只是公式说明，未代入生产测量。合同报告的所有结构 fixture/hash 检查通过，通用物理 RunState 仍为 `5/0/0/5` abstained，`physical_score=null`。
+
+定向 tests **73 passed**；本轮全仓 CPU tests **557 passed in 83.44 s**。没有读取 Wilson `C_ij`、GEVP、sealed split，没有申请或运行 GPU/QUDA；因此这次只修正软件合同和 synthetic 代数诊断。C lane 的有限-$T$ Creutz 保持不变，F=`GROUND_STATE_FORCE_UNCERTIFIED`、两 lane `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。
+
+**下一个可执行工作包：**(1) 在获准的 open calibration split 上，由生产 exporter 输出带 source/sink、time-origin、边界、smearing 与 `C_ij` 轴约定的 stout/identity `R=2,3; T=3…7; N_t=16,32` 矩阵，并提供可复核来源与 block 关联；(2) 独立校准 stout 绝对力 interval 与正 force-scale lower bound，保留每个 bootstrap draw 的失败和依赖来源，不能把 toy 的 30,000 draws 当覆盖证明；(3) 对 q 24 变体、匹配 `N_t=32` 的 h、mixed x、4 个 stout model-truncation cells 分别给经审阅的 upper bound 与哈希；(4) 在校准/盲化的独立样本上检验 identity 与 stout 力一致性、覆盖率和四角 force-unit 误差预算；(5) 另行取得独立 review、生产/GPU 资源和 confirmation 授权。缺任一项仍必须 abstain，不因 schema、fixture 或全套测试通过而升级物理状态。

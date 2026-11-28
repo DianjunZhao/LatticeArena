@@ -897,3 +897,10 @@ PR #6 当前 GitHub 状态仍为 OPEN，复核时 head `a06ecd91e3a83fc19b4ece6b
 ### 2026-11-28 PR #6 跨任务 CPU 回归：条件 Wilson Q/gap screen 后
 
 Wilson 新增条件正谱 effective-energy 区间、四角 `Qmax/Delta_min` bias bound 与图文报告后，PR #6 全仓 CPU suite 为 **551 passed in 78.10 s**；相较上一节 543 项快照新增 8 个聚焦 Wilson 检查，其中含对“绝对力反例不改变同一 transfer matrix 下 stout-minus-identity 基态差”的直接回归。新结果仍只是 synthetic CPU evidence，不增加 Optimize 的 D04 reference、D06 学习型 smear/SLSQP/degree-4 Chebyshev 配对风险或 D11 SU(3) 算符审阅证据。文字流程与边界见[Wilson 条件力区间报告](../wilson_loop/f_lane_gap_overlap_force_screen_20261128_v1/README.md)。Optimize 继续保留两项比较和 bounded block-risk estimand，维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed；不要把跨任务测试通过计作 Optimize gate closure。
+
+
+### 2026-11-28 跨任务回归：Wilson 绝对 stout 基态力合同修正后
+
+PR #6 全仓 CPU suite **557 passed in 83.44 s**，包含 Wilson F-lane 将 primary 改为绝对 stout ground force、identity 改作 shared-spectrum consistency diagnostic、4 角主预算传播、schema-v3 summary reader 与 joint-fit output field 的回归。该变化没有修改 Optimize 的 D04 reference、D06 `r_star` 或学习型 smear / SLSQP / degree-4 Chebyshev 比较规则；该测试结果也不提供 Optimize 的 reference、solver-risk、预算差或 SU(3) 算符证据。
+
+文字流程：`Optimize 合同保持冻结 + Wilson estimand/schema 修正 -> 全仓 CPU regression -> 557 passed -> Optimize gates 仍需各自的研究证据`。Optimize 仍保留用户要求的两条比较臂与 bounded block-risk estimand，维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed；不得把跨任务软件回归计作 Optimize gate closure。
