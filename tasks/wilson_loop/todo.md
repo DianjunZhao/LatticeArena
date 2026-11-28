@@ -992,3 +992,20 @@ same matrices / same measured effective energies -> ground force 0.000 vs 0.050
 输出保存五个时间的两组 3×3 矩阵、逐 `(R,T)` CSV、冻结参数、源码快照、协议、图和 artifact hashes。定向测试 `tests/test_wilson_f_lane_finite_time_nonidentifiability.py` **4 passed**，覆盖矩阵完全匹配到浮点精度、所有矩阵 Hermitian positive definite、旧谱权重为正、effective-energy 观测重合但基态力不同，以及带 `E_0>=0` 前提的宽力区间。未做 Monte Carlo、未读 `C_ij`/GEVP/thermal/sealed bytes，未启动 GPU/QUDA；Wilson C/F 两 lane、`NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 不变。
 
 **下一步方法工作：**不要再用不加限制的有限时谱拟合宣称 model-truncation bound。若继续纯 CPU 推进，先把独立 gap/overlap 限制作为显式条件变量，审计 [`ground_state_bound.py`](ground_state_bound.py) 与 `spectral_q_bound_reader.py` 的 q envelope 如何连接有限时间数据，再给出“给定 Q_max、Delta_min 后”的力区间并和 force budget 的 1% 门逐项对照；无这些外部限制时，模型截断项应保持缺失/ABSTAIN。C-lane finite-T Creutz 的 `R=2,T=5,spatial_stout_rho0.10_n5` 与 F-lane ground-state force 仍分开，真实 exporter、thermal/mixed h/x、正 reference-force、授权和独立 review 仍是物理门。
+
+### 2026-11-28 条件 Q/gap 力区间与 F estimand 对齐
+
+按上一节执行条件 Q/gap 屏查，新增 [`f_lane_gap_overlap_force_screen.py`](f_lane_gap_overlap_force_screen.py)、8 项聚焦测试与[图文报告](f_lane_gap_overlap_force_screen_20261128_v1/README.md)。正谱假设给出
+
+```text
+b_kR(T) = log1p(Qmax_kR * exp(-Delta_min_kR * T))
+E0(R) in intersection_{k,T}[Eeff_kR(T)-b_kR(T), Eeff_kR(T)]
+F_abs in [L_E0(3)-U_E0(2), U_E0(3)-L_E0(2)] / DeltaR
+|delta F_eff(T=5)| <= sum_{kernel,R} b_kR(5)
+```
+
+本合成单激发态 fixture 取共享 `E0(R=2,3)=(-0.25,-0.05)`、四角 overlap ratio `0.08–0.20`、gap `0.25–0.45`；它没有用 `E0>=0` 假设。显示条件 `Qmax=0.25, Delta_min=0.20` 给出的绝对力区间是 `[0.128243,0.267936]`，包含真值 `0.20`。选定的 reference-force toy 下界为 `0.20`，所以 1% proxy-error 预算是 `0.002`。`T=5` finite-time effective-energy 的 stout-minus-identity 差为 `-0.008225`（真基态差为零），实际 toy 偏差已是预算的 `4.11×`；四角条件上界 `0.351933` 是预算的 `175.97×`。在 3,721 个 Q/gap 网格点中，495 点满足本 fixture 的 Q/gap 前提；这 495 点全部产生有效区间且覆盖解析 toy 力，但 **0/495** 达到 1% proxy-error 门。该网格是确定性敏感度图，不是 Monte Carlo coverage。
+
+同时发现并明确区分 F 量：当前 `lane_contract.py` 将 lane F 定义为 `stout - identity` ground-state force，而不是单个 kernel 的绝对静态力。共同 transfer matrix 下，各 smearing operator 的 `E0(R)` 相同，真基态差恒为零；上一节有限时反例改变的是**绝对**力，两套谱中的 kernel 差都仍为零。因此该反例不证明已选 kernel-difference 的不可识别性，也不能直接充当 joint-fit model-truncation 误差。新增回归直接核对这一点。新屏查的四角式只界定 `T=5` effective-energy proxy 的激发态 bias，**不是**当前 joint multi-state fit estimator 的误差/覆盖界。
+
+报告保存每个 kernel/R/T effective energy、3,721 行条件网格、固定 toy truth、图、原公式源码快照和哈希；4/4 kernel-radius 角点有效，失败/弃权 0/0；8/8 artifact 与 3/3 source SHA-256 匹配。聚焦测试 **8 passed**；PR #6 全仓 CPU suite **551 passed in 78.10 s**。后续可继续做 CPU 的 estimator-specific bridge：用 joint-fit 生产候选在新冻结的正谱/遗漏态 fixtures 上，逐样本对照拟合所得 stout-minus-identity force 与上面的 effective-energy proxy；只有在 source estimator、噪声/协方差与 failure denominator 对齐后才能评价其覆盖。不得将该 proxy 条件界直接移植到 joint fit，也不能把 toy 的 `Qmax/Delta_min` 当生产 receipt。Wilson 仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，sealed 输入未读取。

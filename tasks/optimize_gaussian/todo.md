@@ -893,3 +893,7 @@ PR #6 当前 GitHub 状态仍为 OPEN，复核时 head `a06ecd91e3a83fc19b4ece6b
 在 Wilson F-lane 新增正谱有限时间非唯一性构造及 positivity-only 宽区间诊断后，重新运行当前 PR #6 全仓 CPU suite：**543 passed in 76.98 s**。这比 532 项快照多了 4 项 Wilson 定向测试；Optimize 的 solver / D04 / D06 / D11 实现与合同保持原样。新 Wilson 报告只证明正谱有限矩可有不同 ground force，并给出带 `a_t E_0>=0` 前提的宽 positivity interval；不产生任何 Optimize 的 reference、solver-risk、成本或 GPU 证据。
 
 文字流程：`Optimize 双比较臂与 D04/D06/D11 合同 + Wilson finite-time positive-spectrum witness -> 全仓 CPU regression -> 543 passed -> 仍需独立 E-reference、获准 paired solver receipt、SU(3) 生产算符 review`。因此此项只更新软件兼容性快照；Optimize 三个 gate 继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。下一步若没有开放的 Optimize development package，不重复 CPU toy labels 或旧 seeds，也不以这次跨任务回归宣称研究完成。
+
+### 2026-11-28 PR #6 跨任务 CPU 回归：条件 Wilson Q/gap screen 后
+
+Wilson 新增条件正谱 effective-energy 区间、四角 `Qmax/Delta_min` bias bound 与图文报告后，PR #6 全仓 CPU suite 为 **551 passed in 78.10 s**；相较上一节 543 项快照新增 8 个聚焦 Wilson 检查，其中含对“绝对力反例不改变同一 transfer matrix 下 stout-minus-identity 基态差”的直接回归。新结果仍只是 synthetic CPU evidence，不增加 Optimize 的 D04 reference、D06 学习型 smear/SLSQP/degree-4 Chebyshev 配对风险或 D11 SU(3) 算符审阅证据。文字流程与边界见[Wilson 条件力区间报告](../wilson_loop/f_lane_gap_overlap_force_screen_20261128_v1/README.md)。Optimize 继续保留两项比较和 bounded block-risk estimand，维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed；不要把跨任务测试通过计作 Optimize gate closure。
