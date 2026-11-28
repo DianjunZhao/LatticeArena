@@ -966,3 +966,27 @@ Wilson 的有限-$N_t$ Creutz toy 输入与 q/h/x→force-budget scalar 现复�
 定向回归 **13 passed**（45 参数协方差/抽样、非法抽样全分母、protocol seed/strata 锁定、72 项索引顺序、Wilson 边界和零成功图的渲染）；本轮 PR #6 worktree 全仓 CPU suite **539 passed in 80.91 s**，脚本 `py_compile`、`git diff --check` 通过。报告含 201 项 artifact hashes、11/11 source snapshot hashes；报告图在修复 Wilson 零成功端点的浮点舍入后由 60 个已保存的原 `panel_result.json` 重建，`reassembly_note.json` 逐项绑定并复核 60/60 panel-result SHA-256，没有重跑或改写数据。此轮仍纯 synthetic CPU，真实 Wilson measurement `0/0/0/0`，F force 不产生任何 gate evidence。
 
 **后续方法工作：**不要通过截断 Gaussian tails 让当前候选“少弃权”，那会改变抽样分布且未经校准。若继续纯 CPU 方法研究，应新冻结一个 procedure 和另一组独立 seeds，优先比较 (a) 每个 block-resample 中完整重拟合的 dependence-aware bootstrap 区间；(b) 由 2-state/3-state 可接受谱族给出单独的 model-truncation envelope，再与 statistical upper 作保守合成；(c) 有边界约束的 profile/parametric bootstrap。记录每个 strata 的 72/72 containment、模型 GOF/秩/条件数、拟合与 transform 失败、弃权率和宽度。Omitted-state 覆盖必须由模型包络或显式高态输入处理，单纯改变参数协方差法不够。新方法只有在筛查阶段过预设门，才考虑另行审阅的 606×5 calibration；screen panel 不能再挪作确认数据。生产 C lane finite-`T` Creutz point 与 F lane ground-state force 保持分开，匹配 `N_t=32` raw `C_ij`、热/混合谱、positive reference force、污染/error budget、授权和独立 review 未齐之前，双 lane 仍 `NOT_READY/UNCERTIFIED`，F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，sealed data closed。
+
+### 2026-11-28 有限时间正谱矩的基态力非唯一性构造
+
+Gaussian-parameter max-T 失败后，先不再抽一组 MC panels，而是检查其缺口中更根本的 model-truncation identifiability。新增 [`f_lane_finite_time_ground_force_nonidentifiability.py`](f_lane_finite_time_ground_force_nonidentifiability.py) 和确定性图文报告 [`f_lane_finite_time_ground_force_nonidentifiability_20261128_v1/README.md`](f_lane_finite_time_ground_force_nonidentifiability_20261128_v1/README.md)。时间 slices 取当前 F candidate 的 `T=3…7`，半径取其 `R=2,3`。base 是 5 个正 transfer nodes × 3 个正交 operator directions，共 15 个正谱状态；alternative 在每个 R 增加一个正振幅低能 triplet，共 18 个状态。对每个 R，用五点 Vandermonde 方程调整原 5 个正权重，使 `C_ij(R,T)` 的全部 3×3 矩阵在五个测量时间完全相同。
+
+数值诊断：十个 `(R,T)` 矩阵点全部有效、失败/弃权 `0/0`，最大相对矩阵差仅 `7.75×10^-17`；alternative 所有旧态权重仍正，最小为 `0.199998`。base 在 R=2、3 的基态能量均为 `a_t E_0=0.105361`，所以 lattice-coordinate ground force 为 `0.000`；alternative 的隐藏态能量为 `0.03, 0.08`，同一 force 定义给出 `0.050`。两 spectrum 从可见的 `T=3…7` 计算的 effective energies 与 force 仍完全重合，finite-time force 为 `0.000`。这是一个正谱 toy witness，不是生产力值，也不说明 hidden spectrum 在项目中真实存在。
+
+![Same finite-time matrix data, different ground force](f_lane_finite_time_ground_force_nonidentifiability_20261128_v1/finite_time_force_nonidentifiability.png)
+
+文字流程：
+
+~~~text
+5 positive transfer nodes -> 3x3 C_ij(R,T), R={2,3}, T=3..7
+                                  | add tiny positive lower-energy triplet
+V w_alt + epsilon v_hidden = V w_base; all adjusted old weights remain positive
+                                  | exact finite-moment match (relative residual 7.75e-17)
+same matrices / same measured effective energies -> ground force 0.000 vs 0.050
+~~~
+
+这构造说明有限时间的 3×3 正谱数据本身不唯一决定 `E_0(R)` 或 ground force；更一般地，只要有限矩向量位于正矩锥内部，就可加入足够小的正原子并微调旧正权重来保持所有已观测矩不变。令隐藏 transfer node 趋近 1、同时把振幅缩小，可在完全相同的有限采样值下继续降低未见态能量；因此有限时间 fit residual、Jacobian rank 或 q/h/x 参数协方差本身不给出生产所需的 overlap floor / gap receipt。若额外采用非负能量约定，正性仍可给较宽的可行 envelope；本结果只否定从这些时间点单独推出紧的项目 `model_truncation_bound`，不否认存在依赖外部谱约束的有效界。
+
+输出保存五个时间的两组 3×3 矩阵、逐 `(R,T)` CSV、冻结参数、源码快照、协议、图和 artifact hashes。定向测试 `tests/test_wilson_f_lane_finite_time_nonidentifiability.py` **3 passed**，覆盖矩阵完全匹配到浮点精度、所有矩阵 Hermitian positive definite、旧谱权重为正、effective-energy 观测重合但基态力不同。未做 Monte Carlo、未读 `C_ij`/GEVP/thermal/sealed bytes，未启动 GPU/QUDA；Wilson C/F 两 lane、`NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 不变。
+
+**下一步方法工作：**不要再用不加限制的有限时谱拟合宣称 model-truncation bound。若继续纯 CPU 推进，先把独立 gap/overlap 限制作为显式条件变量，审计 [`ground_state_bound.py`](ground_state_bound.py) 与 `spectral_q_bound_reader.py` 的 q envelope 如何连接有限时间数据，再给出“给定 Q_max、Delta_min 后”的力区间并和 force budget 的 1% 门逐项对照；无这些外部限制时，模型截断项应保持缺失/ABSTAIN。C-lane finite-T Creutz 的 `R=2,T=5,spatial_stout_rho0.10_n5` 与 F-lane ground-state force 仍分开，真实 exporter、thermal/mixed h/x、正 reference-force、授权和独立 review 仍是物理门。
