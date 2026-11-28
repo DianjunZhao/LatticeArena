@@ -161,26 +161,39 @@ def _parameter_bounds(floor: float, target_force: float) -> tuple[np.ndarray, np
     return np.delete(lower, FIXED_FORCE_INDEX), np.delete(upper, FIXED_FORCE_INDEX)
 
 
-def _start_vectors(fit_parameters: np.ndarray, floor: float) -> list[tuple[str, np.ndarray]]:
+def _start_vectors(fit_parameters: np.ndarray, floor: float,
+                   continuation_parameters: np.ndarray | None = None
+                   ) -> list[tuple[str, np.ndarray]]:
     base = np.asarray(fit_parameters, dtype=float).copy()
     for index in GROUND_A0_INDICES:
         if floor > 0:
             base[index] = max(base[index], math.log(floor) + 0.02)
     starts = [("captured_fit", base.copy())]
-    perturbed = base.copy()
-    perturbed[0] = candidate._inverse_softplus(0.30)
-    for radius_index in range(len(two_state.R_VALUES)):
-        amplitude_start = 1 + radius_index * RADIUS_STRIDE + candidate.STATIC_STATES
-        for static_state in range(candidate.STATIC_STATES):
-            state_start = amplitude_start + (candidate.STATIC_STATES + static_state) * 5
-            perturbed[state_start] += math.log(0.65)
-            perturbed[state_start + 1:state_start + 5] *= 0.65
-    starts.append(("lower_excited_vacuum_start", perturbed))
+    if continuation_parameters is None:
+        secondary = base.copy()
+        secondary[0] = candidate._inverse_softplus(0.30)
+        for radius_index in range(len(two_state.R_VALUES)):
+            amplitude_start = 1 + radius_index * RADIUS_STRIDE + candidate.STATIC_STATES
+            for static_state in range(candidate.STATIC_STATES):
+                state_start = amplitude_start + (candidate.STATIC_STATES + static_state) * 5
+                secondary[state_start] += math.log(0.65)
+                secondary[state_start + 1:state_start + 5] *= 0.65
+        starts.append(("lower_excited_vacuum_start", secondary))
+    else:
+        secondary = np.asarray(continuation_parameters, dtype=float)
+        if secondary.shape != (candidate.PARAMETER_COUNT,) or not np.isfinite(secondary).all():
+            raise ValueError("continuation start must be a finite full parameter vector")
+        secondary = secondary.copy()
+        for index in GROUND_A0_INDICES:
+            if floor > 0:
+                secondary[index] = max(secondary[index], math.log(floor) + 0.02)
+        starts.append(("neighbor_force_continuation", secondary))
     return starts
 
 
 def _profile_at_force(snapshot: Any, fit_parameters: np.ndarray,
-                      floor: float, target_force: float) -> dict[str, Any]:
+                      floor: float, target_force: float, *,
+                      continuation_parameters: np.ndarray | None = None) -> dict[str, Any]:
     _manifest, matrices = two_state._validate_raw_snapshot(
         snapshot, manifest_name="manifest", matrix_name="raw_matrices",
         contract_name="lane_contract",
@@ -190,7 +203,7 @@ def _profile_at_force(snapshot: Any, fit_parameters: np.ndarray,
     covariance, covariance_diagnostics = two_state._regularized_mean_covariance(blocks)
     chol = cholesky(covariance, lower=True, check_finite=True)
     lower, upper = _parameter_bounds(floor, target_force)
-    starts = _start_vectors(fit_parameters, floor)
+    starts = _start_vectors(fit_parameters, floor, continuation_parameters)
     attempts = []
     valid = []
     reduced_indices = [index for index in range(candidate.PARAMETER_COUNT)

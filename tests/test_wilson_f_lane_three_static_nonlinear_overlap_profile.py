@@ -6,8 +6,10 @@ from tasks.wilson_loop import f_lane_finite_nt_trace_diagnostic as toy
 from tasks.wilson_loop import f_lane_three_static_two_vacuum_candidate as candidate
 from tasks.wilson_loop.f_lane_three_static_nonlinear_overlap_profile import (
     FIXED_FORCE_INDEX,
+    GROUND_A0_INDICES,
     _expand_force_coordinate,
     _model_jacobian,
+    _start_vectors,
 )
 
 
@@ -62,3 +64,37 @@ def test_exact_force_elimination_and_chain_jacobian():
     ) / (2.0 * step)
     analytic = _model_jacobian(full) @ chain[:, column]
     assert np.max(np.abs(analytic - numeric)) < 2e-6
+
+
+def test_neighbor_continuation_replaces_secondary_start_without_mutating_seed():
+    base = _parameters()
+    continuation = base.copy()
+    continuation[0] += 0.1
+    continuation[2] += 0.2
+    before = continuation.copy()
+    starts = _start_vectors(base, floor=0.9, continuation_parameters=continuation)
+
+    assert [name for name, _ in starts] == ["captured_fit", "neighbor_force_continuation"]
+    assert np.array_equal(continuation, before)
+    assert starts[1][1] is not continuation
+    assert all(starts[1][1][index] >= np.log(0.9) + 0.02
+               for index in GROUND_A0_INDICES)
+
+
+def test_neighbor_continuation_rejects_wrong_shape_and_nonfinite_seed():
+    base = _parameters()
+    try:
+        _start_vectors(base, floor=0.9, continuation_parameters=base[:-1])
+    except ValueError as exc:
+        assert "full parameter vector" in str(exc)
+    else:
+        raise AssertionError("wrong-size continuation start should fail closed")
+
+    invalid = base.copy()
+    invalid[0] = np.nan
+    try:
+        _start_vectors(base, floor=0.9, continuation_parameters=invalid)
+    except ValueError as exc:
+        assert "full parameter vector" in str(exc)
+    else:
+        raise AssertionError("nonfinite continuation start should fail closed")

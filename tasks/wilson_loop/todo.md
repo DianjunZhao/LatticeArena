@@ -2,7 +2,7 @@
 
 ### 当前 CPU 验证快照（2026-11-28）
 
-PR #6 当前 checkout 最新全仓 CPU suite 为 **584 passed in 78.57 s**，包含 C-lane 单次捕获/hash 竞态回归、D04 helper source-map 检查，以及本节 Wilson 非线性 profile stratified screen 与随机 Jacobian regression。定向 Wilson profile/helper 三模块为 **8 passed in 1.76 s**。这只是 CPU 软件/合成诊断证据，未读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。较早的 Wilson 定向 195 passed 与 Optimize+Wilson 354 passed 是旧快照，不代表本次完整复跑。PR #5 Pion 最近记录的全仓 CPU suite 为 **275 passed in 3.75 s**；本轮未改 Pion task。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+PR #6 当前 checkout 最新全仓 CPU suite 为 **588 passed in 78.37 s**，包含 C-lane 单次捕获/hash 竞态回归、D04 helper source-map 检查，以及 Wilson profile stratified screen、随机 Jacobian 与邻点 continuation 回归。定向 Wilson profile/continuation 四模块为 **12 passed in 1.14 s**。这只是 CPU 软件/合成诊断证据，未读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。较早的 Wilson 定向 195 passed 与 Optimize+Wilson 354 passed 是旧快照，不代表本次完整复跑。PR #5 Pion 最近记录的全仓 CPU suite 为 **275 passed in 3.75 s**；本轮未改 Pion task。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
 
 ### 2026-11-26 历史附件链接审计
 
@@ -1146,3 +1146,15 @@ F_abs = V0(R=3)-V0(R=2),  ΔR=1
 [完整图文报告与逐格数据](f_lane_three_static_stratified_profile_20261128_v1/README.md)保留了每 panel 的 raw matrix、manifest、point-fit / profile receipts、protocol、summary、图和源码快照；artifact hashes **75/75**、source hashes **8/8** 已逐项复核。新 Jacobian randomized perturbation regression 与 stratified helper tests 共 **8 passed**；全仓 CPU suite 结果将在下方跨任务回归记录中更新。整个屏幕只用公开的 synthetic toy generator 与先前 open 式合成报告；生产 Wilson、sealed inputs、GPU/QUDA 均未读取或执行。
 
 **方法结论与下一步：**固定 `Δobjective=3.84` 的 profile 在 weak-overlap 小屏中已显示低命中；本次进一步表明 oracle floor 并不能自动使困难 strata 可评估，且 near-degenerate / omitted-vacuum 的高 floor 条件会使 profile 大量弃权。不得把被弃权 panel 从计划面板中静默删去后再称覆盖率；至少同时报告 nominal interval containment、完整率、裁切率和优化失败率。下一条纯 CPU 工作应先做 profile solver 改进实验：检查失败起点的 basin/objective、参数缩放与 Jacobian 条件数；试验在每个 force target 之间 warm-start/continuation，并对 floor-active 约束加可行初值，完整保存旧算法为对照。预先比较完整率、有效率、truth containment、区间宽度和每个 cell 的 `nfev`；不能只优化 coverage、不能把 warm-start path 当独立 starts。若同预算下困难 strata 仍不能给完整 profile，应把报告范围定为**条件估计器的弃权图**并停止 seed 扩增，转向可识别性/estimand 重定义。无论 solver 改善如何，独立 production overlap-floor receipt、校准的 profile threshold、正力 reference、物理 source/operator convention、independent review 与 open-calibration 授权仍未齐；物理门继续 `ABSTAIN_NO_INDEPENDENT_OVERLAP_FLOOR`，C/F=`NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`、sealed data closed。
+
+### 2026-11-28 失败 profile cell 的邻点 continuation 起点重试
+
+为检验上节所列 solver 改进，仅重跑 stratified report 中 near-degenerate 与 omitted-vacuum 两组、toy oracle floor `0.9` 下 **13 个 cold-invalid cells**；不新增 seeds 或重跑原来有效格点。每次保留 point-fit start，并把同 panel / 同 floor 中最近力点的 cold-valid 参数作为第二个 `neighbor_force_continuation` start；相邻参数在新 target force 下重新施加精确力约束。并列距离按较低 target force、再按 objective 确定。每 start 仍限 `max_nfev=1600`。
+
+![按同一 panel 相邻已收敛力点作第二起点后的格点状态](f_lane_three_static_profile_continuation_20261128_v1/continuation_cell_status.png)
+
+继续起点救回 **3/13** 个 cell，全部来自 near-degenerate；总 continuation starts **3/26** 有效，失败/弃权 **23/26**。near-degenerate oracle-floor profile 完整率由 cold **0/3** 增至 **1/3**，唯一完整 interval 仍 **不包含** toy truth（0/1，Wilson 95% `[0,0.793]`）；omitted-vacuum 保持 **0/3** 完整、没有可计 containment 分母。三个救回 cell 的总 `nfev` 为 **2054、1930、1817**；各自已有 point-fit 起点与 continuation 起点，不能把它们解释成独立样本或独立 multistarts。该小型重试说明邻点 warm start 可减少少数近简并格点的弃权，但没有修复遗漏真空组，也没有给出包含真值的完整 interval；不支持增加预算或继续 seed 扩样。
+
+[重试报告、配对表和逐 cell receipts](f_lane_three_static_profile_continuation_20261128_v1/README.md)：输入 panel 文件均由上一 stratified report 的 artifact hashes 核验并捕获 immutable bytes；本次报告 artifact hashes **15/15**、source snapshots **9/9** 已复核（执行后导入闭包审计补入了三个未改变的运行依赖源码，并在 protocol 中记录）。定向 continuation/profile tests **12 passed in 1.14 s**；PR #6 全仓 CPU suite **588 passed in 78.37 s**。未使用 production Wilson、sealed inputs、GPU 或 QUDA。
+
+**下一步：**不再对相同 cell 增加起点或提高 `nfev`。先按失败格点输出残差、active overlap bound、Jacobian singular vectors/condition、两起点 objective 与收敛状态，区分不可行/近简并/仅优化慢；只在 source 参数尺度和 floor 参数化有可检验改进后做一次固定 panel 的 paired solver comparison。若同预算的 profile completion 仍不足，就把该 estimator 限定为 abstain-map 诊断并转向重新定义可识别 estimand。生产 overlap-floor、物理 source/operator 约定、force reference、独立 coverage/contamination review 和 open-calibration 授权仍未齐；物理 gate 继续 abstain，Wilson 两 lane=`NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`、sealed data closed。
