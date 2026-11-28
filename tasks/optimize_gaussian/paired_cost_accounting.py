@@ -7,6 +7,7 @@ turn cost comparability into a physics result.
 """
 from __future__ import annotations
 
+import math
 import re
 from collections import Counter
 from numbers import Integral
@@ -64,6 +65,17 @@ def _calls(value: object, *, label: str) -> dict[str, int]:
     if any(not _is_nonnegative_integer(value[name]) for name in ("objective", "gradient")):
         raise ValueError(f"{label} counts must be nonnegative integers")
     return {name: int(value[name]) for name in ("objective", "gradient")}
+
+
+def _add_finite_seconds(total: float, increment: float, *, label: str) -> float:
+    """Add individually finite durations without allowing aggregate overflow."""
+    try:
+        result = math.fsum((total, increment))
+    except OverflowError as exc:
+        raise ValueError(f"{label} aggregate seconds overflow float64") from exc
+    if not math.isfinite(result):
+        raise ValueError(f"{label} aggregate seconds are non-finite")
+    return result
 
 
 def _environment(value: object, *, label: str) -> dict[str, Any]:
@@ -154,8 +166,14 @@ def summarize_paired_cost_ledger(ledger: object) -> dict[str, Any]:
                 phase_seconds = _phase_map(row.get("phase_seconds"), label=f"{arm}.{block_id}.phase_seconds")
                 block_calls = _calls(row.get("calls"), label=f"{arm}.{block_id}.calls")
                 for phase in PHASES:
-                    block_phase_totals[phase] += phase_seconds[phase]
-                    phase_totals[phase] += phase_seconds[phase]
+                    block_phase_totals[phase] = _add_finite_seconds(
+                        block_phase_totals[phase], phase_seconds[phase],
+                        label=f"{arm}.{phase} per-block",
+                    )
+                    phase_totals[phase] = _add_finite_seconds(
+                        phase_totals[phase], phase_seconds[phase],
+                        label=f"{arm}.{phase} full-batch",
+                    )
                 for kind in ("objective", "gradient"):
                     calls_total[kind] += block_calls[kind]
                 max_block_calls = max(max_block_calls, block_calls["objective"] + block_calls["gradient"])
@@ -167,7 +185,12 @@ def summarize_paired_cost_ledger(ledger: object) -> dict[str, Any]:
                 reasons_for_arm.append("block list contains repeated rows")
             planned = len(planned_ids)
             completed = counts["valid"] + counts["failed"] + counts["abstained"]
-            total_seconds = sum(phase_totals.values())
+            try:
+                total_seconds = math.fsum(phase_totals.values())
+            except OverflowError as exc:
+                raise ValueError(f"{arm} full task-batch seconds overflow float64") from exc
+            if not math.isfinite(total_seconds):
+                raise ValueError(f"{arm} full task-batch seconds are non-finite")
             block_means = {
                 phase: (block_phase_totals[phase] / planned
                         if not reasons_for_arm and completed == planned else None)
@@ -215,9 +238,11 @@ def summarize_paired_cost_ledger(ledger: object) -> dict[str, Any]:
         denominator_cost = summaries["trainable_W"]["full_task_batch_seconds"]
         if denominator_cost > 0.0:
             for arm in ARMS[1:]:
-                ratios[arm] = (
-                    summaries[arm]["full_task_batch_seconds"] / denominator_cost
-                )
+                ratio = summaries[arm]["full_task_batch_seconds"] / denominator_cost
+                if math.isfinite(ratio):
+                    ratios[arm] = ratio
+                else:
+                    reasons.append(f"{arm} cost ratio is not finite")
         else:
             reasons.append("trainable_W full task-batch wall time must be positive to form cost ratios")
 

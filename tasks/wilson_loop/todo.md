@@ -1174,3 +1174,19 @@ F_abs = V0(R=3)-V0(R=2),  ΔR=1
 图文与审计文件：[保存终点 stationarity 报告](f_lane_three_static_profile_stationarity_20261128_v1/README.md)和[TRF/dogbox 配对报告](f_lane_three_static_profile_dogbox_20261128_v1/README.md)。前者 source snapshots **8/8**、artifact hashes **13/13**；后者 source snapshots **8/8**、artifact hashes **13/13**；完整输入 manifest 均复核通过。改动后全仓 CPU suite **588 passed in 80.02 s**；两个新增诊断模块 `py_compile` 成功，`git diff --check` 通过。全部结果仍限 synthetic CPU，没读生产 `C_ij`、GEVP、sealed split，也没运行 GPU/QUDA。
 
 **本支线的下一步停止规则：**不再对当前 `Δobjective<=3.84` profile 作同样 seed 的局部数值调参。若重开 profile 研究，先提出改变模型/参数化或 estimand 的可证伪方案，并在看新 panel 前冻结目标指标、solvers、起点和接受门槛；报告所有 fit/cell/panel 的有效、失败、弃权与裁切分母，不把拟合可完成等同覆盖校准。若没有生产独立 overlap-floor receipt 与 open calibration 样本，仍 abstain。真实 Wilson C/F 的 source/operator/time conventions、matched `N_t=32` thermal/mixed 污染界、正 force reference、模型截断/误差预算、独立审阅和授权都未由本次 synthetic 对照补上；C finite-T Creutz 与 F ground-state force 继续分轨，双 lane `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`、sealed data closed。
+
+### 2026-11-28 最大分量相位图的正谱参数化检查
+
+当前 [`f_lane_three_static_two_vacuum_candidate.py`](f_lane_three_static_two_vacuum_candidate.py) 对每个 `(R,m,n)` overlap vector 都把 operator 0 固定为正实相位锚。这个 chart 对一般非零向量完全够用，但 `two_state._pack_amplitude` 会拒绝 `Z_0=0` 的向量，即使 `Z_1` 或 `Z_2` 非零、完整 `3×3` 正谱外积矩阵仍能包含该态。新增独立原型 [`f_lane_three_static_pivot_chart.py`](f_lane_three_static_pivot_chart.py)：逐 transition 选 `argmax_i |Z_i|` 为 pivot，消去共同相位后将正的最大分量存为 log-amplitude，其余两个复分量直接存储；参数数目仍为 67，有限-$N_t$ trace 与当前 candidate 的物理模型不变。全零向量没有可识别相位锚，明确拒绝。
+
+文字流程：`positive finite-Nt spectrum -> per-(R,m,n) largest-|Z_i| pivot -> phase rotation -> 67-coordinate encoding -> unchanged 2-vacuum × 3-static forward trace/Jacobian -> exact reconstruction and finite-difference checks -> diagnostic only`。
+
+确定性 67 参数夹具实际用到三个 pivot，计数 `10/1/1`；重编码前后的模型向量最大差为 `1.11e-16`。解析 Jacobian 与中心差分的最大绝对 / 单位缩放差为 `5.03e-11`。单独的 `Z=(0,0.70+0.10i,-0.20+0.10i)` fixture 由新 chart 精确表达，而现有 operator-0 packer 按预期拒绝；全零向量也按预期拒绝。新增 [`test_wilson_f_lane_three_static_pivot_chart.py`](../../tests/test_wilson_f_lane_three_static_pivot_chart.py) **5 passed**；与 Optimize cost-ledger 数值边界的两组定向测试合计 **11 passed**。README 用文字流程记录结果；`artifact_hashes.json` 的 **2/2** 与 `source_hashes.json` 的 **4/4** 均按 SHA-256 复核匹配。
+
+这关闭的是参数表示对“第 0 算符分量恰为零”的软件盲点，不代表 profile optimizer 的完成率、覆盖率或物理污染界有所改善。它没有用于拟合、没有生成新的 panel，也没有输入 Wilson production/sealed data、GPU 或 QUDA。下一项可证伪检查应在看新结果前冻结 paired profile 规则，并仅使用 hash-verified 的现有开放 synthetic matrices 对照固定 operator-0 chart 与 pivot chart；同矩阵、协方差、force grid、starts、solver/call cap 和 acceptance criteria，完整报告 fit/cell 的 planned/valid/failed/abstained/clipped 分母及 interval containment。没有独立 overlap-floor、正力 reference、source/operator/time convention、thermal/mixed/truncation receipts 和 reviewer 前，两条 Wilson lane 仍 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`、sealed data closed。
+
+### 2026-11-28 全仓 CPU 回归：pivot chart 与成本边界修正后
+
+当前 PR #6 checkout 全仓 `python -m pytest -q tests` 为 **599 passed in 83.58 s**。本轮新增 Wilson pivot-chart 5 项与 Optimize cost-ledger overflow 2 项测试；同一测试文件集中的 4 项 cost-ledger 基础测试也首次进入这次全仓复跑。Wilson pivot chart 的 model/Jacobian 摘要、4/4 source hashes、2/2 artifact hashes 另见 [`f_lane_three_static_pivot_chart_20261128_v1/README.md`](f_lane_three_static_pivot_chart_20261128_v1/README.md)。`py_compile` 与 `git diff --check` 通过。
+
+文字流程：`Wilson exact chart round-trip + zero-anchor support + Jacobian regression / Optimize finite-cost overflow negatives -> full CPU suite -> 599 passed -> source and artifact digests checked`。这只验证 CPU 软件路径与上述确定性夹具；没有读取 production/sealed measurements、没有运行 GPU/QUDA，也没有形成 Wilson force coverage、Optimize paired risk/cost、Pion anchor bridge 或 physical score。C finite-T Creutz、F ground-state force、Optimize 与 Pion 均维持既定 `NOT_READY/UNCERTIFIED` / `physical_score=null` 边界。

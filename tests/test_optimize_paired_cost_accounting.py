@@ -141,3 +141,41 @@ def test_invalid_costs_calls_and_duplicate_block_ids_fail_closed():
         assert result["status"] == "ABSTAIN_COST_LEDGER_INVALID"
         assert result["comparison_ready"] is False
         assert result["physical_score"] is None
+
+
+def test_finite_per_row_costs_that_overflow_batch_total_abstain():
+    ledger = _ledger()
+    rows = ledger["arms"]["trainable_W"]["blocks"]
+    rows[0]["phase_seconds"]["solve"] = 1e308
+    rows[1]["phase_seconds"]["solve"] = 1e308
+
+    result = summarize_paired_cost_ledger(ledger)
+
+    assert result["status"] == "ABSTAIN_COST_LEDGER_INVALID"
+    assert result["comparison_ready"] is False
+    assert all(value is None for value in result["cost_ratios_to_trainable_W"].values())
+    assert any("aggregate seconds overflow" in reason for reason in result["reasons"])
+
+
+def test_overflowing_cost_ratio_abstains_instead_of_returning_infinity():
+    ledger = _ledger()
+    learned = ledger["arms"]["trainable_W"]
+    learned["shared_phase_seconds"] = _phase(setup=1e-308)
+    for row in learned["blocks"]:
+        row["phase_seconds"] = _phase()
+    comparison = ledger["arms"]["same_budget_SLSQP"]
+    comparison["shared_phase_seconds"] = _phase(setup=1e308)
+    for row in comparison["blocks"]:
+        row["phase_seconds"] = _phase()
+    chebyshev = ledger["arms"]["fixed_degree4_Chebyshev"]
+    chebyshev["shared_phase_seconds"] = _phase()
+    for row in chebyshev["blocks"]:
+        row["phase_seconds"] = _phase()
+
+    result = summarize_paired_cost_ledger(ledger)
+
+    assert result["status"] == "ABSTAIN_COST_RATIO_UNDEFINED"
+    assert result["comparison_ready"] is False
+    assert result["cost_ratios_to_trainable_W"]["same_budget_SLSQP"] is None
+    assert result["cost_ratios_to_trainable_W"]["fixed_degree4_Chebyshev"] == 0.0
+    assert any("ratio is not finite" in reason for reason in result["reasons"])

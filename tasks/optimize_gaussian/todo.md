@@ -965,3 +965,13 @@ shared input-manifest + seed-plan hashes
 ~~~
 
 四项新增 cost-ledger 测试覆盖完整批次（含失败臂成本和 shared training charge）、漏块弃权、运行环境不匹配、负时间/布尔调用数/重复 block ID 负控；no-launch draft 测试也确认新 reducer 被纳入源码快照。PR #6 当前 Optimize 专项 `python -m pytest -q tests/test_optimize*.py` 为 **203 passed in 53.46 s**；`py_compile` 与 `git diff --check` 通过。该项只提供严格汇总接口和 synthetic schema fixtures；没有运行真实 solver、读取 measurement/sealed 数据或测硬件成本。后续必须由实际 paired-results producer 从同一授权 snapshot 填入完整三臂账本，并同时交付 D04 E-reference、D06 risk/依赖 receipts、D11 SU(3) operator review 与必要授权。Optimize 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed inputs closed。
+
+### 2026-11-28 paired cost ledger 的 aggregate overflow fail-closed 修正
+
+对已加入的 [`paired_cost_accounting.py`](paired_cost_accounting.py) 做极端合法输入审计：每行 seconds 即使各自有限，跨 block 的 phase sum、全任务六阶段总和仍可能溢出 float64；一个极小正 trainable-W denominator 也可能让有限 numerator 的 cost ratio 变成 `inf`。现以 `math.fsum` 检查每次累加及最终 batch sum，任何 aggregate overflow/non-finite 均返回 `ABSTAIN_COST_LEDGER_INVALID`；比例若非有限则置空并返回 `ABSTAIN_COST_RATIO_UNDEFINED`，不把 `inf` 当作巨大但有效的比较值。
+
+文字流程：`finite per-row phase seconds -> guarded aggregate by phase -> guarded all-phase batch total -> complete comparable arms -> finite full-batch ratio; any overflow/non-finite -> abstain with null ratio`。新增两项负控分别让两个 `1e308` block costs 在 aggregate sum 溢出、以及 `1e308/1e-308` cost ratio 溢出；连同之前四项账本测试共 **6 passed**。本轮与 Wilson pivot-chart 定向测试合计 **11 passed**；`py_compile` 与 `git diff --check` 通过。此修正仅加固账本归约，不含真实 paired solver receipt、设备时间或 Optimize 物理结果；D04 E-chain reference、D06 三臂配对风险/依赖收据、D11 SU(3) production review 与必要授权仍未提交，Optimize 继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。
+
+### 2026-11-28 PR #6 全仓 CPU 回归：cost-ledger overflow 与 Wilson pivot chart 后
+
+本轮新增 paired cost ledger aggregate-overflow/ratio-overflow 两个负控，并将 5 项 Wilson largest-component phase-chart 方法检查纳入当前仓库；PR #6 全仓 `python -m pytest -q tests` 为 **599 passed in 83.58 s**。这是 CPU 软件兼容性回归，不是 D04 reference-fit calibration、D06 trainable-W/SLSQP/Chebyshev 风险或真实成本证据，也不提供 D11 SU(3) production review。`physical_score=null`，sealed inputs closed。Wilson 相位图详细结果见 [`../wilson_loop/f_lane_three_static_pivot_chart_20261128_v1/README.md`](../wilson_loop/f_lane_three_static_pivot_chart_20261128_v1/README.md)。
