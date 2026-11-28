@@ -985,8 +985,10 @@ V w_alt + epsilon v_hidden = V w_base; all adjusted old weights remain positive
 same matrices / same measured effective energies -> ground force 0.000 vs 0.050
 ~~~
 
-这构造说明有限时间的 3×3 正谱数据本身不唯一决定 `E_0(R)` 或 ground force；更一般地，只要有限矩向量位于正矩锥内部，就可加入足够小的正原子并微调旧正权重来保持所有已观测矩不变。令隐藏 transfer node 趋近 1、同时把振幅缩小，可在完全相同的有限采样值下继续降低未见态能量；因此有限时间 fit residual、Jacobian rank 或 q/h/x 参数协方差本身不给出生产所需的 overlap floor / gap receipt。若额外采用非负能量约定，正性仍可给较宽的可行 envelope；本结果只否定从这些时间点单独推出紧的项目 `model_truncation_bound`，不否认存在依赖外部谱约束的有效界。
+这构造说明有限时间的 3×3 正谱数据本身不唯一决定 `E_0(R)` 或 ground force；更一般地，只要有限矩向量位于正矩锥内部，就可加入足够小的正原子并微调旧正权重来保持所有已观测矩不变。令隐藏 transfer node 趋近 1、同时把振幅缩小，可在完全相同的有限采样值下继续降低未见态能量；因此有限时间 fit residual、Jacobian rank 或 q/h/x 参数协方差本身不给出生产所需的 overlap floor / gap receipt。
 
-输出保存五个时间的两组 3×3 矩阵、逐 `(R,T)` CSV、冻结参数、源码快照、协议、图和 artifact hashes。定向测试 `tests/test_wilson_f_lane_finite_time_nonidentifiability.py` **3 passed**，覆盖矩阵完全匹配到浮点精度、所有矩阵 Hermitian positive definite、旧谱权重为正、effective-energy 观测重合但基态力不同。未做 Monte Carlo、未读 `C_ij`/GEVP/thermal/sealed bytes，未启动 GPU/QUDA；Wilson C/F 两 lane、`NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 不变。
+还计算了一个明确有条件、但很宽的 positivity-only 包络：若 production energy convention 另行保证每个谱能量 `a_t E_n>=0`，正谱给 `0<=a_t E_0(R)<=min_{T=3..6} a_t E_eff(R,T)`。本 toy 的每个半径上界均为 `0.194949`，故 `R=2→3` ground force 只能收窄到 `[-0.194949,+0.194949]`，宽度 `0.389898`；它包含 `0` 与 `0.05` 两个不可区分的 ground force。该非负能量约定需检查是否与 production 的静态能量减法/归一化一致；若不成立，此区间不能引用。这个 broad envelope 不证明达到 Wilson contract 的 1% model-truncation budget，正 reference force 仍缺，故不据此通过或失败物理门。
+
+输出保存五个时间的两组 3×3 矩阵、逐 `(R,T)` CSV、冻结参数、源码快照、协议、图和 artifact hashes。定向测试 `tests/test_wilson_f_lane_finite_time_nonidentifiability.py` **4 passed**，覆盖矩阵完全匹配到浮点精度、所有矩阵 Hermitian positive definite、旧谱权重为正、effective-energy 观测重合但基态力不同，以及带 `E_0>=0` 前提的宽力区间。未做 Monte Carlo、未读 `C_ij`/GEVP/thermal/sealed bytes，未启动 GPU/QUDA；Wilson C/F 两 lane、`NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null` 不变。
 
 **下一步方法工作：**不要再用不加限制的有限时谱拟合宣称 model-truncation bound。若继续纯 CPU 推进，先把独立 gap/overlap 限制作为显式条件变量，审计 [`ground_state_bound.py`](ground_state_bound.py) 与 `spectral_q_bound_reader.py` 的 q envelope 如何连接有限时间数据，再给出“给定 Q_max、Delta_min 后”的力区间并和 force budget 的 1% 门逐项对照；无这些外部限制时，模型截断项应保持缺失/ABSTAIN。C-lane finite-T Creutz 的 `R=2,T=5,spatial_stout_rho0.10_n5` 与 F-lane ground-state force 仍分开，真实 exporter、thermal/mixed h/x、正 reference-force、授权和独立 review 仍是物理门。

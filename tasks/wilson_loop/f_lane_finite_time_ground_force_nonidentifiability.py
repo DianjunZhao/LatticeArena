@@ -36,6 +36,30 @@ def _moment_matrix(nodes: np.ndarray, times: tuple[int, ...]) -> np.ndarray:
                        for time in times], dtype=float)
 
 
+def _positivity_only_force_interval(
+    effective_energies: np.ndarray, *, radius_step: float,
+) -> tuple[float, float, list[float]]:
+    """Broad force interval from positive spectra and an explicit E0 >= 0 prior.
+
+    Positive spectral weights imply E_eff(R,T) >= E0(R), so the smallest
+    measured effective energy is an upper bound on E0. The lower bound zero is
+    an additional energy-convention assumption and is not inferred here.
+    """
+    values = np.asarray(effective_energies, dtype=float)
+    if values.ndim != 2 or values.shape[0] != len(R_VALUES) or values.shape[1] < 1:
+        raise ValueError("effective_energies must have one nonempty row per radius")
+    if not np.isfinite(values).all() or np.any(values < 0.0):
+        raise ValueError("effective_energies must be finite and nonnegative")
+    if not math.isfinite(radius_step) or radius_step <= 0.0:
+        raise ValueError("radius_step must be positive and finite")
+    upper_by_radius = np.min(values, axis=1)
+    return (
+        float(-upper_by_radius[0] / radius_step),
+        float(upper_by_radius[1] / radius_step),
+        upper_by_radius.tolist(),
+    )
+
+
 def _build_witness() -> dict[str, Any]:
     """Return two spectra and their finite-time matrix correlators."""
     if len(BASE_NODES) != len(TIME_SLICES):
@@ -101,6 +125,9 @@ def _build_witness() -> dict[str, Any]:
         for values in alt_scalar_by_radius
     ])
     finite_time_force = np.mean(alt_effective[1] - alt_effective[0])
+    positivity_force_lower, positivity_force_upper, positivity_energy_upper = (
+        _positivity_only_force_interval(base_effective, radius_step=radius_step)
+    )
 
     return {
         "moment_matrix": moment,
@@ -117,6 +144,10 @@ def _build_witness() -> dict[str, Any]:
         "base_effective_energies": base_effective,
         "alt_effective_energies": alt_effective,
         "finite_time_force": float(finite_time_force),
+        "positivity_only_force_interval": [
+            positivity_force_lower, positivity_force_upper,
+        ],
+        "positivity_only_ground_energy_upper_by_radius": positivity_energy_upper,
         "max_matrix_abs_residual": float(np.max(np.abs(residual))),
         "max_matrix_relative_residual": relative_residual,
         "minimum_base_weight_after_adjustment": float(np.min(alt_weights_by_radius)),
@@ -137,7 +168,7 @@ def _plot(result: dict[str, Any], path: Path) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(1, 3, figsize=(15.0, 4.8), constrained_layout=True)
+    fig, axes = plt.subplots(1, 4, figsize=(18.5, 4.8), constrained_layout=True)
     ax = axes[0]
     times = np.asarray(TIME_SLICES)
     styles = [("#287a63", "-", "R=2 base"),
@@ -181,6 +212,26 @@ def _plot(result: dict[str, Any], path: Path) -> None:
                     (bar.get_x() + bar.get_width() / 2, bar.get_height()),
                     xytext=(0, 4 if value >= 0 else -12), textcoords="offset points",
                     ha="center", va="bottom" if value >= 0 else "top", fontsize=9)
+    ax = axes[3]
+    lower, upper = result["positivity_only_force_interval"]
+    midpoint = 0.5 * (lower + upper)
+    halfwidth = 0.5 * (upper - lower)
+    ax.errorbar([midpoint], [1.0], xerr=[halfwidth], fmt="o", capsize=6,
+                color="#333333")
+    witness_forces = [result["base_ground_force"], result["alt_ground_force"],
+                      result["finite_time_force"]]
+    ax.scatter(witness_forces, [0.0, 0.0, 0.0], s=[45, 55, 45],
+               c=["#287a63", "#c56c32", "#5579ad"], zorder=3)
+    ax.axvline(0.0, color="#777777", linewidth=0.8)
+    ax.set_xlim(lower - 0.03, upper + 0.03)
+    ax.set(yticks=[0.0, 1.0], yticklabels=["base / hidden / measured", "broad interval"],
+           xlabel=r"lattice-coordinate slope $\Delta(a_t E)/\Delta R$",
+           title="Positivity gives only a broad envelope")
+    ax.grid(axis="x", alpha=0.25)
+    ax.annotate(f"{lower:.3f}", (lower, 1.0), xytext=(0, 9),
+                textcoords="offset points", ha="center", fontsize=8)
+    ax.annotate(f"{upper:.3f}", (upper, 1.0), xytext=(0, 9),
+                textcoords="offset points", ha="center", fontsize=8)
     fig.suptitle("Finite-time positive spectra do not identify ground-state force")
     fig.savefig(path, dpi=180)
     plt.close(fig)
@@ -247,6 +298,12 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict:
         "base_ground_force_lattice_coordinate": result["base_ground_force"],
         "hidden_ground_force_lattice_coordinate": result["alt_ground_force"],
         "finite_time_force_from_measured_effective_energies": result["finite_time_force"],
+        "positivity_only_force_interval_assuming_nonnegative_ground_energies": result[
+            "positivity_only_force_interval"
+        ],
+        "positivity_only_ground_energy_upper_by_radius": result[
+            "positivity_only_ground_energy_upper_by_radius"
+        ],
         "max_matrix_absolute_residual": result["max_matrix_abs_residual"],
         "max_matrix_relative_residual": result["max_matrix_relative_residual"],
         "minimum_adjusted_old_weight": result["minimum_base_weight_after_adjustment"],
@@ -315,6 +372,7 @@ def build_report(output: str | Path = DEFAULT_OUT) -> dict:
         "base_ground_force": result["base_ground_force"],
         "hidden_ground_force": result["alt_ground_force"],
         "finite_time_force": result["finite_time_force"],
+        "positivity_only_force_interval": result["positivity_only_force_interval"],
         "max_matrix_relative_residual": result["max_matrix_relative_residual"],
         "minimum_adjusted_old_weight": result["minimum_base_weight_after_adjustment"],
         "physical_score": None,
@@ -353,7 +411,9 @@ ground force 0.000 vs 0.050 while observed finite-time force remains 0.000
 
 This is a constructive non-identifiability result for the chosen finite set of positive-time correlator matrices. More generally, for a finite moment vector in the interior of the positive moment cone, a sufficiently small new positive atom can be added at a transfer eigenvalue above the assumed largest node, while nearby positive weights on the old nodes preserve every observed moment exactly. The hidden transfer eigenvalue can approach 1 while its positive amplitude shrinks, so these finite observations do not establish a positive lower gap or an overlap floor. Positivity together with a declared nonnegative-energy convention can still imply a broad envelope; this witness shows that the finite-time data alone do not identify a unique ground force or establish the tight project-specific model-truncation budget required by the F-lane contract. An independently justified overlap/gap/support restriction or equivalent receipt is needed to narrow that envelope. With noisy data the indistinguishable set only grows.
 
-The witness does **not** say the hidden spectrum is realized in the project, quantify the actual force error, include finite-`N_t` winding/thermal or mixed-sector `h/x`, identify the production exporter convention, or establish the size of any valid spectral prior. It therefore does not set the Wilson force budget. It instead shows why an independently sourced spectral restriction is required before the F-lane model-truncation component can be finite. Keep F=`GROUND_STATE_FORCE_UNCERTIFIED`, both Wilson lanes `NOT_READY/UNCERTIFIED`, `physical_score=null`, and sealed inputs closed.
+Under the **additional convention** that every ground energy is nonnegative, positive spectral weights imply `0 <= E0(R) <= min_T E_eff(R,T)`. Applied to this toy, that gives only `ground force in [{result['positivity_only_force_interval'][0]:.6f}, {result['positivity_only_force_interval'][1]:.6f}]`, a width of `{result['positivity_only_force_interval'][1] - result['positivity_only_force_interval'][0]:.6f}` in lattice-coordinate units. This contains both witnesses, but it is broad; the nonnegative-energy convention itself must be checked for the production energy normalization, especially if an additive static-energy subtraction is used.
+
+The witness does **not** say the hidden spectrum is realized in the project, quantify the actual force error, include finite-`N_t` winding/thermal or mixed-sector `h/x`, identify the production exporter convention, or establish the size of any valid spectral prior. The positivity-only range therefore does not set the Wilson force budget. It instead shows why an independently sourced spectral restriction is required before the F-lane model-truncation component can be made tight enough for the selected budget. Keep F=`GROUND_STATE_FORCE_UNCERTIFIED`, both Wilson lanes `NOT_READY/UNCERTIFIED`, `physical_score=null`, and sealed inputs closed.
 
 ## Reproduction and evidence
 

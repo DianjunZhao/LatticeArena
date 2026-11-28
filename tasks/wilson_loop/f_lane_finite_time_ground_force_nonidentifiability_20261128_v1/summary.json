@@ -11,6 +11,10 @@
   "minimum_adjusted_old_weight": 0.19999754460776764,
   "physical_score": null,
   "planned": 10,
+  "positivity_only_force_interval": [
+    -0.19494905943040766,
+    0.19494905943040766
+  ],
   "schema": "wilson-finite-time-ground-force-nonidentifiability-v1",
   "valid": 10
 }

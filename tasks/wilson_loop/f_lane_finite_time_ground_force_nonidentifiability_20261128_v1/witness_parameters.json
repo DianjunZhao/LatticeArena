@@ -65,6 +65,14 @@
     0.6
   ],
   "physical_score": null,
+  "positivity_only_force_interval_assuming_nonnegative_ground_energies": [
+    -0.19494905943040766,
+    0.19494905943040766
+  ],
+  "positivity_only_ground_energy_upper_by_radius": [
+    0.19494905943040766,
+    0.19494905943040766
+  ],
   "radii": [
     2,
     3

@@ -890,6 +890,6 @@ PR #6 当前 GitHub 状态仍为 OPEN，复核时 head `a06ecd91e3a83fc19b4ece6b
 
 ### 2026-11-28 PR #6 跨任务 CPU 回归：有限时间基态力反例后
 
-在 Wilson F-lane 新增正谱有限时间非唯一性构造后，重新运行当前 PR #6 全仓 CPU suite：**542 passed in 76.95 s**。这比上一节的 532 项多了 3 项 Wilson 定向测试；Optimize 的 solver / D04 / D06 / D11 实现与合同保持原样。新 Wilson 报告只证明正谱有限矩可有不同 ground force，不产生任何 Optimize 的 reference、solver-risk、成本或 GPU 证据。
+在 Wilson F-lane 新增正谱有限时间非唯一性构造及 positivity-only 宽区间诊断后，重新运行当前 PR #6 全仓 CPU suite：**543 passed in 76.98 s**。这比 532 项快照多了 4 项 Wilson 定向测试；Optimize 的 solver / D04 / D06 / D11 实现与合同保持原样。新 Wilson 报告只证明正谱有限矩可有不同 ground force，并给出带 `a_t E_0>=0` 前提的宽 positivity interval；不产生任何 Optimize 的 reference、solver-risk、成本或 GPU 证据。
 
-文字流程：`Optimize 双比较臂与 D04/D06/D11 合同 + Wilson finite-time positive-spectrum witness -> 全仓 CPU regression -> 542 passed -> 仍需独立 E-reference、获准 paired solver receipt、SU(3) 生产算符 review`。因此此项只更新软件兼容性快照；Optimize 三个 gate 继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。下一步若没有开放的 Optimize development package，不重复 CPU toy labels 或旧 seeds，也不以这次跨任务回归宣称研究完成。
+文字流程：`Optimize 双比较臂与 D04/D06/D11 合同 + Wilson finite-time positive-spectrum witness -> 全仓 CPU regression -> 543 passed -> 仍需独立 E-reference、获准 paired solver receipt、SU(3) 生产算符 review`。因此此项只更新软件兼容性快照；Optimize 三个 gate 继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。下一步若没有开放的 Optimize development package，不重复 CPU toy labels 或旧 seeds，也不以这次跨任务回归宣称研究完成。

@@ -3,6 +3,7 @@ import numpy as np
 from tasks.wilson_loop.f_lane_finite_time_ground_force_nonidentifiability import (
     HIDDEN_AMPLITUDE,
     _build_witness,
+    _positivity_only_force_interval,
 )
 
 
@@ -34,3 +35,17 @@ def test_all_measured_effective_energies_are_indistinguishable():
         rtol=1e-14,
         atol=1e-14,
     )
+
+
+def test_positive_spectrum_only_envelope_contains_witnesses_but_is_broad():
+    result = _build_witness()
+    lower, upper, energy_upper = _positivity_only_force_interval(
+        result["base_effective_energies"], radius_step=1.0,
+    )
+    assert np.allclose(energy_upper, [0.19494905943040766] * 2)
+    assert np.isclose(lower, -0.19494905943040766)
+    assert np.isclose(upper, 0.19494905943040766)
+    assert lower <= result["base_ground_force"] <= upper
+    assert lower <= result["alt_ground_force"] <= upper
+    assert lower <= result["finite_time_force"] <= upper
+    assert upper - lower > 0.38
