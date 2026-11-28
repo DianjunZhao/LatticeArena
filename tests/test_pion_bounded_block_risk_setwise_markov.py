@@ -10,6 +10,7 @@ from tasks.pion_projection.bounded_block_risk_setwise_markov import (
     setwise_markov_score_lcb_from_gap_bound,
 )
 from tasks.pion_projection.bounded_block_risk_markov_varying import (
+    markov_time_varying_score_lcb_from_gap_bound,
     time_varying_markov_radius_from_gap_bound,
 )
 
@@ -117,6 +118,59 @@ def test_uniform_bound_abstains_when_every_planned_block_fails():
     assert result["denominators"] == {
         "planned_blocks": 2, "valid_blocks": 0,
         "failed_blocks": 2, "abstained_blocks": 0,
+    }
+
+
+def test_singleton_target_set_matches_direct_markov_lcb_with_tv_and_anchor_shift():
+    kwargs = arguments()
+    kwargs.update({
+        "valid_blocks": np.asarray([True, False]),
+        "target_interval": [0.2, 0.2],
+        "prediction_domain": [-0.5, 0.5],
+        "mesh_step_R": 0.5,
+        "family": 1,
+        "initial_law_mode": "post_burn_in_tv",
+        "burn_in_blocks": 3,
+        "initial_law_tv_bound": 0.001,
+        "anchor_score_shift_bound": 0.02,
+    })
+    reference = np.asarray([-0.25, np.nan])
+    candidate = np.asarray([0.25, np.nan])
+    result = setwise_markov_score_lcb_from_gap_bound(
+        reference, candidate, **kwargs,
+    )
+    point_score = ((0.2 - (-0.25)) ** 2 - (0.2 - 0.25) ** 2) / 2.0**2
+    direct = markov_time_varying_score_lcb_from_gap_bound(
+        [point_score, -1.0],
+        valid_blocks=kwargs["valid_blocks"],
+        gamma_ps_lower=kwargs["gamma_ps_lower"],
+        family=kwargs["family"],
+        alpha_score=kwargs["alpha_score"],
+        alpha_anchor=kwargs["alpha_anchor"],
+        alpha_total=kwargs["alpha_total"],
+        initial_law_mode=kwargs["initial_law_mode"],
+        burn_in_blocks=kwargs["burn_in_blocks"],
+        initial_law_tv_bound=kwargs["initial_law_tv_bound"],
+        anchor_score_shift_bound=kwargs["anchor_score_shift_bound"],
+        gamma_ps_lower_receipt_sha256=kwargs["gamma_ps_lower_receipt_sha256"],
+        dependence_evidence_receipt_sha256=kwargs["dependence_evidence_receipt_sha256"],
+        block_chain_receipt_sha256=kwargs["block_chain_receipt_sha256"],
+        initial_law_receipt_sha256=kwargs["initial_law_receipt_sha256"],
+        anchor_shift_receipt_sha256=kwargs["anchor_shift_receipt_sha256"],
+        score_schedule_receipt_sha256=kwargs["score_schedule_receipt_sha256"],
+    )
+
+    assert result["target_grid"] == [0.2]
+    assert result["maximum_grid_gap_over_R_upper_bound"] == 0.0
+    assert result["simultaneous_family_size"] == 1
+    assert result["pointwise_bounds"][0]["normalized_lower_bound"] == pytest.approx(
+        direct["normalized_lower_bound"]
+    )
+    assert result["uniform_target_set_lower_bound"] == pytest.approx(
+        max(-1.0, np.nextafter(direct["normalized_lower_bound"], -np.inf))
+    )
+    assert result["pointwise_bounds"][0]["denominators"] == {
+        "planned": 2, "valid": 1, "failed": 1, "abstained": 0,
     }
 
 
