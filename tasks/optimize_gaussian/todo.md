@@ -908,3 +908,7 @@ PR #6 全仓 CPU suite **557 passed in 83.44 s**，包含 Wilson F-lane 将 prim
 ### 2026-11-28 跨任务回归：Wilson 绝对力 delta interval screen 后
 
 Wilson F-lane 新增绝对 ground-force 的解析 delta 梯度与未校准区间，并用 24 个独立 omitted-state synthetic panel 发现该近似仅 4/24 覆盖真值；图、输入/源码快照与 hashes 已保存在 [`f_lane_absolute_force_coverage_20261128_v1`](../wilson_loop/f_lane_absolute_force_coverage_20261128_v1/README.md)。本轮当前 PR #6 checkout 全仓 CPU suite **559 passed in 81.39 s**。文字流程：`新增 Wilson absolute-force diagnostic + 两项回归 -> 559 CPU tests passed -> Optimize contracts unchanged`。这只是跨任务软件兼容性和 Wilson synthetic 方法诊断，不产生 Optimize 的独立 E-reference、D06 配对 solver-risk/成本、SU(3) 算符审阅或生产授权证据。Optimize 仍保留 trainable-W 对同预算 SLSQP 和 degree-4 Chebyshev 两项比较、bounded block-risk estimand，状态 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。
+
+### 2026-11-28 PR #6 跨任务回归：Wilson 绝对力 full-refit MBB screen 后
+
+Wilson F-lane 新增 6 个 AR(1) omitted-state panel 的 absolute-force full-refit MBB 屏查：234/234 bootstrap fits 有效，MBB interval 6/6 覆盖 toy truth，但 interval median width 是 delta 的约 5.2 倍且 B=39 只能给 sample range，不能称校准。PR #6 当前 checkout 全仓 CPU suite **563 passed in 81.74 s**。这仅验证软件回归和 Wilson 一套 synthetic DGP；不提供 Optimize 的 candidate-blind E-reference、D06 配对 solver-risk/成本、SU(3) 生产算符审阅或 GPU/数据授权证据。文字流程：`Wilson absolute-force MBB 234 full refits -> 6/6 覆盖但区间约宽 5.2x -> 563 CPU tests -> Optimize contracts/gates unchanged`。Optimize 仍保留 trainable-W 对同预算 SLSQP 与 degree-4 Chebyshev 两项比较、bounded block-risk estimand，状态 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。

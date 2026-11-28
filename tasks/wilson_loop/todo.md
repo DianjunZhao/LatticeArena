@@ -1054,3 +1054,15 @@ Var(F_abs) ~= grad(F_abs)^T Cov(p) grad(F_abs)
 本结果取代上文“将 joint-fit stout-minus-identity 力与 effective-energy proxy 比覆盖”的下一步建议：当前 primary 是绝对 stout 力，proxy 的差值界不适用。若继续纯 CPU 方法研究，应冻结新 procedure 和独立 seeds，把统计误差与 model-truncation 分开；优先用对 primary force 的 full refit block bootstrap，并对可接受 2/3-state 谱族做单独 profile/envelope，再在至少 near-degenerate、weak ground-overlap、omitted vacuum 和 dependent/unequal-variance strata 同时报告 family coverage、宽度、拟合秩/条件数、failure/abstain 分母。不要靠截断 Gaussian 参数尾部、复用已看 panel、或只增拟合态数来宣称校准。若该 CPU screen 也失败，则停止方法扫描，等待带来源与独立审阅的 open-calibration exporter receipt。
 
 F lane 仍需生产 `C_ij`/source-sink/time-origin/边界/时序约定、匹配 `N_t=32` thermal/mixed q/h/x、绝对力与正 force-scale 独立区间、模型截断 envelope、误差预算、独立 review 与运行授权。C lane finite-`T` Creutz primary 不变。当前 Wilson 两 lane `NOT_READY/UNCERTIFIED`，F=`GROUND_STATE_FORCE_UNCERTIFIED`，`physical_score=null`，sealed data closed。
+
+### 2026-11-28 绝对 stout 力 full-refit moving-block bootstrap：小样本屏查
+
+继续检验上一节 delta undercoverage 后，新增[`full-refit MBB 屏查`](f_lane_absolute_force_bootstrap_20261128_v1/README.md)、[区间图](f_lane_absolute_force_bootstrap_20261128_v1/absolute_force_bootstrap.png)和[`f_lane_absolute_force_bootstrap_diagnostic.py`](f_lane_absolute_force_bootstrap_diagnostic.py)。每个 panel 使用 96 个有序 AR(1) block、`rho=0.5`、相对噪声 `0.003`、新 seed `2026113800 + panel_index`；主估计仍按 regularized full-covariance 2×2 GLS。每 panel 做 39 次长度 8 的 circular moving-block resample，每次完整重拟合 45 参数 GLS；任一 refit 失败就让整条 percentile interval 弃权，不删失败 draw。`B=39` 的 equal-tail 95% rank 是 `(1,39)`，所以该区间实际上是 bootstrap 极差，尾部极粗，明确只作方法筛查。
+
+结果：外层 panel/完整拟合 **6/6** 有效；bootstrap refit **234/234** 有效，失败/弃权 `0/0`；6 个 MBB 区间均有效。相同 outer panels 的 delta 正态区间覆盖 **3/6**，MBB 极差区间覆盖 **6/6**。MBB median width 为 `0.002600`，delta 为 `0.000498`（约 **5.2 倍**）；当前证据只能说明这个小样本 DGP 下更宽的重拟合区间包含 toy 真值，不能称为校准成功。该生成 truth 仍为 2-vacuum×3-static，而被拟合模型固定为 2×2；full refit 不能消掉遗漏态模型偏差，也没有覆盖更近简并/弱 overlap/遗漏 vacuum/异方差多 strata。
+
+测试与复现：bootstrap helper / hash-bound resample reader 测试 **4 passed**；报告保存六个 panel 的 raw matrices、234 条 bootstrap fit receipt、图、协议和源码快照；artifact hashes **28/28**、summary source hashes **9/9** 已核验。图中的 delta 区间大多很窄；MBB 极差区间明显较宽，六个都跨过 toy 真值。无真实 Wilson 输入、GEVP、sealed split、GPU 或 QUDA。
+
+本项把 full-refit bootstrap 从方法建议推进为有分母、图和原始 resample 结果的执行屏查，但没有闭合 statistical coverage。下一个纯 CPU 方法项应对当前**绝对力**做 2-state/3-state profile 或受约束谱包络，分离 bootstrap sampling width 与 omitted-state truncation envelope；至少在 near-degenerate、weak-ground-overlap、omitted-vacuum 和 dependent/unequal-variance strata 上用新 seeds 检查。不得把“6/6”或 `B=39` 极差当 95% 覆盖证明，也不把 q/h/x 参数抽样近似重新接到 primary force reader。
+
+生产 exporter/action convention、open calibration 授权、匹配 `N_t=32` thermal/mixed q/h/x、独立 force/reference 误差预算、模型截断 receipt 与 independent review 仍未提供；因此 F=`GROUND_STATE_FORCE_UNCERTIFIED`，Wilson 两 lane `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed data closed。
