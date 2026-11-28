@@ -2,7 +2,7 @@
 
 ### 当前 CPU 验证快照（2026-11-28）
 
-PR #6 当前 checkout 最新全仓 CPU suite 为 **588 passed in 78.37 s**，包含 C-lane 单次捕获/hash 竞态回归、D04 helper source-map 检查，以及 Wilson profile stratified screen、随机 Jacobian 与邻点 continuation 回归。定向 Wilson profile/continuation 四模块为 **12 passed in 1.14 s**。这只是 CPU 软件/合成诊断证据，未读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。较早的 Wilson 定向 195 passed 与 Optimize+Wilson 354 passed 是旧快照，不代表本次完整复跑。PR #5 Pion 最近记录的全仓 CPU suite 为 **275 passed in 3.75 s**；本轮未改 Pion task。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
+PR #6 当前 checkout 最新全仓 CPU suite 为 **600 passed in 89.08 s**，包含 Wilson 最大分量 phase chart、固定 operator-0 零 pivot 的解析 Jacobian 等价回归，以及此前的 C-lane capture/hash、D04 helper source-map、profile/continuation 回归。新增 chart 定向测试为 **6 passed in 1.08 s**。这只是 CPU 软件/合成诊断证据，未读取 Wilson 生产测量或 sealed split，也没有 GPU/QUDA 执行。PR #5 Pion TODO 最近记录其全仓 suite **349 passed**；本轮未改或重跑 PR #5。物理状态仍为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`。
 
 ### 2026-11-26 历史附件链接审计
 
@@ -1183,10 +1183,22 @@ F_abs = V0(R=3)-V0(R=2),  ΔR=1
 
 确定性 67 参数夹具实际用到三个 pivot，计数 `10/1/1`；重编码前后的模型向量最大差为 `1.11e-16`。解析 Jacobian 与中心差分的最大绝对 / 单位缩放差为 `5.03e-11`。单独的 `Z=(0,0.70+0.10i,-0.20+0.10i)` fixture 由新 chart 精确表达，而现有 operator-0 packer 按预期拒绝；全零向量也按预期拒绝。新增 [`test_wilson_f_lane_three_static_pivot_chart.py`](../../tests/test_wilson_f_lane_three_static_pivot_chart.py) **5 passed**；与 Optimize cost-ledger 数值边界的两组定向测试合计 **11 passed**。README 用文字流程记录结果；`artifact_hashes.json` 的 **2/2** 与 `source_hashes.json` 的 **4/4** 均按 SHA-256 复核匹配。
 
-这关闭的是参数表示对“第 0 算符分量恰为零”的软件盲点，不代表 profile optimizer 的完成率、覆盖率或物理污染界有所改善。它没有用于拟合、没有生成新的 panel，也没有输入 Wilson production/sealed data、GPU 或 QUDA。下一项可证伪检查应在看新结果前冻结 paired profile 规则，并仅使用 hash-verified 的现有开放 synthetic matrices 对照固定 operator-0 chart 与 pivot chart；同矩阵、协方差、force grid、starts、solver/call cap 和 acceptance criteria，完整报告 fit/cell 的 planned/valid/failed/abstained/clipped 分母及 interval containment。没有独立 overlap-floor、正力 reference、source/operator/time convention、thermal/mixed/truncation receipts 和 reviewer 前，两条 Wilson lane 仍 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`、sealed data closed。
+这关闭的是参数表示对“第 0 算符分量恰为零”的软件盲点，不代表 profile optimizer 的完成率、覆盖率或物理污染界有所改善。后续的 hash-verified point-fit screen 已于本文件末节完成；其冻结推进门限判定不进入 paired profile。没有独立 overlap-floor、正力 reference、source/operator/time convention、thermal/mixed/truncation receipts 和 reviewer 前，两条 Wilson lane 仍 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`、sealed data closed。
 
 ### 2026-11-28 全仓 CPU 回归：pivot chart 与成本边界修正后
 
-当前 PR #6 checkout 全仓 `python -m pytest -q tests` 为 **599 passed in 83.58 s**。本轮新增 Wilson pivot-chart 5 项与 Optimize cost-ledger overflow 2 项测试；同一测试文件集中的 4 项 cost-ledger 基础测试也首次进入这次全仓复跑。Wilson pivot chart 的 model/Jacobian 摘要、4/4 source hashes、2/2 artifact hashes 另见 [`f_lane_three_static_pivot_chart_20261128_v1/README.md`](f_lane_three_static_pivot_chart_20261128_v1/README.md)。`py_compile` 与 `git diff --check` 通过。
+该历史快照的 PR #6 checkout 全仓 `python -m pytest -q tests` 为 **599 passed in 83.58 s**。当时纳入 Wilson pivot-chart 5 项与 Optimize cost-ledger overflow 2 项测试；同一测试文件集中的 4 项 cost-ledger 基础测试也首次进入那次全仓复跑。Wilson pivot chart 的 model/Jacobian 摘要、4/4 source hashes、2/2 artifact hashes 另见 [`f_lane_three_static_pivot_chart_20261128_v1/README.md`](f_lane_three_static_pivot_chart_20261128_v1/README.md)。该次 `py_compile` 与 `git diff --check` 通过；更新后的当前 suite 为 600，见下一节。
 
 文字流程：`Wilson exact chart round-trip + zero-anchor support + Jacobian regression / Optimize finite-cost overflow negatives -> full CPU suite -> 599 passed -> source and artifact digests checked`。这只验证 CPU 软件路径与上述确定性夹具；没有读取 production/sealed measurements、没有运行 GPU/QUDA，也没有形成 Wilson force coverage、Optimize paired risk/cost、Pion anchor bridge 或 physical score。C finite-T Creutz、F ground-state force、Optimize 与 Pion 均维持既定 `NOT_READY/UNCERTIFIED` / `physical_score=null` 边界。
+
+### 2026-11-28 最大分量 chart 的配对点拟合 screen：profile 门限未通过
+
+先按 v1 固定协议尝试 12 panels × 3 starts × 2 charts，共 72 个有限差分拟合。进程运行约 23 分钟仍在第一个 fit，尚无任何完整结果；停止原因是计算代价，与拟合优劣无关，见 [`v1 execution status`](f_lane_pivot_chart_fit_comparison_20261128_v1/execution_status.json)。0 项拟合完成、无失败/弃权结果，部分进度未当作证据。为保持比较的物理统计条件，v2 只把两 chart 的数值差分 Jacobian 改为已有解析 Jacobian；panel、starts、objective、TRF、`x_scale='jac'`、`max_nfev=8000`、容差、rank-67 validity 和推进门限都保持一致。fixed operator-0 chart 等价于 largest-pivot map 所有 pivot index 为 0；解析 Jacobian 与中心差分以及同一 model 的数值等价关系已有回归验证。
+
+v2 的[图文报告](f_lane_pivot_chart_fit_comparison_20261128_v2/README.md)记录完整 planned denominator、每个起点的 solver calls、时间、rank、condition number、objective、force 与失败原因。结果为：panel initializer `12/12/0/0`，source capture `36/36/0/0`，fixed operator-0 `36/36/0/0`，largest-component pivot `36/32/4/0`（均为 planned/valid/failed/abstained）。分层 fixed / pivot 有效率分别是 baseline `9/9` 对 `9/9`、near-degenerate `9/9` 对 `9/9`、omitted-vacuum truth `9/9` 对 `6/9`、dependent/unequal-variance `9/9` 对 `8/9`。pivot 没有救回 fixed chart 的失效起点。32 个双方有效起点上的中位 `nfev+njev` 节省比例为 baseline `-456.0%`、near-degenerate `+32.5%`、omitted-vacuum `-136.7%`、dependent/unequal-variance `+21.5%`；负值代表 pivot 更慢。虽两个 strata 达到了 20% 节省条件，但 pivot 在另两个 strata 丢失有效起点，故预设的 profile gate 为 **不推进**。pivot 四个失败都达到 `nfev=8000` 上限、局部 Jacobian rank 仍为 `67/67`，condition number 约 `1.95e8–6.37e8`。这支持“当前坐标下迭代/条件数困难”的解释，不证明相位表示能力缺失。各 panel 两 chart 的 best-force 差异最大绝对值 `1.76e-5` lattice units，但仅是复用 synthetic data 上的点估计。
+
+![固定 operator-0 与 largest-component pivot 的配对拟合诊断](f_lane_pivot_chart_fit_comparison_20261128_v2/fit_comparison.png)
+
+文字流程：`12 个 open synthetic panels -> same covariance / initializer / 3 starts -> 两个 phase charts 与共同解析 Jacobian -> 每起点保留 status/calls/rank/condition/force -> 检查分层有效数与中位 evaluation savings -> 预设门限失败，停止 profile 比较`。v2 的 artifacts **9/9** 与 source snapshots **7/7** 匹配。新增解析 Jacobian 等价回归后，PR #6 全仓 CPU suite **600 passed in 89.08 s**，定向 chart tests **6 passed in 1.08 s**，`py_compile` 与 `git diff --check` 通过。此前 599 的结果作为历史快照保留；最新为 600。
+
+该 screen 是 point-fit feasibility 诊断，不估计 profile coverage、q/h/x 污染或物理力。不要在这组重复 panels 上继续 profile / seed / solver 扫描。若继续 CPU 方法研究，先冻结新的独立 exact-`Z_0=0` synthetic DGP、noise/covariance、initialization、bounds 与残差目标，再比较固定 chart 的贴边/表示残差和 pivot chart 的完整拟合分母；这用于检验该 chart 的目标用例，不得把现有 12 panels 改称确认样本。C finite-$T$ Creutz 与 F ground-state force 仍分轨，Wilson 为 `NOT_READY/UNCERTIFIED`、F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，sealed inputs closed。

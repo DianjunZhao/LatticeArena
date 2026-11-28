@@ -108,6 +108,29 @@ def test_pivot_chart_analytic_jacobian_matches_central_difference():
     np.testing.assert_allclose(analytic, numeric, rtol=2e-6, atol=2e-8)
 
 
+def test_fixed_operator_zero_chart_matches_zero_pivot_map_and_jacobian():
+    parameters = _current_parameters()
+    pivots = np.zeros((len(two_state.R_VALUES), current.VACUUM_STATES,
+                       current.STATIC_STATES), dtype=np.int64)
+    np.testing.assert_allclose(
+        pivot_chart.model_vectors(parameters, pivots),
+        current._model_vectors(parameters), rtol=2e-14, atol=2e-14,
+    )
+
+    analytic = pivot_chart.model_jacobian(parameters, pivots)
+    numeric = np.empty_like(analytic)
+    for index, value in enumerate(parameters):
+        step = 1e-6 * max(1.0, abs(float(value)))
+        plus, minus = parameters.copy(), parameters.copy()
+        plus[index] += step
+        minus[index] -= step
+        numeric[:, index] = (
+            current._model_vectors(plus).ravel()
+            - current._model_vectors(minus).ravel()
+        ) / (2.0 * step)
+    np.testing.assert_allclose(analytic, numeric, rtol=2e-6, atol=2e-8)
+
+
 def test_all_zero_transition_has_no_identifiable_phase_chart():
     with pytest.raises(ValueError, match="all-zero transition"):
         pivot_chart._pack_vector(np.zeros(3, dtype=np.complex128))

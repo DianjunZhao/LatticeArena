@@ -975,3 +975,7 @@ shared input-manifest + seed-plan hashes
 ### 2026-11-28 PR #6 全仓 CPU 回归：cost-ledger overflow 与 Wilson pivot chart 后
 
 本轮新增 paired cost ledger aggregate-overflow/ratio-overflow 两个负控，并将 5 项 Wilson largest-component phase-chart 方法检查纳入当前仓库；PR #6 全仓 `python -m pytest -q tests` 为 **599 passed in 83.58 s**。这是 CPU 软件兼容性回归，不是 D04 reference-fit calibration、D06 trainable-W/SLSQP/Chebyshev 风险或真实成本证据，也不提供 D11 SU(3) production review。`physical_score=null`，sealed inputs closed。Wilson 相位图详细结果见 [`../wilson_loop/f_lane_three_static_pivot_chart_20261128_v1/README.md`](../wilson_loop/f_lane_three_static_pivot_chart_20261128_v1/README.md)。
+
+### 2026-11-28 PR #6 cross-task regression after Wilson paired phase-chart fit screen
+
+Wilson added an analytic-Jacobian paired point-fit screen on 12 reused synthetic panels; the profile-advance gate did not pass because the largest-pivot chart lost valid starts in two strata. One regression also checks exact fixed-operator-0 / zero-pivot equivalence and its analytic Jacobian. The current full PR #6 CPU suite passes **600 tests in 89.08 s**; the focused Wilson chart file passes **6 tests in 1.08 s**. This adds no Optimize D04 reference fit, D06 paired trainable-W/SLSQP/Chebyshev risk or hardware cost, D11 production SU(3) review, or authorization. Optimize's two requested comparisons and bounded block-risk estimand are unchanged; status stays `NOT_READY/UNCERTIFIED`, `physical_score=null`, and sealed inputs closed.
