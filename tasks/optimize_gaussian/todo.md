@@ -948,3 +948,20 @@ Wilson retried 13 failed near-degenerate/omitted-vacuum oracle-floor cells using
 ### 2026-11-28 PR #6 cross-task regression after Wilson stationarity and dogbox comparison
 
 Wilson recomputed scaled projected gradients from 49 saved failed profile endpoints, then compared TRF and dogbox on the same six synthetic panels. Dogbox raised valid starts from 0/26 to 13/26 for cold starts and from 3/26 to 13/26 for neighbor starts, but complete profiles stayed 1/3 in near-degenerate and 0/3 in omitted-vacuum; the only interval still missed toy truth. The updated full PR #6 CPU suite passes **588 tests in 80.02 s**; both new diagnostic scripts compile and report artifact hashes verify. This is synthetic Wilson solver evidence only. It adds no Optimize D04 reference, D06 paired trainable-W/SLSQP/Chebyshev risk or cost evidence, D11 production operator review, or authorization. Optimize keeps both requested comparison arms and bounded block-risk estimand; status remains `NOT_READY/UNCERTIFIED`, `physical_score=null`, and sealed inputs closed.
+
+### 2026-11-28 paired D06 cost-ledger reducer
+
+为填补“未来三臂结果虽有 score reader、但 setup/training 与每块求解成本还没有统一账本”的软件缺口，新增 [`paired_cost_accounting.py`](paired_cost_accounting.py)，并把它纳入 no-launch RunSpec draft 的 SHA-256 dependency/snapshot map。账本要求 trainable-W、同预算 SLSQP、degree-4 Chebyshev 三臂共享一个 `input_manifest_sha256` 与 `seed_plan_sha256`；逐臂记录协议 hash、device、precision、thread count、software versions 与 clock policy；每臂都必须逐个覆盖冻结 `planned_block_ids`，状态保留 `valid/failed/abstained`，每个阶段记录 objective/gradient calls 与秒数。`setup/training` 等 shared costs 单独列出并完整计入单个 task-batch total；每块 `solve/inference/I/O/failure_recovery` 成本单独聚合，失败恢复仍计时，不把训练成本摊到未来未批准的多个任务。只有全部 planned block rows 存在且三臂环境字段相同，才给 full-batch walltime ratio；否则返回明确的 incomplete/environment/invalid abstention，ratio 置空。hash 字段只作格式校验，不认证签发身份、来源或物理有效性。
+
+文字流程：
+
+~~~text
+shared input-manifest + seed-plan hashes
+  -> trainable-W / same-budget SLSQP / degree-4 Chebyshev arm receipts
+  -> exact planned-block IDs + per-block valid/failed/abstained + calls/timing
+  -> matched device / precision / threads / software / clock policy
+  -> full setup + training + solve + inference + I/O + failure-recovery batch costs
+  -> complete & comparable: expose paired cost ratios; otherwise abstain with no ratio
+~~~
+
+四项新增 cost-ledger 测试覆盖完整批次（含失败臂成本和 shared training charge）、漏块弃权、运行环境不匹配、负时间/布尔调用数/重复 block ID 负控；no-launch draft 测试也确认新 reducer 被纳入源码快照。PR #6 当前 Optimize 专项 `python -m pytest -q tests/test_optimize*.py` 为 **203 passed in 53.46 s**；`py_compile` 与 `git diff --check` 通过。该项只提供严格汇总接口和 synthetic schema fixtures；没有运行真实 solver、读取 measurement/sealed 数据或测硬件成本。后续必须由实际 paired-results producer 从同一授权 snapshot 填入完整三臂账本，并同时交付 D04 E-reference、D06 risk/依赖 receipts、D11 SU(3) operator review 与必要授权。Optimize 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed inputs closed。

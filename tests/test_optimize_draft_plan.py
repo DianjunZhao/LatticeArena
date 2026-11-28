@@ -32,6 +32,8 @@ def test_selected_f2_contrasts_are_bound_to_fail_closed_no_launch_plan():
     assert "core/source_integrity.py" in plan["source_hashes"]
     assert "core/numerics.py" in plan["source_hashes"]
     assert "bounded_block_risk_markov.py" in plan["source_hashes"]
+    assert "paired_cost_accounting.py" in plan["source_hashes"]
+    assert any("paired_cost_accounting.py" in item for item in plan["text_flow"])
     assert "trainable_w.py" in plan["source_hashes"]
     assert "features.py" in plan["source_hashes"]
     assert "d04_raw_reference.py" in plan["source_hashes"]
@@ -39,6 +41,7 @@ def test_selected_f2_contrasts_are_bound_to_fail_closed_no_launch_plan():
     assert "core/evidence.py" in plan["source_hashes"]
     assert "core/receipts.py" in plan["source_hashes"]
     assert "an evaluator that generates paired outer block-bootstrap and inner D04 draws" in plan["not_established"]
+    assert "a complete comparable paired cost ledger with setup/training charged to the selected one-task batch" in plan["not_established"]
     assert "production D04/D11 summary generation from raw correlator/link inputs" in plan["not_established"]
     assert any("D04/D11 summary JSON" in item for item in plan["text_flow"])
     assert any("D04 raw E-chain snapshot reader" in item for item in plan["text_flow"])
@@ -69,6 +72,7 @@ def test_draft_report_copies_the_hashed_snapshot_reader_dependencies(tmp_path):
     assert "snapshot_evidence_adapter.py" in artifacts
     assert "snapshot_core_evidence.py" in artifacts
     assert "snapshot_core_receipts.py" in artifacts
+    assert "snapshot_paired_cost_accounting.py" in artifacts
     for source_name, expected in plan["source_hashes"].items():
         snapshot_name = f"snapshot_{source_name.replace('/', '_')}"
         assert snapshot_name in artifacts

@@ -24,7 +24,7 @@ from .candidate_contract import (
 
 ROOT = Path(__file__).resolve().parents[2]
 TASK_DIR = Path(__file__).resolve().parent
-DEFAULT_OUT = ROOT / "results/optimize_gaussian/draft_plan_20261127_v8"
+DEFAULT_OUT = ROOT / "results/optimize_gaussian/draft_plan_20261128_v9"
 CONTRACT_PATH = TASK_DIR / "research_contract_v1.json"
 
 
@@ -52,6 +52,7 @@ def _source_paths() -> dict[str, Path]:
         "source_reader.py": TASK_DIR / "source_reader.py",
         "bounded_block_risk.py": TASK_DIR / "bounded_block_risk.py",
         "bounded_block_risk_markov.py": TASK_DIR / "bounded_block_risk_markov.py",
+        "paired_cost_accounting.py": TASK_DIR / "paired_cost_accounting.py",
         "kernels.py": TASK_DIR / "kernels.py",
         "core/io.py": ROOT / "core/io.py",
         "core/evidence.py": ROOT / "core/evidence.py",
@@ -175,6 +176,7 @@ def build_plan() -> dict[str, Any]:
             "D04 raw E-chain snapshot reader -> PP/A4P folding + six joint-fit variants -> fit diagnostic only",
             "D04/D11 summary JSON -> strict same-snapshot parser/content digest; no physical fit or production-operator evaluator",
             "source_reader.py -> immutable D06 q-matrix bytes -> paired block scores with assigned-failure penalty",
+            "paired_cost_accounting.py -> same input/seed + environment checks -> shared setup/training and per-block cost totals; no measured ledger yet",
             "risk_statistics.py -> fail-closed D04/D06 array reducers; no draw generation or fitting",
             "no data hashes / no runner entrypoint / no authorization -> launch_allowed=false",
             "five physical certification stages remain abstained; physical_score=null",
@@ -184,6 +186,7 @@ def build_plan() -> dict[str, Any]:
             "D04 independent reference receipt or successful reference gate",
             "D11 independent production-operator review",
             "D06 paired outcomes, measured costs or complete failure denominator",
+            "a complete comparable paired cost ledger with setup/training charged to the selected one-task batch",
             "a train.main/training entrypoint in this checkout",
             "an evaluator that generates paired outer block-bootstrap and inner D04 draws",
             "production D04/D11 summary generation from raw correlator/link inputs",
@@ -221,7 +224,7 @@ The selected research contract is now represented in LatticeArena's generic `cor
 
 The generic `validation` range is explicitly limited to the already-open D60-D99 **development-selection** role. It is not final confirmation. Sealed roles are not included in the plan. The ranges are metadata only; no data bytes, manifests, anchor chain, gap, validation or holdout files were opened.
 
-Every dependency in the source hash map is copied into the report snapshot using the same source-path map, so the diagnostic has a one-to-one code/contract fingerprint and retained-source inventory. Snapshot bytes are checked against the plan hashes before the output directory is created. The map binds the selected trainable-W CPU parameterization and directional features as well as the D04 raw E-chain diagnostic reader, D04/D06 reducers, bounded-risk and Markov formulas, evidence adapter, snapshot reader, shared evidence gate, receipt/state models, source-integrity code, and `core/npz_safety.py`. The trainable-W implementation is still an isolated coefficient/operator prototype; its coefficient-MSE target is not the selected physical risk and it is not wired as the production training arm. The NPZ safety helper checks ZIP/NPY structure and the decompressed-byte budget before NumPy allocates arrays. The reducers use fixed selected constants, paired draw-ID checks, full planned denominators, no epsilon repair, and abstention on incomplete or invalid draws. The D06 reader consumes one explicitly captured calibration NPZ, checks its schema, split, ordered arms/times, and macroblock IDs, then derives the three-arm bounded score matrix; a declared optimizer failure receives the preselected loss 1 while remaining in the assigned-arm denominator. This CPU reader has no path fallback and rejects closed split names. The D04 raw reader consumes captured manifest/protocol/correlator bytes, applies fixed PP/A4P folding and six joint-fit variants, and emits fit diagnostics only; it does not generate dependence-aware uncertainty or a gate-ready reference summary. D04/D11 metadata adapters can parse their summary JSON directly from the same captured source snapshot, rejecting duplicate keys, non-finite JSON constants, mismatched caller summaries and stale canonical content digests. This only binds a summary object to captured bytes; it does not calculate a D11 production operator summary. None of these modules launches solvers or establishes macroblock independence.
+Every dependency in the source hash map is copied into the report snapshot using the same source-path map, so the diagnostic has a one-to-one code/contract fingerprint and retained-source inventory. Snapshot bytes are checked against the plan hashes before the output directory is created. The map binds the selected trainable-W CPU parameterization and directional features as well as the D04 raw E-chain diagnostic reader, D04/D06 reducers, bounded-risk and Markov formulas, paired-cost ledger, evidence adapter, snapshot reader, shared evidence gate, receipt/state models, source-integrity code, and `core/npz_safety.py`. The trainable-W implementation is still an isolated coefficient/operator prototype; its coefficient-MSE target is not the selected physical risk and it is not wired as the production training arm. The NPZ safety helper checks ZIP/NPY structure and the decompressed-byte budget before NumPy allocates arrays. The reducers use fixed selected constants, paired draw-ID checks, full planned denominators, no epsilon repair, and abstention on incomplete or invalid draws. The D06 reader consumes one explicitly captured calibration NPZ, checks its schema, split, ordered arms/times, and macroblock IDs, then derives the three-arm bounded score matrix; a declared optimizer failure receives the preselected loss 1 while remaining in the assigned-arm denominator. The paired-cost reader separately retains shared setup/training and per-block solve/inference/I/O/failure-recovery time, checks matched device/precision/thread/software/clock metadata, and withholds cost ratios if rows are missing or environments differ; it is only a schema-checked reducer and receives no measurement records in this draft. This CPU reader has no path fallback and rejects closed split names. The D04 raw reader consumes captured manifest/protocol/correlator bytes, applies fixed PP/A4P folding and six joint-fit variants, and emits fit diagnostics only; it does not generate dependence-aware uncertainty or a gate-ready reference summary. D04/D11 metadata adapters can parse their summary JSON directly from the same captured source snapshot, rejecting duplicate keys, non-finite JSON constants, mismatched caller summaries and stale canonical content digests. This only binds a summary object to captured bytes; it does not calculate a D11 production operator summary. None of these modules launches solvers or establishes macroblock independence.
 
 ## Text flow
 
@@ -229,6 +232,7 @@ Every dependency in the source hash map is copied into the report snapshot using
 selected contract + trainable-W prototype/features + reducer/reader/integrity/NPZ parser sources -> SHA-256 map and source snapshots
   -> generic TaskSpec (D0-D59 fit; D60-D99 development selection)
   -> D06 snapshot NPZ -> fixed arm/time/ID checks -> bounded paired block scores
+  -> paired cost receipt -> shared setup/training + per-block solve/inference/I/O/recovery -> compare only with a complete same-environment ledger
   -> D04 raw correlator snapshot -> PP/A4P fold + six fit variants -> diagnostic only
   -> D04/D11 captured JSON summary -> strict decode/content digest -> metadata gate only
   -> D04/D06 array reducers remain source-bound; production draw generation is not wired
