@@ -121,6 +121,7 @@ def test_two_sector_gls_reports_regularization_and_diagnostic_qhx_intervals(tmp_
     snapshot, _ = _make_snapshot(tmp_path)
     result = fit_two_sector_snapshot(
         snapshot, objective_mode="regularized_full_covariance",
+        return_uncertainty_state=True,
     )
 
     assert result["status"] == "two_sector_fit_candidate"
@@ -135,6 +136,14 @@ def test_two_sector_gls_reports_regularization_and_diagnostic_qhx_intervals(tmp_
     assert covariance["condition_number"] > 1.0
     assert contract["qhx_interval_coverage_calibrated"] is False
     assert "Bonferroni across 72" in contract["qhx_interval_method"]
+    uncertainty = result["parameter_uncertainty_state"]
+    assert uncertainty["schema"] == "wilson-two-sector-asymptotic-fit-covariance-v1"
+    assert np.asarray(uncertainty["parameter_estimate"]).shape == (45,)
+    covariance = np.asarray(uncertainty["parameter_covariance"])
+    assert covariance.shape == (45, 45)
+    assert np.allclose(covariance, covariance.T, atol=1e-10)
+    assert np.linalg.eigvalsh(covariance)[0] >= -1e-10
+    assert "not a calibrated" in uncertainty["interpretation"]
 
     assert result["qhx_denominator"] == {
         "planned": 24, "valid": 24, "failed": 0, "abstained": 0,

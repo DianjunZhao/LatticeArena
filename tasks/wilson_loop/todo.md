@@ -943,3 +943,26 @@ Wilson 的有限-$N_t$ Creutz toy 输入与 q/h/x→force-budget scalar 现复�
 图文诊断已经由 [`f_lane_two_sector_multistratum_screen_20261128_v1/README.md`](f_lane_two_sector_multistratum_screen_20261128_v1/README.md) 和 `screening_coverage.png` 给出：左侧 familywise 全部为 0/12，右侧按 panel 聚类的 q 点态覆盖在五格仅 `0.014–0.271`；S1/S2 的 q 失败、S3 的弱 overlap 重尾和 S4 的 h 退化均不能靠“fit valid / Jacobian full-rank”消除。停止当前确认跑可避免消耗 CPU 去精确估计一个已不具接受可能性的候选；不能据此调参或重用这 60 个 panels 为新 estimator 做最终校准。
 
 后续只接受**新冻结的 estimator/区间规则**和新的 disjoint calibration seeds；优先考虑把生产可审计的正谱 q 上界、`N_t=32` thermal/mixed h/x 上界、模型截断界与 statistical interval 作为分开的非负项合成 force envelope。若这些项不能由独立输入给上界，则保留 `GROUND_STATE_FORCE_UNCERTIFIED` 并 abstain；不以增加拟合态数、修改 shrinkage 或重复扫描旧 seeds 来伪造覆盖改善。C lane 的 finite-`T` Creutz primary 继续使用现有 `R=2,T=5, spatial_stout_rho0.10_n5` 合同，不与 F 的 ground-state force 合并；缺生产 loop/reference/污染 receipts 时 C 也不升级。F/C 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed inputs closed。
+
+### 2026-11-28 自批 Gaussian-parameter max-T 区间新 seed 筛查：候选 no-go
+
+按用户“继续、自行批准”的授权，我没有把先前已筛否的 delta-family 直接送入 5×606 确认跑，而是先冻结一个不同区间候选及独立 seed 段：对原 regularized full-covariance 2-vacuum×2-static GLS 的 45 维拟合参数，从 inverse-whitened-Jacobian Gaussian 近似抽取每 panel 2,048 次，将每次变换成 72 个 `q/h/x`，用 72 项单侧 studentized 最大偏差的经验 95% 分位构造 simultaneous upper；相同 panel 上以 finite-difference delta + Bonferroni-72 作基线。DGP、拟合态数、shrinkage、fit window 和决策阈值均固定，seed 使用 `2026113400+100*stratum_index+panel_index`，与此前两组筛查不重叠。任何一次参数抽样产生非法 `q/h/x` 都使整 panel 区间弃权，保留完整抽样分母，不截断或修补 Gaussian tails。
+
+运行产物为 [`f_lane_qhx_maxt_screen_20261128_v1/README.md`](f_lane_qhx_maxt_screen_20261128_v1/README.md)、[覆盖/区间宽度图](f_lane_qhx_maxt_screen_20261128_v1/coverage_and_width.png)、冻结的 [`protocol.json`](f_lane_qhx_maxt_screen_20261128_v1/protocol.json)、60 份 panel 原始 NPZ/manifest 和逐 panel `panel_result.json`。图文流程：`5 个冻结 DGP strata × 12 个新 seed -> 60 份 Hermitian 3×3 raw matrix -> 同一 full-covariance 2×2 GLS -> 72 格 delta 与 Gaussian-parameter max-T simultaneous uppers -> familywise 覆盖/宽度/弃权分母 -> 预设 no-go`。
+
+| Stratum | Fit valid | Delta familywise | Gaussian max-T familywise | max-T 区间有效 | max-T 全 panel 弃权 |
+|---|---:|---:|---:|---:|---:|
+| S1 omitted static/high overlap | 12/12 | 0/12 | 0/12 | 10/12 | 2 |
+| S2 near-degenerate static | 12/12 | 0/12 | 0/12 | 12/12 | 0 |
+| S3 weak operator ground overlap | 12/12 | 0/12 | 0/12 | 12/12 | 0 |
+| S4 omitted vacuum state | 12/12 | 0/12 | 0/12 | 11/12 | 1 |
+| S5 dependent/unequal-variance blocks | 12/12 | 0/12 | 0/12 | 9/12 | 3 |
+| **Total** | **60/60** | **0/60** | **0/60** | **54/60** | **6/60** |
+
+所有 4,320 个 synthetic `q/h/x` cell fit-valid；parameter-draw 分母为 `planned=122,880, valid=117,346, failed=5,534, abstained=0`。6 个弃权 panel 的共同原因类型是非法变换 (`ValueError`)；它们集中在 S1/S4/S5，符合 Gaussian 参数近似在 overlap/模型压力下给出不受约束尾部的风险。由于协议规定任一 draw 无效即整 panel 弃权，不能把剩余有效 draw 当作有效 interval。每一格两个方法都 0/12 familywise 成功；单格 0/12 的 Wilson 95% Monte Carlo 区间上限约 0.2425，仍不足以给出校准判断，但远低于 screen 的 10/12 继续门槛。故冻结规则给出 **`NO_GO_FOR_THIS_GAUSSIAN_PARAMETER_MAXT_CANDIDATE`**，不批准把该候选投入 5×606 确认样本。
+
+附图右侧的 median-of-stratum-median absolute upper widths（无量纲、只在 interval 有效格计算）是：`q` delta `9.26e-4` / max-T `9.37e-4`，`h` `1.85e-4` / `1.68e-4`，`x` `1.30e-5` / `2.80e-5`。这些是宽度比较，不是覆盖证据；尤其 max-T 的 `x` upper 更宽也没有改善 72/72 familywise containment。抽样协方差仍是局部渐近近似，不能抵消 omitted-state bias、弱 overlap、近简并、依赖 block covariance 估计误差或生产 exporter 约定错误。
+
+定向回归 **13 passed**（45 参数协方差/抽样、非法抽样全分母、protocol seed/strata 锁定、72 项索引顺序、Wilson 边界和零成功图的渲染）；本轮 PR #6 worktree 全仓 CPU suite **539 passed in 80.91 s**，脚本 `py_compile`、`git diff --check` 通过。报告含 201 项 artifact hashes、11/11 source snapshot hashes；报告图在修复 Wilson 零成功端点的浮点舍入后由 60 个已保存的原 `panel_result.json` 重建，`reassembly_note.json` 逐项绑定并复核 60/60 panel-result SHA-256，没有重跑或改写数据。此轮仍纯 synthetic CPU，真实 Wilson measurement `0/0/0/0`，F force 不产生任何 gate evidence。
+
+**后续方法工作：**不要通过截断 Gaussian tails 让当前候选“少弃权”，那会改变抽样分布且未经校准。若继续纯 CPU 方法研究，应新冻结一个 procedure 和另一组独立 seeds，优先比较 (a) 每个 block-resample 中完整重拟合的 dependence-aware bootstrap 区间；(b) 由 2-state/3-state 可接受谱族给出单独的 model-truncation envelope，再与 statistical upper 作保守合成；(c) 有边界约束的 profile/parametric bootstrap。记录每个 strata 的 72/72 containment、模型 GOF/秩/条件数、拟合与 transform 失败、弃权率和宽度。Omitted-state 覆盖必须由模型包络或显式高态输入处理，单纯改变参数协方差法不够。新方法只有在筛查阶段过预设门，才考虑另行审阅的 606×5 calibration；screen panel 不能再挪作确认数据。生产 C lane finite-`T` Creutz point 与 F lane ground-state force 保持分开，匹配 `N_t=32` raw `C_ij`、热/混合谱、positive reference force、污染/error budget、授权和独立 review 未齐之前，双 lane 仍 `NOT_READY/UNCERTIFIED`，F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`，sealed data closed。

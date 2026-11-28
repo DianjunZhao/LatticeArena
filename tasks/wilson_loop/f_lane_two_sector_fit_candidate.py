@@ -333,6 +333,7 @@ def fit_two_sector_snapshot(
     snapshot: SourceByteSnapshot, *, manifest_name: str = "manifest",
     matrix_name: str = "raw_matrices", contract_name: str = "lane_contract",
     objective_mode: str = "diagonal",
+    return_uncertainty_state: bool = False,
 ) -> dict[str, Any]:
     """Fit a 2-vacuum x 2-static trace to one captured raw-matrix snapshot.
 
@@ -341,9 +342,14 @@ def fit_two_sector_snapshot(
     block mean, applies fixed 25% diagonal shrinkage and a 1e-10 relative
     eigenvalue floor, and reports asymptotic delta intervals for q/h/x. Those
     intervals are diagnostic only and have no finite-sample coverage claim.
+    ``return_uncertainty_state`` exposes the fit-coordinate estimate and
+    inverse-whitened-Jacobian covariance for diagnostic interval research; it
+    does not turn that covariance into a calibrated confidence distribution.
     """
     if objective_mode not in {"diagonal", "regularized_full_covariance"}:
         raise ValueError("objective_mode must be diagonal or regularized_full_covariance")
+    if not isinstance(return_uncertainty_state, bool):
+        raise ValueError("return_uncertainty_state must be boolean")
     manifest, matrices = _validate_raw_snapshot(
         snapshot, manifest_name=manifest_name,
         matrix_name=matrix_name, contract_name=contract_name,
@@ -539,7 +545,7 @@ def fit_two_sector_snapshot(
             }
     denominator = {"planned": 1, "valid": 1 if full_rank else 0,
                    "failed": 0 if full_rank else 1, "abstained": 0}
-    return {
+    result = {
         "schema": FIT_RESULT_SCHEMA,
         "fit_schema": FIT_SCHEMA,
         "status": "two_sector_fit_candidate" if full_rank else "fit_rank_deficient",
@@ -605,3 +611,16 @@ def fit_two_sector_snapshot(
             "source-file hashes do not authenticate provenance, reviewer identity, or authorization",
         ],
     }
+    if return_uncertainty_state:
+        result["parameter_uncertainty_state"] = (
+            None if parameter_covariance is None else {
+                "schema": "wilson-two-sector-asymptotic-fit-covariance-v1",
+                "parameter_estimate": best.x.astype(float).tolist(),
+                "parameter_covariance": parameter_covariance.astype(float).tolist(),
+                "interpretation": (
+                    "inverse whitened-Jacobian information; diagnostic asymptotic approximation, "
+                    "not a calibrated finite-sample parameter distribution"
+                ),
+            }
+        )
+    return result
