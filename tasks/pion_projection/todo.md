@@ -798,3 +798,20 @@ t = [20*C*A*L + sqrt((20*C*A*L)^2 + 32*gamma_ps*V*L)] / (2*gamma_ps)
 nonstationary 项另按同一 v5 Proposition 3.15 Eq. (3.29) 处理：burn-in 后总变差 `delta` 使 tail probability 每个 comparison 至多增加 `delta`，因此代码把 `F*delta` 从 `alpha_score` 中扣掉；对 `[-1,1]` score 的初始分布期望偏移再扣 `2*delta`。这是双重保守的分配，不把一项当成另一项；`anchor_score_shift_bound` 仍单独扣除。target interval 覆盖则依赖外部 `alpha_anchor` receipt。setwise score 对 `m` 的导数绝对值不超过 `2/R`；最近网格点距离不超过最大网格间距 `h/2`，故统一下界减 `h/R`。覆盖和 family 数都在 2026-11-28 screen 的 exact-grid 修正中与 production builder 对齐。
 
 **内部审查结论：**公式常数、family tail factor、gap-only variance inflation、TV/anchor 各自的代价和 Lipschitz 网格罚项与代码实现一致；此前屏查 test 也发现并修正了 2 点/3 点网格差异。按用户授权，我把“公式本身仍待本 agent 审核”从本地未决项中关闭。该自审不是独立研究者 review，也不验证任何 receipt 的来源/授权/真实性；若要给物理解释或进入冻结 evaluator，仍必须另有真实 chain gap/TV、target-set coverage、anchor-to-E common-bias bridge、同一物理单位及候选盲 reference 证据。Pion 保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。
+
+### 2026-11-28 非可逆链与非平稳初态 TV 修正屏查
+
+在先前可逆、平稳二态屏查之外，新增 [`bounded_block_risk_nonreversible_tv_coverage_screen.py`](bounded_block_risk_nonreversible_tv_coverage_screen.py) 和独立报告 [`bounded_block_risk_nonreversible_tv_coverage_20261128_v1/README.md`](bounded_block_risk_nonreversible_tv_coverage_20261128_v1/README.md)。该 finite-state toy 用三态有向环转移 `P=0.5I+0.5C`：平稳分布均匀且 detailed balance 明确失败；非平凡本征值模长均为 `1/2`，故 normal-kernel pseudo-gap `max_k(1-(1/2)^(2k))/k = 3/4`。每条链从 state 0 出发，丢弃 8 次转移后取 16,384 个评分状态。burn-in 后初态总变差精确为 `1/384`，传给生产 reader 的值向上取一浮点 ulp；score helper 同时扣除 `3×TV` 的 family alpha 代价和 `2×TV` 的均值偏移。
+
+冻结 score 对比是 reference `(0,0.5,1)`、candidate `0.5`、共同 target interval `[0.45,0.55]`、`R=1`。在目标区间内，平稳风险差逐 target 恰为 `1/6`。用单一固定 seed `202611281709` 的独立伪随机行流生成 1,000 条 chain，共 16,384,000 个有效评分状态；失败/弃权 `0/0`。均匀 LCB 覆盖 `1000/1000`，Wilson 95% Monte Carlo interval `[0.99617,1]`；median LCB `0.04371`，positive-LCB `1000/1000`。这与前一可逆屏查结果构成不同转移算子/初态条件的补充图证，不将两份模拟混作独立物理重复。图在报告 [`coverage_and_sharpness.png`](bounded_block_risk_nonreversible_tv_coverage_20261128_v1/coverage_and_sharpness.png)；其左图给覆盖率与 Monte Carlo 区间，右图把 median LCB 和精确真值 `1/6` 对照。
+
+文字流程：
+
+~~~text
+固定 state 0 -> 8 次有向环 burn-in -> 精确 TV=1/384
+  -> 16,384 个 scored states -> production exact target grid (3 点)
+  -> pseudo-gap family bound + family×TV alpha 扣减 + 2×TV 均值罚项
+  -> h/R 连续区间覆盖罚项 -> interval-uniform LCB / 覆盖率图
+~~~
+
+三项新定向测试 **3 passed**；PR #5 当前完整 CPU suite **342 passed**；compile-only 检查与 `git diff --check` 通过。报告的 6/6 artifact hashes 与 6/6 source hashes 均复核一致。此屏查只支持：在这个已知 normal 非可逆有限态链、解析 pseudo-gap/TV 完全正确且目标集固定的条件下，生产 helper 的 TV 扣减路径数值上保守并有正下界；它不验证 HMC 链的 gap、TV、score schedule、target interval 选择、anchor coverage 或 anchor-to-E bridge，也不是独立统计 review。Pion 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed input closed。只有出现能改变方法决策的新依赖类别才继续合成屏查；下一实质门仍是获准的物理 target/anchor/common-bias/chain receipts 与独立 reviewer。
