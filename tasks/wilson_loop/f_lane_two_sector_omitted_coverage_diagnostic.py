@@ -20,7 +20,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.stats import t as student_t
+from scipy.stats import norm, t as student_t
 
 from core.source_integrity import capture_source_snapshot
 from tasks.wilson_loop import f_lane_finite_nt_trace_diagnostic as toy
@@ -164,7 +164,15 @@ def _truth_rows() -> list[dict[str, Any]]:
 def _wilson_interval(successes: int, total: int, alpha: float = 0.05):
     if total == 0:
         return [None, None]
-    z = 1.959963984540054
+    if not 0 < alpha < 1:
+        raise ValueError("alpha must be in (0, 1)")
+    z = float(norm.ppf(1 - alpha / 2))
+    if successes == 0:
+        upper = (z * z / total) / (1 + z * z / total)
+        return [0.0, float(upper)]
+    if successes == total:
+        lower = 1 / (1 + z * z / total)
+        return [float(lower), 1.0]
     p = successes / total
     denominator = 1 + z * z / total
     center = (p + z * z / (2 * total)) / denominator
@@ -288,6 +296,31 @@ def _plot(output: Path, rows: list[dict[str, Any]], panels: list[dict[str, Any]]
     fig.savefig(output / "repeated_panel_coverage.png", dpi=180)
     plt.close(fig)
 
+    force_rows = [row for row in panels if row.get("absolute_force_interval_valid")]
+    force_fig, force_axis = plt.subplots(figsize=(9, 4.8))
+    for row in force_rows:
+        panel = int(row["panel"])
+        estimate = float(row["absolute_force_estimate"])
+        lower = float(row["absolute_force_lower_95"])
+        upper = float(row["absolute_force_upper_95"])
+        force_axis.errorbar(
+            panel, estimate,
+            yerr=[[max(0.0, estimate - lower)], [max(0.0, upper - estimate)]],
+            fmt="o", color=("#3478bf" if row["absolute_force_interval_contains_truth"] else "#d62728"),
+            ecolor="#777777", capsize=3,
+        )
+    truth = float(panels[0]["absolute_force_truth"]) if panels else 0.0
+    force_axis.axhline(truth, color="black", linestyle="--", linewidth=1,
+                       label=f"exact toy truth = {truth:.6g}")
+    force_axis.set_xlabel("independent synthetic panel")
+    force_axis.set_ylabel(r"$a_t[E_0(R=3)-E_0(R=2)]$ per $\Delta R=1$")
+    force_axis.set_title("Absolute stout ground-force delta intervals")
+    force_axis.grid(alpha=0.2)
+    force_axis.legend(loc="best")
+    force_fig.tight_layout()
+    force_fig.savefig(output / "absolute_force_intervals.png", dpi=180)
+    plt.close(force_fig)
+
 
 def _artifact_hashes(output: Path):
     paths = sorted(path for path in output.rglob("*")
@@ -371,6 +404,19 @@ def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
                 )},
             })
         fit_ok = fit.get("denominator", {}).get("valid") == 1 and fit.get("fit_contract", {}).get("jacobian_rank") == 45
+        force_truth = float(toy.STATIC_ENERGIES[3][0] - toy.STATIC_ENERGIES[2][0])
+        force_diagnostic = fit.get("force_estimand_diagnostic") or {}
+        force_interval = force_diagnostic.get("absolute_stout_force_delta_interval") or {}
+        force_values = [force_interval.get(key) for key in
+                        ("estimate", "standard_error", "lower_95", "upper_95")]
+        force_interval_valid = bool(
+            fit_ok and all(value is not None and np.isfinite(value) for value in force_values)
+            and force_interval.get("finite_sample_coverage_calibrated") is False
+        )
+        force_estimate = force_interval.get("estimate") if force_interval_valid else None
+        force_lower = force_interval.get("lower_95") if force_interval_valid else None
+        force_upper = force_interval.get("upper_95") if force_interval_valid else None
+        force_contains = bool(force_interval_valid and force_lower <= force_truth <= force_upper)
         run_rows.append({
             "panel": panel_index, "seed": seed,
             "fit_status": fit.get("status"), "fit_valid": fit_ok,
@@ -380,6 +426,14 @@ def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
             "input_matrix_sha256": input_hashes["raw_matrices"],
             "qhx_fit_valid": fit.get("qhx_denominator", {}).get("valid", 0),
             "qhx_fit_failed": fit.get("qhx_denominator", {}).get("failed", 0),
+            "absolute_force_truth": force_truth,
+            "absolute_force_estimate": force_estimate,
+            "absolute_force_standard_error": (force_interval.get("standard_error")
+                                                if force_interval_valid else None),
+            "absolute_force_lower_95": force_lower,
+            "absolute_force_upper_95": force_upper,
+            "absolute_force_interval_contains_truth": force_contains,
+            "absolute_force_interval_valid": force_interval_valid,
         })
         by_key = {(row.get("R"), row.get("operator_index"), row.get("T"), row.get("N_t")): row
                   for row in fit.get("qhx_rows", [])}
@@ -438,6 +492,9 @@ def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
     pooled_total = len(cell_rows)
     family_success = sum(row["familywise_bonferroni72_contains"] for row in run_rows)
     fit_success = sum(row["fit_valid"] for row in run_rows)
+    force_rows = [row for row in run_rows if row["absolute_force_interval_valid"]]
+    force_success = sum(row["absolute_force_interval_contains_truth"] for row in force_rows)
+    force_truth = float(run_rows[0]["absolute_force_truth"])
     classification = str(report_metadata.get(
         "classification", "SYNTHETIC_REPEATED_PANEL_COVERAGE_UNDER_ONE_MISSPECIFIED_DGP"))
     truth_description = str(report_metadata.get(
@@ -446,7 +503,7 @@ def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
     seed_rule = str(report_metadata.get(
         "seed_rule", f"numpy default_rng({seed_base} + panel_index)"))
     summary = {
-        "schema": "wilson-f-two-sector-omitted-coverage-summary-v1",
+        "schema": "wilson-f-two-sector-omitted-coverage-summary-v2",
         "classification": classification,
         "physical_score": None, "certified": False,
         "f_lane_status": "GROUND_STATE_FORCE_UNCERTIFIED",
@@ -462,11 +519,12 @@ def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
         },
         "fit": {
             "model": fit_description,
-            "method": "regularized full-covariance GLS; q/h/x finite-difference delta normal uppers",
+            "method": "regularized full-covariance GLS; q/h/x finite-difference delta uppers and absolute-force asymptotic normal delta interval",
             "covariance_shrinkage": candidate.GLS_DIAGONAL_SHRINKAGE,
             "covariance_eigenvalue_floor_relative": candidate.GLS_EIGENVALUE_FLOOR_RELATIVE,
             "pointwise_one_sided_level": 0.975,
             "simultaneous_method": "one-sided Bonferroni over 72 q/h/x terms at family alpha 0.05",
+            "absolute_force_interval": "two-sided 95% normal delta interval from inverse whitened-Jacobian covariance; diagnostic and uncalibrated",
             "fit_parameter_count": 45,
             "interval_rule_frozen_across_panels": True,
         },
@@ -477,6 +535,11 @@ def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
                              "valid": sum(row["fit_cell_valid"] for row in cell_rows),
                              "failed": sum(not row["fit_cell_valid"] and row["fit_status"] not in ("two_sector_fit_candidate",) for row in cell_rows),
                              "abstained": sum(not row["fit_cell_valid"] and row["fit_status"] == "two_sector_fit_candidate" for row in cell_rows)},
+            "absolute_force_intervals": {
+                "planned": n_panels, "valid": len(force_rows),
+                "failed": n_panels - fit_success,
+                "abstained": fit_success - len(force_rows),
+            },
             "unique_panel_matrix_hashes": len({row["input_matrix_sha256"] for row in run_rows}),
         },
         "coverage": {
@@ -487,6 +550,19 @@ def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
                 "warning": "cells within a panel share the same fit and are correlated; use panel-cluster summaries for inference",
             },
             "pointwise_by_term": by_panel_term,
+            "absolute_stout_ground_force_normal_delta_95": {
+                "successes": force_success,
+                "valid_intervals": len(force_rows),
+                "planned_panels": n_panels,
+                "exact_toy_truth": force_truth,
+                "observed_containment": (force_success / len(force_rows) if force_rows else None),
+                "wilson95_over_valid_panels": _wilson_interval(force_success, len(force_rows)),
+                "median_interval_width": (float(np.median([
+                    row["absolute_force_upper_95"] - row["absolute_force_lower_95"]
+                    for row in force_rows
+                ])) if force_rows else None),
+                "warning": "one fixed synthetic omitted-state design only; this is screening evidence, not calibrated physical coverage",
+            },
             "average_pointwise_by_panel": {
                 "rate": float(np.mean([sum(row["pointwise_contains"] for row in cell_rows if row["panel"] == i) / 72 for i in range(n_panels)])),
                 "cluster_t95": _cluster_t_interval([
@@ -523,7 +599,7 @@ def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
         summary["open_gates"] = list(report_metadata["open_gates"])
     (out / "summary.json").write_bytes(_json_bytes(summary))
     protocol = {
-        "schema": "wilson-f-two-sector-omitted-coverage-protocol-v1",
+        "schema": "wilson-f-two-sector-omitted-coverage-protocol-v2",
         "classification": summary["classification"],
         "source_hashes": source_hashes,
         "generator": summary["generator"], "fit": summary["fit"],
@@ -554,20 +630,24 @@ def build(output: str | Path = DEFAULT_OUT, n_panels: int = DEFAULT_PANELS,
         f"- Fit denominator: `{fit_success}/{n_panels}` valid, `{n_panels-fit_success}` failed; q/h/x planned cells `{len(cell_rows)}`. Unique matrix hashes: `{summary['denominators']['unique_panel_matrix_hashes']}/{n_panels}`.",
         f"- Pointwise pooled descriptive containment: `{pooled_success}/{pooled_total} = {pooled_success/pooled_total:.3f}`; interpret with the panel-cluster term means and intervals in the summary because cells within a fit are correlated.",
         f"- Entire 72-term Bonferroni family contained in `{family_success}/{n_panels}` panels (`{family_success/n_panels:.3f}`), Wilson 95% MC interval `{summary['coverage']['familywise_bonferroni72']['wilson95']}`.",
+        f"- Absolute stout-force normal-delta interval: `{force_success}/{len(force_rows)}` valid panels contain exact toy truth `{force_truth:.6g}`; planned/valid/failed/abstained `{n_panels}/{len(force_rows)}/{n_panels-fit_success}/{fit_success-len(force_rows)}`; Wilson 95% Monte Carlo interval `{summary['coverage']['absolute_stout_ground_force_normal_delta_95']['wilson95_over_valid_panels']}`.",
+        "- The force interval uses the inverse whitened-Jacobian covariance and a two-sided normal delta approximation. It is included to expose estimator-specific behavior, not to claim finite-sample calibration.",
         "",
         "![Repeated panel bias and coverage](repeated_panel_coverage.png)",
+        "",
+        "![Absolute stout-force interval coverage](absolute_force_intervals.png)",
         "",
         "## Data flow",
         "",
         "```text",
-        "freeze scenario truth/noise + 2x2 fit + interval rule -> disjoint seed per panel -> write and hash raw matrix snapshot -> same GLS fit -> compare all 72 q/h/x upper bounds to exact scenario truth -> panel-cluster coverage and failure ledger -> physical F gate abstains",
+        "freeze scenario truth/noise + 2x2 fit + interval rules -> disjoint seed per panel -> write and hash raw matrix snapshot -> same GLS fit -> compare 72 q/h/x uppers and absolute-force normal interval with exact toy truth -> keep separate coverage/failure denominators -> physical F gate abstains",
         "```",
         "",
         "## Interpretation and limits",
         "",
         str(report_metadata.get("interpretation", "The repeated panels estimate coverage only for this fixed synthetic design and noise model. The number of independent panels is small for tight Monte Carlo conclusions; cells are clustered by panel and the familywise event is the independent-panel unit.")),
         "",
-        "The source/NPZ snapshots, fit-start ledger, panel/cell CSVs, protocol, PNG and hashes are retained; full parameter vectors are omitted because the raw inputs and derived coverage cells are sufficient to replay and inspect this diagnostic. Synthetic CPU screening does not validate physical source/exporter/thermal/mixed/force receipts. No GPU/QUDA or sealed data were used.",
+        "The source/NPZ snapshots, fit-start ledger, panel/cell CSVs, protocol, figures and hashes are retained; full parameter vectors are omitted because the raw inputs and derived coverage cells are sufficient to replay and inspect this diagnostic. Synthetic CPU screening does not validate physical source/exporter/thermal/mixed/force receipts. No GPU/QUDA or sealed data were used.",
     ]
     (out / "README.md").write_text("\n".join(readme) + "\n", encoding="utf-8")
     (out / "fit_results.json").unlink(missing_ok=True)

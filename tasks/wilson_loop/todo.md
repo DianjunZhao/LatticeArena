@@ -1034,3 +1034,23 @@ F_stout - F_identity = 0  # 由共享谱结构固定，不是数据检验结果
 定向 tests **73 passed**；本轮全仓 CPU tests **557 passed in 83.44 s**。没有读取 Wilson `C_ij`、GEVP、sealed split，没有申请或运行 GPU/QUDA；因此这次只修正软件合同和 synthetic 代数诊断。C lane 的有限-$T$ Creutz 保持不变，F=`GROUND_STATE_FORCE_UNCERTIFIED`、两 lane `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。
 
 **下一个可执行工作包：**(1) 在获准的 open calibration split 上，由生产 exporter 输出带 source/sink、time-origin、边界、smearing 与 `C_ij` 轴约定的 stout/identity `R=2,3; T=3…7; N_t=16,32` 矩阵，并提供可复核来源与 block 关联；(2) 独立校准 stout 绝对力 interval 与正 force-scale lower bound，保留每个 bootstrap draw 的失败和依赖来源，不能把 toy 的 30,000 draws 当覆盖证明；(3) 对 q 24 变体、匹配 `N_t=32` 的 h、mixed x、4 个 stout model-truncation cells 分别给经审阅的 upper bound 与哈希；(4) 在校准/盲化的独立样本上检验 identity 与 stout 力一致性、覆盖率和四角 force-unit 误差预算；(5) 另行取得独立 review、生产/GPU 资源和 confirmation 授权。缺任一项仍必须 abstain，不因 schema、fixture 或全套测试通过而升级物理状态。
+
+### 2026-11-28 绝对 stout 力区间的 joint-fit estimator bridge：遗漏态屏查未通过
+
+修正旧“stout-minus-identity 力”estimand 后，补上与当前主量一致的估计器级 CPU 检查。`f_lane_two_sector_fit_candidate.py` 现从 45 维 two-sector fit 参数中解析求得
+
+```text
+F_abs = E0(R=3) - E0(R=2),   Delta R = 1 spatial lattice step
+dF/dp = -sigmoid(p_E0,R2) e_R2 + sigmoid(p_E0,R3) e_R3
+Var(F_abs) ~= grad(F_abs)^T Cov(p) grad(F_abs)
+```
+
+并在 regularized full-covariance GLS 模式输出 inverse-whitened-Jacobian covariance 下的双侧 95% normal delta interval。解析梯度已用有限差分核验；定向回归 **17 passed**，当前全仓 CPU suite **559 passed in 81.39 s**。字段明确标为 asymptotic diagnostic、`finite_sample_coverage_calibrated=false`，不为 diagonal fit 凭空补 interval，也不产生 physical score。
+
+新 seed screen 见[图文报告](f_lane_absolute_force_coverage_20261128_v1/README.md)及[逐 panel 区间图](f_lane_absolute_force_coverage_20261128_v1/absolute_force_intervals.png)。冻结设置为 24 个独立 RNG panel、每 panel 96 blocks、相对噪声 0.003、2-vacuum×3-static 正谱 truth 拟合 2×2 模型、seed `2026113600 + panel_index`；toy 绝对力真值为 lattice-unit `a_t ΔE0=0.15`，`ΔR=1`。24/24 fit 与 interval 均有效，失败/弃权 `0/0`；只有 **4/24** 个 delta interval 覆盖真值，observed containment `0.1667`，valid-panel Wilson 95% MC interval `[0.0668,0.3585]`，median interval width `5.61e-4`。所以该 delta interval 在这个固定 omitted-static-state 设计下明显低估真实误差；不能把它接入 force summary reader，也不能把这 24 panel 当一般覆盖率证明。相同面板的 q/h/x 72-term Bonferroni 全族覆盖为 `0/24`；cell 相关，不能按 1,728 cells 当独立样本。
+
+图示含义：蓝点 interval 包含 exact toy truth，红点未包含；点的散布与极窄误差棒显示估计协方差不能吸收 omitted-state bias。报告保留拟合输入、panel hash、协议、逐 panel CSV、源码快照；artifact hashes **74/74**、source hashes **16/16** 验证通过。该 screen 是一套 DGP 的反例性诊断，既非生产数据也非完整校准，未访问 `C_ij`/GEVP/sealed split，未运行 GPU/QUDA。
+
+本结果取代上文“将 joint-fit stout-minus-identity 力与 effective-energy proxy 比覆盖”的下一步建议：当前 primary 是绝对 stout 力，proxy 的差值界不适用。若继续纯 CPU 方法研究，应冻结新 procedure 和独立 seeds，把统计误差与 model-truncation 分开；优先用对 primary force 的 full refit block bootstrap，并对可接受 2/3-state 谱族做单独 profile/envelope，再在至少 near-degenerate、weak ground-overlap、omitted vacuum 和 dependent/unequal-variance strata 同时报告 family coverage、宽度、拟合秩/条件数、failure/abstain 分母。不要靠截断 Gaussian 参数尾部、复用已看 panel、或只增拟合态数来宣称校准。若该 CPU screen 也失败，则停止方法扫描，等待带来源与独立审阅的 open-calibration exporter receipt。
+
+F lane 仍需生产 `C_ij`/source-sink/time-origin/边界/时序约定、匹配 `N_t=32` thermal/mixed q/h/x、绝对力与正 force-scale 独立区间、模型截断 envelope、误差预算、独立 review 与运行授权。C lane finite-`T` Creutz primary 不变。当前 Wilson 两 lane `NOT_READY/UNCERTIFIED`，F=`GROUND_STATE_FORCE_UNCERTIFIED`，`physical_score=null`，sealed data closed。

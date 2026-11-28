@@ -904,3 +904,7 @@ Wilson 新增条件正谱 effective-energy 区间、四角 `Qmax/Delta_min` bias
 PR #6 全仓 CPU suite **557 passed in 83.44 s**，包含 Wilson F-lane 将 primary 改为绝对 stout ground force、identity 改作 shared-spectrum consistency diagnostic、4 角主预算传播、schema-v3 summary reader 与 joint-fit output field 的回归。该变化没有修改 Optimize 的 D04 reference、D06 `r_star` 或学习型 smear / SLSQP / degree-4 Chebyshev 比较规则；该测试结果也不提供 Optimize 的 reference、solver-risk、预算差或 SU(3) 算符证据。
 
 文字流程：`Optimize 合同保持冻结 + Wilson estimand/schema 修正 -> 全仓 CPU regression -> 557 passed -> Optimize gates 仍需各自的研究证据`。Optimize 仍保留用户要求的两条比较臂与 bounded block-risk estimand，维持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed；不得把跨任务软件回归计作 Optimize gate closure。
+
+### 2026-11-28 跨任务回归：Wilson 绝对力 delta interval screen 后
+
+Wilson F-lane 新增绝对 ground-force 的解析 delta 梯度与未校准区间，并用 24 个独立 omitted-state synthetic panel 发现该近似仅 4/24 覆盖真值；图、输入/源码快照与 hashes 已保存在 [`f_lane_absolute_force_coverage_20261128_v1`](../wilson_loop/f_lane_absolute_force_coverage_20261128_v1/README.md)。本轮当前 PR #6 checkout 全仓 CPU suite **559 passed in 81.39 s**。文字流程：`新增 Wilson absolute-force diagnostic + 两项回归 -> 559 CPU tests passed -> Optimize contracts unchanged`。这只是跨任务软件兼容性和 Wilson synthetic 方法诊断，不产生 Optimize 的独立 E-reference、D06 配对 solver-risk/成本、SU(3) 算符审阅或生产授权证据。Optimize 仍保留 trainable-W 对同预算 SLSQP 和 degree-4 Chebyshev 两项比较、bounded block-risk estimand，状态 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。

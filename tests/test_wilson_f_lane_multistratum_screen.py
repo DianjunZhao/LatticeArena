@@ -82,3 +82,9 @@ def test_generator_rejects_invalid_ar1_and_scale_contracts():
         base._generate_matrices(1, {
             "model": "iid_gaussian", "scale_by_T": {"3": 0.0},
         })
+
+
+def test_wilson_monte_carlo_interval_handles_boundary_counts_exactly():
+    assert base._wilson_interval(0, 24)[0] == 0.0
+    assert base._wilson_interval(24, 24)[1] == 1.0
+    assert base._wilson_interval(0, 0) == [None, None]

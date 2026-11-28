@@ -156,6 +156,14 @@ def test_two_sector_gls_reports_regularization_and_diagnostic_qhx_intervals(tmp_
     assert np.linalg.eigvalsh(covariance)[0] >= -1e-10
     assert "not a calibrated" in uncertainty["interpretation"]
 
+    force = result["force_estimand_diagnostic"]
+    interval = force["absolute_stout_force_delta_interval"]
+    assert interval["estimate"] == pytest.approx(force["absolute_stout_force_from_shared_spectrum"])
+    assert interval["standard_error"] > 0.0
+    assert interval["lower_95"] < interval["estimate"] < interval["upper_95"]
+    assert interval["finite_sample_coverage_calibrated"] is False
+    assert interval["force_unit"] == "a_t_energy difference per one spatial lattice step (Delta R=1)"
+
     assert result["qhx_denominator"] == {
         "planned": 24, "valid": 24, "failed": 0, "abstained": 0,
     }
@@ -165,6 +173,31 @@ def test_two_sector_gls_reports_regularization_and_diagnostic_qhx_intervals(tmp_
             assert interval["delta_standard_error"] >= 0.0
             assert interval["upper_97_5_pointwise"] >= interval["estimate"]
             assert interval["upper_95_bonferroni_72"] >= interval["upper_97_5_pointwise"]
+
+
+def test_absolute_force_delta_gradient_matches_finite_difference():
+    parameters = np.zeros(45, dtype=float)
+    parameters[1] = -0.7
+    parameters[23] = 0.4
+    gradient = candidate._absolute_force_gradient(parameters)
+    step = 1e-6
+    for index in (1, 23):
+        plus = parameters.copy()
+        minus = parameters.copy()
+        plus[index] += step
+        minus[index] -= step
+        plus_static = candidate._decode(plus)[1]
+        minus_static = candidate._decode(minus)[1]
+        plus_force = plus_static[1, 0] - plus_static[0, 0]
+        minus_force = minus_static[1, 0] - minus_static[0, 0]
+        numerical = (plus_force - minus_force) / (2 * step)
+        assert gradient[index] == pytest.approx(numerical, rel=1e-8, abs=1e-9)
+    assert np.count_nonzero(gradient) == 2
+
+    parameters[1], parameters[23] = -1e308, 1e308
+    stable = candidate._absolute_force_gradient(parameters)
+    assert np.isfinite(stable).all()
+    assert stable[1] == 0.0 and stable[23] == 1.0
 
 
 def test_two_sector_fit_rejects_unknown_objective_mode(tmp_path):

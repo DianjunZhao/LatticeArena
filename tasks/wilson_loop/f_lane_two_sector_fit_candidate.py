@@ -15,6 +15,7 @@ from typing import Any
 import numpy as np
 from scipy.linalg import cholesky, solve_triangular
 from scipy.optimize import least_squares
+from scipy.special import expit
 from scipy.stats import norm
 
 from core.npz_safety import validate_npz_payload
@@ -134,6 +135,50 @@ def _decode(parameters: object) -> tuple[float, np.ndarray, np.ndarray]:
                 cursor += 5
     vacuum = np.asarray((0.0, epsilon), dtype=float)
     return epsilon, static, overlaps
+
+
+def _absolute_force_gradient(parameters: object) -> np.ndarray:
+    """Gradient of E0(R=3)-E0(R=2) in the unconstrained fit coordinates."""
+    p = np.asarray(parameters, dtype=float)
+    expected = 1 + len(R_VALUES) * (2 + VACUUM_STATES * STATIC_STATES * 5)
+    if p.shape != (expected,) or not np.isfinite(p).all():
+        raise ValueError(f"two-sector parameter vector must contain {expected} finite values")
+    cursor = 1
+    ground_indices = []
+    for _ in R_VALUES:
+        ground_indices.append(cursor)
+        cursor += 2 + VACUUM_STATES * STATIC_STATES * 5
+    gradient = np.zeros_like(p)
+    # The decoded ground energy is softplus(p[index]); d softplus / dx is sigmoid.
+    gradient[ground_indices[0]] = -float(expit(p[ground_indices[0]]))
+    gradient[ground_indices[1]] = float(expit(p[ground_indices[1]]))
+    return gradient
+
+
+def _absolute_force_delta_interval(parameters: object, covariance: object) -> dict[str, Any] | None:
+    """Asymptotic normal interval for the lattice-unit absolute force diagnostic."""
+    p = np.asarray(parameters, dtype=float)
+    cov = np.asarray(covariance, dtype=float)
+    if cov.shape != (p.size, p.size) or not np.isfinite(cov).all():
+        return None
+    gradient = _absolute_force_gradient(p)
+    variance = float(gradient @ cov @ gradient)
+    if not math.isfinite(variance) or variance <= 0:
+        return None
+    static = _decode(p)[1]
+    estimate = float(static[1, 0] - static[0, 0])
+    standard_error = math.sqrt(variance)
+    half_width = float(norm.ppf(0.975) * standard_error)
+    return {
+        "method": "two-sided 95% asymptotic normal delta interval",
+        "estimate": estimate,
+        "standard_error": standard_error,
+        "lower_95": estimate - half_width,
+        "upper_95": estimate + half_width,
+        "finite_sample_coverage_calibrated": False,
+        "covariance_method": "inverse whitened-Jacobian information; diagnostic only",
+        "force_unit": "a_t_energy difference per one spatial lattice step (Delta R=1)",
+    }
 
 
 def _matrix_vector(matrix: np.ndarray) -> np.ndarray:
@@ -544,6 +589,10 @@ def fit_two_sector_snapshot(
                 for offset, name in enumerate(("q", "h", "x"))
             }
     absolute_stout_force = float(static[1, 0] - static[0, 0])
+    absolute_force_interval = (
+        _absolute_force_delta_interval(best.x, parameter_covariance)
+        if parameter_covariance is not None else None
+    )
     denominator = {"planned": 1, "valid": 1 if full_rank else 0,
                    "failed": 0 if full_rank else 1, "abstained": 0}
     result = {
@@ -606,6 +655,7 @@ def fit_two_sector_snapshot(
             "primary_estimand": "absolute_stout_ground_state_discrete_static_force",
             "primary_formula": "U0_stout(R=3)-U0_stout(R=2)",
             "absolute_stout_force_from_shared_spectrum": absolute_stout_force,
+            "absolute_stout_force_delta_interval": absolute_force_interval,
             "identity_comparison_force_from_shared_spectrum": absolute_stout_force,
             "stout_minus_identity_ground_state_difference": 0.0,
             "identity_relation": "same shared static spectrum by construction, not an independent validation",
