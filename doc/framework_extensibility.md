@@ -292,13 +292,13 @@ synthetic positive metadata fixtures declare their opt-out. Optimize maps both b
 shared positive denominator to one bundle, while D04 and D11 retain separate
 stages. Wilson keeps C and F receipts in separate lane-specific states. The
 adapters advance only to `draft`; byte matching does not authenticate receipt
-authority or certify statistical/physical claims. Current PR #6 verification reports **21 passed** for the Optimize D06
+authority or certify statistical/physical claims. An earlier PR #6 revision recorded **21 passed** for the Optimize D06
 reader/adapter subset, **23 passed** for the Wilson force/q-reader subset,
 **90 passed** for all Wilson tests and **317 passed** for the full CPU suite.
 The Wilson force-summary v2 schema binds q/h/x row order to the canonical kernel
 IDs and column order to `(R,T)=(2,5),(2,6),(3,5),(3,6)`; reversal tests fail
 closed before q reconciliation.
-PR #5 reports **201 passed** for its Pion-specific suite and **257 passed** for
+An earlier PR #5 revision reported **201 passed** for its Pion-specific suite and **257 passed** for
 its full CPU suite. Snapshot fixtures use synthetic files only. No production
 receipt was supplied. Connecting real readers to snapshots, independent review
 of task checks, and numerical/physics evaluators remain future work.
@@ -421,6 +421,47 @@ Future adapters should add domain-specific parsers and review rules without
 treating a matching hash as authenticated evidence. A
 shared receipt-signature/trust-root layer could be considered after at least
 two tasks define compatible signer, authority, revocation and scope semantics.
+
+## Extension updates: 2026-11-28
+
+The latest task work adds three useful extension patterns while leaving the
+measurement and certification boundary task-owned:
+
+1. **Pion: propagate a common target set through a dependence-aware score bound.**
+   PR #5 adds an optional CPU helper that evaluates a finite target grid, applies
+   the support-only Markov Eq. (3.26) bound to the family `candidate comparisons
+   × grid points`, and subtracts an `h/R` cover penalty. The penalty follows
+   because the clipped score has slope at most `2/R` when candidate and
+   reference predictions lie in one frozen domain of width at most `R`.
+   This composes target-set uncertainty and score-chain uncertainty in a
+   conditional lower bound; it does not establish target-set coverage, chain
+   assumptions, anchor-to-E-reference correspondence, or receipt authority. The
+   helper remains outside Pion's frozen evaluator and TaskSpec dependency map.
+
+2. **Wilson C: adapt a legacy producer transaction without reopening paths.**
+   PR #6 adds a snapshot-only bridge from the archived NPZ, provenance, commit
+   marker, and HMC input manifest into the current C reader's in-memory schema.
+   It joins captured hashes, IDs, trajectories, gauge hashes, loop hashes,
+   stencil, kernel, action, boundary, and explicit calibration opt-in. The old
+   default producer protocol fails closed because its split, stencil, kernel,
+   and metadata do not satisfy the selected C contract. A synthetic positive
+   transaction demonstrates the conversion interface only; the adapter never
+   certifies a physical score or writes a converted file.
+
+3. **Optimize: keep estimator and solver family separate from the framework
+   gate.** The selected comparison family remains trainable-W versus same-budget
+   SLSQP and trainable-W versus fixed degree-4 Chebyshev. Existing snapshot
+   readers can parse D04/D06 diagnostic arrays and pass the same captured bytes
+   to their task gates, but the production RunSpec/evaluator and real paired
+   solver receipts are still absent. The shared gate records route metadata and
+   denominators; it does not launch or validate a solver.
+
+Latest branch-specific software checks recorded in the corresponding PR
+worktrees are **337 passed** for PR #5's full CPU suite and **532 passed** for
+PR #6's full CPU suite. These are separate checkout results and establish
+software behavior only. All task gates remain `NOT_READY/UNCERTIFIED`,
+`physical_score=null`, and sealed inputs closed until the required evidence,
+independent review, and authorization arrive.
 
 ## Extension note: keep producer semantics separate from consumer validation
 
