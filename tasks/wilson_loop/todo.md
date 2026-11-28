@@ -1076,3 +1076,19 @@ F lane 仍需生产 `C_ij`/source-sink/time-origin/边界/时序约定、匹配 
 12/12 个 envelope panel 有效，四组逐半径模型拟合各 24/24 full-rank；点跨度含真值 5/12，median span width `0.0013620` lattice units。该 `5/12` 是对点估计跨度的描述，不是区间覆盖。3-state matched-`N_t=32` 拟合 median mean reduced chi-square 为 `4.13`，2-state 为 `152.99`，显示该 toy 中删掉第三态会严重恶化谱拟合；但两种拟合的力点仍围绕 `0.15`，这不构成 truncation bound。图文/数据包保存逐 panel 原始矩阵、主拟合与各 R/state-count residual/秩/条件数、协议、源码快照；artifact hashes **40/40**、source hashes **10/10** 匹配（lane contract 以单份共享文件保存）。新增 helper 的定向测试 **4 passed**；完整 PR #6 suite 在后续跨任务回归记录。
 
 **方法裁决：**`Nt32 per-R` 2/3-state 点估计跨度不作为主力的 model envelope，也不接入 force summary reader。它没有 model 内统计不确定度，并且观测时间/真空态假设与主 `Nt=16,32`、2-vacuum joint estimator 不同；此外同一 omitted-state toy 仅 5/12 点跨度含真值。因此当前这个简化候选为 **NO-GO as a force uncertainty bound**。下一个纯 CPU 的实质工作是把第三静态态加入同一 finite-`Nt` two-vacuum primary forward model，先做单 panel noiseless identity、秩/可识别性与初始化负控，再决定是否开展新 seed screen；不再重复当前 `Nt32` 点跨度网格。生产 `C_ij`、thermal/mixed q/h/x、正 force-reference、独立 model-truncation/误差预算、授权与 review 仍缺，F=`GROUND_STATE_FORCE_UNCERTIFIED`、双 lane `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed data closed。
+
+### 2026-11-28 estimator-matched有限-$N_t$ 2-vacuum×3-static pilot
+
+为回应上一节“`N_t=32` 简化模型不能界定 full finite-`N_t` primary”的方法裁决，新加 [`f_lane_three_static_two_vacuum_candidate.py`](f_lane_three_static_two_vacuum_candidate.py)：在原 trace
+
+```text
+C_ij(R,T;Nt) = Z(Nt)^(-1) Σ_(m=0..1,n=0..2)
+               exp[-eps_m (Nt-T)] exp[-V_n(R)T] A_(mn,i) A*_(mn,j)
+F_abs = V0(R=3)-V0(R=2),  ΔR=1
+```
+
+中增加第三静态态，保持两真空态、`Nt={16,32}`、`T=3…7` 和同一绝对 stout 力 estimand。参数化用正 softplus 能量增量保持能级顺序，拟合全协方差 3×3 Hermitian 组件，3 组多起点全留存。另有单 panel [图文 pilot](f_lane_three_static_fit_pilot_20261128_v1/README.md)：96 blocks、seed `2026114101`、stationary AR(1) `rho=0.5`、相对噪声 `0.003`。
+
+图左的六个 2×3 static energies 与注入 truth 近重合；图右 current 2×2 primary point 为 `0.146195`，新 2-vacuum×3-static full finite-`Nt` point 为 `0.150716`，exact toy force `0.150000`。candidate local Jacobian **67/67 full-rank**、condition number `6.48e4`、reduced GLS objective `6.125`，3/3 起点均 full-rank，但最终 objective 横跨 `692.081…729.520`，说明至少有一支收敛到较差 basin。新模型的 force error 是 `7.16e-4` lattice units。无噪声 forward identity 的最大 component 差 `1.11e-16`；4 个聚焦测试覆盖公式 identity、参数维度/finite、能级顺序负控和主力梯度坐标。报告保留原始 NPZ、manifest、三组起点 receipt、fit 参数、图、源码与 hash；artifact **21/21**、source **11/11** 匹配。
+
+该 pilot 只表明同一 finite-`Nt` 公式下 3 静态态 fit 可运行并在一个 toy panel 局部满秩，不证明全局可识别、multi-start basin 搜索充分、有限样本覆盖或物理 model-truncation bound。inverse-Jacobian SE 未校准，candidate 没有接入 force summary reader。下一步在扩充种子前先做受控的初始化/近简并/弱 ground-overlap profile 负控，量化 rank、condition、truth bias 和每个 basin 的目标差；只有这些通过预设 screen 才跑多 strata sampling/calibration。Wilson 生产 exporter/action convention、thermal/mixed q/h/x、正 force reference、独立 truncation bound 与授权/review 仍未有；C/F=`NOT_READY/UNCERTIFIED`，F=`GROUND_STATE_FORCE_UNCERTIFIED`、`physical_score=null`、sealed data closed。

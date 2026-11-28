@@ -916,3 +916,7 @@ Wilson F-lane 新增 6 个 AR(1) omitted-state panel 的 absolute-force full-ref
 ### 2026-11-28 PR #6 cross-task regression after Wilson state-count sensitivity screen
 
 Wilson's 12-panel matched-`N_t=32` 2/3-static-state screen and four helper regressions were added while Optimize's contracts stayed frozen. The updated full PR #6 CPU suite passes **567 tests in 82.19 s**. This only checks software compatibility: it adds no D04 candidate-blind E-reference, D06 paired trainable-W/SLSQP/Chebyshev risk or cost evidence, D11 production SU(3) operator review, or authorization. Optimize remains `NOT_READY/UNCERTIFIED`, `physical_score=null`, sealed inputs closed.
+
+### 2026-11-28 PR #6 cross-task regression after estimator-matched three-state pilot
+
+Wilson's finite-`N_t` 2-vacuum × 3-static-state candidate, noiseless forward identity checks, one-panel synthetic fit report and four new focused tests leave Optimize contracts unchanged. The full PR #6 CPU suite now passes **571 tests in 84.00 s**. This is software compatibility only; it supplies no D04 E-reference, D06 paired solver risk/cost, D11 production operator review, or data/GPU authorization. Optimize remains `NOT_READY/UNCERTIFIED`, `physical_score=null`, and sealed inputs remain closed.
