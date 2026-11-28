@@ -837,7 +837,7 @@ source-map audit 发现 C-lane open-development generator 通过 `SourceByteSnap
 
 文字流程：`immutable JSON bytes -> finite numeric/schema checks -> per-variant log-sum-exp -> finite q upper -> derive selected corners`；超大 JSON 整数在拟合行或 alpha metadata 阶段进入原有 failed/abstained 计数，超范围 q 上界则进入 `q_cell planned=8, failed=1, abstained=7` 并整体 abstain。新增负控分别覆盖超大 ratio 整数、有限输入相加溢出与超大 alpha；Wilson 定向 reader/evidence/force 测试 **41 passed**。随后当前 PR #6 worktree 的完整 `python -m pytest -q tests` **464 passed in 76.45 s**，`git diff --check` 通过。此项仅关闭数值异常逃逸边界，不证明 q 上游区间 coverage、正谱假设、h/x、有限-$N_t$ 污染、model truncation 或 reference force；生产输入仍 `0/0/0/0`，F=`GROUND_STATE_FORCE_UNCERTIFIED`、双 lane `NOT_READY/UNCERTIFIED`、`physical_score=null` 不变。
 
-### 2026-11-28 F-lane 下一轮独立五 strata 筛查输入（自选冻结，尚未运行）
+### 2026-11-28 F-lane 下一轮独立五 strata 筛查输入（执行前冻结）
 
 上一节 `0/24` familywise 覆盖已足以否定“当前 2×2 delta 上界在这一遗漏静态态 DGP 下稳健”，但不能说明失败只由遗漏态造成，还是同时受 near-degeneracy、弱 overlap、遗漏 vacuum 或 block covariance 影响。为让下一轮有明确的新判别目标，我自行冻结下列**合成压力设置**；它们是算法压力参数，不是项目实测能谱或物理先验：
 
@@ -935,3 +935,11 @@ Wilson 的有限-$N_t$ Creutz toy 输入与 q/h/x→force-budget scalar 现复�
 定向回归覆盖 snapshot 后改写原路径仍读取 captured bytes、缺失/坏文件的完整 4 项分母、错误 commit hash、未 opt-in、旧默认 split、缺少 R stencil、错误 kernel、HMC trajectory 不匹配；共 **7 个 adapter tests passed**，与 C snapshot reader/evidence tests 合计 **26 passed**。本轮整仓 CPU suite **532 passed**，py_compile 与 git diff --check 通过。上述正控完全由临时 synthetic transaction 构造，没有读取真实 C calibration、sealed split、GPU 或 QUDA。
 
 **剩余 Wilson 工作：**adapter 的 software bridge 已完成，但真实 C-lane run 仍不能启用。下一步须先由 producer owner/reviewer 对 exporter 的 action、time/orientation、loop normalization、kernel bytes 和 calibration split 授权逐项签认；再由获准、非封存的 compatible transaction 提供四个 snapshot 输入及独立 dependence/coverage/review/authorization receipts，运行当前 reader 和八项 evidence gate。F lane 仍另需 matched-Nt=32 GEVP/thermal/mixed q/h/x、正 reference-force 下界和模型截断/误差预算。当前两个 lane 保持 NOT_READY/UNCERTIFIED、F=GROUND_STATE_FORCE_UNCERTIFIED、physical_score=null，sealed inputs closed。
+
+### 2026-11-28 自批停止当前 F-lane delta-family 的 606-panel 确认跑
+
+我按用户“自行批准、继续推进”的授权，基于已冻结的五-strata screen 做继续/停止决策。五格当前 2×2 GLS + finite-difference delta upper family 都是 `0/12` panel-level familywise successes；单格 95% one-sided Clopper–Pearson coverage 上限为 `1-0.05^(1/12)=0.2209`。若该 screen 的真实 familywise coverage 达到原确认设计的规划备择 `p=0.98`，观测到 `0/12` 的概率仅为 `0.02^12=4.096e-21`。因此**不批准**将 3,030 个 panels（5×606，旧计时估算约 3.48 h）用于确认这个已被 screen 强烈否定的同一 interval；`606` 与 `588/606` 门槛仍留作一个未来新候选方法的确认规则，不能再误读为本轮必须跑满的待办。这里是对当前 synthetic interval candidate 的 no-go，不是对物理 F estimator 或任何新方法的 coverage 结论。
+
+图文诊断已经由 [`f_lane_two_sector_multistratum_screen_20261128_v1/README.md`](f_lane_two_sector_multistratum_screen_20261128_v1/README.md) 和 `screening_coverage.png` 给出：左侧 familywise 全部为 0/12，右侧按 panel 聚类的 q 点态覆盖在五格仅 `0.014–0.271`；S1/S2 的 q 失败、S3 的弱 overlap 重尾和 S4 的 h 退化均不能靠“fit valid / Jacobian full-rank”消除。停止当前确认跑可避免消耗 CPU 去精确估计一个已不具接受可能性的候选；不能据此调参或重用这 60 个 panels 为新 estimator 做最终校准。
+
+后续只接受**新冻结的 estimator/区间规则**和新的 disjoint calibration seeds；优先考虑把生产可审计的正谱 q 上界、`N_t=32` thermal/mixed h/x 上界、模型截断界与 statistical interval 作为分开的非负项合成 force envelope。若这些项不能由独立输入给上界，则保留 `GROUND_STATE_FORCE_UNCERTIFIED` 并 abstain；不以增加拟合态数、修改 shrinkage 或重复扫描旧 seeds 来伪造覆盖改善。C lane 的 finite-`T` Creutz primary 继续使用现有 `R=2,T=5, spatial_stout_rho0.10_n5` 合同，不与 F 的 ground-state force 合并；缺生产 loop/reference/污染 receipts 时 C 也不升级。F/C 仍 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed inputs closed。

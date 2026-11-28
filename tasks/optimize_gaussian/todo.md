@@ -871,3 +871,13 @@ D11 strict numeric/source closure + D04/D06 frozen CPU contracts
 ~~~
 
 Optimize 继续保持 NOT_READY/UNCERTIFIED、physical_score=null；D04 E-reference/GOF independent review，D06 获准 paired solver 与 dependence receipts，D11 SU(3) source/operator review 和真实设备执行仍未闭合。
+
+### 2026-11-28 D04 bootstrap resolution 的自批运行预算
+
+我按用户“自行给出输入、自己批准”的要求，对现有 D04 synthetic screen 作出本地继续/停止决策，并冻结下一次新 calibration candidate 的 Monte Carlo 分辨率预算。当前屏查的 inner `B=39` 最小 rank p-value 是 `1/(B+1)=0.025`，因此不能检查 D04 合同中的 `p>=0.01` 边界，也不能产生有效的 1% size 结论；12 个 outer panels/stratum 的 1%/5% Wilson intervals 仅用于方向筛查。**不重跑同一 generator/seeds，也不把现有 60 panels 重新解释为确认性校准。**
+
+若之后另有预先冻结的新 DGP/seed plan、拟合规则和候选方法，inner bootstrap 固定 `B=999`（rank resolution `0.001`），避免 p 值网格本身压在 1% 门槛以上。按二项比例正态近似，真实 rejection rate `p=0.01` 时要让 95% Monte Carlo 半宽不超过 `0.005`，outer 独立 panels 至少需 `ceil(1.96² p(1-p)/0.005²)=1522`；我取整到 **2000 panels/stratum**，使 1% 率的近似半宽约 `0.0044`。同样精度若还要求 5% 率半宽 `0.005`，约需 **7299** panels/stratum；因此该 2000-panel 方案只把 1% tail 设为主要 MC 精度目标，5% 结果仍附精确区间且不作为同精度声明。
+
+按当前五个压力 strata、三种 bootstrap 方法计，新方案要约 `5×2000×3×999=29,970,000` 个内层拟合，未计 outer 拟合和失败；这是规划量而非已运行结果。现阶段**不批准**把该量直接投到当前 `B=39` 方法/模型上：先冻结并审计可进入下一轮的 null calibration protocol，再用新 seed 做小型无调参 pilot 估时；若仍无法解释 D04 reference-fit 的校准目标或资源，则停在 software/synthetic evidence，不开 GPU/QUDA、不读 sealed input。这里的本地自审和自批只决定试验预算与方法分流，不能替代独立统计 review、candidate-blind E-chain、PP/A4P source/sink 与依赖来源收据。
+
+文字流程：`现有 B=39 screen -> 1% p-resolution 不足 -> 冻结 B=999 / 2000 outer per stratum 的新候选预算 -> 显示约 29.97M inner fits 的成本 -> 只有候选方法/DGP/seed 再冻结后才测时和运行 -> 物理 D04 仍等独立 E-chain`。该决定不改动 D04 reference contract、D06 `r_star=10/9` 与 trainable-W 对 same-budget SLSQP / degree-4 Chebyshev 两条比较，也不升级 Optimize 的 `NOT_READY/UNCERTIFIED` 或 `physical_score=null`。
