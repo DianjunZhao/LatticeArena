@@ -783,4 +783,18 @@ uniform_LCB = max(-1, min_grid LCB(m_j) - h/R)
 
 文字数据流：`冻结二态 reversible transition 与 disjoint seeds -> exact-stationary starts -> 同一 prediction/target set 的 statewise bounded scores -> 生产 helper 的 exact grid / grid family / Eq. (3.26) radius / h/R cover -> 以解析 true mean 计覆盖与正 LCB -> coverage/sharpness 图`。初稿的向量化检查把目标区间误当两点网格；与生产 helper 对照时发现精确 float 网格实际有三点，随后改为直接复用 exact-rational grid builder，并相应增加同时比较数、重算 radius 与 cover penalty，最终报告是在修正后生成。报告保存协议、seed、逐链 CSV、summary、源码 SHA-256 和图；`tests/test_pion_bounded_block_risk_markov_coverage_screen.py` **2 passed**，其中一项逐链把向量化输出对照生产 setwise helper。PR #5 当前完整 CPU suite **339 passed in 4.81 s**，`py_compile`、`git diff --check` 通过；报告内 **6/6 artifact hashes** 与 **5/5 source hashes** 匹配。该屏查只证明一个简单二态 reversible model 的软件/条件表现；没有测 HMC、非平稳初始 law、实际 score schedule、target-set coverage 或 anchor bridge。Pion 继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`，sealed inputs closed。
 
-该结果支持保留集合值 bounded-risk 作诊断/部分识别的主路线，但不构成物理判决。继续工作优先级更新为：①用不依赖同一 score chain 的 anchor receipt 或有效 joint/conditional bound 证明目标集合覆盖；②从同一可审计物理量/单位给出 target interval 与预测域；③提供 score-specific block-chain `gamma_ps`、initial-TV 和失败分母证据；④独立复核 Eq. (3.26) 常数、alpha family 与 exact grid 插值推导；⑤仅当这些凭据获准且齐备后才评估 evaluator/TaskSpec 接入。任一步缺失都应输出区间或 `ABSTAIN`，不得将本屏查的随机种子、γ 或 LCB 写成项目物理证据。
+该结果支持保留集合值 bounded-risk 作诊断/部分识别的主路线，但不构成物理判决。继续工作优先级更新为：①用不依赖同一 score chain 的 anchor receipt 或有效 joint/conditional bound 证明目标集合覆盖；②从同一可审计物理量/单位给出 target interval 与预测域；③提供 score-specific block-chain `gamma_ps`、initial-TV 和失败分母证据；④Eq. (3.26) 常数、alpha family 与 exact grid 插值的本地自审已在下节完成，若用于发表或物理判决，再由独立 reviewer 复核；⑤仅当这些凭据获准且齐备后才评估 evaluator/TaskSpec 接入。任一步缺失都应输出区间或 `ABSTAIN`，不得将本屏查的随机种子、γ 或 LCB 写成项目物理证据。
+
+### 2026-11-28 按用户授权完成 setwise Markov 界的内部公式审查
+
+我自行逐项对照 [Paulin corrected arXiv v5, Theorem 3.11, Eq. (3.26), Proposition 3.15, Eq. (3.29)](https://arxiv.org/html/1212.2015v5)，并批准它继续作为**条件式 diagnostic helper** 使用。对一组 `F` 个预先固定的时变 score maps，记 `L=log(2F/alpha_score)`、`C=max_i ||f_i-E_pi f_i||_∞`、`V=Σ_i Var_pi(f_i)`、`A=M/k_ps`；从 Eq. (3.26) 反解得到 sum deviation radius
+
+```text
+t = [20*C*A*L + sqrt((20*C*A*L)^2 + 32*gamma_ps*V*L)] / (2*gamma_ps)
+```
+
+与 `time_varying_markov_radius(...)` 中 `linear=20*C*A*L`、`variance_term=8*L*V`、`sqrt(linear²+4*gamma_ps*variance_term)` 一致。归一分数在 `[-1,1]` 令 `C<=2`、`Var_pi(f_i)<=1`；gap-only 版本用 `k_ps<=ceil(1/gamma_lower)`，把每个 residue variance 保守膨胀到 `ceil(N/k_ps)`，从而 `M/k_ps=1`、`V<=N+ceil(1/gamma_lower)-1`。没有把 corrected preprint 的时变函数不等式误写成固定 `f` 版本，也没有把尚待收据支持的 `k_ps`/gap 当成估计量。
+
+nonstationary 项另按同一 v5 Proposition 3.15 Eq. (3.29) 处理：burn-in 后总变差 `delta` 使 tail probability 每个 comparison 至多增加 `delta`，因此代码把 `F*delta` 从 `alpha_score` 中扣掉；对 `[-1,1]` score 的初始分布期望偏移再扣 `2*delta`。这是双重保守的分配，不把一项当成另一项；`anchor_score_shift_bound` 仍单独扣除。target interval 覆盖则依赖外部 `alpha_anchor` receipt。setwise score 对 `m` 的导数绝对值不超过 `2/R`；最近网格点距离不超过最大网格间距 `h/2`，故统一下界减 `h/R`。覆盖和 family 数都在 2026-11-28 screen 的 exact-grid 修正中与 production builder 对齐。
+
+**内部审查结论：**公式常数、family tail factor、gap-only variance inflation、TV/anchor 各自的代价和 Lipschitz 网格罚项与代码实现一致；此前屏查 test 也发现并修正了 2 点/3 点网格差异。按用户授权，我把“公式本身仍待本 agent 审核”从本地未决项中关闭。该自审不是独立研究者 review，也不验证任何 receipt 的来源/授权/真实性；若要给物理解释或进入冻结 evaluator，仍必须另有真实 chain gap/TV、target-set coverage、anchor-to-E common-bias bridge、同一物理单位及候选盲 reference 证据。Pion 保持 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。
