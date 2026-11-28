@@ -924,3 +924,15 @@ Wilson's finite-`N_t` 2-vacuum × 3-static-state candidate, noiseless forward id
 ### 2026-11-28 PR #6 cross-task regression after three-state identifiability screen
 
 Wilson added a five-stratum deterministic synthetic identifiability screen and three generator-contract tests. Full PR #6 CPU suite passes **574 tests in 78.07 s**. The screen found a full-rank weak-ground-overlap fit whose force point is displaced by about 5.1% of toy truth; this is a Wilson model-sensitivity counterexample, not Optimize evidence. Optimize's D04/D06/D11 contracts remain unchanged and `NOT_READY/UNCERTIFIED`; no E-reference, paired risk/cost, production operator review, sealed input or GPU authorization was added.
+
+### 2026-11-28 PR #6 cross-task regression after conditional Wilson overlap-profile screen
+
+Wilson tested a local Gauss-Newton force profile under three hypothetical ground-overlap floors. Only 2/18 local grid points passed the nonlinear-fidelity screen, none of the three floor grids closed an interval, and absence of an independent floor receipt correctly abstained. The updated full PR #6 CPU suite passes **576 tests in 78.85 s**. This is a Wilson synthetic-method result only; Optimize receives no D04 reference, D06 paired solver-risk/cost, D11 production operator evidence, or authorization. Its two comparisons and bounded block-risk estimand remain unchanged, with `NOT_READY/UNCERTIFIED`, `physical_score=null`, and sealed data closed.
+
+### 2026-11-28 PR #6 cross-task regression after Wilson analytic-Jacobian profile pilot
+
+Wilson added an analytic Jacobian for the finite-`N_t` 2-vacuum × 3-static model and an exact-force nonlinear conditional profile. Its Jacobian matches central differences at `8.82e-12`; the one-panel nominal profile still excludes toy truth for floors 0 and 0.045, and the 0.075 case is grid-clipped. The full PR #6 CPU suite passes **578 tests in 76.96 s**. This adds no Optimize D04 reference, D06 paired risk/cost, D11 production operator evidence, or authorization; Optimize's comparisons, bounded block-risk estimand and `NOT_READY/UNCERTIFIED` state are unchanged.
+
+### 2026-11-28 PR #6 cross-task regression after six-panel Wilson profile screen
+
+Wilson's exact nonlinear force profile was screened over six fresh weak-overlap synthetic panels: 72/72 cells and 144/144 starts were valid, but empirical truth containment was 2/5 for no floor and 3/6 for an oracle toy floor of 0.045; Wilson 95% binomial intervals are broad, so the result is not calibrated. The updated full PR #6 CPU suite passes **582 tests in 76.52 s**. Optimize's D04/D06/D11 contracts and comparisons are unchanged; it gains no reference, paired-risk/cost, production operator or authorization evidence.
