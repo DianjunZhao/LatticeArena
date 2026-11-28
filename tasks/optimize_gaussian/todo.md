@@ -881,3 +881,9 @@ Optimize 继续保持 NOT_READY/UNCERTIFIED、physical_score=null；D04 E-refere
 按当前五个压力 strata、三种 bootstrap 方法计，新方案要约 `5×2000×3×999=29,970,000` 个内层拟合，未计 outer 拟合和失败；这是规划量而非已运行结果。现阶段**不批准**把该量直接投到当前 `B=39` 方法/模型上：先冻结并审计可进入下一轮的 null calibration protocol，再用新 seed 做小型无调参 pilot 估时；若仍无法解释 D04 reference-fit 的校准目标或资源，则停在 software/synthetic evidence，不开 GPU/QUDA、不读 sealed input。这里的本地自审和自批只决定试验预算与方法分流，不能替代独立统计 review、candidate-blind E-chain、PP/A4P source/sink 与依赖来源收据。
 
 文字流程：`现有 B=39 screen -> 1% p-resolution 不足 -> 冻结 B=999 / 2000 outer per stratum 的新候选预算 -> 显示约 29.97M inner fits 的成本 -> 只有候选方法/DGP/seed 再冻结后才测时和运行 -> 物理 D04 仍等独立 E-chain`。该决定不改动 D04 reference contract、D06 `r_star=10/9` 与 trainable-W 对 same-budget SLSQP / degree-4 Chebyshev 两条比较，也不升级 Optimize 的 `NOT_READY/UNCERTIFIED` 或 `physical_score=null`。
+
+### 2026-11-28 Optimize/Wilson 冻结报告哈希复核
+
+为核实本地待审 PR #6 所依据的既有诊断没有在连续迭代中被静默改写，我按每个报告自己的清单重新读取 D04 dependence screen 与 Wilson F 五-strata screen。D04 的 10/10 captured source snapshot、18/18 report artifacts 均匹配；Wilson 的 root manifest 264/264、S1–S5 各 16/16 captured sources 与 49/49 分层 artifacts 全部匹配，合计 **617/617**。文字流程：`冻结报告 manifests -> 读取每条声明路径的当前 bytes -> SHA-256 重算 -> 与保存的 digest 逐项比较 -> 617/617 matched`。该复核只证明当前 checkout 内快照和已保存文件与其 manifest 一致；它不证明 snapshot 是独立/获准的生产源，不重跑 DGP，不验证 chain 或 SU(3) physics，也不增加 D04 reference/Optimize baseline 或 Wilson force receipts。
+
+PR #6 当前 GitHub 状态仍为 OPEN，复核时 head `a06ecd91e3a83fc19b4ece6b2e66f82d6cde2f41`，没有 review 或 conversation comments。本轮在同一工作树执行 `PYTHONDONTWRITEBYTECODE=1 python -B -m pytest -q -p no:cacheprovider tests`，结果 **532 passed in 75.65 s**；这是当前源码的软件回归快照，不是 D04 校准、真实 E-reference、paired solver 或 Wilson force 的物理证据。不把该哈希检查或软件回归当作 gate closure。Optimize 仍保持两条用户要求的比较臂、bounded block-risk estimand、`NOT_READY/UNCERTIFIED`、`physical_score=null` 与 sealed data closed。
