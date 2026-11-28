@@ -887,3 +887,9 @@ Optimize 继续保持 NOT_READY/UNCERTIFIED、physical_score=null；D04 E-refere
 为核实本地待审 PR #6 所依据的既有诊断没有在连续迭代中被静默改写，我按每个报告自己的清单重新读取 D04 dependence screen 与 Wilson F 五-strata screen。D04 的 10/10 captured source snapshot、18/18 report artifacts 均匹配；Wilson 的 root manifest 264/264、S1–S5 各 16/16 captured sources 与 49/49 分层 artifacts 全部匹配，合计 **617/617**。文字流程：`冻结报告 manifests -> 读取每条声明路径的当前 bytes -> SHA-256 重算 -> 与保存的 digest 逐项比较 -> 617/617 matched`。该复核只证明当前 checkout 内快照和已保存文件与其 manifest 一致；它不证明 snapshot 是独立/获准的生产源，不重跑 DGP，不验证 chain 或 SU(3) physics，也不增加 D04 reference/Optimize baseline 或 Wilson force receipts。
 
 PR #6 当前 GitHub 状态仍为 OPEN，复核时 head `a06ecd91e3a83fc19b4ece6b2e66f82d6cde2f41`，没有 review 或 conversation comments。本轮在同一工作树执行 `PYTHONDONTWRITEBYTECODE=1 python -B -m pytest -q -p no:cacheprovider tests`，结果 **532 passed in 75.65 s**；这是当前源码的软件回归快照，不是 D04 校准、真实 E-reference、paired solver 或 Wilson force 的物理证据。不把该哈希检查或软件回归当作 gate closure。Optimize 仍保持两条用户要求的比较臂、bounded block-risk estimand、`NOT_READY/UNCERTIFIED`、`physical_score=null` 与 sealed data closed。
+
+### 2026-11-28 PR #6 跨任务 CPU 回归：有限时间基态力反例后
+
+在 Wilson F-lane 新增正谱有限时间非唯一性构造后，重新运行当前 PR #6 全仓 CPU suite：**542 passed in 76.95 s**。这比上一节的 532 项多了 3 项 Wilson 定向测试；Optimize 的 solver / D04 / D06 / D11 实现与合同保持原样。新 Wilson 报告只证明正谱有限矩可有不同 ground force，不产生任何 Optimize 的 reference、solver-risk、成本或 GPU 证据。
+
+文字流程：`Optimize 双比较臂与 D04/D06/D11 合同 + Wilson finite-time positive-spectrum witness -> 全仓 CPU regression -> 542 passed -> 仍需独立 E-reference、获准 paired solver receipt、SU(3) 生产算符 review`。因此此项只更新软件兼容性快照；Optimize 三个 gate 继续 `NOT_READY/UNCERTIFIED`、`physical_score=null`、sealed inputs closed。下一步若没有开放的 Optimize development package，不重复 CPU toy labels 或旧 seeds，也不以这次跨任务回归宣称研究完成。
