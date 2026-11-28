@@ -17,4 +17,11 @@ Neighbor continuation recovered 3 cells; continuation starts valid **3/26**. The
 
 Containment uses complete, unclipped intervals only; `NA` means no eligible interval. The panel count is three per stratum, so binomial intervals are descriptive and very wide. The force grid and nominal `Δobjective<=3.84` rule remain uncalibrated.
 
-All raw matrices and cold receipts were reused after checking their source report's artifact hashes and capturing one immutable byte snapshot per panel. A post-run import-closure audit added the three unchanged runtime dependency sources to `source_snapshot/`; `protocol.json` records this audit, while the saved execution-script snapshot remains the exact code used for the run. No new RNG panels, production Wilson matrices, sealed inputs, GPU or QUDA were used. The physical reader still returns `ABSTAIN_NO_INDEPENDENT_OVERLAP_FLOOR`; both lanes remain `NOT_READY/UNCERTIFIED`, F=`GROUND_STATE_FORCE_UNCERTIFIED`, and `physical_score=null`.
+### Failure anatomy from saved attempts
+
+| Attempt set | Invalid starts | Reached `max_nfev=1600` | Local Jacobian rank 66/66 | Condition number, median / maximum | Ground-overlap floor slack, minimum / maximum |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Cold-invalid cells | 26 | 26 | 26 | `6.43e6 / 1.10e10` | `0 / 0.132` |
+| Failed neighbor retries | 23 | 23 | 23 | `1.76e6 / 1.10e10` | `0 / 0.132` |
+
+This is a read-only summary of stored per-start receipts, not another fit run. All failed attempts hit the evaluation cap while retaining full local numerical rank; this points to convergence/conditioning difficulty in these saved cells, not a demonstrated rank deficiency. Full local rank does not establish global identifiability. Zero floor slack means at least one fitted ground overlap sat on the imposed toy bound.
